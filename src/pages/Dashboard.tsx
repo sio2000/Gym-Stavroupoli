@@ -34,7 +34,11 @@ const StatCard: React.FC<{
   index?: number;
 }> = ({ name, value, icon: Icon, color, bgColor, trend, trendColor = 'text-green-600', index = 0 }) => (
   <div
+<<<<<<< HEAD
     className="group relative overflow-hidden bg-white rounded-xl sm:rounded-3xl shadow-lg hover:shadow-xl sm:hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-blue-200 hover:-translate-y-1 hover:scale-105 mobile-gpu-accelerated mobile-smooth-transitions"
+=======
+    className="group relative overflow-hidden bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-blue-200 hover:-translate-y-1 hover:scale-105"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
     style={{ 
       animationDelay: `${index * 100}ms`,
       animation: 'fadeInUp 0.6s ease-out forwards',
@@ -44,6 +48,7 @@ const StatCard: React.FC<{
     <div 
       className="absolute inset-0 bg-gradient-to-br from-white via-blue-50/30 to-blue-100/50 opacity-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110"
     />
+<<<<<<< HEAD
     <div className="relative p-3 sm:p-6">
       <div className="flex items-center justify-between mb-2 sm:mb-4">
         <div 
@@ -54,14 +59,31 @@ const StatCard: React.FC<{
         {trend && (
           <span 
             className={`text-xs font-semibold px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 ${trendColor} shadow-sm group-hover:scale-105 transition-transform duration-300`}
+=======
+    <div className="relative p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div 
+          className={`p-4 rounded-2xl ${bgColor} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg`}
+        >
+          <Icon className={`h-6 w-6 ${color}`} />
+        </div>
+        {trend && (
+          <span 
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 ${trendColor} shadow-sm group-hover:scale-105 transition-transform duration-300`}
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
           >
             {trend}
           </span>
         )}
       </div>
       <div>
+<<<<<<< HEAD
         <p className="text-xs sm:text-sm font-semibold text-gray-600 mb-1 sm:mb-2 tracking-wide">{name}</p>
         <p className="text-xl sm:text-3xl font-bold text-gray-900 group-hover:scale-105 transition-transform duration-300">
+=======
+        <p className="text-sm font-semibold text-gray-600 mb-2 tracking-wide">{name}</p>
+        <p className="text-3xl font-bold text-gray-900 group-hover:scale-105 transition-transform duration-300">
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
           {value}
         </p>
       </div>
@@ -82,16 +104,26 @@ const ProgressBar: React.FC<{
   
   return (
     <div 
+<<<<<<< HEAD
       className="space-y-2 sm:space-y-4 p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl sm:rounded-2xl border border-gray-100 hover:shadow-lg transition-all duration-300 mobile-card mobile-smooth-transitions"
+=======
+      className="space-y-4 p-4 bg-gradient-to-r from-gray-50 to-white rounded-2xl border border-gray-100 hover:shadow-lg transition-all duration-300"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
       style={{
         animation: 'fadeInScale 0.5s ease-out forwards',
         opacity: 0
       }}
     >
       <div className="flex justify-between items-center">
+<<<<<<< HEAD
         <span className="text-xs sm:text-sm font-bold text-gray-800 tracking-wide">{label}</span>
         <span 
           className="text-xs sm:text-sm font-semibold text-gray-600 bg-white px-2 sm:px-3 py-1 rounded-full shadow-sm"
+=======
+        <span className="text-sm font-bold text-gray-800 tracking-wide">{label}</span>
+        <span 
+          className="text-sm font-semibold text-gray-600 bg-white px-3 py-1 rounded-full shadow-sm"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
           style={{
             animation: 'slideInRight 0.6s ease-out 0.2s forwards',
             opacity: 0,
@@ -102,9 +134,15 @@ const ProgressBar: React.FC<{
         </span>
       </div>
       <div className="relative">
+<<<<<<< HEAD
         <div className="w-full bg-gray-200 rounded-full h-2 sm:h-4 overflow-hidden shadow-inner">
           <div 
             className={`h-2 sm:h-4 rounded-full ${bgColor} shadow-lg transition-all duration-1000 ease-out`}
+=======
+        <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
+          <div 
+            className={`h-4 rounded-full ${bgColor} shadow-lg transition-all duration-1000 ease-out`}
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
             style={{ 
               width: `${percentage}%`,
               ['--progress-width' as any]: `${percentage}%`,
@@ -114,16 +152,26 @@ const ProgressBar: React.FC<{
         </div>
         {showPercentage && (
           <div 
+<<<<<<< HEAD
             className="flex justify-between text-xs font-semibold text-gray-600 mt-2 sm:mt-3"
+=======
+            className="flex justify-between text-xs font-semibold text-gray-600 mt-3"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
             style={{
               animation: 'fadeInUp 0.6s ease-out 0.5s forwards',
               opacity: 0,
               transform: 'translateY(10px)'
             }}
           >
+<<<<<<< HEAD
             <span className="bg-gray-100 px-1 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs">Στόχος: {target} {unit}</span>
             <span 
               className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full ${color} bg-opacity-10 animate-pulse text-xs`}
+=======
+            <span className="bg-gray-100 px-2 py-1 rounded-full">Στόχος: {target} {unit}</span>
+            <span 
+              className={`px-3 py-1 rounded-full ${color} bg-opacity-10 animate-pulse`}
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
             >
               {percentage.toFixed(1)}% προόδου
             </span>
@@ -1006,27 +1054,45 @@ const Dashboard: React.FC = () => {
       
       <div 
         key={refreshKey} 
+<<<<<<< HEAD
         className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 mobile-smooth-scroll"
+=======
+        className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
         style={{
           animation: 'fadeInUp 0.8s ease-out forwards',
           opacity: 0
         }}
       >
+<<<<<<< HEAD
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
         {/* Modern Header - Mobile Optimized */}
         <div 
           className="mb-6 sm:mb-12"
+=======
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Modern Header */}
+        <div 
+          className="mb-12"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
           style={{
             animation: 'fadeInUp 0.8s ease-out forwards',
             opacity: 0
           }}
         >
           <div 
+<<<<<<< HEAD
             className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-blue-100 p-4 sm:p-8 mb-4 sm:mb-6 hover:shadow-3xl hover:-translate-y-1 transition-all duration-500"
           >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div
                 className="w-full sm:w-auto"
+=======
+            className="bg-white rounded-3xl shadow-2xl border border-blue-100 p-8 mb-6 hover:shadow-3xl hover:-translate-y-1 transition-all duration-500"
+          >
+            <div className="flex items-center justify-between">
+              <div
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                 style={{
                   animation: 'slideInLeft 0.8s ease-out 0.3s forwards',
                   opacity: 0,
@@ -1034,7 +1100,11 @@ const Dashboard: React.FC = () => {
                 }}
               >
                 <h1 
+<<<<<<< HEAD
                   className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 sm:mb-3"
+=======
+                  className="text-4xl font-bold text-gray-900 mb-3"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                   style={{
                     animation: 'fadeInUp 0.8s ease-out 0.4s forwards',
                     opacity: 0,
@@ -1043,27 +1113,45 @@ const Dashboard: React.FC = () => {
                 >
                   Καλώς ήρθες, {user?.firstName || user?.email?.split('@')[0] || 'Χρήστη'}! 
                   <span
+<<<<<<< HEAD
                     className="ml-2 sm:ml-3 animate-bounce"
+=======
+                    className="ml-3 animate-bounce"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                     style={{
                       animation: 'bounce 2s infinite 3s'
                     }}
                   >
                     👋
                   </span>
+<<<<<<< HEAD
                 </h1>
                 <p 
                   className="text-sm sm:text-xl text-gray-600 font-medium"
+=======
+        </h1>
+                <p 
+                  className="text-xl text-gray-600 font-medium"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                   style={{
                     animation: 'fadeInUp 0.8s ease-out 0.5s forwards',
                     opacity: 0,
                     transform: 'translateY(20px)'
                   }}
                 >
+<<<<<<< HEAD
                   Εδώ είναι η επισκόπηση της δραστηριότητάς σου στο FreeGym
                 </p>
               </div>
               <div 
                 className="mt-4 sm:mt-0 sm:block"
+=======
+          Εδώ είναι η επισκόπηση της δραστηριότητάς σου στο FreeGym
+        </p>
+      </div>
+              <div 
+                className="hidden md:block"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                 style={{
                   animation: 'slideInRight 0.8s ease-out 0.6s forwards',
                   opacity: 0,
@@ -1071,7 +1159,11 @@ const Dashboard: React.FC = () => {
                 }}
               >
                 <div 
+<<<<<<< HEAD
                   className="p-4 sm:p-6 bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 rounded-2xl sm:rounded-3xl text-white text-center shadow-xl hover:scale-105 hover:rotate-1 transition-all duration-300"
+=======
+                  className="p-6 bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 rounded-3xl text-white text-center shadow-xl hover:scale-105 hover:rotate-1 transition-all duration-300"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                 >
                   <div
                     className="animate-pulse"
@@ -1079,6 +1171,7 @@ const Dashboard: React.FC = () => {
                       animation: 'bounce 2s infinite'
                     }}
                   >
+<<<<<<< HEAD
                     <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2" />
                   </div>
                   <p className="text-lg sm:text-xl font-bold">Έτοιμος για μια νέα μέρα προπόνησης!</p>
@@ -1088,14 +1181,32 @@ const Dashboard: React.FC = () => {
                     Καλή πρόοδος! 💪
                   </p>
                 </div>
+=======
+                    <Sparkles className="h-8 w-8 mx-auto mb-2" />
+              </div>
+                  <p className="text-xl font-bold">Έτοιμος για μια νέα μέρα προπόνησης!</p>
+                  <p 
+                    className="text-sm opacity-90 mt-2 font-medium animate-pulse"
+                  >
+                    Καλή πρόοδος! 💪
+                  </p>
+              </div>
+            </div>
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
               </div>
             </div>
           </div>
 
 
+<<<<<<< HEAD
         {/* Personal Stats Grid - Mobile Optimized */}
         <div 
           className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-6 mb-6 sm:mb-12"
+=======
+        {/* Personal Stats Grid */}
+        <div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-12"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
           style={{
             animation: 'fadeInUp 0.8s ease-out 0.2s forwards',
             opacity: 0,
@@ -1107,9 +1218,15 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
 
+<<<<<<< HEAD
         {/* Progress Towards Goals - Enhanced Mobile */}
         <div 
           className="mb-6 sm:mb-12"
+=======
+        {/* Progress Towards Goals - Enhanced */}
+        <div 
+          className="mb-12"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
           style={{
             animation: 'fadeInUp 0.8s ease-out 0.4s forwards',
             opacity: 0,
@@ -1117,10 +1234,17 @@ const Dashboard: React.FC = () => {
           }}
         >
           <div 
+<<<<<<< HEAD
             className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-blue-100 p-4 sm:p-8 hover:shadow-3xl hover:-translate-y-1 transition-all duration-500"
           >
             <div 
               className="flex items-center space-x-3 sm:space-x-4 mb-6 sm:mb-10"
+=======
+            className="bg-white rounded-3xl shadow-2xl border border-blue-100 p-8 hover:shadow-3xl hover:-translate-y-1 transition-all duration-500"
+          >
+            <div 
+              className="flex items-center space-x-4 mb-10"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
               style={{
                 animation: 'slideInLeft 0.8s ease-out 0.6s forwards',
                 opacity: 0,
@@ -1128,6 +1252,7 @@ const Dashboard: React.FC = () => {
               }}
             >
               <div 
+<<<<<<< HEAD
                 className="p-3 sm:p-4 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl sm:rounded-2xl shadow-lg hover:rotate-3 hover:scale-110 transition-all duration-300"
               >
                 <Target className="h-5 w-5 sm:h-7 sm:w-7 text-blue-600" />
@@ -1142,6 +1267,22 @@ const Dashboard: React.FC = () => {
                   <Weight className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                   Στόχοι Βάρους & Λίπους
                 </h3>
+=======
+                className="p-4 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl shadow-lg hover:rotate-3 hover:scale-110 transition-all duration-300"
+              >
+                <Target className="h-7 w-7 text-blue-600" />
+                  </div>
+              <h2 className="text-3xl font-bold text-gray-900">Πρόοδος προς τους Στόχους</h2>
+                </div>
+            
+            <div className="space-y-8">
+              {/* Weight & Body Fat Goals */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <Weight className="h-5 w-5 text-blue-600" />
+                  Στόχοι Βάρους & Λίπους
+              </h3>
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                 <div className="space-y-4">
                   {latest.weight_kg ? (
                 <ProgressBar
@@ -1175,9 +1316,15 @@ const Dashboard: React.FC = () => {
         </div>
 
               {/* Training & Activity Goals */}
+<<<<<<< HEAD
               <div className="space-y-3 sm:space-y-4">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
                   <Dumbbell className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+=======
+          <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <Dumbbell className="h-5 w-5 text-blue-600" />
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                   Στόχοι Προπόνησης & Δραστηριότητας
                 </h3>
           <div className="space-y-4">
@@ -1199,9 +1346,15 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Sleep & Wellness Goals */}
+<<<<<<< HEAD
               <div className="space-y-3 sm:space-y-4">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
                   <Moon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+=======
+          <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <Moon className="h-5 w-5 text-blue-600" />
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                   Στόχοι Ύπνου & Ευεξίας
                 </h3>
                 <div className="space-y-4">
@@ -1223,6 +1376,7 @@ const Dashboard: React.FC = () => {
                   </div>
 
               {/* Nutrition Tips & Wellness */}
+<<<<<<< HEAD
               <div className="space-y-3 sm:space-y-4">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
                   <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
@@ -1238,11 +1392,29 @@ const Dashboard: React.FC = () => {
                       <div>
                         <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-1 mobile-card-title">Υδάτωση</h4>
                         <p className="text-xs sm:text-sm text-gray-600 mobile-card-content">Πίνε 2-3 λίτρα νερό καθημερινά για βέλτιστη υγεία και ενέργεια</p>
+=======
+          <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <Heart className="h-5 w-5 text-blue-600" />
+                  Συμβουλές Διατροφής & Ευεξίας
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Hydration Tip */}
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-blue-200 rounded-lg">
+                        <div className="w-6 h-6 text-blue-600">💧</div>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800 mb-1">Υδάτωση</h4>
+                        <p className="text-sm text-gray-600">Πίνε 2-3 λίτρα νερό καθημερινά για βέλτιστη υγεία και ενέργεια</p>
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                       </div>
                     </div>
                   </div>
 
                   {/* Protein Tip */}
+<<<<<<< HEAD
                   <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-green-200 hover:shadow-lg transition-all duration-300 mobile-card mobile-hover-scale mobile-smooth-transitions">
                     <div className="flex items-start gap-2 sm:gap-3">
                       <div className="p-1.5 sm:p-2 bg-green-200 rounded-lg mobile-stat-icon">
@@ -1277,11 +1449,48 @@ const Dashboard: React.FC = () => {
                       <div>
                         <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-1 mobile-card-title">Άσκηση</h4>
                         <p className="text-xs sm:text-sm text-gray-600 mobile-card-content">150 λεπτά μέτριας έντασης άσκησης εβδομαδιαίως</p>
+=======
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-green-200 rounded-lg">
+                        <div className="w-6 h-6 text-green-600">🥩</div>
+                  </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800 mb-1">Πρωτεΐνη</h4>
+                        <p className="text-sm text-gray-600">Καταναλώνε 1.6-2.2g πρωτεΐνης ανά kg σωματικού βάρους</p>
+                  </div>
+                </div>
+              </div>
+
+                  {/* Sleep Tip */}
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-purple-200 rounded-lg">
+                        <div className="w-6 h-6 text-purple-600">😴</div>
+          </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800 mb-1">Ύπνος</h4>
+                        <p className="text-sm text-gray-600">7-9 ώρες ποιοτικού ύπνου για ανάκαμψη και ανάπτυξη</p>
+        </div>
+      </div>
+                  </div>
+
+                  {/* Exercise Tip */}
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-orange-200 rounded-lg">
+                        <div className="w-6 h-6 text-orange-600">🏃</div>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800 mb-1">Άσκηση</h4>
+                        <p className="text-sm text-gray-600">150 λεπτά μέτριας έντασης άσκησης εβδομαδιαίως</p>
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                       </div>
                     </div>
                   </div>
 
                   {/* Nutrition Tip */}
+<<<<<<< HEAD
                   <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-red-200 hover:shadow-lg transition-all duration-300 mobile-card mobile-hover-scale mobile-smooth-transitions">
                     <div className="flex items-start gap-2 sm:gap-3">
                       <div className="p-1.5 sm:p-2 bg-red-200 rounded-lg mobile-stat-icon">
@@ -1290,11 +1499,22 @@ const Dashboard: React.FC = () => {
                       <div>
                         <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-1 mobile-card-title">Διατροφή</h4>
                         <p className="text-xs sm:text-sm text-gray-600 mobile-card-content">Φρέσκα φρούτα και λαχανικά σε κάθε γεύμα</p>
+=======
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-red-200 rounded-lg">
+                        <div className="w-6 h-6 text-red-600">🥗</div>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800 mb-1">Διατροφή</h4>
+                        <p className="text-sm text-gray-600">Φρέσκα φρούτα και λαχανικά σε κάθε γεύμα</p>
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                       </div>
                     </div>
                   </div>
 
                   {/* Recovery Tip */}
+<<<<<<< HEAD
                   <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-indigo-200 hover:shadow-lg transition-all duration-300 mobile-card mobile-hover-scale mobile-smooth-transitions">
                     <div className="flex items-start gap-2 sm:gap-3">
                       <div className="p-1.5 sm:p-2 bg-indigo-200 rounded-lg mobile-stat-icon">
@@ -1303,6 +1523,16 @@ const Dashboard: React.FC = () => {
                       <div>
                         <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-1 mobile-card-title">Ανάκαμψη</h4>
                         <p className="text-xs sm:text-sm text-gray-600 mobile-card-content">Διαλείμματα ανάμεσα στις προπονήσεις για αποτελεσματικότητα</p>
+=======
+                  <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 border border-indigo-200 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-indigo-200 rounded-lg">
+                        <div className="w-6 h-6 text-indigo-600">🧘</div>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800 mb-1">Ανάκαμψη</h4>
+                        <p className="text-sm text-gray-600">Διαλείμματα ανάμεσα στις προπονήσεις για αποτελεσματικότητα</p>
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
                       </div>
                     </div>
                   </div>
@@ -1312,9 +1542,15 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
+<<<<<<< HEAD
         {/* Modern Collapsible Sections - Mobile Optimized */}
         <div 
           className="space-y-4 sm:space-y-8"
+=======
+        {/* Modern Collapsible Sections */}
+        <div 
+          className="space-y-8"
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
           style={{
             animation: 'fadeInUp 0.8s ease-out 0.6s forwards',
             opacity: 0,
@@ -1368,6 +1604,7 @@ const Dashboard: React.FC = () => {
                   }}
                 >
                   <Plus className="h-6 w-6" />
+<<<<<<< HEAD
                 </div>
                 Προβολή Όλων των Μαθημάτων
               </button>
@@ -1375,10 +1612,22 @@ const Dashboard: React.FC = () => {
           </MobileCollapsibleSection>
         </div>
         </div>
+=======
+          </div>
+                Προβολή Όλων των Μαθημάτων
+              </button>
+    </div>
+          </MobileCollapsibleSection>
+        </div>
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
       </div>
     </div>
     </>
   );
 };
 
+<<<<<<< HEAD
 export default Dashboard;
+=======
+export default Dashboard;
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26

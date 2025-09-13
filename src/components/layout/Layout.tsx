@@ -315,9 +315,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* Page content - Mobile Optimized */}
         <main className="py-2 sm:py-6">
           <div className="mx-auto max-w-7xl px-2 sm:px-4 lg:px-8">
+=======
+        {/* Page content */}
+        <main className="py-6">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
             {children}
           </div>
         </main>

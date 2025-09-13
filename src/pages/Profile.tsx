@@ -205,7 +205,11 @@ const Profile: React.FC = () => {
     if (!file) {
       // Permission denied or user canceled
       console.warn('[Profile] Camera capture canceled or permission denied');
+<<<<<<< HEAD
       // Don't show error for user cancellation
+=======
+      toast.error('Δεν δόθηκε άδεια κάμερας ή ακυρώθηκε η λήψη');
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
       return;
     }
     if (!file.type.startsWith('image/')) {
@@ -223,10 +227,13 @@ const Profile: React.FC = () => {
       setCapturedPhotoPreview(e.target?.result as string);
       setShowCameraPreview(true);
     };
+<<<<<<< HEAD
     reader.onerror = () => {
       console.error('[Profile] Error reading file');
       toast.error('Σφάλμα κατά την ανάγνωση της φωτογραφίας');
     };
+=======
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
     reader.readAsDataURL(file);
   };
 
@@ -235,6 +242,7 @@ const Profile: React.FC = () => {
     try {
       setIsUploading(true);
       console.log('[Profile] ===== CAMERA PHOTO UPLOAD STARTED =====');
+<<<<<<< HEAD
       
       // Validate file before upload
       if (capturedPhotoFile.size > 5 * 1024 * 1024) {
@@ -245,6 +253,8 @@ const Profile: React.FC = () => {
         throw new Error('Παρακαλώ επιλέξτε ένα αρχείο εικόνας');
       }
       
+=======
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
       const publicUrl = await uploadProfilePhoto(capturedPhotoFile, user?.id || '');
       console.log('[Profile] Camera upload successful, public URL:', publicUrl);
       const updatedFormData = {
@@ -261,8 +271,12 @@ const Profile: React.FC = () => {
       setCapturedPhotoPreview('');
     } catch (error) {
       console.error('[Profile] Camera upload failed:', error);
+<<<<<<< HEAD
       const errorMessage = error instanceof Error ? error.message : 'Σφάλμα κατά την αποθήκευση της φωτογραφίας';
       toast.error(errorMessage);
+=======
+      toast.error('Σφάλμα κατά την αποθήκευση της φωτογραφίας');
+>>>>>>> 732aa0c5d155680aa9e8b62bd26326bfb0b0de26
     } finally {
       setIsUploading(false);
     }
