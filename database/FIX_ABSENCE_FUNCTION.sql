@@ -1,0 +1,61 @@
+-- Fix the get_trainer_users function
+-- This script should be run in Supabase SQL Editor
+
+-- Drop the existing function first
+DROP FUNCTION IF EXISTS get_trainer_users(VARCHAR(50));
+
+-- Create the corrected function
+CREATE OR REPLACE FUNCTION get_trainer_users(trainer_name_param VARCHAR(50))
+RETURNS TABLE (
+    user_id UUID,
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    email VARCHAR(255),
+    next_session_date DATE,
+    next_session_time TIME,
+    next_session_type VARCHAR(50),
+    next_session_room VARCHAR(255),
+    total_sessions INTEGER
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT DISTINCT
+        up.user_id,
+        up.first_name,
+        up.last_name,
+        up.email,
+        (jsonb_array_elements(pts.schedule_data->'sessions')->>'date')::DATE as next_session_date,
+        (jsonb_array_elements(pts.schedule_data->'sessions')->>'startTime')::TIME as next_session_time,
+        (jsonb_array_elements(pts.schedule_data->'sessions')->>'type')::VARCHAR(50) as next_session_type,
+        (jsonb_array_elements(pts.schedule_data->'sessions')->>'room')::VARCHAR(255) as next_session_room,
+        jsonb_array_length(pts.schedule_data->'sessions') as total_sessions
+    FROM user_profiles up
+    JOIN personal_training_schedules pts ON up.user_id = pts.user_id
+    WHERE 
+        pts.schedule_data->'sessions' @> ('[{"trainer": "' || trainer_name_param || '"}]')::jsonb
+        AND pts.status = 'accepted'
+        AND up.role = 'user'
+    ORDER BY up.first_name, up.last_name;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Test the function
+SELECT 'Testing get_trainer_users function...' as status;
+
+-- Test for Mike
+SELECT * FROM get_trainer_users('Mike') LIMIT 3;
+
+-- Test for Jordan  
+SELECT * FROM get_trainer_users('Jordan') LIMIT 3;
+
+-- If no results, check if there are any schedules
+SELECT 'Checking existing schedules...' as status;
+SELECT 
+    id,
+    user_id,
+    status,
+    schedule_data->'sessions' as sessions
+FROM personal_training_schedules 
+WHERE schedule_data->'sessions' @> '[{"trainer": "Mike"}]' 
+   OR schedule_data->'sessions' @> '[{"trainer": "Jordan"}]'
+LIMIT 5;
