@@ -21,8 +21,13 @@ const Profile = React.lazy(() => import('@/pages/Profile'));
 const TrainerSpecificDashboard = React.lazy(() => import('@/pages/TrainerSpecificDashboard'));
 const PersonalTraining = React.lazy(() => import('@/pages/PersonalTraining'));
 const PersonalTrainingSchedule = React.lazy(() => import('@/pages/PersonalTrainingSchedule'));
+const PaspartuTraining = React.lazy(() => import('@/pages/PaspartuTraining'));
 const PilatesCalendar = React.lazy(() => import('@/pages/PilatesCalendar'));
 const SecretaryDashboard = React.lazy(() => import('@/pages/SecretaryDashboard'));
+
+// Public pages
+const PublicRegistration = React.lazy(() => import('@/pages/PublicRegistration'));
+const PublicLessons = React.lazy(() => import('@/pages/PublicLessons'));
 
 const App: React.FC = () => {
   return (
@@ -33,6 +38,8 @@ const App: React.FC = () => {
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
         <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+        <Route path="/public-registration" element={<React.Suspense fallback={<div>Φόρτωση...</div>}><PublicRegistration /></React.Suspense>} />
+        <Route path="/public-lessons" element={<React.Suspense fallback={<div>Φόρτωση...</div>}><PublicLessons /></React.Suspense>} />
         
         {/* Protected routes */}
         <Route path="/" element={<RoleBasedRedirect />} />
@@ -171,6 +178,20 @@ const App: React.FC = () => {
               <Layout>
                 <React.Suspense fallback={<div>Φόρτωση...</div>}>
                   <PersonalTrainingSchedule />
+                </React.Suspense>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Paspartu Training - Protected route for users with Paspartu Training schedules */}
+        <Route
+          path="/paspartu-training"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                  <PaspartuTraining />
                 </React.Suspense>
               </Layout>
             </ProtectedRoute>

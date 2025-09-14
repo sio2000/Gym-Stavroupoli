@@ -1,23 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabaseAdmin } from '@/config/supabaseAdmin';
+import { supabase } from '@/config/supabase';
 import { 
-  CreditCard, 
   User,
   Users,
   Plus,
   Save,
   Edit3,
-  BarChart3,
-  UserCheck,
   Calendar,
-  Key,
   Trash2,
   Search,
   X,
   Settings,
   Clock,
-  Award
+  Award,
+  DollarSign,
+  Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
@@ -29,6 +27,7 @@ import {
   MembershipPackageDuration
 } from '@/types';
 import PilatesScheduleManagement from '@/components/admin/PilatesScheduleManagement';
+import CashRegister from '@/components/admin/CashRegister';
 import { 
   getMembershipPackages, 
   getMembershipPackageDurations, 
@@ -41,6 +40,20 @@ import {
   getPilatesPackageDurations,
   updatePilatesPackagePricing
 } from '@/utils/membershipApi';
+import { 
+  markOldMembersUsed, 
+  saveKettlebellPoints,
+  getTotalKettlebellPoints,
+  getKettlebellPointsSummary,
+  getUserKettlebellPoints,
+  UserKettlebellSummary
+} from '@/utils/programOptionsApi';
+import { 
+  saveCashTransaction
+} from '@/utils/cashRegisterApi';
+import { 
+  saveProgramApprovalState
+} from '@/utils/programApprovalApi';
 
 
 
@@ -49,7 +62,7 @@ const AVAILABLE_TRAINERS: TrainerName[] = ['Mike', 'Jordan'];
 
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'personal-training' | 'payments' | 'analytics' | 'users' | 'membership-packages' | 'pilates-schedule'>('personal-training');
+  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register'>('personal-training');
   const [allUsers, setAllUsers] = useState<UserWithPersonalTraining[]>([]);
   const [programStatuses, setProgramStatuses] = useState<Array<{
     user: UserWithPersonalTraining;
@@ -66,12 +79,120 @@ const AdminPanel: React.FC = () => {
     selectedUserId: '' 
   });
   const [trainingType, setTrainingType] = useState<'individual' | 'group'>('individual');
+  const [userType, setUserType] = useState<'personal' | 'paspartu'>('personal'); // New state for user type selection
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  
+  // Group Room Options state
+  const [selectedGroupRoom, setSelectedGroupRoom] = useState<'2' | '3' | '6' | null>(null);
+  const [weeklyFrequency, setWeeklyFrequency] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
+  const [monthlyTotal, setMonthlyTotal] = useState<number>(0);
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [userSearchMode, setUserSearchMode] = useState<'dropdown' | 'search'>('dropdown');
   const [programStatusSearchTerm, setProgramStatusSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'declined'>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // New panel state variables
+  const [usedOldMembers, setUsedOldMembers] = useState<Set<string>>(new Set());
+  const [kettlebellPoints, setKettlebellPoints] = useState<string>('');
+  const [selectedOptions, setSelectedOptions] = useState<{
+    [userId: string]: {
+      oldMembers: boolean;
+      kettlebellPoints: string;
+      cash: boolean;
+      pos: boolean;
+      approval: boolean;
+      rejection: boolean;
+      pending: boolean;
+      cashAmount?: number;
+      posAmount?: number;
+      // Group room information
+      groupRoomSize?: number | null;
+      weeklyFrequency?: number | null;
+      monthlyTotal?: number | null;
+    }
+  }>({});
+  
+  // Kettlebell Points page state
+  const [kettlebellSummary, setKettlebellSummary] = useState<UserKettlebellSummary[]>([]);
+  const [totalKettlebellPoints, setTotalKettlebellPoints] = useState<number>(0);
+  const [kettlebellSearchTerm, setKettlebellSearchTerm] = useState<string>('');
+  const [kettlebellSearchResults, setKettlebellSearchResults] = useState<UserKettlebellSummary[]>([]);
+
+  // Cash Register state
+  const [cashAmount, setCashAmount] = useState<string>('');
+  const [posAmount, setPosAmount] = useState<string>('');
+  const [showCashInput, setShowCashInput] = useState<boolean>(false);
+  const [showPosInput, setShowPosInput] = useState<boolean>(false);
+
+  // Program Approval state
+  const [programApprovalStatus, setProgramApprovalStatus] = useState<'none' | 'approved' | 'rejected' | 'pending'>('none');
+  
+  // Pending state for UI
+  const [pendingUsers, setPendingUsers] = useState<Set<string>>(new Set());
+  const [frozenOptions, setFrozenOptions] = useState<{[userId: string]: {
+    oldMembers: boolean;
+    kettlebellPoints: string;
+    cash: boolean;
+    pos: boolean;
+    cashAmount?: number;
+    posAmount?: number;
+    // Group room information
+    groupRoomSize?: number | null;
+    weeklyFrequency?: number | null;
+    monthlyTotal?: number | null;
+  }}>({});
+
+
+
+  // Helper function to check if user is pending
+  const isUserPending = (userId: string) => {
+    return pendingUsers.has(userId);
+  };
+
+  // Helper function to get frozen options for user
+  const getFrozenOptions = (userId: string) => {
+    return frozenOptions[userId] || null;
+  };
+
+  // Helper functions for membership request pending users
+  const isRequestPending = (requestId: string) => {
+    return requestPendingUsers.has(requestId);
+  };
+
+  const getRequestFrozenOptions = (requestId: string) => {
+    return requestFrozenOptions[requestId] || null;
+  };
+
+  // Calculate monthly total when weekly frequency changes
+  useEffect(() => {
+    if (weeklyFrequency) {
+      setMonthlyTotal(weeklyFrequency * 4);
+    } else {
+      setMonthlyTotal(0);
+    }
+  }, [weeklyFrequency]);
+
+  // Reset group room options when training type changes
+  useEffect(() => {
+    if (trainingType === 'individual') {
+      setSelectedGroupRoom(null);
+      setWeeklyFrequency(null);
+      setMonthlyTotal(0);
+    }
+  }, [trainingType]);
+
+  // Load frozen options when user is selected
+  useEffect(() => {
+    if (trainingType === 'individual' && newCode.selectedUserId) {
+      const frozen = getFrozenOptions(newCode.selectedUserId);
+      if (frozen) {
+        setKettlebellPoints(frozen.kettlebellPoints || '');
+        setCashAmount(frozen.cashAmount?.toString() || '');
+        setPosAmount(frozen.posAmount?.toString() || '');
+      }
+    }
+  }, [newCode.selectedUserId, trainingType]);
   const itemsPerPage = 10;
   // Προσωποποιημένο πρόγραμμα που θα σταλεί μαζί με τον κωδικό
   const [programSessions, setProgramSessions] = useState<PersonalTrainingSession[]>([
@@ -86,16 +207,28 @@ const AdminPanel: React.FC = () => {
   const [newPrice, setNewPrice] = useState<string>('');
   const [membershipRequests, setMembershipRequests] = useState<any[]>([]);
   
+  // Program Options state for membership requests
+  const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
+    oldMembers?: boolean;
+    kettlebellPoints?: string;
+    cash?: boolean;
+    pos?: boolean;
+    cashAmount?: number;
+    posAmount?: number;
+  }}>({});
+  const [requestProgramApprovalStatus, setRequestProgramApprovalStatus] = useState<{[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'}>({});
+  const [requestPendingUsers, setRequestPendingUsers] = useState<Set<string>>(new Set());
+  const [requestFrozenOptions, setRequestFrozenOptions] = useState<{[requestId: string]: any}>({});
+  
   // Pilates package state
   const [pilatesDurations, setPilatesDurations] = useState<MembershipPackageDuration[]>([]);
 
   const tabs = [
     { id: 'personal-training', name: 'Personal Training Πρόγραμμα', icon: Calendar },
-    { id: 'payments', name: 'Αιτήματα Πληρωμών', icon: CreditCard },
     { id: 'membership-packages', name: 'Πακέτα Συνδρομών', icon: Settings },
     { id: 'pilates-schedule', name: 'Πρόγραμμα Pilates', icon: Clock },
-    { id: 'analytics', name: 'Αναλυτικά Κρατήσεων', icon: BarChart3 },
-    { id: 'users', name: 'Διαχείριση Χρηστών', icon: UserCheck }
+    { id: 'kettlebell-points', name: 'Kettlebell Points', icon: Award },
+    { id: 'cash-register', name: 'Ταμείο', icon: DollarSign }
   ];
 
   const days = ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'];
@@ -189,7 +322,7 @@ const AdminPanel: React.FC = () => {
     try {
       console.log('[AdminPanel] Checking admin role in database...');
       
-      const { data: adminProfile, error } = await supabaseAdmin
+      const { data: adminProfile, error } = await supabase
         .from('user_profiles')
         .select('user_id, role, first_name, last_name, email')
         .eq('user_id', user?.id)
@@ -225,7 +358,7 @@ const AdminPanel: React.FC = () => {
         created_by: user?.id
       };
       
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('personal_training_schedules')
         .insert(testData)
         .select();
@@ -237,7 +370,7 @@ const AdminPanel: React.FC = () => {
       
       // If successful, delete the test record
       if (data && data.length > 0) {
-        await supabaseAdmin
+        await supabase
           .from('personal_training_schedules')
           .delete()
           .eq('id', data[0].id);
@@ -286,7 +419,7 @@ const AdminPanel: React.FC = () => {
         created_by: adminId
       };
 
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('personal_training_schedules')
         .insert(testSchedule)
         .select();
@@ -315,7 +448,7 @@ const AdminPanel: React.FC = () => {
       
       // Fetch all users from user_profiles table
       console.log('[AdminPanel] Querying user_profiles table...');
-      const { data: userProfiles, error: profilesError } = await supabaseAdmin
+      const { data: userProfiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
@@ -340,7 +473,7 @@ const AdminPanel: React.FC = () => {
       let schedulesError: any = null;
       
       // Try 1: Direct query
-      const { data: directData, error: directError } = await supabaseAdmin
+      const { data: directData, error: directError } = await supabase
         .from('personal_training_schedules')
         .select('id,user_id,month,year,schedule_data,status,created_by,created_at,updated_at,trainer_name,accepted_at,declined_at')
         .order('created_at', { ascending: false });
@@ -349,7 +482,7 @@ const AdminPanel: React.FC = () => {
         console.log('[AdminPanel] Direct query failed:', directError);
         
         // Try 2: Query with specific fields
-        const { data: limitedData, error: limitedError } = await supabaseAdmin
+        const { data: limitedData, error: limitedError } = await supabase
           .from('personal_training_schedules')
           .select('id, user_id, status')
           .limit(10);
@@ -358,7 +491,7 @@ const AdminPanel: React.FC = () => {
           console.log('[AdminPanel] Limited query also failed:', limitedError);
           
           // Try 3: Check if we can at least count rows
-          const { count, error: countError } = await supabaseAdmin
+          const { count, error: countError } = await supabase
             .from('personal_training_schedules')
             .select('*', { count: 'exact', head: true });
           
@@ -385,7 +518,7 @@ const AdminPanel: React.FC = () => {
         console.log('[AdminPanel] Is admin in database:', isAdminInDB);
         
         // Check if we can at least count the total rows (bypassing RLS)
-        const { count, error: countError } = await supabaseAdmin
+        const { count, error: countError } = await supabase
           .from('personal_training_schedules')
           .select('*', { count: 'exact', head: true });
         
@@ -408,7 +541,7 @@ const AdminPanel: React.FC = () => {
         
         // Try to check if the table exists and has any data at all
         console.log('[AdminPanel] Attempting to check table existence...');
-        const { data: tableCheck, error: tableError } = await supabaseAdmin
+        const { data: tableCheck, error: tableError } = await supabase
           .from('personal_training_schedules')
           .select('count')
           .limit(1);
@@ -516,7 +649,7 @@ const AdminPanel: React.FC = () => {
       console.log('[AdminPanel] Checking personal training codes...');
       
       // First, let's check if there are any personal training codes at all
-      const { data: codesCheck, error: codesError } = await supabaseAdmin
+      const { data: codesCheck, error: codesError } = await supabase
         .from('personal_training_codes')
         .select('*')
         .limit(5);
@@ -546,7 +679,7 @@ const AdminPanel: React.FC = () => {
     try {
       // Query the personal_training_codes table to get real data
       // Use admin client with RLS bypass
-      const { data: personalTrainingCodes, error } = await supabaseAdmin
+      const { data: personalTrainingCodes, error } = await supabase
         .from('personal_training_codes')
         .select('user_id, code, package_type, sessions_remaining')
         .eq('is_active', true);
@@ -591,6 +724,11 @@ const AdminPanel: React.FC = () => {
     }
   }, [user, activeTab]);
 
+  // Load Old Members usage data when users are loaded
+  // Load old members usage data for all users
+  // This is now handled by the main loadOldMembersUsage useEffect above
+  // No need to loop through all users individually
+
   useEffect(() => {
     if (activeTab === 'personal-training') {
       console.log('[AdminPanel] useEffect triggered - loading data for personal-training tab');
@@ -604,7 +742,7 @@ const AdminPanel: React.FC = () => {
     try {
       setLoading(true);
       // Φέρνουμε το πιο πρόσφατο πραγματικό πρόγραμμα από τη βάση
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('personal_training_schedules')
         .select('id, user_id, month, year, schedule_data, status, created_by, created_at, updated_at, accepted_at, declined_at')
         .eq('user_id', userId)
@@ -724,14 +862,230 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const createPersonalTrainingCode = async () => {
-    const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
-    
-    if (!newCode.code.trim()) {
-      toast.error('Παρακαλώ εισάγετε κωδικό');
+  // Handle saving program options with approval system
+  const handleSaveProgramOptions = async () => {
+    if (programApprovalStatus === 'none' || !user) {
+      toast.error('Παρακαλώ επιλέξτε μια κατάσταση έγκρισης');
       return;
     }
 
+    try {
+      setLoading(true);
+      const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+      
+      if (userIds.length === 0) {
+        toast.error('Δεν υπάρχουν επιλεγμένοι χρήστες');
+        return;
+      }
+
+      // Validate group room selection for group training
+      if (trainingType === 'group') {
+        if (!selectedGroupRoom || !weeklyFrequency) {
+          toast.error('Παρακαλώ επιλέξτε Ομαδική Αίθουσα και συχνότητα εβδομάδας');
+          return;
+        }
+        
+        if (selectedUserIds.length === 0) {
+          toast.error('Παρακαλώ επιλέξτε τουλάχιστον έναν χρήστη για το ομαδικό πρόγραμμα');
+          return;
+        }
+      }
+
+      // Save approval states for each user
+      for (const userId of userIds) {
+        // Check if user is pending and use frozen options if available
+        const isPending = isUserPending(userId);
+        const userOptions = isPending ? getFrozenOptions(userId) : selectedOptions[userId];
+        
+        if (!userOptions) continue;
+
+        const success = await saveProgramApprovalState(
+          userId,
+          programApprovalStatus as 'approved' | 'rejected' | 'pending',
+          {
+            oldMembersUsed: userOptions.oldMembers || false,
+            kettlebellPoints: userOptions.kettlebellPoints ? parseInt(userOptions.kettlebellPoints) : 0,
+            cashAmount: userOptions.cashAmount || 0,
+            posAmount: userOptions.posAmount || 0,
+            createdBy: user.id,
+            // Add group room information for group training
+            groupRoomSize: trainingType === 'group' ? parseInt(selectedGroupRoom!) : null,
+            weeklyFrequency: trainingType === 'group' ? weeklyFrequency : null,
+            monthlyTotal: trainingType === 'group' ? monthlyTotal : null,
+            notes: `Program options saved with ${programApprovalStatus} status${isPending ? ' (from frozen state)' : ''}${trainingType === 'group' ? ` - Ομαδική Αίθουσα: ${selectedGroupRoom} χρήστες, ${weeklyFrequency} φορές/εβδομάδα` : ''}`
+          }
+        );
+
+        if (success) {
+          console.log(`Program approval state saved for user ${userId}: ${programApprovalStatus}${isPending ? ' (from frozen state)' : ''}`);
+        } else {
+          console.warn(`Failed to save program approval state for user ${userId}`);
+        }
+      }
+
+      // Execute actions based on approval status
+      if (programApprovalStatus === 'approved') {
+        // Execute all the original program creation actions
+        await executeApprovedProgramActions(userIds);
+      } else if (programApprovalStatus === 'rejected') {
+        // For rejected, just log and don't execute any actions
+        console.log('Program options rejected - no actions executed');
+        toast('Program Options απορρίφθηκαν - δεν εκτελέστηκαν ενέργειες', { icon: 'ℹ️' });
+      } else if (programApprovalStatus === 'pending') {
+        // For pending, save options locally and mark users as pending
+        console.log('Program options pending - saving locally and freezing UI');
+        
+        // Save frozen options for each user
+        const newFrozenOptions = { ...frozenOptions };
+        const newPendingUsers = new Set(pendingUsers);
+        
+        for (const userId of userIds) {
+          const userOptions = selectedOptions[userId];
+          if (userOptions) {
+            newFrozenOptions[userId] = {
+              oldMembers: userOptions.oldMembers,
+              kettlebellPoints: userOptions.kettlebellPoints,
+              cash: userOptions.cash,
+              pos: userOptions.pos,
+              cashAmount: userOptions.cashAmount,
+              posAmount: userOptions.posAmount,
+              // Add group room information for group training
+              groupRoomSize: trainingType === 'group' ? parseInt(selectedGroupRoom!) : null,
+              weeklyFrequency: trainingType === 'group' ? weeklyFrequency : null,
+              monthlyTotal: trainingType === 'group' ? monthlyTotal : null
+            };
+            newPendingUsers.add(userId);
+          }
+        }
+        
+        setFrozenOptions(newFrozenOptions);
+        setPendingUsers(newPendingUsers);
+        
+        toast('Program Options τοποθετήθηκαν στην αναμονή - οι επιλογές παγώθηκαν', { icon: '⏳' });
+      }
+
+      // Reset approval status and clear pending states if needed
+      setProgramApprovalStatus('none');
+      
+      // If status changed from pending, clear pending states
+      if (programApprovalStatus === 'approved' || programApprovalStatus === 'rejected') {
+        const newPendingUsers = new Set(pendingUsers);
+        const newFrozenOptions = { ...frozenOptions };
+        
+        for (const userId of userIds) {
+          if (isUserPending(userId)) {
+            newPendingUsers.delete(userId);
+            delete newFrozenOptions[userId];
+          }
+        }
+        
+        setPendingUsers(newPendingUsers);
+        setFrozenOptions(newFrozenOptions);
+      }
+      
+      // Show success message
+      const hasPendingUsers = userIds.some(id => isUserPending(id));
+      const statusText = {
+        approved: hasPendingUsers ? 'εγκρίθηκε και εκτελέστηκαν οι ενέργειες (από frozen state)' : 'εγκρίθηκε και εκτελέστηκαν οι ενέργειες',
+        rejected: hasPendingUsers ? 'απορρίφθηκε (από frozen state)' : 'απορρίφθηκε', 
+        pending: 'τοποθετήθηκε στην αναμονή'
+      };
+      
+      toast.success(`Program Options ${statusText[programApprovalStatus]} επιτυχώς!`);
+      
+    } catch (error) {
+      console.error('Error saving program options:', error);
+      toast.error('Σφάλμα κατά την αποθήκευση των Program Options');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Execute approved program actions (original logic)
+  const executeApprovedProgramActions = async (userIds: string[]) => {
+    console.log('Executing approved program actions for users:', userIds);
+    
+    try {
+      // Execute actions for each user
+      for (const userId of userIds) {
+        // Check if user is pending and use frozen options if available
+        const isPending = isUserPending(userId);
+        const userOptions = isPending ? getFrozenOptions(userId) : selectedOptions[userId];
+        
+        if (!userOptions) continue;
+
+        // 1. Save Old Members usage if selected
+        if (userOptions.oldMembers) {
+          const oldMembersSuccess = await markOldMembersUsed(userId, user?.id || '');
+          if (oldMembersSuccess) {
+            console.log(`[APPROVED] Old Members marked as used for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
+            // Update local state
+            setUsedOldMembers(prev => new Set([...prev, userId]));
+          } else {
+            console.warn(`[APPROVED] Failed to mark Old Members as used for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
+          }
+        }
+
+        // 2. Save Kettlebell Points if provided
+        if (userOptions.kettlebellPoints && parseInt(userOptions.kettlebellPoints) > 0) {
+          const kettlebellSuccess = await saveKettlebellPoints(
+            userId, 
+            parseInt(userOptions.kettlebellPoints), 
+            undefined, // No program_id for now
+            user?.id || ''
+          );
+          if (kettlebellSuccess) {
+            console.log(`[APPROVED] Kettlebell Points saved for user: ${userId}, Points: ${userOptions.kettlebellPoints}${isPending ? ' (from frozen state)' : ''}`);
+          } else {
+            console.warn(`[APPROVED] Failed to save Kettlebell Points for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
+          }
+        }
+
+        // 3. Save Cash transactions if provided
+        if (userOptions.cashAmount && userOptions.cashAmount > 0) {
+          const cashSuccess = await saveCashTransaction(
+            userId,
+            userOptions.cashAmount,
+            'cash',
+            undefined,
+            user?.id || '',
+            'Cash transaction from approved program creation'
+          );
+          if (cashSuccess) {
+            console.log(`[APPROVED] Cash transaction saved for user: ${userId}, Amount: €${userOptions.cashAmount}${isPending ? ' (from frozen state)' : ''}`);
+          } else {
+            console.warn(`[APPROVED] Failed to save Cash transaction for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
+          }
+        }
+
+        // 4. Save POS transactions if provided
+        if (userOptions.posAmount && userOptions.posAmount > 0) {
+          const posSuccess = await saveCashTransaction(
+            userId,
+            userOptions.posAmount,
+            'pos',
+            undefined,
+            user?.id || '',
+            'POS transaction from approved program creation'
+          );
+          if (posSuccess) {
+            console.log(`[APPROVED] POS transaction saved for user: ${userId}, Amount: €${userOptions.posAmount}${isPending ? ' (from frozen state)' : ''}`);
+          } else {
+            console.warn(`[APPROVED] Failed to save POS transaction for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
+          }
+        }
+      }
+
+      toast.success('Έγιναν όλες οι απαραίτητες ενέργειες για τα εγκεκριμένα προγράμματα!');
+    } catch (error) {
+      console.error('Error executing approved program actions:', error);
+      toast.error('Σφάλμα κατά την εκτέλεση των ενεργειών');
+    }
+  };
+
+  const createPersonalTrainingProgram = async () => {
+    const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+    
     if (userIds.length === 0) {
       toast.error('Παρακαλώ επιλέξτε χρήστη/ες');
       return;
@@ -739,26 +1093,10 @@ const AdminPanel: React.FC = () => {
 
     try {
       setLoading(true);
-      console.log('[ADMIN] Starting to create personal training code...');
-      
-      // Έλεγχος αν υπάρχει ήδη κωδικός με το ίδιο όνομα
-      const { data: existingCode, error: checkError } = await supabaseAdmin
-        .from('personal_training_codes')
-        .select('id, code')
-        .eq('code', newCode.code.trim())
-        .limit(1);
+      console.log('[ADMIN] Starting to create personal training program...');
+      console.log('[ADMIN] User type:', userType);
 
-      if (checkError) {
-        console.error('[ADMIN] Error checking existing code:', checkError);
-        throw checkError;
-      }
-
-      if (existingCode && existingCode.length > 0) {
-        toast.error(`Ο κωδικός "${newCode.code.trim()}" υπάρχει ήδη. Παρακαλώ επιλέξτε διαφορετικό κωδικό.`);
-        return;
-      }
-
-      // Δημιουργούμε κωδικούς για όλους τους επιλεγμένους χρήστες
+      // Δημιουργούμε το πρόγραμμα για όλους τους επιλεγμένους χρήστες
       for (const userId of userIds) {
         const selectedUser = allUsers.find(user => user.id === userId);
         
@@ -769,69 +1107,163 @@ const AdminPanel: React.FC = () => {
 
         console.log('[ADMIN] Selected user:', selectedUser.firstName, selectedUser.lastName, 'ID:', selectedUser.id);
         console.log('[ADMIN] Admin user ID:', user?.id);
-        console.log('[ADMIN] Code to create:', newCode.code.trim());
 
-        // Δημιουργία και αποθήκευση κωδικού στη βάση (Supabase)
-        console.log('[ADMIN] Inserting code into personal_training_codes...');
-        const { error: codeError } = await supabaseAdmin
-          .from('personal_training_codes')
-          .insert({
-            code: newCode.code.trim(),
-            package_type: 'personal_training',
-            created_by: user?.id,
-            is_active: true,
-            user_id: selectedUser.id,
-            sessions_remaining: 10
-          });
+        // Δημιουργούμε το πρόγραμμα Personal Training
+        const scheduleSessions: PersonalTrainingSession[] = programSessions.map((s) => ({
+          id: s.id,
+          date: s.date,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          type: s.type,
+          trainer: s.trainer || 'Mike',
+          room: s.room,
+          notes: s.notes
+        }));
+
+        const schedulePayload = {
+          user_id: selectedUser.id,
+          trainer_name: scheduleSessions[0]?.trainer || 'Mike',
+          month: new Date().getMonth() + 1,
+          year: new Date().getFullYear(),
+          schedule_data: {
+            sessions: scheduleSessions,
+            notes: '',
+            trainer: scheduleSessions[0]?.trainer || 'Mike',
+            specialInstructions: '',
+            // Add group room information for group training
+            groupRoomSize: trainingType === 'group' ? parseInt(selectedGroupRoom!) : null,
+            weeklyFrequency: trainingType === 'group' ? weeklyFrequency : null,
+            monthlyTotal: trainingType === 'group' ? monthlyTotal : null
+          },
+          status: 'accepted',
+          created_by: user?.id,
+          user_type: userType, // Add user type to schedule
+          is_flexible: userType === 'paspartu', // Paspartu users get flexible schedules
+          training_type: trainingType, // Add training type (individual/group)
+          group_room_size: trainingType === 'group' ? parseInt(selectedGroupRoom!) : null,
+          weekly_frequency: trainingType === 'group' ? weeklyFrequency : null,
+          monthly_total: trainingType === 'group' ? monthlyTotal : null
+        };
+
+        console.log('[ADMIN] Schedule payload:', schedulePayload);
+        console.log('[ADMIN] Inserting schedule into personal_training_schedules...');
         
-        if (codeError) {
-          console.error('[ADMIN] Code insertion error:', codeError);
-          throw codeError;
+        const { data: scheduleData, error: scheduleError } = await supabase
+          .from('personal_training_schedules')
+          .insert(schedulePayload)
+          .select()
+          .single();
+        
+        if (scheduleError) {
+          console.error('[ADMIN] Schedule insertion error:', scheduleError);
+          throw scheduleError;
         }
         
-        console.log('[ADMIN] Code inserted successfully for user:', selectedUser.email);
+        console.log('[ADMIN] Schedule inserted successfully for user:', selectedUser.email);
 
-        // Δημιουργούμε το πρόγραμμα μόνο για τον πρώτο χρήστη (ή για όλους αν είναι group)
-        if (userId === userIds[0]) {
-          const scheduleSessions: PersonalTrainingSession[] = programSessions.map((s) => ({
-            id: s.id,
-            date: s.date,
-            startTime: s.startTime,
-            endTime: s.endTime,
-            type: s.type,
-            trainer: s.trainer || 'Mike',
-            room: s.room,
-            notes: s.notes
-          }));
+        // Save program options (Old Members and Kettlebell Points)
+        const userOptions = selectedOptions[selectedUser.id];
+        if (userOptions) {
+          // Save Old Members usage if selected
+          if (userOptions.oldMembers) {
+            const oldMembersSuccess = await markOldMembersUsed(selectedUser.id, user?.id || '');
+            if (oldMembersSuccess) {
+              console.log('[ADMIN] Old Members marked as used for user:', selectedUser.email);
+            } else {
+              console.warn('[ADMIN] Failed to mark Old Members as used for user:', selectedUser.email);
+            }
+          }
 
-          const schedulePayload = {
-            user_id: selectedUser.id,
-            trainer_name: scheduleSessions[0]?.trainer || 'Mike',
-            month: new Date().getMonth() + 1,
-            year: new Date().getFullYear(),
-            schedule_data: {
-              sessions: scheduleSessions,
-              notes: '',
-              trainer: scheduleSessions[0]?.trainer || 'Mike',
-              specialInstructions: ''
-            },
-            status: 'accepted',
-            created_by: user?.id
-          };
+          // Save Kettlebell Points if provided
+          if (userOptions.kettlebellPoints && parseInt(userOptions.kettlebellPoints) > 0) {
+            const kettlebellSuccess = await saveKettlebellPoints(
+              selectedUser.id, 
+              parseInt(userOptions.kettlebellPoints), 
+              scheduleData.id, 
+              user?.id || ''
+            );
+            if (kettlebellSuccess) {
+              console.log('[ADMIN] Kettlebell Points saved for user:', selectedUser.email, 'Points:', userOptions.kettlebellPoints);
+            } else {
+              console.warn('[ADMIN] Failed to save Kettlebell Points for user:', selectedUser.email);
+            }
+          }
+        }
 
-          console.log('[ADMIN] Schedule payload:', schedulePayload);
-          console.log('[ADMIN] Inserting schedule into personal_training_schedules...');
+        // Special logic for Paspartu users - replace old schedule and reset deposit
+        if (userType === 'paspartu') {
+          console.log('[ADMIN] Handling Paspartu user - replacing old schedule and resetting deposit...');
           
-          const { error: scheduleError } = await supabaseAdmin
-            .from('personal_training_schedules')
-            .insert(schedulePayload);
-          
-          if (scheduleError) {
-            console.error('[ADMIN] Schedule insertion error:', scheduleError);
-            throw scheduleError;
+          // First, replace any old Paspartu schedule with the new one
+          const { error: replaceError } = await supabase
+            .rpc('replace_paspartu_schedule', {
+              p_user_id: selectedUser.id,
+              p_new_schedule_id: scheduleData.id
+            });
+
+          if (replaceError) {
+            console.error('[ADMIN] Error replacing old Paspartu schedule:', replaceError);
+            console.warn('[ADMIN] Failed to replace old schedule, but new schedule was created successfully');
+          } else {
+            console.log('[ADMIN] Old Paspartu schedule replaced successfully for user:', selectedUser.email);
           }
           
-          console.log('[ADMIN] Schedule inserted successfully');
+          // Reset lesson deposit with 5 lessons
+          const { error: depositError } = await supabase
+            .rpc('reset_lesson_deposit_for_new_program', {
+              p_user_id: selectedUser.id,
+              p_total_lessons: 5,
+              p_created_by: user?.id
+            });
+
+          if (depositError) {
+            console.error('[ADMIN] Lesson deposit reset error:', depositError);
+            console.warn('[ADMIN] Failed to reset lesson deposit, but schedule was created successfully');
+          } else {
+            console.log('[ADMIN] Lesson deposit reset successfully for Paspartu user:', selectedUser.email);
+          }
+        }
+
+        // Δημιουργούμε αυτόματα μια ενεργή συνδρομή Personal Training
+        console.log('[ADMIN] Creating Personal Training membership...');
+        
+        // Βρίσκουμε το Personal Training package by name
+        const { data: personalPackage, error: packageError } = await supabase
+          .from('membership_packages')
+          .select('id')
+          .eq('name', 'Personal Training')
+          .eq('is_active', true)
+          .single();
+
+        if (packageError || !personalPackage) {
+          console.error('[ADMIN] Error finding Personal Training package:', packageError);
+          console.warn('[ADMIN] Personal Training package not found, skipping membership creation');
+          // Don't throw error, just skip membership creation
+          continue;
+        }
+
+        // Δημιουργούμε την ενεργή συνδρομή
+        const membershipPayload = {
+          user_id: selectedUser.id,
+          package_id: personalPackage.id,
+          duration_type: 'lesson', // Default duration type
+          start_date: new Date().toISOString().split('T')[0],
+          end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year from now
+          is_active: true,
+          approved_by: user?.id,
+          approved_at: new Date().toISOString()
+        };
+
+        const { error: membershipError } = await supabase
+          .from('memberships')
+          .insert(membershipPayload);
+
+        if (membershipError) {
+          console.error('[ADMIN] Membership insertion error:', membershipError);
+          // Don't throw here, just log - the schedule is more important
+          console.warn('[ADMIN] Failed to create membership, but schedule was created successfully');
+        } else {
+          console.log('[ADMIN] Personal Training membership created successfully for user:', selectedUser.email);
         }
       }
 
@@ -840,25 +1272,27 @@ const AdminPanel: React.FC = () => {
         return user ? `${user.firstName} ${user.lastName}` : 'Άγνωστος';
       }).join(', ');
 
-      toast.success(`Ο κωδικός ${newCode.code} δημιουργήθηκε επιτυχώς για ${trainingType === 'individual' ? 'τον χρήστη' : 'τους χρήστες'}: ${userNames}!`);
+      const userTypeText = userType === 'personal' ? 'Personal' : 'Paspartu';
+      toast.success(`Το πρόγραμμα ${userTypeText} Training δημιουργήθηκε επιτυχώς για ${trainingType === 'individual' ? 'τον χρήστη' : 'τους χρήστες'}: ${userNames}!`);
       setShowCreateCodeModal(false);
       setNewCode({ code: '', selectedUserId: '' });
       setTrainingType('individual');
+      setUserType('personal'); // Reset to default
       setSelectedUserIds([]);
       setUserSearchTerm('');
       setUserSearchMode('dropdown');
       setProgramSessions([{ id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', endTime: '19:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', notes: '' }]);
       
-      // Refresh the users list to show the new code
+      // Refresh the users list
       loadAllUsers();
     } catch (error) {
-      console.error('[ADMIN] Error creating personal training code:', error);
+      console.error('[ADMIN] Error creating personal training program:', error);
       
       // Καλύτερο error handling με συγκεκριμένα μηνύματα
       if (error && typeof error === 'object' && 'code' in error) {
         const supabaseError = error as any;
         if (supabaseError.code === '23505') {
-          toast.error('Ο κωδικός υπάρχει ήδη. Παρακαλώ επιλέξτε διαφορετικό κωδικό.');
+          toast.error('Το πρόγραμμα υπάρχει ήδη για αυτόν τον χρήστη.');
         } else if (supabaseError.code === '23503') {
           toast.error('Πρόβλημα με τα δεδομένα χρήστη. Ελέγξτε ότι ο χρήστης υπάρχει.');
         } else if (supabaseError.code === 'PGRST301') {
@@ -867,7 +1301,7 @@ const AdminPanel: React.FC = () => {
           toast.error(`Σφάλμα βάσης δεδομένων: ${supabaseError.message || 'Άγνωστο σφάλμα'}`);
         }
       } else {
-        toast.error('Σφάλμα κατά τη δημιουργία του κωδικού');
+        toast.error('Σφάλμα κατά τη δημιουργία του προγράμματος');
       }
     } finally {
       setLoading(false);
@@ -892,8 +1326,26 @@ const AdminPanel: React.FC = () => {
       setLoading(true);
       const packages = await getMembershipPackages();
       
-      // Pilates package will be loaded from database along with other packages
-      setMembershipPackages(packages);
+      // Filter out unwanted packages from UI
+      const unwantedPackages = [
+        'Personal Training',
+        'Premium', 
+        'Βασικό + προσωπική προπόνηση',
+        'VIP',
+        'Premium + όλα τα προνόμια',
+        'Όλα από το premium',
+        'Απεριόριστη προσωπική προπόνηση',
+        'Βασικό',
+        'Πρόσβαση σε όλες τις αίθουσες',
+        'Όλες οι ομαδικές τάξεις'
+      ];
+      
+      const filteredPackages = packages.filter(pkg => 
+        !unwantedPackages.includes(pkg.name) && 
+        !unwantedPackages.some(unwanted => pkg.description?.includes(unwanted))
+      );
+      
+      setMembershipPackages(filteredPackages);
       
       // Load Pilates durations
       const pilatesDurations = await getPilatesPackageDurations();
@@ -1020,8 +1472,245 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  // ===== MEMBERSHIP REQUEST PROGRAM OPTIONS FUNCTIONS =====
+
+  const handleRequestOptionChange = (requestId: string, option: string, value: any) => {
+    setSelectedRequestOptions(prev => ({
+      ...prev,
+      [requestId]: {
+        ...prev[requestId],
+        [option]: value
+      }
+    }));
+  };
+
+  const handleRequestProgramApprovalChange = (requestId: string, status: 'none' | 'approved' | 'rejected' | 'pending') => {
+    setRequestProgramApprovalStatus(prev => ({
+      ...prev,
+      [requestId]: status
+    }));
+  };
+
+  const handleSaveRequestProgramOptions = async (requestId: string) => {
+    const status = requestProgramApprovalStatus[requestId];
+    if (status === 'none' || !user) {
+      toast.error('Παρακαλώ επιλέξτε μια κατάσταση έγκρισης');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const requestOptions = selectedRequestOptions[requestId];
+      if (!requestOptions) {
+        toast.error('Δεν υπάρχουν επιλογές για αυτό το αίτημα');
+        return;
+      }
+
+      // Find the request to get user_id
+      const request = membershipRequests.find(r => r.id === requestId);
+      if (!request) {
+        toast.error('Αίτημα δεν βρέθηκε');
+        return;
+      }
+
+      // Save approval state for the request
+      const success = await saveProgramApprovalState(
+        request.user_id,
+        status as 'approved' | 'rejected' | 'pending',
+        {
+          oldMembersUsed: requestOptions.oldMembers || false,
+          kettlebellPoints: requestOptions.kettlebellPoints ? parseInt(requestOptions.kettlebellPoints) : 0,
+          cashAmount: requestOptions.cashAmount || 0,
+          posAmount: requestOptions.posAmount || 0,
+          createdBy: user.id,
+          notes: `Program options saved for membership request ${requestId} with ${status} status`
+        }
+      );
+
+      if (success) {
+        console.log(`Program approval state saved for membership request: ${requestId}`);
+        
+        // Handle pending state
+        if (status === 'pending') {
+          const newPendingUsers = new Set(requestPendingUsers);
+          const newFrozenOptions = { ...requestFrozenOptions };
+          
+          newPendingUsers.add(requestId);
+          newFrozenOptions[requestId] = requestOptions;
+          
+          setRequestPendingUsers(newPendingUsers);
+          setRequestFrozenOptions(newFrozenOptions);
+          
+          toast('Program Options τοποθετήθηκαν στην αναμονή - οι επιλογές παγώθηκαν', { icon: '⏳' });
+        } else {
+          // Execute actions for approved status
+          if (status === 'approved') {
+            await executeApprovedRequestProgramActions(requestId, request.user_id, requestOptions);
+          }
+          
+          // Clear pending state if it was pending
+          if (isRequestPending(requestId)) {
+            const newPendingUsers = new Set(requestPendingUsers);
+            const newFrozenOptions = { ...requestFrozenOptions };
+            
+            newPendingUsers.delete(requestId);
+            delete newFrozenOptions[requestId];
+            
+            setRequestPendingUsers(newPendingUsers);
+            setRequestFrozenOptions(newFrozenOptions);
+          }
+        }
+        
+        // Reset approval status
+        setRequestProgramApprovalStatus(prev => ({
+          ...prev,
+          [requestId]: 'none'
+        }));
+        
+        // Show success message
+        const statusText = {
+          approved: 'εγκρίθηκε και εκτελέστηκαν οι ενέργειες',
+          rejected: 'απορρίφθηκε', 
+          pending: 'τοποθετήθηκε στην αναμονή'
+        };
+        
+        toast.success(`Program Options ${statusText[status]} επιτυχώς!`);
+      } else {
+        toast.error('Σφάλμα κατά την αποθήκευση των Program Options');
+      }
+    } catch (error) {
+      console.error('Error saving request program options:', error);
+      toast.error('Σφάλμα κατά την αποθήκευση των Program Options');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const executeApprovedRequestProgramActions = async (requestId: string, userId: string, userOptions: any) => {
+    console.log('Executing approved program actions for membership request:', requestId);
+    
+    try {
+      // 1. Save Old Members usage if selected
+      if (userOptions.oldMembers) {
+        const oldMembersSuccess = await markOldMembersUsed(userId, user?.id || '');
+        if (oldMembersSuccess) {
+          console.log(`[APPROVED] Old Members marked as used for membership request: ${requestId}`);
+        } else {
+          console.warn(`[APPROVED] Failed to mark Old Members as used for membership request: ${requestId}`);
+        }
+      }
+
+      // 2. Save Kettlebell Points if provided
+      if (userOptions.kettlebellPoints && parseInt(userOptions.kettlebellPoints) > 0) {
+        const kettlebellSuccess = await saveKettlebellPoints(
+          userId, 
+          parseInt(userOptions.kettlebellPoints), 
+          undefined, // No program_id for now
+          user?.id || ''
+        );
+        
+        if (kettlebellSuccess) {
+          console.log(`[APPROVED] Kettlebell Points saved for membership request: ${requestId}, Points: ${userOptions.kettlebellPoints}`);
+        } else {
+          console.warn(`[APPROVED] Failed to save Kettlebell Points for membership request: ${requestId}`);
+        }
+      }
+
+      // 3. Save Cash transactions if provided
+      if (userOptions.cashAmount && userOptions.cashAmount > 0) {
+        const cashSuccess = await saveCashTransaction(
+          userId,
+          userOptions.cashAmount,
+          'cash',
+          undefined,
+          user?.id || '',
+          'Cash transaction from approved membership request'
+        );
+        if (cashSuccess) {
+          console.log(`[APPROVED] Cash transaction saved for membership request: ${requestId}, Amount: €${userOptions.cashAmount}`);
+        } else {
+          console.warn(`[APPROVED] Failed to save Cash transaction for membership request: ${requestId}`);
+        }
+      }
+
+      // 4. Save POS transactions if provided
+      if (userOptions.posAmount && userOptions.posAmount > 0) {
+        const posSuccess = await saveCashTransaction(
+          userId,
+          userOptions.posAmount,
+          'pos',
+          undefined,
+          user?.id || '',
+          'POS transaction from approved membership request'
+        );
+        if (posSuccess) {
+          console.log(`[APPROVED] POS transaction saved for membership request: ${requestId}, Amount: €${userOptions.posAmount}`);
+        } else {
+          console.warn(`[APPROVED] Failed to save POS transaction for membership request: ${requestId}`);
+        }
+      }
+
+      toast.success('Έγιναν όλες οι απαραίτητες ενέργειες για το εγκεκριμένο αίτημα!');
+    } catch (error) {
+      console.error('Error executing approved program actions for membership request:', error);
+      toast.error('Σφάλμα κατά την εκτέλεση των ενεργειών');
+    }
+  };
+
   // ===== PILATES PACKAGE FUNCTIONS =====
 
+  // ===== KETTLEBELL POINTS FUNCTIONS =====
+
+  const loadKettlebellPointsData = async () => {
+    try {
+      setLoading(true);
+      const [totalPoints, summary] = await Promise.all([
+        getTotalKettlebellPoints(),
+        getKettlebellPointsSummary()
+      ]);
+      
+      setTotalKettlebellPoints(totalPoints);
+      setKettlebellSummary(summary);
+    } catch (error) {
+      console.error('Error loading kettlebell points data:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση των Kettlebell Points');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadUserKettlebellPoints = async (userId: string) => {
+    try {
+      const userPoints = await getUserKettlebellPoints(userId);
+      const totalUserPoints = userPoints.reduce((sum, point) => sum + point.points, 0);
+      setKettlebellPoints(totalUserPoints.toString());
+    } catch (error) {
+      console.error('Error loading user kettlebell points:', error);
+      setKettlebellPoints('');
+    }
+  };
+
+  // Search kettlebell users
+  const searchKettlebellUsers = (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setKettlebellSearchResults([]);
+      return;
+    }
+
+    const filtered = kettlebellSummary.filter(user => 
+      user.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.user_email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    setKettlebellSearchResults(filtered);
+  };
+
+  // Handle search input change
+  const handleKettlebellSearchChange = (value: string) => {
+    setKettlebellSearchTerm(value);
+    searchKettlebellUsers(value);
+  };
 
   // Load data when membership-packages tab is selected
   useEffect(() => {
@@ -1030,6 +1719,45 @@ const AdminPanel: React.FC = () => {
       loadMembershipRequests();
     }
   }, [activeTab]);
+
+  // Load data when kettlebell-points tab is selected
+  useEffect(() => {
+    if (activeTab === 'kettlebell-points') {
+      loadKettlebellPointsData();
+    }
+  }, [activeTab]);
+
+  // Load old members usage when component mounts
+  useEffect(() => {
+    const loadOldMembersUsage = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('user_old_members_usage')
+          .select('user_id');
+
+        if (error) {
+          console.error('Error loading old members usage:', error);
+          return;
+        }
+
+        const usedOldMembersSet = new Set(data?.map(record => record.user_id) || []);
+        setUsedOldMembers(usedOldMembersSet);
+      } catch (error) {
+        console.error('Exception loading old members usage:', error);
+      }
+    };
+
+    loadOldMembersUsage();
+  }, [user]);
+
+  // Load Kettlebell Points when selected user changes
+  useEffect(() => {
+    if (newCode.selectedUserId) {
+      loadUserKettlebellPoints(newCode.selectedUserId);
+    }
+  }, [newCode.selectedUserId]);
 
   return (
     <div className="space-y-6">
@@ -1093,8 +1821,8 @@ const AdminPanel: React.FC = () => {
                     onClick={() => setShowCreateCodeModal(true)}
                     className="flex items-center space-x-2 sm:space-x-3 px-4 sm:px-6 py-2 sm:py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all duration-200 font-semibold shadow-lg text-sm sm:text-base"
                   >
-                    <Key className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span>🔑 Δημιουργία Κωδικού</span>
+                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span>🏋️‍♂️ Δημιουργία Προγράμματος</span>
                   </button>
                 </div>
               </div>
@@ -1136,108 +1864,6 @@ const AdminPanel: React.FC = () => {
                 )}
               </div>
 
-              {/* Mobile-First Program Status Statistics */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-6">
-                {/* All Status Card */}
-                <div 
-                  className={`bg-gradient-to-br from-blue-50 to-indigo-100 border-2 rounded-lg sm:rounded-xl p-2 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer ${
-                    statusFilter === 'all' 
-                      ? 'border-blue-500 ring-2 sm:ring-4 ring-blue-200' 
-                      : 'border-blue-300 hover:border-blue-400'
-                  }`}
-                  onClick={() => setStatusFilter('all')}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between h-full">
-                    <div className="flex items-center flex-1">
-                      <div className="p-2 sm:p-4 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg sm:rounded-xl shadow-lg">
-                        <span className="text-white text-lg sm:text-2xl">📊</span>
-                      </div>
-                      <div className="ml-2 sm:ml-4 flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm font-bold text-blue-800 uppercase tracking-wide truncate">Όλα</p>
-                        <p className="text-lg sm:text-3xl font-bold text-blue-900">
-                          {programStatuses.length}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-blue-600 text-lg sm:text-3xl mt-1 sm:mt-0 flex-shrink-0">📈</div>
-                  </div>
-                </div>
-
-                {/* Pending Status Card */}
-                <div 
-                  className={`bg-gradient-to-br from-yellow-50 to-orange-100 border-2 rounded-lg sm:rounded-xl p-2 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer ${
-                    statusFilter === 'pending' 
-                      ? 'border-yellow-500 ring-2 sm:ring-4 ring-yellow-200' 
-                      : 'border-yellow-300 hover:border-yellow-400'
-                  }`}
-                  onClick={() => setStatusFilter('pending')}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between h-full">
-                    <div className="flex items-center flex-1">
-                      <div className="p-2 sm:p-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg sm:rounded-xl shadow-lg">
-                        <span className="text-white text-lg sm:text-2xl">⏳</span>
-                      </div>
-                      <div className="ml-2 sm:ml-4 flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm font-bold text-yellow-800 uppercase tracking-wide truncate">Σε Αναμονή</p>
-                        <p className="text-lg sm:text-3xl font-bold text-yellow-900">
-                          {programStatuses.filter(p => p.status === 'pending').length}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-yellow-600 text-lg sm:text-3xl mt-1 sm:mt-0 flex-shrink-0">⏰</div>
-                  </div>
-                </div>
-
-                {/* Accepted Status Card */}
-                <div 
-                  className={`bg-gradient-to-br from-green-50 to-emerald-100 border-2 rounded-lg sm:rounded-xl p-2 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer ${
-                    statusFilter === 'accepted' 
-                      ? 'border-green-500 ring-2 sm:ring-4 ring-green-200' 
-                      : 'border-green-300 hover:border-green-400'
-                  }`}
-                  onClick={() => setStatusFilter('accepted')}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between h-full">
-                    <div className="flex items-center flex-1">
-                      <div className="p-2 sm:p-4 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg sm:rounded-xl shadow-lg">
-                        <span className="text-white text-lg sm:text-2xl">✅</span>
-                      </div>
-                      <div className="ml-2 sm:ml-4 flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm font-bold text-green-800 uppercase tracking-wide truncate">Αποδεκτά</p>
-                        <p className="text-lg sm:text-3xl font-bold text-green-900">
-                          {programStatuses.filter(p => p.status === 'accepted').length}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-green-600 text-lg sm:text-3xl mt-1 sm:mt-0 flex-shrink-0">🎉</div>
-                  </div>
-                </div>
-
-                {/* Declined Status Card */}
-                <div 
-                  className={`bg-gradient-to-br from-red-50 to-pink-100 border-2 rounded-lg sm:rounded-xl p-2 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer ${
-                    statusFilter === 'declined' 
-                      ? 'border-red-500 ring-2 sm:ring-4 ring-red-200' 
-                      : 'border-red-300 hover:border-red-400'
-                  }`}
-                  onClick={() => setStatusFilter('declined')}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between h-full">
-                    <div className="flex items-center flex-1">
-                      <div className="p-2 sm:p-4 bg-gradient-to-br from-red-400 to-pink-500 rounded-lg sm:rounded-xl shadow-lg">
-                        <span className="text-white text-lg sm:text-2xl">❌</span>
-                      </div>
-                      <div className="ml-2 sm:ml-4 flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm font-bold text-red-800 uppercase tracking-wide truncate">Απορριφθέντα</p>
-                        <p className="text-lg sm:text-3xl font-bold text-red-900">
-                          {programStatuses.filter(p => p.status === 'declined').length}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-red-600 text-lg sm:text-3xl mt-1 sm:mt-0 flex-shrink-0">😔</div>
-                  </div>
-                </div>
-              </div>
 
               {/* Mobile-First Program Status List */}
               <div className="bg-white rounded-xl shadow-lg border border-gray-100">
@@ -1893,7 +2519,9 @@ const AdminPanel: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {membershipRequests.map((request) => (
+                      {membershipRequests
+                        .filter(request => request.package?.name === 'Free Gym' || request.package?.name === 'Pilates')
+                        .map((request) => (
                         <div key={request.id} className="border border-gray-200 rounded-lg p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
@@ -1953,6 +2581,239 @@ const AdminPanel: React.FC = () => {
                               )}
                             </div>
                           </div>
+                          
+                          {/* Program Options Section for Free Gym requests - Only show if not approved/rejected OR if pending */}
+                          {((request.status === 'pending') || 
+                            (request.status === 'approved' && isRequestPending(request.id)) || 
+                            (request.status === 'rejected' && isRequestPending(request.id))) && (
+                          <div className={`mt-4 p-4 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-gray-50 border-gray-200'}`}>
+                            <h5 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                              Program Options
+                              {isRequestPending(request.id) && <span className="ml-2">🔒</span>}
+                            </h5>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Old Members */}
+                              <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                <button
+                                  onClick={() => {
+                                    if (isRequestPending(request.id)) {
+                                      toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                      return;
+                                    }
+                                    handleRequestOptionChange(request.id, 'oldMembers', !selectedRequestOptions[request.id]?.oldMembers);
+                                  }}
+                                  className={`w-full p-3 rounded-lg text-left transition-colors ${
+                                    selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers
+                                      ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                                      : isRequestPending(request.id)
+                                      ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                      : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium">
+                                      {isRequestPending(request.id) && '🔒 '}👴 Παλαιά μέλη
+                                    </span>
+                                    {(selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers) && (
+                                      <span className="text-green-600">✓</span>
+                                    )}
+                                  </div>
+                                </button>
+                              </div>
+
+                              {/* Kettlebell Points */}
+                              <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  {isRequestPending(request.id) && '🔒 '}🏋️ Kettlebell Points
+                                </label>
+                                <input
+                                  type="number"
+                                  value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.kettlebellPoints || '' : selectedRequestOptions[request.id]?.kettlebellPoints || ''}
+                                  onChange={(e) => {
+                                    if (isRequestPending(request.id)) return;
+                                    handleRequestOptionChange(request.id, 'kettlebellPoints', e.target.value);
+                                  }}
+                                  placeholder="Εισάγετε πόντους"
+                                  className={`w-full p-2 border rounded-lg ${
+                                    isRequestPending(request.id)
+                                      ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                      : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                                  }`}
+                                  disabled={isRequestPending(request.id)}
+                                />
+                              </div>
+
+                              {/* Cash */}
+                              <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                <button
+                                  onClick={() => {
+                                    if (isRequestPending(request.id)) {
+                                      toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                      return;
+                                    }
+                                    handleRequestOptionChange(request.id, 'cash', !selectedRequestOptions[request.id]?.cash);
+                                  }}
+                                  className={`w-full p-3 rounded-lg text-left transition-colors ${
+                                    selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash
+                                      ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                                      : isRequestPending(request.id)
+                                      ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                      : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium">
+                                      {isRequestPending(request.id) && '🔒 '}💰 Μετρητά
+                                    </span>
+                                    {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
+                                      <span className="text-green-600">✓</span>
+                                    )}
+                                  </div>
+                                </button>
+                                
+                                {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
+                                  <div className="mt-2">
+                                    <input
+                                      type="number"
+                                      value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.cashAmount || '' : selectedRequestOptions[request.id]?.cashAmount || ''}
+                                      onChange={(e) => {
+                                        if (isRequestPending(request.id)) return;
+                                        handleRequestOptionChange(request.id, 'cashAmount', parseFloat(e.target.value) || 0);
+                                      }}
+                                      placeholder="Ποσό σε €"
+                                      className={`w-full p-2 border rounded-lg ${
+                                        isRequestPending(request.id)
+                                          ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                          : 'border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500'
+                                      }`}
+                                      disabled={isRequestPending(request.id)}
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        if (isRequestPending(request.id)) return;
+                                        // Handle cash selection
+                                      }}
+                                      className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
+                                        isRequestPending(request.id)
+                                          ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+                                          : 'bg-green-600 text-white hover:bg-green-700'
+                                      }`}
+                                      disabled={isRequestPending(request.id)}
+                                    >
+                                      ✓ Επιλογή
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* POS */}
+                              <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                <button
+                                  onClick={() => {
+                                    if (isRequestPending(request.id)) {
+                                      toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                      return;
+                                    }
+                                    handleRequestOptionChange(request.id, 'pos', !selectedRequestOptions[request.id]?.pos);
+                                  }}
+                                  className={`w-full p-3 rounded-lg text-left transition-colors ${
+                                    selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos
+                                      ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
+                                      : isRequestPending(request.id)
+                                      ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                      : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium">
+                                      {isRequestPending(request.id) && '🔒 '}💳 POS
+                                    </span>
+                                    {(selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos) && (
+                                      <span className="text-blue-600">✓</span>
+                                    )}
+                                  </div>
+                                </button>
+                                
+                                {(selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos) && (
+                                  <div className="mt-2">
+                                    <input
+                                      type="number"
+                                      value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.posAmount || '' : selectedRequestOptions[request.id]?.posAmount || ''}
+                                      onChange={(e) => {
+                                        if (isRequestPending(request.id)) return;
+                                        handleRequestOptionChange(request.id, 'posAmount', parseFloat(e.target.value) || 0);
+                                      }}
+                                      placeholder="Ποσό σε €"
+                                      className={`w-full p-2 border rounded-lg ${
+                                        isRequestPending(request.id)
+                                          ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                          : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                                      }`}
+                                      disabled={isRequestPending(request.id)}
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        if (isRequestPending(request.id)) return;
+                                        // Handle POS selection
+                                      }}
+                                      className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
+                                        isRequestPending(request.id)
+                                          ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+                                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                                      }`}
+                                      disabled={isRequestPending(request.id)}
+                                    >
+                                      ✓ Επιλογή
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Approval Buttons */}
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              <button
+                                onClick={() => handleRequestProgramApprovalChange(request.id, 'approved')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  requestProgramApprovalStatus[request.id] === 'approved'
+                                    ? 'bg-green-600 text-white'
+                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                }`}
+                              >
+                                ✅ Έγκριση
+                              </button>
+                              <button
+                                onClick={() => handleRequestProgramApprovalChange(request.id, 'rejected')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  requestProgramApprovalStatus[request.id] === 'rejected'
+                                    ? 'bg-red-600 text-white'
+                                    : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                }`}
+                              >
+                                ❌ Απόρριψη
+                              </button>
+                              <button
+                                onClick={() => handleRequestProgramApprovalChange(request.id, 'pending')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  requestProgramApprovalStatus[request.id] === 'pending'
+                                    ? 'bg-yellow-600 text-white'
+                                    : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                }`}
+                              >
+                                ⏳ Αναμονή
+                              </button>
+                              <button
+                                onClick={() => handleSaveRequestProgramOptions(request.id)}
+                                disabled={loading || requestProgramApprovalStatus[request.id] === 'none'}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                              >
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                                Αποθήκευση Program Options
+                              </button>
+                            </div>
+                          </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1967,8 +2828,152 @@ const AdminPanel: React.FC = () => {
             <PilatesScheduleManagement />
           )}
 
+
+          {/* Cash Register Tab */}
+          {activeTab === 'cash-register' && !loading && (
+            <CashRegister />
+          )}
+
+          {/* Kettlebell Points Tab */}
+          {activeTab === 'kettlebell-points' && !loading && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-xl p-4 sm:p-6 text-white mb-4 sm:mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
+                  <div>
+                    <h2 className="text-lg sm:text-2xl font-bold mb-2">🏋️‍♂️ Kettlebell Points Ranking</h2>
+                    <p className="text-orange-100 text-sm sm:text-base">Συνολικοί βαθμοί και κατάταξη χρηστών</p>
+                  </div>
+                  <button
+                    onClick={loadKettlebellPointsData}
+                    className="flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all duration-200 font-semibold shadow-lg text-sm"
+                  >
+                    <Award className="h-4 w-4" />
+                    <span>🔄 Ανανέωση</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Total Points Card */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-blue-800 mb-2">📊 Συνολικοί Βαθμοί</h3>
+                    <p className="text-blue-600">Όλοι οι χρήστες συνολικά</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-4xl font-bold text-blue-900">{totalKettlebellPoints}</div>
+                    <div className="text-sm text-blue-600">βαθμοί</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* User Rankings */}
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">🏆 Κατάταξη Χρηστών</h3>
+                      <p className="text-gray-600 mt-1">Βαθμοί Kettlebell ανά χρήστη</p>
+                    </div>
+                    
+                    {/* Search Input */}
+                    <div className="flex items-center space-x-2">
+                      <div className="relative">
+                        <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Αναζήτηση χρήστη..."
+                          value={kettlebellSearchTerm}
+                          onChange={(e) => handleKettlebellSearchChange(e.target.value)}
+                          className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                        />
+                      </div>
+                      {kettlebellSearchTerm && (
+                        <button
+                          onClick={() => handleKettlebellSearchChange('')}
+                          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  {kettlebellSummary.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Award className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>Δεν υπάρχουν βαθμοί Kettlebell ακόμα</p>
+                      <p className="text-sm mt-2">Οι βαθμοί θα εμφανιστούν εδώ όταν δημιουργηθούν προγράμματα με Kettlebell Points</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Show search results if searching, otherwise show top 10 */}
+                      {(kettlebellSearchTerm ? kettlebellSearchResults : kettlebellSummary.slice(0, 10)).map((user, index) => (
+                        <div key={user.user_id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              {/* Rank Badge */}
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
+                                index === 0 ? 'bg-yellow-500' : 
+                                index === 1 ? 'bg-gray-400' : 
+                                index === 2 ? 'bg-orange-500' : 
+                                'bg-blue-500'
+                              }`}>
+                                {kettlebellSearchTerm ? 
+                                  kettlebellSummary.findIndex(u => u.user_id === user.user_id) + 1 : 
+                                  index + 1
+                                }
+                              </div>
+                              
+                              {/* User Info */}
+                              <div>
+                                <h4 className="font-semibold text-gray-900">{user.user_name}</h4>
+                                <p className="text-sm text-gray-600">{user.user_email}</p>
+                                <p className="text-xs text-gray-500">
+                                  {user.points_count} {user.points_count === 1 ? 'πρόγραμμα' : 'προγράμματα'} • 
+                                  Τελευταία ενημέρωση: {new Date(user.last_updated).toLocaleDateString('el-GR')}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {/* Points */}
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-gray-900">{user.total_points}</div>
+                              <div className="text-sm text-gray-600">βαθμοί</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Show message if no search results */}
+                      {kettlebellSearchTerm && kettlebellSearchResults.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>Δεν βρέθηκαν χρήστες με αυτό το όνομα</p>
+                          <p className="text-sm mt-2">Δοκιμάστε ένα διαφορετικό όρο αναζήτησης</p>
+                        </div>
+                      )}
+                      
+                      {/* Show "Show more" if there are more than 10 users and not searching */}
+                      {!kettlebellSearchTerm && kettlebellSummary.length > 10 && (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-gray-500">
+                            Εμφανίζονται οι πρώτοι 10 από {kettlebellSummary.length} χρήστες
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Other tabs placeholder */}
-          {activeTab !== 'personal-training' && activeTab !== 'membership-packages' && activeTab !== 'pilates-schedule' && !loading && (
+          {activeTab !== 'personal-training' && activeTab !== 'membership-packages' && activeTab !== 'pilates-schedule' && activeTab !== 'kettlebell-points' && activeTab !== 'cash-register' && !loading && (
             <div className="text-center py-8 text-gray-500">
               <p>Αυτή η κατηγορία θα υλοποιηθεί σύντομα.</p>
             </div>
@@ -1984,8 +2989,8 @@ const AdminPanel: React.FC = () => {
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-t-xl sm:rounded-t-2xl p-4 sm:p-6 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg sm:text-2xl font-bold mb-1 sm:mb-2">🔑 Δημιουργία Κωδικού</h3>
-                  <p className="text-purple-100 text-sm sm:text-base">Δημιουργήστε νέο κωδικό και πρόγραμμα</p>
+                  <h3 className="text-lg sm:text-2xl font-bold mb-1 sm:mb-2">🏋️‍♂️ Δημιουργία Προγράμματος</h3>
+                  <p className="text-purple-100 text-sm sm:text-base">Δημιουργήστε νέο πρόγραμμα Personal Training</p>
                 </div>
                 <button
                   onClick={() => setShowCreateCodeModal(false)}
@@ -2026,6 +3031,44 @@ const AdminPanel: React.FC = () => {
                    >
                      👥 Group
                    </button>
+                 </div>
+               </div>
+
+               {/* Mobile-First User Type Selection */}
+               <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 sm:p-6 border border-blue-200">
+                 <label className="block text-base sm:text-lg font-bold text-blue-800 mb-3 sm:mb-4 flex items-center">
+                   👥 Τύπος Χρήστη
+                 </label>
+                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                   <button
+                     type="button"
+                     onClick={() => setUserType('personal')}
+                     className={`px-4 sm:px-6 py-2 sm:py-3 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                       userType === 'personal' 
+                         ? 'bg-blue-600 text-white shadow-lg' 
+                         : 'bg-white text-blue-600 border-2 border-blue-200 hover:border-blue-400'
+                     }`}
+                   >
+                     🏋️‍♂️ Personal User
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => setUserType('paspartu')}
+                     className={`px-4 sm:px-6 py-2 sm:py-3 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                       userType === 'paspartu' 
+                         ? 'bg-blue-600 text-white shadow-lg' 
+                         : 'bg-white text-blue-600 border-2 border-blue-200 hover:border-blue-400'
+                     }`}
+                   >
+                     🎯 Paspartu User
+                   </button>
+                 </div>
+                 <div className="mt-3 text-sm text-blue-700">
+                   {userType === 'personal' ? (
+                     <span>📋 Personal Users: Παίρνουν κλειδωμένο πρόγραμμα με συγκεκριμένες ώρες</span>
+                   ) : (
+                     <span>💳 Paspartu Users: Παίρνουν 5 μαθήματα και επιλέγουν ελεύθερα τις ώρες</span>
+                   )}
                  </div>
                </div>
 
@@ -2197,118 +3240,758 @@ const AdminPanel: React.FC = () => {
                  )}
               </div>
 
-                             {/* Enhanced Code Section */}
-               <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
-                 <div>
-                   <label className="block text-lg font-bold text-purple-800 mb-3 flex items-center">
-                     🔑 Κωδικός
-                   </label>
-                   <input
-                     type="text"
-                     className="w-full px-4 py-3 border-2 border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-gray-700 placeholder-gray-400"
-                     placeholder="π.χ. PERSONAL2024"
-                     value={newCode.code}
-                     onChange={(e) => setNewCode({ ...newCode, code: e.target.value })}
-                   />
-                 </div>
-               </div>
+              {/* Group Room Options - Only for Group Training */}
+              {trainingType === 'group' && selectedUserIds.length > 0 && (
+                <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-4 sm:p-6 border border-orange-200 mt-4">
+                  <h4 className="text-lg sm:text-xl font-bold text-orange-800 mb-4 sm:mb-6 flex items-center">
+                    🏠 Επιλογές Ομαδικής Αίθουσας
+                  </h4>
+                  
+                  <div className="space-y-6">
+                    {/* Group Room Size Selection */}
+                    <div>
+                      <label className="block text-base font-semibold text-orange-700 mb-3">
+                        Επιλέξτε Μέγιστο Μέγεθος Ομαδικής Αίθουσας:
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGroupRoom('2')}
+                          className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                            selectedGroupRoom === '2'
+                              ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
+                              : 'bg-white text-orange-600 border-orange-300 hover:border-orange-500'
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="text-2xl mb-2">👥</div>
+                            <div className="font-bold">2 Χρήστες</div>
+                            <div className="text-sm opacity-75">Μέγιστο 2 άτομα</div>
+                          </div>
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGroupRoom('3')}
+                          className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                            selectedGroupRoom === '3'
+                              ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
+                              : 'bg-white text-orange-600 border-orange-300 hover:border-orange-500'
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="text-2xl mb-2">👥👥</div>
+                            <div className="font-bold">3 Χρήστες</div>
+                            <div className="text-sm opacity-75">Μέγιστο 3 άτομα</div>
+                          </div>
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGroupRoom('6')}
+                          className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                            selectedGroupRoom === '6'
+                              ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
+                              : 'bg-white text-orange-600 border-orange-300 hover:border-orange-500'
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="text-2xl mb-2">👥👥👥</div>
+                            <div className="font-bold">6 Χρήστες</div>
+                            <div className="text-sm opacity-75">Μέγιστο 6 άτομα</div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Weekly Frequency Selection */}
+                    {selectedGroupRoom && (
+                      <div>
+                        <label className="block text-base font-semibold text-orange-700 mb-3">
+                          Πόσες φορές την εβδομάδα θα παρακολουθούν οι χρήστες;
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                          {[1, 2, 3, 4, 5].map((freq) => (
+                            <button
+                              key={freq}
+                              type="button"
+                              onClick={() => setWeeklyFrequency(freq as 1 | 2 | 3 | 4 | 5)}
+                              className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                                weeklyFrequency === freq
+                                  ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
+                                  : 'bg-white text-orange-600 border-orange-300 hover:border-orange-500'
+                              }`}
+                            >
+                              <div className="text-center">
+                                <div className="text-xl font-bold">{freq}</div>
+                                <div className="text-xs opacity-75">
+                                  {freq === 1 ? 'φορά' : 'φορές'}/εβδομάδα
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Monthly Total Display */}
+                    {selectedGroupRoom && weeklyFrequency && (
+                      <div className="bg-orange-100 border border-orange-300 rounded-lg p-4">
+                        <div className="text-center">
+                          <div className="text-sm font-medium text-orange-700 mb-1">Μηνιαίο Σύνολο</div>
+                          <div className="text-2xl font-bold text-orange-800">
+                            {monthlyTotal} συνεδρίες/μήνα
+                          </div>
+                          <div className="text-xs text-orange-600 mt-1">
+                            ({weeklyFrequency} φορές/εβδομάδα × 4 εβδομάδες)
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Group Assignment Summary */}
+                    {selectedGroupRoom && weeklyFrequency && (
+                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-300 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium text-gray-700">Περίληψη Ανάθεσης Ομάδας</div>
+                            <div className="text-lg font-bold text-green-800">
+                              {selectedUserIds.length} χρήστες (μέγιστο {selectedGroupRoom} άτομα)
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {weeklyFrequency} φορές/εβδομάδα • {monthlyTotal} συνεδρίες/μήνα
+                            </div>
+                            <div className="text-sm text-green-600 mt-2 font-medium">
+                              ✅ Ευέλικτη ομαδική ανάθεση - ο admin μπορεί να προσθέσει/αφαιρέσει χρήστες
+                            </div>
+                          </div>
+                          <div className="text-3xl">✅</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* New Options Panel */}
+              {(trainingType === 'individual' ? newCode.selectedUserId : selectedUserIds.length > 0) && (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200 mt-4">
+                  <h4 className="text-lg sm:text-xl font-bold text-purple-800 mb-4 sm:mb-6 flex items-center">
+                    ⚙️ Επιλογές Προγράμματος
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Παλαιά μέλη - Μόνο αν δεν έχει χρησιμοποιηθεί */}
+                    {!((trainingType === 'individual' 
+                      ? usedOldMembers.has(newCode.selectedUserId)
+                      : selectedUserIds.some(id => usedOldMembers.has(id)))) && (
+                      <div className={`rounded-lg p-4 border ${
+                        (trainingType === 'individual' 
+                          ? isUserPending(newCode.selectedUserId)
+                          : selectedUserIds.some(id => isUserPending(id)))
+                          ? 'bg-yellow-100 border-yellow-300' 
+                          : 'bg-white border-gray-200'
+                      }`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                            
+                            // Check if any user is pending
+                            const hasPendingUser = userIds.some(id => isUserPending(id));
+                            if (hasPendingUser) {
+                              toast('Οι επιλογές είναι παγωμένες - αλλάξτε το status για να τις τροποποιήσετε', { icon: '🔒' });
+                              return;
+                            }
+                            
+                            setSelectedOptions(prev => {
+                              const newOptions = { ...prev };
+                              userIds.forEach(id => {
+                                newOptions[id] = {
+                                  ...newOptions[id],
+                                  oldMembers: !newOptions[id]?.oldMembers
+                                };
+                              });
+                              return newOptions;
+                            });
+                          }}
+                          className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 relative shadow-lg ${
+                            (trainingType === 'individual' && newCode.selectedUserId) 
+                              ? (isUserPending(newCode.selectedUserId) 
+                                  ? (getFrozenOptions(newCode.selectedUserId)?.oldMembers 
+                                      ? 'bg-green-500 text-white' 
+                                      : 'bg-blue-500 text-white')
+                                  : (selectedOptions[newCode.selectedUserId]?.oldMembers
+                                      ? 'bg-green-500 text-white hover:bg-green-600' 
+                                      : 'bg-blue-500 text-white hover:bg-blue-600'))
+                              : (selectedUserIds.some(id => selectedOptions[id]?.oldMembers)
+                                  ? 'bg-green-500 text-white hover:bg-green-600' 
+                                  : 'bg-blue-500 text-white hover:bg-blue-600')
+                          }`}
+                        >
+                          <div className="flex items-center justify-center space-x-2">
+                            <span>👴 Παλαιά μέλη</span>
+                            {((trainingType === 'individual' && newCode.selectedUserId) 
+                              ? (isUserPending(newCode.selectedUserId) 
+                                  ? getFrozenOptions(newCode.selectedUserId)?.oldMembers
+                                  : selectedOptions[newCode.selectedUserId]?.oldMembers)
+                              : selectedUserIds.some(id => selectedOptions[id]?.oldMembers)) && (
+                              <span className="text-green-200">✓</span>
+                            )}
+                            {(trainingType === 'individual' 
+                              ? isUserPending(newCode.selectedUserId)
+                              : selectedUserIds.some(id => isUserPending(id))) && (
+                              <span className="text-yellow-600">🔒</span>
+                            )}
+                          </div>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Kettlebell Points */}
+                    <div className={`rounded-lg p-4 border ${
+                      (trainingType === 'individual' 
+                        ? isUserPending(newCode.selectedUserId)
+                        : selectedUserIds.some(id => isUserPending(id)))
+                        ? 'bg-yellow-100 border-yellow-300' 
+                        : 'bg-white border-gray-200'
+                    }`}>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🏋️‍♂️ Kettlebell Points
+                        {(trainingType === 'individual' 
+                          ? isUserPending(newCode.selectedUserId)
+                          : selectedUserIds.some(id => isUserPending(id))) && (
+                          <span className="text-yellow-600 ml-2">🔒</span>
+                        )}
+                      </label>
+                      <input
+                        type="number"
+                        value={(trainingType === 'individual' && newCode.selectedUserId) 
+                          ? (isUserPending(newCode.selectedUserId) 
+                              ? (getFrozenOptions(newCode.selectedUserId)?.kettlebellPoints || '')
+                              : kettlebellPoints)
+                          : kettlebellPoints}
+                        onChange={(e) => {
+                          const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                          
+                          // Check if any user is pending
+                          const hasPendingUser = userIds.some(id => isUserPending(id));
+                          if (hasPendingUser) {
+                            toast('Οι επιλογές είναι παγωμένες - αλλάξτε το status για να τις τροποποιήσετε', { icon: '🔒' });
+                            return;
+                          }
+                          
+                          setKettlebellPoints(e.target.value);
+                          setSelectedOptions(prev => {
+                            const newOptions = { ...prev };
+                            userIds.forEach(id => {
+                              newOptions[id] = {
+                                ...newOptions[id],
+                                kettlebellPoints: e.target.value
+                              };
+                            });
+                            return newOptions;
+                          });
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                          (trainingType === 'individual' 
+                            ? isUserPending(newCode.selectedUserId)
+                            : selectedUserIds.some(id => isUserPending(id)))
+                            ? 'border-yellow-300 bg-yellow-50 focus:ring-yellow-500'
+                            : 'border-gray-300 focus:ring-purple-500 focus:border-purple-500'
+                        }`}
+                        placeholder="Εισάγετε αριθμό..."
+                        disabled={(trainingType === 'individual' 
+                          ? isUserPending(newCode.selectedUserId)
+                          : selectedUserIds.some(id => isUserPending(id)))}
+                      />
+                    </div>
+
+                    {/* Μετρητά */}
+                    <div className={`rounded-lg p-4 border ${
+                      (trainingType === 'individual' 
+                        ? isUserPending(newCode.selectedUserId)
+                        : selectedUserIds.some(id => isUserPending(id)))
+                        ? 'bg-yellow-100 border-yellow-300' 
+                        : 'bg-white border-gray-200'
+                    }`}>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        💰 Μετρητά (€)
+                        {(trainingType === 'individual' 
+                          ? isUserPending(newCode.selectedUserId)
+                          : selectedUserIds.some(id => isUserPending(id))) && (
+                          <span className="text-yellow-600 ml-2">🔒</span>
+                        )}
+                      </label>
+                      {!showCashInput ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                            
+                            // Check if any user is pending
+                            const hasPendingUser = userIds.some(id => isUserPending(id));
+                            if (hasPendingUser) {
+                              toast('Οι επιλογές είναι παγωμένες - αλλάξτε το status για να τις τροποποιήσετε', { icon: '🔒' });
+                              return;
+                            }
+                            
+                            setShowCashInput(true);
+                          }}
+                          className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg ${
+                            (trainingType === 'individual' && newCode.selectedUserId) 
+                              ? (isUserPending(newCode.selectedUserId) 
+                                  ? (getFrozenOptions(newCode.selectedUserId)?.cash 
+                                      ? 'bg-green-500 text-white cursor-not-allowed'
+                                      : 'bg-yellow-500 text-white cursor-not-allowed')
+                                  : 'bg-green-500 text-white hover:bg-green-600')
+                              : (selectedUserIds.some(id => isUserPending(id))
+                                  ? 'bg-yellow-500 text-white cursor-not-allowed'
+                                  : 'bg-green-500 text-white hover:bg-green-600')
+                          }`}
+                          disabled={(trainingType === 'individual' 
+                            ? isUserPending(newCode.selectedUserId)
+                            : selectedUserIds.some(id => isUserPending(id)))}
+                        >
+                          💰 Μετρητά
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={(trainingType === 'individual' && newCode.selectedUserId) 
+                              ? (isUserPending(newCode.selectedUserId) 
+                                  ? (getFrozenOptions(newCode.selectedUserId)?.cashAmount?.toString() || '')
+                                  : cashAmount)
+                              : cashAmount}
+                            onChange={(e) => {
+                              const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                              
+                              // Check if any user is pending
+                              const hasPendingUser = userIds.some(id => isUserPending(id));
+                              if (hasPendingUser) {
+                                toast('Οι επιλογές είναι παγωμένες - αλλάξτε το status για να τις τροποποιήσετε', { icon: '🔒' });
+                                return;
+                              }
+                              
+                              setCashAmount(e.target.value);
+                            }}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                              (trainingType === 'individual' 
+                                ? isUserPending(newCode.selectedUserId)
+                                : selectedUserIds.some(id => isUserPending(id)))
+                                ? 'border-yellow-300 bg-yellow-50 focus:ring-yellow-500'
+                                : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                            }`}
+                            placeholder="Εισάγετε ποσό σε €..."
+                            autoFocus
+                            disabled={(trainingType === 'individual' 
+                              ? isUserPending(newCode.selectedUserId)
+                              : selectedUserIds.some(id => isUserPending(id)))}
+                          />
+                          <div className="flex space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                                
+                                // Check if any user is pending
+                                const hasPendingUser = userIds.some(id => isUserPending(id));
+                                if (hasPendingUser) {
+                                  toast('Οι επιλογές είναι παγωμένες - αλλάξτε το status για να τις τροποποιήσετε', { icon: '🔒' });
+                                  return;
+                                }
+                                
+                                if (cashAmount && parseFloat(cashAmount) > 0) {
+                                  // Update selected options only
+                                  setSelectedOptions(prev => {
+                                    const newOptions = { ...prev };
+                                    userIds.forEach(id => {
+                                      newOptions[id] = {
+                                        ...newOptions[id],
+                                        cash: true,
+                                        cashAmount: parseFloat(cashAmount)
+                                      };
+                                    });
+                                    return newOptions;
+                                  });
+                                  
+                                  toast.success(`Μετρητά €${cashAmount} προστέθηκαν! Θα αποθηκευτούν με το Save.`);
+                                }
+                                setShowCashInput(false);
+                                setCashAmount('');
+                              }}
+                              className={`flex-1 px-3 py-2 text-white rounded-lg transition-colors text-sm ${
+                                (trainingType === 'individual' && newCode.selectedUserId) 
+                                  ? (isUserPending(newCode.selectedUserId) 
+                                      ? (getFrozenOptions(newCode.selectedUserId)?.cash 
+                                          ? 'bg-green-600 cursor-not-allowed'
+                                          : 'bg-yellow-500 cursor-not-allowed')
+                                      : 'bg-green-600 hover:bg-green-700')
+                                  : (selectedUserIds.some(id => isUserPending(id))
+                                      ? 'bg-yellow-500 cursor-not-allowed'
+                                      : 'bg-green-600 hover:bg-green-700')
+                              }`}
+                              disabled={(trainingType === 'individual' 
+                                ? isUserPending(newCode.selectedUserId)
+                                : selectedUserIds.some(id => isUserPending(id)))}
+                            >
+                              ✓ Επιλογή
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowCashInput(false);
+                                setCashAmount('');
+                              }}
+                              className="flex-1 px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                            >
+                              Ακύρωση
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* POS */}
+                    <div className={`rounded-lg p-4 border ${
+                      (trainingType === 'individual' 
+                        ? isUserPending(newCode.selectedUserId)
+                        : selectedUserIds.some(id => isUserPending(id)))
+                        ? 'bg-yellow-100 border-yellow-300' 
+                        : 'bg-white border-gray-200'
+                    }`}>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        💳 POS (€)
+                        {(trainingType === 'individual' 
+                          ? isUserPending(newCode.selectedUserId)
+                          : selectedUserIds.some(id => isUserPending(id))) && (
+                          <span className="text-yellow-600 ml-2">🔒</span>
+                        )}
+                      </label>
+                      {!showPosInput ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                            
+                            // Check if any user is pending
+                            const hasPendingUser = userIds.some(id => isUserPending(id));
+                            if (hasPendingUser) {
+                              toast('Οι επιλογές είναι παγωμένες - αλλάξτε το status για να τις τροποποιήσετε', { icon: '🔒' });
+                              return;
+                            }
+                            
+                            setShowPosInput(true);
+                          }}
+                          className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg ${
+                            (trainingType === 'individual' && newCode.selectedUserId) 
+                              ? (isUserPending(newCode.selectedUserId) 
+                                  ? (getFrozenOptions(newCode.selectedUserId)?.pos 
+                                      ? 'bg-blue-500 text-white cursor-not-allowed'
+                                      : 'bg-yellow-500 text-white cursor-not-allowed')
+                                  : 'bg-blue-500 text-white hover:bg-blue-600')
+                              : (selectedUserIds.some(id => isUserPending(id))
+                                  ? 'bg-yellow-500 text-white cursor-not-allowed'
+                                  : 'bg-blue-500 text-white hover:bg-blue-600')
+                          }`}
+                          disabled={(trainingType === 'individual' 
+                            ? isUserPending(newCode.selectedUserId)
+                            : selectedUserIds.some(id => isUserPending(id)))}
+                        >
+                          💳 POS
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={(trainingType === 'individual' && newCode.selectedUserId) 
+                              ? (isUserPending(newCode.selectedUserId) 
+                                  ? (getFrozenOptions(newCode.selectedUserId)?.posAmount?.toString() || '')
+                                  : posAmount)
+                              : posAmount}
+                            onChange={(e) => {
+                              const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                              
+                              // Check if any user is pending
+                              const hasPendingUser = userIds.some(id => isUserPending(id));
+                              if (hasPendingUser) {
+                                toast('Οι επιλογές είναι παγωμένες - αλλάξτε το status για να τις τροποποιήσετε', { icon: '🔒' });
+                                return;
+                              }
+                              
+                              setPosAmount(e.target.value);
+                            }}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                              (trainingType === 'individual' 
+                                ? isUserPending(newCode.selectedUserId)
+                                : selectedUserIds.some(id => isUserPending(id)))
+                                ? 'border-yellow-300 bg-yellow-50 focus:ring-yellow-500'
+                                : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                            }`}
+                            placeholder="Εισάγετε ποσό σε €..."
+                            autoFocus
+                            disabled={(trainingType === 'individual' 
+                              ? isUserPending(newCode.selectedUserId)
+                              : selectedUserIds.some(id => isUserPending(id)))}
+                          />
+                          <div className="flex space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                                
+                                // Check if any user is pending
+                                const hasPendingUser = userIds.some(id => isUserPending(id));
+                                if (hasPendingUser) {
+                                  toast('Οι επιλογές είναι παγωμένες - αλλάξτε το status για να τις τροποποιήσετε', { icon: '🔒' });
+                                  return;
+                                }
+                                
+                                if (posAmount && parseFloat(posAmount) > 0) {
+                                  // Update selected options only
+                                  setSelectedOptions(prev => {
+                                    const newOptions = { ...prev };
+                                    userIds.forEach(id => {
+                                      newOptions[id] = {
+                                        ...newOptions[id],
+                                        pos: true,
+                                        posAmount: parseFloat(posAmount)
+                                      };
+                                    });
+                                    return newOptions;
+                                  });
+                                  
+                                  toast.success(`POS €${posAmount} προστέθηκε! Θα αποθηκευτεί με το Save.`);
+                                }
+                                setShowPosInput(false);
+                                setPosAmount('');
+                              }}
+                              className={`flex-1 px-3 py-2 text-white rounded-lg transition-colors text-sm ${
+                                (trainingType === 'individual' && newCode.selectedUserId) 
+                                  ? (isUserPending(newCode.selectedUserId) 
+                                      ? (getFrozenOptions(newCode.selectedUserId)?.pos 
+                                          ? 'bg-blue-600 cursor-not-allowed'
+                                          : 'bg-yellow-500 cursor-not-allowed')
+                                      : 'bg-blue-600 hover:bg-blue-700')
+                                  : (selectedUserIds.some(id => isUserPending(id))
+                                      ? 'bg-yellow-500 cursor-not-allowed'
+                                      : 'bg-blue-600 hover:bg-blue-700')
+                              }`}
+                              disabled={(trainingType === 'individual' 
+                                ? isUserPending(newCode.selectedUserId)
+                                : selectedUserIds.some(id => isUserPending(id)))}
+                            >
+                              ✓ Επιλογή
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowPosInput(false);
+                                setPosAmount('');
+                              }}
+                              className="flex-1 px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                            >
+                              Ακύρωση
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Έγκριση */}
+                    <div className="bg-white rounded-lg p-4 border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProgramApprovalStatus('approved');
+                        }}
+                        className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                          programApprovalStatus === 'approved'
+                            ? 'bg-green-600 text-white shadow-lg'
+                            : 'bg-green-500 text-white hover:bg-green-600 shadow-lg'
+                        }`}
+                      >
+                        ✅ Έγκριση
+                      </button>
+                    </div>
+
+                    {/* Απόρριψη */}
+                    <div className="bg-white rounded-lg p-4 border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProgramApprovalStatus('rejected');
+                        }}
+                        className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                          programApprovalStatus === 'rejected'
+                            ? 'bg-red-600 text-white shadow-lg'
+                            : 'bg-red-500 text-white hover:bg-red-600 shadow-lg'
+                        }`}
+                      >
+                        ❌ Απόρριψη
+                      </button>
+                    </div>
+
+                    {/* Στην Αναμονή */}
+                    <div className="bg-white rounded-lg p-4 border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProgramApprovalStatus('pending');
+                        }}
+                        className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                          programApprovalStatus === 'pending'
+                            ? 'bg-yellow-600 text-white shadow-lg'
+                            : 'bg-yellow-500 text-white hover:bg-yellow-600 shadow-lg'
+                        }`}
+                      >
+                        ⏳ Στην Αναμονή
+                      </button>
+                    </div>
+
+                    {/* Save Program Options Button */}
+                    <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-200">
+                      <button
+                        type="button"
+                        onClick={handleSaveProgramOptions}
+                        disabled={programApprovalStatus === 'none' || loading}
+                        className={`w-full px-6 py-4 rounded-lg font-bold text-lg transition-all duration-200 ${
+                          programApprovalStatus === 'none' || loading
+                            ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-lg hover:shadow-xl'
+                        }`}
+                      >
+                        {loading ? (
+                          <div className="flex items-center justify-center space-x-2">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Αποθήκευση...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center space-x-2">
+                            <Save className="h-5 w-5" />
+                            <span>💾 Αποθήκευση Program Options</span>
+                          </div>
+                        )}
+                      </button>
+                      {programApprovalStatus === 'none' && (
+                        <p className="text-sm text-gray-600 mt-2 text-center">
+                          Επιλέξτε Έγκριση, Απόρριψη ή Στην Αναμονή για να αποθηκεύσετε
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
             
-                             {/* Mobile-First Προσωποποιημένο Πρόγραμμα */}
+                             {/* Excel-Style Προσωποποιημένο Πρόγραμμα */}
                <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-4 sm:p-6 border border-orange-200">
-                 <h4 className="text-lg sm:text-xl font-bold text-orange-800 mb-4 sm:mb-6 flex items-center">
-                   🏋️‍♂️ Προσωποποιημένο Πρόγραμμα 
-                 </h4>
+                 <div className="flex items-center justify-between mb-4 sm:mb-6">
+                   <h4 className="text-lg sm:text-xl font-bold text-orange-800 flex items-center">
+                     🏋️‍♂️ Προσωποποιημένο Πρόγραμμα 
+                   </h4>
+                   <div className="text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded-lg">
+                     📊 Σύνολο: {programSessions.length} σεσίας
+                   </div>
+                 </div>
 
-                 {/* Mobile-First Sessions List */}
-                 <div className="space-y-3 sm:space-y-4">
-                   {programSessions.map((s, idx) => (
-                     <div key={s.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                       {/* Session Header */}
-                       <div className="flex items-center justify-between mb-4">
-                         <div className="flex items-center space-x-2">
-                           <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                             <span className="text-orange-600 font-bold text-sm">{idx + 1}</span>
+                 {/* Excel-Style Table */}
+                 <div className="bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden">
+                   {/* Table Header */}
+                   <div className="bg-gradient-to-r from-gray-100 to-gray-200 border-b-2 border-gray-400">
+                     <div className="grid grid-cols-7 gap-0 text-sm font-bold text-gray-800">
+                       <div className="col-span-1 text-center py-3 border-r border-gray-300 bg-gray-200">#</div>
+                       <div className="col-span-1 py-3 px-2 border-r border-gray-300">📅 Ημερομηνία</div>
+                       <div className="col-span-1 py-3 px-2 border-r border-gray-300">🕐 Έναρξη</div>
+                       <div className="col-span-1 py-3 px-2 border-r border-gray-300">🕕 Λήξη</div>
+                       <div className="col-span-1 py-3 px-2 border-r border-gray-300">💪 Τύπος</div>
+                       <div className="col-span-1 py-3 px-2 border-r border-gray-300">🏠 Αίθουσα</div>
+                       <div className="col-span-1 py-3 px-2">👨‍🏫 Προπονητής</div>
+                     </div>
+                   </div>
+
+                   {/* Table Body */}
+                   <div className="divide-y divide-gray-300">
+                     {programSessions.map((session, idx) => (
+                       <div key={session.id} className="grid grid-cols-7 gap-0 hover:bg-blue-50 transition-colors">
+                         {/* Row Number & Actions */}
+                         <div className="col-span-1 flex items-center justify-center space-x-2 py-3 border-r border-gray-300 bg-gray-50">
+                           <span className="text-sm font-bold text-gray-700">{idx + 1}</span>
+                           <div className="flex flex-col space-y-1">
+                             <button
+                               onClick={() => setProgramSessions(prev => prev.filter((_, i) => i !== idx))}
+                               className="text-red-600 hover:text-red-800 p-1 text-xs bg-red-100 rounded hover:bg-red-200"
+                               title="Διαγραφή Σέσιας"
+                             >
+                               <Trash2 className="h-3 w-3" />
+                             </button>
+                             <button
+                               onClick={() => setProgramSessions(prev => {
+                                 const newSession = { ...session, id: `tmp-${Date.now()}` };
+                                 return [...prev.slice(0, idx + 1), newSession, ...prev.slice(idx + 1)];
+                               })}
+                               className="text-blue-600 hover:text-blue-800 p-1 text-xs bg-blue-100 rounded hover:bg-blue-200"
+                               title="Αντιγραφή Σέσιας"
+                             >
+                               <Plus className="h-3 w-3" />
+                             </button>
                            </div>
-                           <h5 className="font-semibold text-gray-800">Σέσια {idx + 1}</h5>
                          </div>
-                         {programSessions.length > 1 && (
-                           <button
-                             onClick={() => setProgramSessions(prev => prev.filter((_, i) => i !== idx))}
-                             className="text-red-500 hover:text-red-700 p-1"
-                           >
-                             <Trash2 className="h-4 w-4" />
-                           </button>
-                         )}
-                       </div>
 
-                       {/* Mobile-First Form Fields */}
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                         {/* Date Field */}
-                         <div className="sm:col-span-2">
-                           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                             📅 Ημερομηνία
-                           </label>
-                           <input 
-                             type="date" 
-                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500" 
-                             value={s.date} 
-                             onChange={(e)=>{
-                               setProgramSessions(prev => prev.map((ps,i)=> i===idx ? { ...ps, date: e.target.value } : ps));
-                             }}
+                         {/* Date */}
+                         <div className="col-span-1 p-2 border-r border-gray-300">
+                           <input
+                             type="date"
+                             className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                             value={session.date}
+                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, date: e.target.value } : ps))}
                            />
                          </div>
 
                          {/* Start Time */}
-                         <div>
-                           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                             🕐 Έναρξη
-                           </label>
-                           <input 
-                             type="time" 
-                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500" 
-                             value={s.startTime} 
-                             onChange={(e)=> setProgramSessions(prev=> prev.map((ps,i)=> i===idx ? { ...ps, startTime: e.target.value } : ps))} 
+                         <div className="col-span-1 p-2 border-r border-gray-300">
+                           <input
+                             type="time"
+                             className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                             value={session.startTime}
+                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, startTime: e.target.value } : ps))}
                            />
                          </div>
 
                          {/* End Time */}
-                         <div>
-                           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                             🕕 Λήξη
-                           </label>
-                           <input 
-                             type="time" 
-                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500" 
-                             value={s.endTime} 
-                             onChange={(e)=> setProgramSessions(prev=> prev.map((ps,i)=> i===idx ? { ...ps, endTime: e.target.value } : ps))} 
+                         <div className="col-span-1 p-2 border-r border-gray-300">
+                           <input
+                             type="time"
+                             className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                             value={session.endTime}
+                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, endTime: e.target.value } : ps))}
                            />
                          </div>
 
-                         {/* Type */}
-                         <div>
-                           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                             💪 Τύπος
-                           </label>
-                           <select 
-                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500" 
-                             value={s.type} 
-                             onChange={(e)=> setProgramSessions(prev=> prev.map((ps,i)=> i===idx ? { ...ps, type: e.target.value as any } : ps))}
+                         {/* Training Type */}
+                         <div className="col-span-1 p-2 border-r border-gray-300">
+                           <select
+                             className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                             value={session.type}
+                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, type: e.target.value as any } : ps))}
                            >
-                             <option value="personal">Personal Training</option>
+                             <option value="personal">Προσωπική</option>
                              <option value="kickboxing">Kick Boxing</option>
                              <option value="combo">Combo</option>
                            </select>
                          </div>
 
                          {/* Room */}
-                         <div>
-                           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                             🏠 Αίθουσα
-                           </label>
-                           <select 
-                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500" 
-                             value={s.room} 
-                             onChange={(e)=> setProgramSessions(prev=> prev.map((ps,i)=> i===idx ? { ...ps, room: e.target.value } : ps))}
+                         <div className="col-span-1 p-2 border-r border-gray-300">
+                           <select
+                             className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                             value={session.room}
+                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, room: e.target.value } : ps))}
                            >
                              <option value="Αίθουσα Mike">Αίθουσα Mike</option>
                              <option value="Αίθουσα Jordan">Αίθουσα Jordan</option>
@@ -2316,71 +3999,74 @@ const AdminPanel: React.FC = () => {
                          </div>
 
                          {/* Trainer */}
-                         <div>
-                           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                             👨‍🏫 Προπονητής
-                           </label>
-                           <select 
-                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500" 
-                             value={s.trainer} 
-                             onChange={(e)=> setProgramSessions(prev=> prev.map((ps,i)=> i===idx ? { ...ps, trainer: e.target.value as TrainerName } : ps))} 
+                         <div className="col-span-1 p-2">
+                           <select
+                             className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                             value={session.trainer}
+                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, trainer: e.target.value as TrainerName } : ps))}
                            >
                              {AVAILABLE_TRAINERS.map(trainer => (
                                <option key={trainer} value={trainer}>{trainer}</option>
                              ))}
                            </select>
                          </div>
-
-                         {/* Notes */}
-                         <div className="sm:col-span-2">
-                           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                             📝 Σημειώσεις
-                           </label>
-                           <input 
-                             type="text" 
-                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500" 
-                             value={s.notes || ''} 
-                             placeholder="Προαιρετικές σημειώσεις..."
-                             onChange={(e)=> setProgramSessions(prev=> prev.map((ps,i)=> i===idx ? { ...ps, notes: e.target.value } : ps))} 
-                           />
-                         </div>
                        </div>
-                     </div>
-                   ))}
+                     ))}
+                   </div>
+
                  </div>
 
-                 {/* Mobile-First Action Buttons */}
+                 {/* Table Action Buttons */}
                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 space-y-3 sm:space-y-0">
                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                     <button 
-                       type="button" 
-                       className="px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium flex items-center justify-center"
-                       onClick={()=> setProgramSessions(prev=> [...prev, { 
-                         id: `tmp-${prev.length+1}`, 
-                         date: new Date().toISOString().split('T')[0], 
-                         startTime: '19:00', 
-                         endTime: '20:00', 
-                         type: 'personal', 
-                         trainer: 'Mike', 
-                         room: 'Αίθουσα Mike', 
-                         notes: '' 
+                     <button
+                       type="button"
+                       className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium flex items-center justify-center"
+                       onClick={() => setProgramSessions(prev => [...prev, {
+                         id: `tmp-${Date.now()}`,
+                         date: new Date().toISOString().split('T')[0],
+                         startTime: '19:00',
+                         endTime: '20:00',
+                         type: 'personal',
+                         trainer: 'Mike',
+                         room: 'Αίθουσα Mike',
+                         notes: prev[0]?.notes || ''
                        }])}
                      >
                        ➕ Προσθήκη Σέσιας
                      </button>
+                     <button
+                       type="button"
+                       className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center justify-center"
+                       onClick={() => {
+                         const newSession = {
+                           id: `tmp-${Date.now()}`,
+                           date: new Date().toISOString().split('T')[0],
+                           startTime: '19:00',
+                           endTime: '20:00',
+                           type: 'personal' as const,
+                           trainer: 'Mike' as TrainerName,
+                           room: 'Αίθουσα Mike',
+                           notes: programSessions[0]?.notes || ''
+                         };
+                         setProgramSessions(prev => [...prev, newSession]);
+                       }}
+                     >
+                       📋 Αντιγραφή Τελευταίας
+                     </button>
                      {programSessions.length > 1 && (
-                       <button 
-                         type="button" 
-                         className="px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium flex items-center justify-center"
-                         onClick={()=> setProgramSessions(prev=> prev.slice(0, -1))}
+                       <button
+                         type="button"
+                         className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium flex items-center justify-center"
+                         onClick={() => setProgramSessions(prev => prev.slice(0, -1))}
                        >
                          ➖ Διαγραφή Τελευταίας
                        </button>
                      )}
                    </div>
                    <div className="text-center sm:text-right">
-                     <div className="text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded-lg">
-                       📊 Σύνολο: {programSessions.length} σεσίας
+                     <div className="text-xs text-gray-500">
+                       💡 Κάντε κλικ στα κελιά για επεξεργασία • Χρησιμοποιήστε τα κουμπιά για διαχείριση
                      </div>
                    </div>
                  </div>
@@ -2396,17 +4082,18 @@ const AdminPanel: React.FC = () => {
                 ❌ Ακύρωση
               </button>
               <button
-                onClick={createPersonalTrainingCode}
-                disabled={!newCode.code.trim() || (trainingType === 'individual' ? !newCode.selectedUserId : selectedUserIds.length === 0)}
+                onClick={createPersonalTrainingProgram}
+                disabled={trainingType === 'individual' ? !newCode.selectedUserId : selectedUserIds.length === 0}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-green-500 disabled:hover:to-emerald-500"
               >
-                ✅ Δημιουργία Κωδικού
+                ✅ Δημιουργία Προγράμματος
               </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

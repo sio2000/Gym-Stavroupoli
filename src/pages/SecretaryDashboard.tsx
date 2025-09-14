@@ -13,7 +13,9 @@ import {
   Clock,
   Euro,
   Check,
-  X
+  X,
+  Save,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
@@ -24,6 +26,16 @@ import {
   formatPrice,
   getDurationLabel
 } from '@/utils/membershipApi';
+import { 
+  markOldMembersUsed, 
+  saveKettlebellPoints
+} from '@/utils/programOptionsApi';
+import { 
+  saveCashTransaction
+} from '@/utils/cashRegisterApi';
+import { 
+  saveProgramApprovalState
+} from '@/utils/programApprovalApi';
 import { MembershipRequest } from '@/types';
 import Webcam from 'react-webcam';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
@@ -54,12 +66,34 @@ const SecretaryDashboard: React.FC = () => {
   const [membershipRequests, setMembershipRequests] = useState<MembershipRequest[]>([]);
   const [activeTab, setActiveTab] = useState<'scanner' | 'membership-requests'>('scanner');
   const [loading, setLoading] = useState(false);
+  
+  // Program Options state for membership requests
+  const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
+    oldMembers?: boolean;
+    kettlebellPoints?: string;
+    cash?: boolean;
+    pos?: boolean;
+    cashAmount?: number;
+    posAmount?: number;
+  }}>({});
+  const [requestProgramApprovalStatus, setRequestProgramApprovalStatus] = useState<{[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'}>({});
+  const [requestPendingUsers, setRequestPendingUsers] = useState<Set<string>>(new Set());
+  const [requestFrozenOptions, setRequestFrozenOptions] = useState<{[requestId: string]: any}>({});
   const webcamRef = useRef<Webcam>(null);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrReaderRef = useRef<BrowserQRCodeReader | null>(null);
   const scannerControlsRef = useRef<IScannerControls | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Helper functions for membership request pending users
+  const isRequestPending = (requestId: string) => {
+    return requestPendingUsers.has(requestId);
+  };
+
+  const getRequestFrozenOptions = (requestId: string) => {
+    return requestFrozenOptions[requestId] || null;
+  };
 
   // Check if user is secretary
   useEffect(() => {
@@ -171,6 +205,192 @@ const SecretaryDashboard: React.FC = () => {
       toast.error('Σφάλμα κατά την απόρριψη του αιτήματος');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ===== MEMBERSHIP REQUEST PROGRAM OPTIONS FUNCTIONS =====
+
+  const handleRequestOptionChange = (requestId: string, option: string, value: any) => {
+    setSelectedRequestOptions(prev => ({
+      ...prev,
+      [requestId]: {
+        ...prev[requestId],
+        [option]: value
+      }
+    }));
+  };
+
+  const handleRequestProgramApprovalChange = (requestId: string, status: 'none' | 'approved' | 'rejected' | 'pending') => {
+    setRequestProgramApprovalStatus(prev => ({
+      ...prev,
+      [requestId]: status
+    }));
+  };
+
+  const handleSaveRequestProgramOptions = async (requestId: string) => {
+    const status = requestProgramApprovalStatus[requestId];
+    if (status === 'none' || !user) {
+      toast.error('Παρακαλώ επιλέξτε μια κατάσταση έγκρισης');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const requestOptions = selectedRequestOptions[requestId];
+      if (!requestOptions) {
+        toast.error('Δεν υπάρχουν επιλογές για αυτό το αίτημα');
+        return;
+      }
+
+      // Find the request to get user_id
+      const request = membershipRequests.find(r => r.id === requestId);
+      if (!request) {
+        toast.error('Αίτημα δεν βρέθηκε');
+        return;
+      }
+
+      // Save approval state for the request
+      const success = await saveProgramApprovalState(
+        request.user_id,
+        status as 'approved' | 'rejected' | 'pending',
+        {
+          oldMembersUsed: requestOptions.oldMembers || false,
+          kettlebellPoints: requestOptions.kettlebellPoints ? parseInt(requestOptions.kettlebellPoints) : 0,
+          cashAmount: requestOptions.cashAmount || 0,
+          posAmount: requestOptions.posAmount || 0,
+          createdBy: user.id,
+          notes: `Program options saved for membership request ${requestId} with ${status} status`
+        }
+      );
+
+      if (success) {
+        console.log(`Program approval state saved for membership request: ${requestId}`);
+        
+        // Handle pending state
+        if (status === 'pending') {
+          const newPendingUsers = new Set(requestPendingUsers);
+          const newFrozenOptions = { ...requestFrozenOptions };
+          
+          newPendingUsers.add(requestId);
+          newFrozenOptions[requestId] = requestOptions;
+          
+          setRequestPendingUsers(newPendingUsers);
+          setRequestFrozenOptions(newFrozenOptions);
+          
+          toast('Program Options τοποθετήθηκαν στην αναμονή - οι επιλογές παγώθηκαν', { icon: '⏳' });
+        } else {
+          // Execute actions for approved status
+          if (status === 'approved') {
+            await executeApprovedRequestProgramActions(requestId, request.user_id, requestOptions);
+          }
+          
+          // Clear pending state if it was pending
+          if (isRequestPending(requestId)) {
+            const newPendingUsers = new Set(requestPendingUsers);
+            const newFrozenOptions = { ...requestFrozenOptions };
+            
+            newPendingUsers.delete(requestId);
+            delete newFrozenOptions[requestId];
+            
+            setRequestPendingUsers(newPendingUsers);
+            setRequestFrozenOptions(newFrozenOptions);
+          }
+        }
+        
+        // Reset approval status
+        setRequestProgramApprovalStatus(prev => ({
+          ...prev,
+          [requestId]: 'none'
+        }));
+        
+        // Show success message
+        const statusText = {
+          approved: 'εγκρίθηκε και εκτελέστηκαν οι ενέργειες',
+          rejected: 'απορρίφθηκε', 
+          pending: 'τοποθετήθηκε στην αναμονή'
+        };
+        
+        toast.success(`Program Options ${statusText[status]} επιτυχώς!`);
+      } else {
+        toast.error('Σφάλμα κατά την αποθήκευση των Program Options');
+      }
+    } catch (error) {
+      console.error('Error saving request program options:', error);
+      toast.error('Σφάλμα κατά την αποθήκευση των Program Options');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const executeApprovedRequestProgramActions = async (requestId: string, userId: string, userOptions: any) => {
+    console.log('Executing approved program actions for membership request:', requestId);
+    
+    try {
+      // 1. Save Old Members usage if selected
+      if (userOptions.oldMembers) {
+        const oldMembersSuccess = await markOldMembersUsed(userId, user?.id || '');
+        if (oldMembersSuccess) {
+          console.log(`[APPROVED] Old Members marked as used for membership request: ${requestId}`);
+        } else {
+          console.warn(`[APPROVED] Failed to mark Old Members as used for membership request: ${requestId}`);
+        }
+      }
+
+      // 2. Save Kettlebell Points if provided
+      if (userOptions.kettlebellPoints && parseInt(userOptions.kettlebellPoints) > 0) {
+        const kettlebellSuccess = await saveKettlebellPoints(
+          userId, 
+          parseInt(userOptions.kettlebellPoints), 
+          undefined, // No program_id for now
+          user?.id || ''
+        );
+        
+        if (kettlebellSuccess) {
+          console.log(`[APPROVED] Kettlebell Points saved for membership request: ${requestId}, Points: ${userOptions.kettlebellPoints}`);
+        } else {
+          console.warn(`[APPROVED] Failed to save Kettlebell Points for membership request: ${requestId}`);
+        }
+      }
+
+      // 3. Save Cash transactions if provided
+      if (userOptions.cashAmount && userOptions.cashAmount > 0) {
+        const cashSuccess = await saveCashTransaction(
+          userId,
+          userOptions.cashAmount,
+          'cash',
+          undefined,
+          user?.id || '',
+          'Cash transaction from approved membership request'
+        );
+        if (cashSuccess) {
+          console.log(`[APPROVED] Cash transaction saved for membership request: ${requestId}, Amount: €${userOptions.cashAmount}`);
+        } else {
+          console.warn(`[APPROVED] Failed to save Cash transaction for membership request: ${requestId}`);
+        }
+      }
+
+      // 4. Save POS transactions if provided
+      if (userOptions.posAmount && userOptions.posAmount > 0) {
+        const posSuccess = await saveCashTransaction(
+          userId,
+          userOptions.posAmount,
+          'pos',
+          undefined,
+          user?.id || '',
+          'POS transaction from approved membership request'
+        );
+        if (posSuccess) {
+          console.log(`[APPROVED] POS transaction saved for membership request: ${requestId}, Amount: €${userOptions.posAmount}`);
+        } else {
+          console.warn(`[APPROVED] Failed to save POS transaction for membership request: ${requestId}`);
+        }
+      }
+
+      toast.success('Έγιναν όλες οι απαραίτητες ενέργειες για το εγκεκριμένο αίτημα!');
+    } catch (error) {
+      console.error('Error executing approved program actions for membership request:', error);
+      toast.error('Σφάλμα κατά την εκτέλεση των ενεργειών');
     }
   };
 
@@ -1131,11 +1351,18 @@ const SecretaryDashboard: React.FC = () => {
               <div className="text-center py-12">
                 <CreditCard className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Δεν υπάρχουν αιτήματα</h3>
-                <p className="text-gray-600">Δεν υπάρχουν εκκρεμή αιτήματα συνδρομών</p>
+                <p className="text-gray-600">Δεν υπάρχουν αιτήματα συνδρομών για επεξεργασία</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {membershipRequests.filter(request => request.status === 'pending').map((request) => (
+                {membershipRequests
+                  .filter(request => request.package?.name === 'Free Gym' || request.package?.name === 'Pilates')
+                  .filter(request => 
+                    request.status === 'pending' || 
+                    (request.status === 'approved' && isRequestPending(request.id)) || 
+                    (request.status === 'rejected' && isRequestPending(request.id))
+                  )
+                  .map((request) => (
                   <div key={request.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -1211,6 +1438,239 @@ const SecretaryDashboard: React.FC = () => {
                         </button>
                       </div>
                     </div>
+                    
+                    {/* Program Options Section for Free Gym requests - Only show if not approved/rejected OR if pending */}
+                    {((request.status === 'pending') || 
+                      (request.status === 'approved' && isRequestPending(request.id)) || 
+                      (request.status === 'rejected' && isRequestPending(request.id))) && (
+                    <div className={`mt-4 p-4 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-gray-50 border-gray-200'}`}>
+                      <h5 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                        Program Options
+                        {isRequestPending(request.id) && <span className="ml-2">🔒</span>}
+                      </h5>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Old Members */}
+                        <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                          <button
+                            onClick={() => {
+                              if (isRequestPending(request.id)) {
+                                toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                return;
+                              }
+                              handleRequestOptionChange(request.id, 'oldMembers', !selectedRequestOptions[request.id]?.oldMembers);
+                            }}
+                            className={`w-full p-3 rounded-lg text-left transition-colors ${
+                              selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers
+                                ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                                : isRequestPending(request.id)
+                                ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">
+                                {isRequestPending(request.id) && '🔒 '}👴 Παλαιά μέλη
+                              </span>
+                              {(selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers) && (
+                                <span className="text-green-600">✓</span>
+                              )}
+                            </div>
+                          </button>
+                        </div>
+
+                        {/* Kettlebell Points */}
+                        <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {isRequestPending(request.id) && '🔒 '}🏋️ Kettlebell Points
+                          </label>
+                          <input
+                            type="number"
+                            value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.kettlebellPoints || '' : selectedRequestOptions[request.id]?.kettlebellPoints || ''}
+                            onChange={(e) => {
+                              if (isRequestPending(request.id)) return;
+                              handleRequestOptionChange(request.id, 'kettlebellPoints', e.target.value);
+                            }}
+                            placeholder="Εισάγετε πόντους"
+                            className={`w-full p-2 border rounded-lg ${
+                              isRequestPending(request.id)
+                                ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                            }`}
+                            disabled={isRequestPending(request.id)}
+                          />
+                        </div>
+
+                        {/* Cash */}
+                        <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                          <button
+                            onClick={() => {
+                              if (isRequestPending(request.id)) {
+                                toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                return;
+                              }
+                              handleRequestOptionChange(request.id, 'cash', !selectedRequestOptions[request.id]?.cash);
+                            }}
+                            className={`w-full p-3 rounded-lg text-left transition-colors ${
+                              selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash
+                                ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                                : isRequestPending(request.id)
+                                ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">
+                                {isRequestPending(request.id) && '🔒 '}💰 Μετρητά
+                              </span>
+                              {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
+                                <span className="text-green-600">✓</span>
+                              )}
+                            </div>
+                          </button>
+                          
+                          {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
+                            <div className="mt-2">
+                              <input
+                                type="number"
+                                value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.cashAmount || '' : selectedRequestOptions[request.id]?.cashAmount || ''}
+                                onChange={(e) => {
+                                  if (isRequestPending(request.id)) return;
+                                  handleRequestOptionChange(request.id, 'cashAmount', parseFloat(e.target.value) || 0);
+                                }}
+                                placeholder="Ποσό σε €"
+                                className={`w-full p-2 border rounded-lg ${
+                                  isRequestPending(request.id)
+                                    ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                    : 'border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500'
+                                }`}
+                                disabled={isRequestPending(request.id)}
+                              />
+                              <button
+                                onClick={() => {
+                                  if (isRequestPending(request.id)) return;
+                                  // Handle cash selection
+                                }}
+                                className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
+                                  isRequestPending(request.id)
+                                    ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                }`}
+                                disabled={isRequestPending(request.id)}
+                              >
+                                ✓ Επιλογή
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* POS */}
+                        <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                          <button
+                            onClick={() => {
+                              if (isRequestPending(request.id)) {
+                                toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                return;
+                              }
+                              handleRequestOptionChange(request.id, 'pos', !selectedRequestOptions[request.id]?.pos);
+                            }}
+                            className={`w-full p-3 rounded-lg text-left transition-colors ${
+                              selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos
+                                ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
+                                : isRequestPending(request.id)
+                                ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">
+                                {isRequestPending(request.id) && '🔒 '}💳 POS
+                              </span>
+                              {(selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos) && (
+                                <span className="text-blue-600">✓</span>
+                              )}
+                            </div>
+                          </button>
+                          
+                          {(selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos) && (
+                            <div className="mt-2">
+                              <input
+                                type="number"
+                                value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.posAmount || '' : selectedRequestOptions[request.id]?.posAmount || ''}
+                                onChange={(e) => {
+                                  if (isRequestPending(request.id)) return;
+                                  handleRequestOptionChange(request.id, 'posAmount', parseFloat(e.target.value) || 0);
+                                }}
+                                placeholder="Ποσό σε €"
+                                className={`w-full p-2 border rounded-lg ${
+                                  isRequestPending(request.id)
+                                    ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                    : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                                }`}
+                                disabled={isRequestPending(request.id)}
+                              />
+                              <button
+                                onClick={() => {
+                                  if (isRequestPending(request.id)) return;
+                                  // Handle POS selection
+                                }}
+                                className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
+                                  isRequestPending(request.id)
+                                    ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                                disabled={isRequestPending(request.id)}
+                              >
+                                ✓ Επιλογή
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Approval Buttons */}
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleRequestProgramApprovalChange(request.id, 'approved')}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            requestProgramApprovalStatus[request.id] === 'approved'
+                              ? 'bg-green-600 text-white'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}
+                        >
+                          ✅ Έγκριση
+                        </button>
+                        <button
+                          onClick={() => handleRequestProgramApprovalChange(request.id, 'rejected')}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            requestProgramApprovalStatus[request.id] === 'rejected'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-red-100 text-red-700 hover:bg-red-200'
+                          }`}
+                        >
+                          ❌ Απόρριψη
+                        </button>
+                        <button
+                          onClick={() => handleRequestProgramApprovalChange(request.id, 'pending')}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            requestProgramApprovalStatus[request.id] === 'pending'
+                              ? 'bg-yellow-600 text-white'
+                              : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                          }`}
+                        >
+                          ⏳ Αναμονή
+                        </button>
+                        <button
+                          onClick={() => handleSaveRequestProgramOptions(request.id)}
+                          disabled={loading || requestProgramApprovalStatus[request.id] === 'none'}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                        >
+                          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                          Αποθήκευση Program Options
+                        </button>
+                      </div>
+                    </div>
+                    )}
                   </div>
                 ))}
               </div>

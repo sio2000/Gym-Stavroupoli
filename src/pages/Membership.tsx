@@ -32,7 +32,6 @@ import {
   createPilatesMembershipRequest
 } from '@/utils/membershipApi';
 import { MembershipPackage, MembershipPackageDuration, MembershipRequest, Membership as MembershipType } from '@/types';
-import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
 import SuccessPopup from '@/components/SuccessPopup';
 
@@ -41,9 +40,6 @@ const MembershipPage: React.FC = () => {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<MembershipPackage | null>(null);
   const [selectedDuration, setSelectedDuration] = useState<MembershipPackageDuration | null>(null);
-  const [showCodeModal, setShowCodeModal] = useState(false);
-  const [accessCode, setAccessCode] = useState('');
-  const [codeError, setCodeError] = useState('');
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successPackageName, setSuccessPackageName] = useState('');
   const [packages, setPackages] = useState<MembershipPackage[]>([]);
@@ -350,62 +346,6 @@ const MembershipPage: React.FC = () => {
     }
   };
 
-  const handleSpecialPackageAccess = () => {
-    setShowCodeModal(true);
-  };
-
-  const handleVerifyCode = async () => {
-    const code = accessCode.trim();
-    if (!code) {
-      setCodeError('Παρακαλώ εισάγετε έναν έγκυρο κωδικό.');
-      return;
-    }
-
-    try {
-      setCodeError('');
-      // Check if code exists and is active
-      const { data, error } = await supabase
-        .from('personal_training_codes')
-        .select('*')
-        .eq('code', code)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (error || !data) {
-        setCodeError('Λάθος κωδικός πρόσβασης. Παρακαλώ δοκιμάστε ξανά.');
-        return;
-      }
-
-      // If code is not used and user is logged in, assign it
-      if (!data.used_by && user?.id) {
-        const { error: updateError } = await supabase
-          .from('personal_training_codes')
-          .update({ 
-            used_by: user.id, 
-            used_at: new Date().toISOString() 
-          })
-          .eq('id', data.id);
-
-        if (updateError) {
-          setCodeError('Αποτυχία δέσμευσης κωδικού. Δοκιμάστε ξανά.');
-          return;
-        }
-      }
-
-      // Store in localStorage for quick access
-      try {
-        localStorage.setItem('has_personal_training', 'true');
-      } catch (e) {
-        // localStorage might not be available
-      }
-
-      setShowCodeModal(false);
-      // Open personal training page in new tab
-      window.open('/personal-training', '_blank');
-    } catch (error) {
-      setCodeError('Παρουσιάστηκε σφάλμα. Δοκιμάστε ξανά.');
-    }
-  };
 
   const getDaysRemaining = (endDate: string) => {
     const today = new Date();
@@ -627,10 +567,10 @@ const MembershipPage: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {allPackages.map((pkg) => {
-              const isSpecial = pkg.id === "3"; // Personal Training package
+              const isSpecial = pkg.name === 'Personal Training'; // Personal Training package
               const isFreeGym = pkg.name === 'Free Gym'; // Free Gym package
               const isPilates = pkg.name === 'Pilates'; // Pilates package
-              const hasPersonalTraining = typeof window !== 'undefined' && localStorage.getItem('has_personal_training') === 'true';
+              const hasPersonalTraining = userMemberships.some(m => m.package_id === pkg.id);
               const isLocked = userMemberships.some(m => m.package_id === pkg.id);
               
               return (
@@ -647,7 +587,7 @@ const MembershipPage: React.FC = () => {
                             ? 'border-pink-300 hover:border-pink-400 cursor-pointer hover:shadow-xl'
                             : 'border-gray-200 hover:border-primary-300 cursor-pointer hover:shadow-xl'
                   }`}
-                  onClick={() => isLocked ? null : (isSpecial ? handleSpecialPackageAccess() : handlePackageSelect(pkg))}
+                  onClick={() => isLocked ? null : (!isSpecial ? handlePackageSelect(pkg) : null)}
                 >
                   {isLocked && (
                     <div className="absolute -top-2 -right-2 bg-gray-600 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
@@ -691,18 +631,26 @@ const MembershipPage: React.FC = () => {
                       </div>
                     ) : isSpecial ? (
                       <div className="space-y-2">
-                        <div className="text-2xl font-bold text-purple-600">
-                          {hasPersonalTraining ? 'Έχεις Πρόσβαση' : 'Κωδικός Απαιτείται'}
+                        <div className={`text-sm font-medium px-3 py-1 rounded-full mb-3 ${
+                          hasPersonalTraining ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {hasPersonalTraining ? 'Έχεις Πρόσβαση' : 'Διαθέσιμο με Πρόγραμμα'}
                         </div>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSpecialPackageAccess();
-                          }}
-                          className="w-full bg-purple-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-purple-700 transition-colors text-sm sm:text-base"
-                        >
-                          {hasPersonalTraining ? 'Ανοίγει σε νέα καρτέλα' : 'Εισάγετε Κωδικό'}
-                        </button>
+                        {hasPersonalTraining ? (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open('/personal-training-schedule', '_blank');
+                            }}
+                            className="w-full bg-purple-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-purple-700 transition-colors text-sm sm:text-base"
+                          >
+                            Ανοίγει σε νέα καρτέλα
+                          </button>
+                        ) : (
+                          <div className="text-center text-sm text-gray-600 py-2">
+                            Το προσωποποιημένο πρόγραμμα σας θα εμφανιστεί εδώ όταν δημιουργηθεί από τον διαχειριστή.
+                          </div>
+                        )}
                       </div>
                     ) : isFreeGym ? (
                       <div className="space-y-3">
@@ -1010,50 +958,6 @@ const MembershipPage: React.FC = () => {
         </div>
       )}
 
-      {/* Code Modal */}
-      {showCodeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Πρόσβαση σε Ειδικό Πακέτο</h3>
-            <p className="text-gray-600 mb-4">
-              Εισάγετε τον κωδικό πρόσβασης για το Personal Training πακέτο.
-            </p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Κωδικός Πρόσβασης
-                </label>
-                <input
-                  type="text"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="Εισάγετε τον κωδικό..."
-                />
-                {codeError && (
-                  <p className="mt-1 text-sm text-red-600">{codeError}</p>
-                )}
-              </div>
-              
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowCodeModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  onClick={handleVerifyCode}
-                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                >
-                  Επιβεβαίωση
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Success Popup */}
       <SuccessPopup

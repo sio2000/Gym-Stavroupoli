@@ -184,17 +184,6 @@ export interface Membership {
   duration?: MembershipPackageDuration;
 }
 
-export interface LessonDeposit {
-  id: string;
-  user_id: string;
-  package_id: string;
-  total_classes: number;
-  remaining_classes: number;
-  created_at: string;
-  updated_at: string;
-  // Joined data
-  package?: MembershipPackage;
-}
 
 export interface Payment {
   id: string;
@@ -360,6 +349,8 @@ export interface PersonalTrainingSchedule {
   acceptedAt?: string;
   declinedAt?: string;
   declineReason?: string;
+  userType?: 'personal' | 'paspartu'; // New field to distinguish user types
+  isFlexible?: boolean; // New field to indicate if schedule allows flexible booking
 }
 
 export interface PersonalTrainingScheduleData {
@@ -394,6 +385,45 @@ export interface UserWithPersonalTraining {
   hasPersonalTrainingCode: boolean;
   personalTrainingCode?: string;
   packageType?: 'personal' | 'kickboxing' | 'combo';
+}
+
+// Lesson Deposit System Types for Paspartu Users
+export interface LessonDeposit {
+  id: string;
+  userId: string;
+  totalLessons: number;
+  usedLessons: number;
+  remainingLessons: number;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+export interface LessonBooking {
+  id: string;
+  userId: string;
+  scheduleId: string;
+  sessionId: string;
+  bookingDate: string; // YYYY-MM-DD format
+  bookingTime: string; // HH:mm format
+  trainerName: string;
+  room?: string;
+  notes?: string;
+  status: 'booked' | 'completed' | 'cancelled' | 'no_show';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AvailableSlot {
+  sessionId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  type: 'personal' | 'kickboxing' | 'combo';
+  trainer: TrainerName;
+  room?: string;
+  isBooked: boolean;
+  bookingId?: string;
 }
 
 // Pilates Schedule System Types

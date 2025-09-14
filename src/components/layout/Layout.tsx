@@ -13,7 +13,8 @@ import {
   Settings,
   CreditCard,
   UserPlus,
-  QrCode
+  QrCode,
+  Target
 } from 'lucide-react';
 import { cn } from '@/utils';
 import { supabase } from '@/config/supabase';
@@ -29,30 +30,67 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [hasPilatesMembership, setHasPilatesMembership] = useState(false);
   const [hasQRCodeAccess, setHasQRCodeAccess] = useState(false);
   const [hasPersonalTraining, setHasPersonalTraining] = useState(false);
+  const [hasPaspartuTraining, setHasPaspartuTraining] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Check personal training status from localStorage
+  // Check personal training status from database
   useEffect(() => {
-    const checkPersonalTraining = () => {
-      const hasPersonal = typeof window !== 'undefined' &&
-        localStorage.getItem('has_personal_training') === 'true';
-      setHasPersonalTraining(hasPersonal);
-    };
+    const checkPersonalTraining = async () => {
+      if (!user?.id) {
+        setHasPersonalTraining(false);
+        setHasPaspartuTraining(false);
+        return;
+      }
 
-    checkPersonalTraining();
+      try {
+        // Check if user has an accepted personal training schedule
+        const { data: schedule, error } = await supabase
+          .from('personal_training_schedules')
+          .select('id, status, user_type, is_flexible')
+          .eq('user_id', user.id)
+          .eq('status', 'accepted')
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-    // Listen for localStorage changes
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'has_personal_training') {
-        checkPersonalTraining();
+        if (error) {
+          console.error('Error checking personal training schedule:', error);
+          setHasPersonalTraining(false);
+          setHasPaspartuTraining(false);
+          return;
+        }
+
+        if (schedule && schedule.length > 0) {
+          const scheduleData = schedule[0];
+          // Check if it's a Personal user (locked schedule)
+          if (scheduleData.user_type === 'personal' || (!scheduleData.user_type && !scheduleData.is_flexible)) {
+            setHasPersonalTraining(true);
+            setHasPaspartuTraining(false);
+          }
+          // Check if it's a Paspartu user (flexible schedule)
+          else if (scheduleData.user_type === 'paspartu' || scheduleData.is_flexible) {
+            setHasPersonalTraining(false);
+            setHasPaspartuTraining(true);
+          }
+          // Default to Personal for backward compatibility
+          else {
+            setHasPersonalTraining(true);
+            setHasPaspartuTraining(false);
+          }
+        } else {
+          setHasPersonalTraining(false);
+          setHasPaspartuTraining(false);
+        }
+      } catch (error) {
+        console.error('Exception checking personal training:', error);
+        setHasPersonalTraining(false);
+        setHasPaspartuTraining(false);
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+    checkPersonalTraining();
+  }, [user?.id]);
 
   // Check if user has active membership and track page visits
   useEffect(() => {
@@ -138,6 +176,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Συνδρομή', href: '/membership', icon: CreditCard },
     // Προσθέτουμε δυναμικά το Personal Training μόνο όταν είναι ενεργό
     ...(hasPersonalTraining ? [{ name: 'Personal Training', href: '/personal-training-schedule', icon: Calendar }] : []),
+    // Προσθέτουμε δυναμικά το Paspartu Training μόνο όταν είναι ενεργό
+    ...(hasPaspartuTraining ? [{ name: 'Paspartu Training', href: '/paspartu-training', icon: Target }] : []),
     // Προσθέτουμε δυναμικά το Ημερολόγιο Pilates μόνο όταν ο χρήστης έχει ενεργή pilates συνδρομή
     ...(hasPilatesMembership ? [{ name: 'Ημερολόγιο', href: '/pilates-calendar', icon: Calendar }] : []),
     // Προσθέτουμε δυναμικά το QR Codes μόνο όταν ο χρήστης έχει personal training ή pilates συνδρομή

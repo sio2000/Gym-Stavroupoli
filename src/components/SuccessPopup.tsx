@@ -56,8 +56,10 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({ isOpen, onClose, packageNam
             </button>
             <button
               onClick={() => {
-                // Open gym location in maps or provide directions
-                window.open('https://maps.google.com', '_blank');
+                // Open gym location in maps with specific address
+                const address = 'Μαιάνδρου 43, Κορδελιό Εύοσμος 562 24';
+                const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+                window.open(mapsUrl, '_blank');
               }}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
             >
