@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Supabase Database Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        // Replace with your actual Supabase credentials
+        const SUPABASE_URL = 'https://your-project.supabase.co';
+        const SUPABASE_ANON_KEY = 'your-anon-key';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        async function testDatabase() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>🔍 Testing database connection...</p>';
+            
+            try {
+                // Test 1: Check schedules table
+                console.log('1. Checking personal_training_schedules...');
+                const { data: schedules, error: schedulesError } = await supabase
+                    .from('personal_training_schedules')
+                    .select('*')
+                    .limit(5);
+                
+                if (schedulesError) {
+                    resultsDiv.innerHTML += `<p>❌ Error: ${schedulesError.message}</p>`;
+                    return;
+                }
+                
+                resultsDiv.innerHTML += `<p>✅ Schedules found: ${schedules?.length || 0}</p>`;
+                console.log('Schedules:', schedules);
+                
+                // Test 2: Check for Mike/Jordan
+                console.log('2. Checking for Mike/Jordan...');
+                const { data: allSchedules, error: allError } = await supabase
+                    .from('personal_training_schedules')
+                    .select(`
+                        *,
+                        user_profiles!personal_training_schedules_user_id_fkey(
+                            first_name,
+                            last_name,
+                            email
+                        )
+                    `);
+                
+                if (allError) {
+                    resultsDiv.innerHTML += `<p>❌ Error: ${allError.message}</p>`;
+                    return;
+                }
+                
+                resultsDiv.innerHTML += `<p>✅ All schedules: ${allSchedules?.length || 0}</p>`;
+                
+                // Filter for trainers
+                const mikeSchedules = allSchedules?.filter(schedule => {
+                    const sessions = schedule.schedule_data?.sessions || [];
+                    return sessions.some(session => session.trainer === 'Mike');
+                }) || [];
+                
+                const jordanSchedules = allSchedules?.filter(schedule => {
+                    const sessions = schedule.schedule_data?.sessions || [];
+                    return sessions.some(session => session.trainer === 'Jordan');
+                }) || [];
+                
+                resultsDiv.innerHTML += `<p>🏋️ Mike schedules: ${mikeSchedules.length}</p>`;
+                resultsDiv.innerHTML += `<p>🥊 Jordan schedules: ${jordanSchedules.length}</p>`;
+                
+                if (mikeSchedules.length > 0) {
+                    resultsDiv.innerHTML += `<p>📋 Sample Mike: ${JSON.stringify(mikeSchedules[0], null, 2)}</p>`;
+                }
+                
+                if (jordanSchedules.length > 0) {
+                    resultsDiv.innerHTML += `<p>📋 Sample Jordan: ${JSON.stringify(jordanSchedules[0], null, 2)}</p>`;
+                }
+                
+            } catch (error) {
+                resultsDiv.innerHTML += `<p>❌ Test failed: ${error.message}</p>`;
+                console.error('Test failed:', error);
+            }
+        }
+        
+        // Run test when page loads
+        testDatabase();
+    </script>
+</body>
+</html>
