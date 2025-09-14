@@ -49,6 +49,7 @@ const MembershipPage: React.FC = () => {
   const [userMemberships, setUserMemberships] = useState<MembershipType[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
+  const [showPersonalTrainingModal, setShowPersonalTrainingModal] = useState(false);
 
   // Get user's active membership from mock data (for backward compatibility)
   const userMembership = mockMemberships.find(m => m.userId === user?.id);
@@ -383,7 +384,7 @@ const MembershipPage: React.FC = () => {
 
   // Filter to only keep the three desired packages: Free Gym, Pilates, Personal Training
   const filteredMockPackages = mockMembershipPackages.filter(pkg => 
-    ['Personal Training / Kick Boxing'].includes(pkg.name)
+    ['Personal Training'].includes(pkg.name)
   );
 
   // Filter database packages to include Free Gym and Pilates
@@ -647,9 +648,15 @@ const MembershipPage: React.FC = () => {
                             Ανοίγει σε νέα καρτέλα
                           </button>
                         ) : (
-                          <div className="text-center text-sm text-gray-600 py-2">
-                            Το προσωποποιημένο πρόγραμμα σας θα εμφανιστεί εδώ όταν δημιουργηθεί από τον διαχειριστή.
-                          </div>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowPersonalTrainingModal(true);
+                            }}
+                            className="w-full bg-purple-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-purple-700 transition-colors text-sm sm:text-base"
+                          >
+                            Επιλέξτε Πακέτο
+                          </button>
                         )}
                       </div>
                     ) : isFreeGym ? (
@@ -958,6 +965,74 @@ const MembershipPage: React.FC = () => {
         </div>
       )}
 
+
+      {/* Personal Training Modal */}
+      {showPersonalTrainingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-white/20 rounded-xl">
+                    <Zap className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Επιλογή Πακέτου: Personal Training</h3>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPersonalTrainingModal(false)}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start space-x-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <ExternalLink className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-blue-900 mb-2">Αγορά Πακέτου Personal Training</h4>
+                    <p className="text-blue-800 text-sm leading-relaxed">
+                      Για την αγορά του πακέτου Personal Training, παρακαλούμε επισκεφθείτε τη γραμματεία του γυμναστηρίου για να προβείτε σε εγγραφή και πληρωμή.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => setShowPersonalTrainingModal(false)}
+                  className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Κατάλαβα
+                </button>
+                <button
+                  onClick={() => {
+                    // Open gym location in maps with specific address
+                    const address = 'Μαιάνδρου 43, Κορδελιό Εύοσμος 562 24';
+                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+                    window.open(mapsUrl, '_blank');
+                  }}
+                  className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Βρείτε το Γυμναστήριο</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success Popup */}
       <SuccessPopup
