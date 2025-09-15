@@ -103,7 +103,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           .from('memberships')
           .select(`
             id,
-            membership_packages!inner(package_type)
+            membership_packages(package_type)
           `)
           .eq('user_id', user.id)
           .eq('is_active', true);
@@ -114,22 +114,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           setHasApprovedMembership(false);
         }
 
-        // Check specifically for pilates membership
+        // Check specifically for pilates membership - ONLY for pilates package type
         const { data: pilatesData, error: pilatesError } = await supabase
           .from('memberships')
           .select(`
             id,
             is_active,
             end_date,
-            membership_packages!inner(package_type)
+            membership_packages(package_type)
           `)
           .eq('user_id', user.id)
-          .eq('membership_packages.package_type', 'pilates')
           .eq('is_active', true)
-          .gte('end_date', new Date().toISOString().split('T')[0])
-          .single();
+          .gte('end_date', new Date().toISOString().split('T')[0]);
 
-        if (!pilatesError && pilatesData) {
+        // Check if any of the active memberships is specifically for pilates
+        const hasPilatesPackage = pilatesData && pilatesData.some(membership => 
+          membership.membership_packages?.package_type === 'pilates'
+        );
+
+        if (hasPilatesPackage) {
           setHasPilatesMembership(true);
         } else {
           setHasPilatesMembership(false);
@@ -142,12 +145,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           membership.membership_packages?.package_type === 'standard'
         );
         
-        setHasQRCodeAccess(hasPersonalTraining || (!pilatesError && pilatesData) || hasFreeGymMembership);
+        // QR Code access should only be for Free Gym memberships, NOT for personal training or pilates
+        setHasQRCodeAccess(hasFreeGymMembership);
       } catch (error) {
         console.error('Error checking active membership:', error);
         setHasApprovedMembership(false);
         setHasPilatesMembership(false);
-        setHasQRCodeAccess(hasPersonalTraining);
+        setHasQRCodeAccess(false);
       }
     };
 
@@ -229,7 +233,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <span className="ml-2 text-xl font-bold text-gray-900">FreeGym</span>
+              <span className="ml-2 text-xl font-bold text-gray-900">Get Fit</span>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -286,7 +290,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <span className="ml-2 text-xl font-bold text-gray-900">FreeGym</span>
+              <span className="ml-2 text-xl font-bold text-gray-900">Get Fit</span>
             </div>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">

@@ -34,6 +34,13 @@ export const getMembershipPackages = async (): Promise<MembershipPackage[]> => {
 
 export const getMembershipPackageDurations = async (packageId: string): Promise<MembershipPackageDuration[]> => {
   try {
+    // Validate that packageId is a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(packageId)) {
+      console.error('Invalid package ID format:', packageId);
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('membership_package_durations')
       .select('*')
@@ -251,7 +258,7 @@ export const getUserActiveMemberships = async (userId: string): Promise<Membersh
       .from('memberships')
       .select(`
         *,
-        package:membership_packages!memberships_package_id_fkey(
+        package:membership_packages(
           id,
           name,
           description
@@ -286,6 +293,13 @@ export const getUserActiveMemberships = async (userId: string): Promise<Membersh
 
 export const checkUserHasActiveMembership = async (userId: string, packageId: string): Promise<boolean> => {
   try {
+    // Validate that packageId is a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(packageId)) {
+      console.error('Invalid package ID format:', packageId);
+      return false;
+    }
+
     const { data, error } = await supabase
       .from('memberships')
       .select('id')

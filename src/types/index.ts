@@ -5,6 +5,7 @@ export interface User {
   lastName: string;
   role: UserRole;
   referralCode: string;
+  referralPoints?: number; // New field for referral points
   phone?: string;
   avatar?: string;
   language: 'el' | 'en';
@@ -279,10 +280,14 @@ export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  justLoggedIn: boolean;
+  justRegistered: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
+  clearJustLoggedIn: () => void;
+  clearJustRegistered: () => void;
 }
 
 // New interfaces for specialized requirements
@@ -368,6 +373,7 @@ export interface PersonalTrainingSession {
   type: 'personal' | 'kickboxing' | 'combo';
   trainer: TrainerName; // Now restricted to Mike or Jordan
   room?: string;
+  group?: '2ΑτομαGroup' | '3ΑτομαGroup' | '6ΑτομαGroup';
   notes?: string;
 }
 

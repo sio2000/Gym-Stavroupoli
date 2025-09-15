@@ -144,21 +144,29 @@ export async function generateQRCode(
         throw new Error(`Invalid QR category: ${category}`);
       }
 
-      const { data: membership, error: membershipError } = await supabase
+      const { data: memberships, error: membershipError } = await supabase
         .from('memberships')
         .select(`
           id,
           is_active,
           end_date,
-          membership_packages!inner(package_type)
+          membership_packages(package_type)
         `)
         .eq('user_id', userId)
-        .in('membership_packages.package_type', packageTypes)
         .eq('is_active', true)
-        .gte('end_date', new Date().toISOString().split('T')[0])
-        .single();
+        .gte('end_date', new Date().toISOString().split('T')[0]);
 
-      if (membershipError || !membership) {
+      if (membershipError) {
+        console.log(`[QR-Generator] Error fetching memberships:`, membershipError);
+        throw new Error(`Σφάλμα κατά τη φόρτωση των συνδρομών.`);
+      }
+
+      // Check if any membership has the required package type
+      const membership = memberships?.find(m => 
+        m.membership_packages && packageTypes.includes(m.membership_packages.package_type)
+      );
+
+      if (!membership) {
         console.log(`[QR-Generator] No active membership found for category: ${category}, packageTypes: ${packageTypes.join(', ')}`);
         throw new Error(`Δεν έχετε ενεργή συνδρομή για την κατηγορία ${category}.`);
       }
@@ -367,8 +375,8 @@ export async function getScanAuditLogs(
       .from('scan_audit_logs')
       .select(`
         *,
-        qr_codes!inner(user_id, category),
-        user_profiles!inner(first_name, last_name)
+        qr_codes(user_id, category),
+        user_profiles(first_name, last_name)
       `)
       .order('scanned_at', { ascending: false })
       .range(offset, offset + limit - 1);

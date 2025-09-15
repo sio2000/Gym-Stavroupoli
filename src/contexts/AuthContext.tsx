@@ -15,10 +15,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [justLoggedIn, setJustLoggedIn] = useState(false);
+  const [justRegistered, setJustRegistered] = useState(false);
 
   // Utility function to clear all auth data
   const clearAllAuthData = () => {
     setUser(null);
+    setJustLoggedIn(false);
+    setJustRegistered(false);
     localStorage.removeItem('freegym_user');
     localStorage.removeItem('sb-freegym-auth');
     localStorage.removeItem('sb-freegym-admin');
@@ -195,13 +199,55 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
       
+      // Get referral points
+      let referralPoints = 0;
+      try {
+        const { data: pointsData, error: pointsError } = await supabase
+          .from('user_referral_points')
+          .select('points')
+          .eq('user_id', userId)
+          .single();
+        
+        if (!pointsError && pointsData) {
+          referralPoints = pointsData.points || 0;
+        }
+      } catch (error) {
+        console.log('[Auth] No referral points found for user, using default 0');
+      }
+
+      // Ensure user has referral code - ALWAYS generate if missing
+      let referralCode = profile.referral_code;
+      console.log('[Auth] Current referral code from profile:', referralCode);
+      
+      // Always call get_user_referral_code to ensure user has a code
+      // This function will generate one if missing
+      console.log('[Auth] Ensuring user has referral code...');
+      try {
+        const { data: codeData, error: codeError } = await supabase
+          .rpc('get_user_referral_code', { p_user_id: userId });
+        
+        if (!codeError && codeData) {
+          referralCode = codeData;
+          console.log('[Auth] Referral code ensured/generated:', referralCode);
+        } else {
+          console.log('[Auth] Error ensuring referral code:', codeError);
+          // Fallback: use existing code or empty string
+          referralCode = profile.referral_code || '';
+        }
+      } catch (error) {
+        console.log('[Auth] Error ensuring referral code:', error);
+        // Fallback: use existing code or empty string
+        referralCode = profile.referral_code || '';
+      }
+
       const userData: User = {
         id: userId,
         email: authUser.user?.email || '',
         firstName: firstName,
         lastName: lastName,
         role: userRole,
-        referralCode: profile.referral_code || '',
+        referralCode: referralCode || '',
+        referralPoints: referralPoints,
         phone: profile.phone || '',
         avatar: profile.avatar || '',
         language: profile.language || 'el',
@@ -325,6 +371,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Load user profile and continue with normal flow
         await loadUserProfile(userProfile.user_id);
         console.log('[Auth] Temporary password login successful for:', credentials.email);
+        
+        // Set flag to indicate user just logged in
+        setJustLoggedIn(true);
+        
         toast.success('Συνδεθήκατε με προσωρινό κωδικό. Παρακαλώ αλλάξτε τον κωδικό σας.');
         return;
       }
@@ -345,6 +395,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('[Auth] Login successful, loading user profile...');
         await loadUserProfile(data.user.id);
         console.log('[Auth] Login completed successfully for:', data.user.email);
+        
+        // Set flag to indicate user just logged in
+        setJustLoggedIn(true);
         
         // Track app visit on login
         try {
@@ -390,7 +443,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (data: RegisterData): Promise<void> => {
     try {
       setIsLoading(true);
-      const { email, password, firstName, lastName, phone, language } = data;
+      const { email, password, firstName, lastName, phone, language, referralCode } = data;
 
       console.log('[Auth] ===== REGISTRATION STARTED =====');
       console.log('[Auth] Registering user:', email);
@@ -462,6 +515,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Φόρτωση προφίλ
         await loadUserProfile(authData.user.id);
+        
+        // Process referral code if provided
+        if (referralCode?.trim()) {
+          try {
+            const { processReferralSignup } = await import('@/services/referralService');
+            const result = await processReferralSignup(authData.user.id, referralCode.trim());
+            
+            if (result.success) {
+              toast.success(`Ευχαριστούμε! ${result.message}`);
+            } else {
+              toast.error(result.message);
+            }
+          } catch (referralError) {
+            console.error('Error processing referral:', referralError);
+            // Don't fail registration if referral processing fails
+            toast.error('Σφάλμα επεξεργασίας κωδικού παραπομπής, αλλά η εγγραφή ολοκληρώθηκε επιτυχώς.');
+          }
+        }
+        
+        // Set flag to indicate user just registered
+        setJustRegistered(true);
+        
         toast.success('Εγγραφή ολοκληρώθηκε επιτυχώς!');
       }
     } catch (error) {
@@ -500,6 +575,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const clearJustLoggedIn = () => {
+    setJustLoggedIn(false);
+  };
+
+  const clearJustRegistered = () => {
+    setJustRegistered(false);
   };
 
   const updateProfile = async (data: Partial<User>): Promise<void> => {
@@ -564,10 +647,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isAuthenticated: !!user,
     isLoading,
+    justLoggedIn,
+    justRegistered,
     login,
     register,
     logout,
-    updateProfile
+    updateProfile,
+    clearJustLoggedIn,
+    clearJustRegistered
   };
 
   return (

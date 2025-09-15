@@ -17,7 +17,8 @@ const Referral = React.lazy(() => import('@/pages/Referral'));
 
 // Lazy load other pages for better performance
 const AdminPanel = React.lazy(() => import('@/pages/AdminPanel'));
-const Profile = React.lazy(() => import('@/pages/Profile'));
+// Temporarily disable lazy loading for Profile to debug
+import Profile from '@/pages/Profile';
 const TrainerSpecificDashboard = React.lazy(() => import('@/pages/TrainerSpecificDashboard'));
 const PersonalTraining = React.lazy(() => import('@/pages/PersonalTraining'));
 const PersonalTrainingSchedule = React.lazy(() => import('@/pages/PersonalTrainingSchedule'));
@@ -59,9 +60,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
-                  <Profile />
-                </React.Suspense>
+                <Profile />
               </Layout>
             </ProtectedRoute>
           }

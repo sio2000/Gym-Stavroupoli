@@ -196,7 +196,7 @@ const AdminPanel: React.FC = () => {
   const itemsPerPage = 10;
   // Προσωποποιημένο πρόγραμμα που θα σταλεί μαζί με τον κωδικό
   const [programSessions, setProgramSessions] = useState<PersonalTrainingSession[]>([
-    { id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', endTime: '19:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', notes: '' }
+    { id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', endTime: '19:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }
   ]);
 
   // Membership Packages state
@@ -1281,7 +1281,7 @@ const AdminPanel: React.FC = () => {
       setSelectedUserIds([]);
       setUserSearchTerm('');
       setUserSearchMode('dropdown');
-      setProgramSessions([{ id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', endTime: '19:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', notes: '' }]);
+      setProgramSessions([{ id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', endTime: '19:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }]);
       
       // Refresh the users list
       loadAllUsers();
@@ -2593,7 +2593,8 @@ const AdminPanel: React.FC = () => {
                             </h5>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {/* Old Members */}
+                              {/* Old Members - Hide for Pilates package */}
+                              {request.package?.name !== 'Pilates' && (
                               <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
                                 <button
                                   onClick={() => {
@@ -2621,8 +2622,10 @@ const AdminPanel: React.FC = () => {
                                   </div>
                                 </button>
                               </div>
+                              )}
 
-                              {/* Kettlebell Points */}
+                              {/* Kettlebell Points - Hide for Pilates package */}
+                              {request.package?.name !== 'Pilates' && (
                               <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                   {isRequestPending(request.id) && '🔒 '}🏋️ Kettlebell Points
@@ -2643,6 +2646,7 @@ const AdminPanel: React.FC = () => {
                                   disabled={isRequestPending(request.id)}
                                 />
                               </div>
+                              )}
 
                               {/* Cash */}
                               <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
@@ -3893,8 +3897,8 @@ const AdminPanel: React.FC = () => {
                <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-4 sm:p-6 border border-orange-200">
                  <div className="flex items-center justify-between mb-4 sm:mb-6">
                    <h4 className="text-lg sm:text-xl font-bold text-orange-800 flex items-center">
-                     🏋️‍♂️ Προσωποποιημένο Πρόγραμμα 
-                   </h4>
+                   🏋️‍♂️ Προσωποποιημένο Πρόγραμμα 
+                 </h4>
                    <div className="text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded-lg">
                      📊 Σύνολο: {programSessions.length} σεσίας
                    </div>
@@ -3904,32 +3908,33 @@ const AdminPanel: React.FC = () => {
                  <div className="bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden">
                    {/* Table Header */}
                    <div className="bg-gradient-to-r from-gray-100 to-gray-200 border-b-2 border-gray-400">
-                     <div className="grid grid-cols-7 gap-0 text-sm font-bold text-gray-800">
+                     <div className="grid grid-cols-8 gap-0 text-sm font-bold text-gray-800">
                        <div className="col-span-1 text-center py-3 border-r border-gray-300 bg-gray-200">#</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">📅 Ημερομηνία</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">🕐 Έναρξη</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">🕕 Λήξη</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">💪 Τύπος</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">🏠 Αίθουσα</div>
+                       <div className="col-span-1 py-3 px-2 border-r border-gray-300">👥 Group</div>
                        <div className="col-span-1 py-3 px-2">👨‍🏫 Προπονητής</div>
-                     </div>
-                   </div>
+                           </div>
+                         </div>
 
                    {/* Table Body */}
                    <div className="divide-y divide-gray-300">
                      {programSessions.map((session, idx) => (
-                       <div key={session.id} className="grid grid-cols-7 gap-0 hover:bg-blue-50 transition-colors">
+                       <div key={session.id} className="grid grid-cols-8 gap-0 hover:bg-blue-50 transition-colors">
                          {/* Row Number & Actions */}
                          <div className="col-span-1 flex items-center justify-center space-x-2 py-3 border-r border-gray-300 bg-gray-50">
                            <span className="text-sm font-bold text-gray-700">{idx + 1}</span>
                            <div className="flex flex-col space-y-1">
-                             <button
-                               onClick={() => setProgramSessions(prev => prev.filter((_, i) => i !== idx))}
+                           <button
+                             onClick={() => setProgramSessions(prev => prev.filter((_, i) => i !== idx))}
                                className="text-red-600 hover:text-red-800 p-1 text-xs bg-red-100 rounded hover:bg-red-200"
                                title="Διαγραφή Σέσιας"
-                             >
+                           >
                                <Trash2 className="h-3 w-3" />
-                             </button>
+                           </button>
                              <button
                                onClick={() => setProgramSessions(prev => {
                                  const newSession = { ...session, id: `tmp-${Date.now()}` };
@@ -3941,12 +3946,12 @@ const AdminPanel: React.FC = () => {
                                <Plus className="h-3 w-3" />
                              </button>
                            </div>
-                         </div>
+                       </div>
 
                          {/* Date */}
                          <div className="col-span-1 p-2 border-r border-gray-300">
-                           <input
-                             type="date"
+                           <input 
+                             type="date" 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.date}
                              onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, date: e.target.value } : ps))}
@@ -3955,8 +3960,8 @@ const AdminPanel: React.FC = () => {
 
                          {/* Start Time */}
                          <div className="col-span-1 p-2 border-r border-gray-300">
-                           <input
-                             type="time"
+                           <input 
+                             type="time" 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.startTime}
                              onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, startTime: e.target.value } : ps))}
@@ -3965,8 +3970,8 @@ const AdminPanel: React.FC = () => {
 
                          {/* End Time */}
                          <div className="col-span-1 p-2 border-r border-gray-300">
-                           <input
-                             type="time"
+                           <input 
+                             type="time" 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.endTime}
                              onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, endTime: e.target.value } : ps))}
@@ -3975,7 +3980,7 @@ const AdminPanel: React.FC = () => {
 
                          {/* Training Type */}
                          <div className="col-span-1 p-2 border-r border-gray-300">
-                           <select
+                           <select 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.type}
                              onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, type: e.target.value as any } : ps))}
@@ -3988,7 +3993,7 @@ const AdminPanel: React.FC = () => {
 
                          {/* Room */}
                          <div className="col-span-1 p-2 border-r border-gray-300">
-                           <select
+                           <select 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.room}
                              onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, room: e.target.value } : ps))}
@@ -3998,9 +4003,23 @@ const AdminPanel: React.FC = () => {
                            </select>
                          </div>
 
+                         {/* Group */}
+                         <div className="col-span-1 p-2 border-r border-gray-300">
+                           <select 
+                             className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                             value={session.group || ''}
+                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, group: e.target.value as '2ΑτομαGroup' | '3ΑτομαGroup' | '6ΑτομαGroup' | undefined } : ps))}
+                           >
+                             <option value="">Επιλέξτε Group</option>
+                             <option value="2ΑτομαGroup">2ΑτομαGroup</option>
+                             <option value="3ΑτομαGroup">3ΑτομαGroup</option>
+                             <option value="6ΑτομαGroup">6ΑτομαGroup</option>
+                           </select>
+                         </div>
+
                          {/* Trainer */}
                          <div className="col-span-1 p-2">
-                           <select
+                           <select 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.trainer}
                              onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, trainer: e.target.value as TrainerName } : ps))}
@@ -4009,27 +4028,28 @@ const AdminPanel: React.FC = () => {
                                <option key={trainer} value={trainer}>{trainer}</option>
                              ))}
                            </select>
-                         </div>
                        </div>
-                     ))}
-                   </div>
+                     </div>
+                   ))}
+                 </div>
 
                  </div>
 
                  {/* Table Action Buttons */}
                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 space-y-3 sm:space-y-0">
                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                     <button
-                       type="button"
+                     <button 
+                       type="button" 
                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium flex items-center justify-center"
                        onClick={() => setProgramSessions(prev => [...prev, {
                          id: `tmp-${Date.now()}`,
-                         date: new Date().toISOString().split('T')[0],
-                         startTime: '19:00',
-                         endTime: '20:00',
-                         type: 'personal',
-                         trainer: 'Mike',
-                         room: 'Αίθουσα Mike',
+                         date: new Date().toISOString().split('T')[0], 
+                         startTime: '19:00', 
+                         endTime: '20:00', 
+                         type: 'personal', 
+                         trainer: 'Mike', 
+                         room: 'Αίθουσα Mike', 
+                         group: '2ΑτομαGroup',
                          notes: prev[0]?.notes || ''
                        }])}
                      >
@@ -4047,6 +4067,7 @@ const AdminPanel: React.FC = () => {
                            type: 'personal' as const,
                            trainer: 'Mike' as TrainerName,
                            room: 'Αίθουσα Mike',
+                           group: '2ΑτομαGroup' as const,
                            notes: programSessions[0]?.notes || ''
                          };
                          setProgramSessions(prev => [...prev, newSession]);
@@ -4055,8 +4076,8 @@ const AdminPanel: React.FC = () => {
                        📋 Αντιγραφή Τελευταίας
                      </button>
                      {programSessions.length > 1 && (
-                       <button
-                         type="button"
+                       <button 
+                         type="button" 
                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium flex items-center justify-center"
                          onClick={() => setProgramSessions(prev => prev.slice(0, -1))}
                        >

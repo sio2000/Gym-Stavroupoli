@@ -19,78 +19,63 @@ import {
 import { mockReferrals } from '@/data/mockData';
 import { formatDate, getReferralStatusName } from '@/utils';
 import toast from 'react-hot-toast';
+import { getUserReferralPoints, getUserReferralStats, getUserReferralCode } from '@/services/referralService';
 
-// Mock data for store points and rewards
-const mockStorePoints = 45; // User's current points
-const mockRewards = [
-  {
-    id: 1,
-    name: 'Gym Cap',
-    description: 'Premium gym cap with logo',
-    image: '🧢',
-    points: 20,
-    category: 'Accessories'
-  },
-  {
-    id: 2,
-    name: 'Water Bottle',
-    description: 'Insulated water bottle 750ml',
-    image: '💧',
-    points: 15,
-    category: 'Accessories'
-  },
-  {
-    id: 3,
-    name: 'Protein Shaker',
-    description: 'BPA-free protein shaker',
-    image: '🥤',
-    points: 25,
-    category: 'Supplements'
-  },
-  {
-    id: 4,
-    name: 'Gym Towel',
-    description: 'Microfiber gym towel',
-    image: '🏃',
-    points: 10,
-    category: 'Accessories'
-  },
-  {
-    id: 5,
-    name: 'Resistance Bands Set',
-    description: 'Set of 5 resistance bands',
-    image: '💪',
-    points: 40,
-    category: 'Equipment'
-  },
-  {
-    id: 6,
-    name: 'Gym Bag',
-    description: 'Large gym duffel bag',
-    image: '🎒',
-    points: 50,
-    category: 'Accessories'
-  }
-];
+// Removed mock data - using real data from backend
 
 const Referral: React.FC = () => {
   const { user } = useAuth();
   const [showShareModal, setShowShareModal] = useState(false);
-  const [points, setPoints] = useState(mockStorePoints);
+  const [points, setPoints] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [redeemedItems, setRedeemedItems] = useState<number[]>([]);
+  const [referralStats, setReferralStats] = useState({
+    total_points: 0,
+    total_referrals: 0,
+    recent_transactions: []
+  });
 
-  // Get user's referrals
-  const userReferrals = mockReferrals.filter(ref => ref.referrerId === user?.id);
-  const userReferredBy = mockReferrals.find(ref => ref.referredId === user?.id);
-
-  // Calculate total rewards earned
-  const totalRewards = userReferrals.reduce((sum, ref) => sum + ref.rewardCredits, 0);
+  // Get user's referrals from real data
+  const userReferrals = referralStats.recent_transactions || [];
+  const totalReferrals = referralStats.total_referrals || 0;
+  
+  // Mock data for user who was referred by someone
+  const userReferredBy = null; // This would come from user profile data
 
   // Calculate pending rewards (for future use)
   // const pendingRewards = userReferrals
   //   .filter(ref => ref.status === 'pending')
   //   .reduce((sum, ref) => sum + ref.rewardCredits, 0);
+
+  // Load referral points and stats
+  useEffect(() => {
+    const loadReferralData = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const [pointsData, statsData, codeData] = await Promise.all([
+          getUserReferralPoints(user.id),
+          getUserReferralStats(user.id),
+          getUserReferralCode(user.id)
+        ]);
+        
+        setPoints(pointsData);
+        setReferralStats(statsData);
+        
+        // Update user's referral code if it was generated
+        if (codeData && codeData !== user.referralCode) {
+          console.log('Generated new referral code:', codeData);
+          // The AuthContext will handle updating the user object
+        }
+      } catch (error) {
+        console.error('Error loading referral data:', error);
+        // Use user's referral points from context as fallback
+        setPoints(user.referralPoints || 0);
+      }
+    };
+
+    loadReferralData();
+  }, [user?.id, user?.referralPoints]);
 
   // Animate points counter
   useEffect(() => {
@@ -103,7 +88,12 @@ const Referral: React.FC = () => {
   // Handle copy referral code
   const handleCopyCode = async () => {
     try {
-      await navigator.clipboard.writeText(user?.referralCode || '');
+      const referralCode = user?.referralCode || '';
+      if (!referralCode) {
+        toast.error('Δεν υπάρχει κωδικός παραπομπής');
+        return;
+      }
+      await navigator.clipboard.writeText(referralCode);
       toast.success('Ο κωδικός αντιγράφηκε επιτυχώς!');
     } catch (error) {
       toast.error('Σφάλμα κατά την αντιγραφή');
@@ -112,12 +102,18 @@ const Referral: React.FC = () => {
 
   // Handle share referral code
   const handleShareCode = async () => {
+    const referralCode = user?.referralCode || '';
+    if (!referralCode) {
+      toast.error('Δεν υπάρχει κωδικός παραπομπής');
+      return;
+    }
+
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'FreeGym - Κωδικός Παραπομπής',
-          text: `Γίνετε μέλος στο FreeGym χρησιμοποιώντας τον κωδικό παραπομπής μου: ${user?.referralCode}`,
-          url: `https://freegym.com/register?ref=${user?.referralCode}`
+          title: 'Get Fit - Κωδικός Παραπομπής',
+          text: `Γίνετε μέλος στο Get Fit χρησιμοποιώντας τον κωδικό παραπομπής μου: ${referralCode}`,
+          url: `https://freegym.com/register?ref=${referralCode}`
         });
       } catch (error) {
         console.log('Error sharing:', error);
@@ -129,8 +125,14 @@ const Referral: React.FC = () => {
 
   // Handle social media sharing
   const handleSocialShare = (platform: string) => {
-    const text = `Γίνετε μέλος στο FreeGym χρησιμοποιώντας τον κωδικό παραπομπής μου: ${user?.referralCode}`;
-    const url = `https://freegym.com/register?ref=${user?.referralCode}`;
+    const referralCode = user?.referralCode || '';
+    if (!referralCode) {
+      toast.error('Δεν υπάρχει κωδικός παραπομπής');
+      return;
+    }
+    
+    const text = `Γίνετε μέλος στο Get Fit χρησιμοποιώντας τον κωδικό παραπομπής μου: ${referralCode}`;
+    const url = `https://freegym.com/register?ref=${referralCode}`;
     
     let shareUrl = '';
     switch (platform) {
@@ -260,6 +262,20 @@ const Referral: React.FC = () => {
         <p className="text-gray-600 text-sm sm:text-base">
           Κερδίστε πιστώσεις παρακαλώντας φίλους να εγγραφούν
         </p>
+        
+        {/* Display current referral points */}
+        <div className="mt-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 border border-green-200">
+          <div className="flex items-center justify-center space-x-2 mb-2">
+            <Star className="h-5 w-5 text-yellow-500" />
+            <span className="text-sm font-semibold text-gray-700">Πόντοι Παραπομπής</span>
+          </div>
+          <div className="text-2xl font-bold text-primary-600 mb-1">
+            {points}
+          </div>
+          <p className="text-xs text-gray-600">
+            Κερδίστε 10 πόντους για κάθε επιτυχή παραπομπή!
+          </p>
+        </div>
       </div>
 
       {/* Points Counter with Progress Bar */}
@@ -291,12 +307,12 @@ const Referral: React.FC = () => {
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span>Πρόοδος προς επόμενη ανταμοιβή</span>
-            <span>{points}/50</span>
+            <span>{points}/100</span>
           </div>
           <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
             <div 
               className="h-full bg-gradient-to-r from-yellow-300 to-orange-300 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${Math.min((points / 50) * 100, 100)}%` }}
+              style={{ width: `${Math.min((points / 100) * 100, 100)}%` }}
             />
           </div>
         </div>
@@ -315,7 +331,7 @@ const Referral: React.FC = () => {
             <Users className="h-6 w-6 text-blue-600" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-1">
-            {userReferrals.length}
+            {totalReferrals}
           </h3>
           <p className="text-gray-600 text-sm">Συνολικές παραπομπές</p>
         </div>
@@ -354,7 +370,7 @@ const Referral: React.FC = () => {
             <Award className="h-6 w-6 text-purple-600" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-1">
-            {totalRewards}
+            {points}
           </h3>
           <p className="text-gray-600 text-sm">Συνολικές πιστώσεις</p>
         </div>
@@ -377,7 +393,7 @@ const Referral: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
           <div className="bg-white px-6 py-3 rounded-lg border-2 border-primary-300 shadow-lg">
             <span className="text-2xl font-bold text-primary-900 font-mono">
-              {user?.referralCode}
+              {user?.referralCode || 'Φόρτωση...'}
             </span>
           </div>
           
@@ -495,7 +511,13 @@ const Referral: React.FC = () => {
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {mockRewards.map((reward, index) => {
+          {/* Rewards will be implemented later */}
+          <div className="text-center p-8 bg-gray-50 rounded-xl">
+            <Gift className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-600 mb-2">Ανταμοιβές</h3>
+            <p className="text-gray-500 text-sm">Σύντομα διαθέσιμες!</p>
+          </div>
+          {false && [].map((reward, index) => {
             const canRedeem = points >= reward.points && !redeemedItems.includes(reward.id);
             const isRedeemed = redeemedItems.includes(reward.id);
             
@@ -574,32 +596,19 @@ const Referral: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900">
-                      Παραπομπή #{referral.id.slice(-4)}
+                      Παραπομπή #{index + 1}
                     </h4>
                     <p className="text-sm text-gray-600">
-                      {formatDate(referral.createdAt)} • {getReferralStatusName(referral.status)}
+                      {new Date(referral.created_at).toLocaleDateString('el-GR')} • Ολοκληρώθηκε
                     </p>
-                    {referral.completedAt && (
-                      <p className="text-xs text-gray-500">
-                        Ολοκληρώθηκε: {formatDate(referral.completedAt)}
-                      </p>
-                    )}
                   </div>
                 </div>
                 
                 <div className="text-right">
                   <div className="flex items-center space-x-3">
-                    <span className={`badge ${
-                      referral.status === 'completed' ? 'badge-success' :
-                      referral.status === 'pending' ? 'badge-warning' :
-                      'badge-error'
-                    }`}>
-                      {getReferralStatusName(referral.status)}
-                    </span>
-                    
                     <div className="text-right">
                       <div className="text-lg font-bold text-primary-600">
-                        +{referral.rewardCredits}
+                        +{referral.points_awarded || 10}
                       </div>
                       <p className="text-xs text-gray-500">πιστώσεις</p>
                     </div>
@@ -715,7 +724,7 @@ const Referral: React.FC = () => {
                 <div className="space-y-3">
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(`Γίνετε μέλος στο FreeGym χρησιμοποιώντας τον κωδικό παραπομπής μου: ${user?.referralCode}`);
+                      navigator.clipboard.writeText(`Γίνετε μέλος στο Get Fit χρησιμοποιώντας τον κωδικό παραπομπής μου: ${user?.referralCode}`);
                       toast.success('Το μήνυμα αντιγράφηκε!');
                     }}
                     className="btn-secondary w-full hover:scale-105 active:scale-95 transition-transform duration-200"

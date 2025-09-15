@@ -67,7 +67,7 @@ const LoginForm: React.FC = () => {
             </svg>
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Καλώς ήρθες στο FreeGym
+            Καλώς ήρθες στο Get Fit
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Σύνδεση στην εφαρμογή διαχείρισης γυμναστηρίου

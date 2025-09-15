@@ -1088,7 +1088,7 @@ const Dashboard: React.FC = () => {
                     transform: 'translateY(20px)'
                   }}
                 >
-          Εδώ είναι η επισκόπηση της δραστηριότητάς σου στο FreeGym
+          Εδώ είναι η επισκόπηση της δραστηριότητάς σου στο Get Fit
         </p>
       </div>
               <div 

@@ -38,6 +38,9 @@ interface RegistrationFormData {
   selectedPackage: string;
   selectedDuration: string;
   
+  // Referral Code
+  referralCode: string;
+  
   // Terms and Conditions
   acceptTerms: boolean;
   acceptPrivacy: boolean;
@@ -59,6 +62,7 @@ const PublicRegistration: React.FC = () => {
     language: 'el',
     selectedPackage: '',
     selectedDuration: '',
+    referralCode: '',
     acceptTerms: false,
     acceptPrivacy: false,
     acceptMarketing: false
@@ -234,6 +238,24 @@ const PublicRegistration: React.FC = () => {
 
       if (requestError) throw requestError;
 
+      // Process referral code if provided
+      if (formData.referralCode.trim()) {
+        try {
+          const { processReferralSignup } = await import('@/services/referralService');
+          const result = await processReferralSignup(authData.user.id, formData.referralCode.trim());
+          
+          if (result.success) {
+            toast.success(`Ευχαριστούμε! ${result.message}`);
+          } else {
+            toast.error(result.message);
+          }
+        } catch (referralError) {
+          console.error('Error processing referral:', referralError);
+          // Don't fail registration if referral processing fails
+          toast.error('Σφάλμα επεξεργασίας κωδικού παραπομπής, αλλά η εγγραφή ολοκληρώθηκε επιτυχώς.');
+        }
+      }
+
       setRegistrationSuccess(true);
       toast.success('Η εγγραφή σας ολοκληρώθηκε επιτυχώς! Θα ενημερωθείτε για την έγκριση.');
     } catch (error) {
@@ -287,7 +309,7 @@ const PublicRegistration: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Εγγραφή στο FreeGym</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Εγγραφή στο Get Fit</h1>
           <p className="text-gray-600">Γίνετε μέλος της οικογένειάς μας και ξεκινήστε το ταξίδι σας προς την υγεία</p>
         </div>
 
@@ -505,6 +527,24 @@ const PublicRegistration: React.FC = () => {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     />
                   </div>
+                </div>
+
+                {/* Referral Code Field */}
+                <div className="w-full">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Κωδικός Παραπομπής (Προαιρετικό)
+                  </label>
+                  <input
+                    type="text"
+                    name="referralCode"
+                    value={formData.referralCode}
+                    onChange={handleInputChange}
+                    placeholder="Εισάγετε κωδικό παραπομπής"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Έχετε κωδικός παραπομπής; Εισάγετε τον εδώ για να κερδίσετε πόντους!
+                  </p>
                 </div>
               </div>
             )}

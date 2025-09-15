@@ -1,9 +1,22 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 const RoleBasedRedirect: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  // Show loading while auth is initializing
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="animate-spin h-12 w-12 text-primary-600 mx-auto mb-4" />
+          <p className="text-gray-600">Φόρτωση...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -19,7 +32,7 @@ const RoleBasedRedirect: React.FC = () => {
       return <Navigate to="/secretary/dashboard" replace />;
     case 'user':
     default:
-      return <Navigate to="/dashboard" replace />;
+      return <Navigate to="/membership" replace />;
   }
 };
 

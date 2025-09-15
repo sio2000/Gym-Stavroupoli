@@ -34,14 +34,17 @@ import {
 import { MembershipPackage, MembershipPackageDuration, MembershipRequest, Membership as MembershipType } from '@/types';
 import toast from 'react-hot-toast';
 import SuccessPopup from '@/components/SuccessPopup';
+import EmailConfirmationPopup from '@/components/EmailConfirmationPopup';
 
 const MembershipPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, justLoggedIn, justRegistered, clearJustLoggedIn, clearJustRegistered } = useAuth();
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<MembershipPackage | null>(null);
   const [selectedDuration, setSelectedDuration] = useState<MembershipPackageDuration | null>(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successPackageName, setSuccessPackageName] = useState('');
+  const [showEmailConfirmationPopup, setShowEmailConfirmationPopup] = useState(false);
+  const [showPersonalTrainingModal, setShowPersonalTrainingModal] = useState(false);
   const [packages, setPackages] = useState<MembershipPackage[]>([]);
   const [packageDurations, setPackageDurations] = useState<MembershipPackageDuration[]>([]);
   const [pilatesDurations, setPilatesDurations] = useState<MembershipPackageDuration[]>([]);
@@ -49,7 +52,6 @@ const MembershipPage: React.FC = () => {
   const [userMemberships, setUserMemberships] = useState<MembershipType[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
-  const [showPersonalTrainingModal, setShowPersonalTrainingModal] = useState(false);
 
   // Get user's active membership from mock data (for backward compatibility)
   const userMembership = mockMemberships.find(m => m.userId === user?.id);
@@ -218,6 +220,13 @@ const MembershipPage: React.FC = () => {
     loadPilatesDurations();
   }, []);
 
+  // Show email confirmation popup if user just logged in or registered
+  useEffect(() => {
+    if (justLoggedIn || justRegistered) {
+      setShowEmailConfirmationPopup(true);
+    }
+  }, [justLoggedIn, justRegistered]);
+
   const loadPackages = async () => {
     console.log('[Membership] ===== LOADING PACKAGES =====');
     setLoading(true);
@@ -378,6 +387,17 @@ const MembershipPage: React.FC = () => {
         {config.text}
       </span>
     );
+  };
+
+  const handleEmailConfirmationPopupClose = () => {
+    setShowEmailConfirmationPopup(false);
+    // Clear the flags after showing the popup
+    if (justLoggedIn) {
+      clearJustLoggedIn();
+    }
+    if (justRegistered) {
+      clearJustRegistered();
+    }
   };
 
   // Pilates package will be loaded from database
@@ -631,33 +651,20 @@ const MembershipPage: React.FC = () => {
                         </div>
                       </div>
                     ) : isSpecial ? (
-                      <div className="space-y-2">
-                        <div className={`text-sm font-medium px-3 py-1 rounded-full mb-3 ${
-                          hasPersonalTraining ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {hasPersonalTraining ? 'Έχεις Πρόσβαση' : 'Διαθέσιμο με Πρόγραμμα'}
+                      <div className="space-y-3">
+                        <div className="text-center">
+                          <div className="text-sm text-gray-600 mb-2">Αξέχαστη εμπειρία</div>
+                          <div className="text-xs text-gray-500">Εξειδικευμένη προπόνηση</div>
                         </div>
-                        {hasPersonalTraining ? (
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open('/personal-training-schedule', '_blank');
-                            }}
-                            className="w-full bg-purple-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-purple-700 transition-colors text-sm sm:text-base"
-                          >
-                            Ανοίγει σε νέα καρτέλα
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowPersonalTrainingModal(true);
-                            }}
-                            className="w-full bg-purple-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-purple-700 transition-colors text-sm sm:text-base"
-                          >
-                            Επιλέξτε Πακέτο
-                          </button>
-                        )}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowPersonalTrainingModal(true);
+                          }}
+                          className="w-full bg-purple-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-purple-700 transition-colors font-semibold text-sm sm:text-base"
+                        >
+                          Επιλέξτε Πακέτο
+                        </button>
                       </div>
                     ) : isFreeGym ? (
                       <div className="space-y-3">
@@ -966,66 +973,48 @@ const MembershipPage: React.FC = () => {
       )}
 
 
+      {/* Success Popup */}
+      <SuccessPopup
+        isOpen={showSuccessPopup}
+        onClose={() => setShowSuccessPopup(false)}
+        packageName={successPackageName}
+      />
+
       {/* Personal Training Modal */}
       {showPersonalTrainingModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 rounded-t-2xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <Zap className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">Επιλογή Πακέτου: Personal Training</h3>
-                  </div>
-                </div>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                <Zap className="h-8 w-8 text-white" />
+              </div>
+              
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                Personal Training
+              </h3>
+              
+              <p className="text-gray-600 mb-6 leading-relaxed">
+                Για να γίνετε μέλος στο Personal Training πρέπει να μεταβείτε στην γραμματεία του γυμναστηρίου για να ολοκληρώσετε την εγγραφή σας.
+              </p>
+              
+              <div className="space-y-3">
                 <button
                   onClick={() => setShowPersonalTrainingModal(false)}
-                  className="text-white/80 hover:text-white transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="p-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <div className="flex items-start space-x-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <ExternalLink className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-blue-900 mb-2">Αγορά Πακέτου Personal Training</h4>
-                    <p className="text-blue-800 text-sm leading-relaxed">
-                      Για την αγορά του πακέτου Personal Training, παρακαλούμε επισκεφθείτε τη γραμματεία του γυμναστηρίου για να προβείτε σε εγγραφή και πληρωμή.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => setShowPersonalTrainingModal(false)}
-                  className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                  className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-semibold"
                 >
                   Κατάλαβα
                 </button>
+                
                 <button
                   onClick={() => {
-                    // Open gym location in maps with specific address
-                    const address = 'Μαιάνδρου 43, Κορδελιό Εύοσμος 562 24';
-                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+                    // Open map with gym location
+                    const gymAddress = "Μαιάνδρου 43, Κορδελιό Εύοσμος 562 24";
+                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(gymAddress)}`;
                     window.open(mapsUrl, '_blank');
                   }}
-                  className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2"
+                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center space-x-2"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ExternalLink className="h-4 w-4" />
                   <span>Βρείτε το Γυμναστήριο</span>
                 </button>
               </div>
@@ -1034,11 +1023,11 @@ const MembershipPage: React.FC = () => {
         </div>
       )}
 
-      {/* Success Popup */}
-      <SuccessPopup
-        isOpen={showSuccessPopup}
-        onClose={() => setShowSuccessPopup(false)}
-        packageName={successPackageName}
+      {/* Email Confirmation Popup */}
+      <EmailConfirmationPopup
+        isOpen={showEmailConfirmationPopup}
+        onClose={handleEmailConfirmationPopupClose}
+        isRegistration={justRegistered}
       />
       </div>
     </>

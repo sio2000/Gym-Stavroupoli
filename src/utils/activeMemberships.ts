@@ -72,7 +72,7 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
         is_active,
         start_date,
         end_date,
-        membership_packages!inner(
+        membership_packages(
           id,
           name,
           package_type
@@ -111,6 +111,29 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
  */
 export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCategory[]> => {
   try {
+    // ΠΡΩΤΑ: Έλεγχος για Personal Training
+    try {
+      const { data: personalSchedule, error: personalErr } = await supabase
+        .from('personal_training_schedules')
+        .select('id,status')
+        .eq('user_id', userId)
+        .eq('status', 'accepted')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (!personalErr && personalSchedule && personalSchedule.length > 0) {
+        // Αν έχει Personal Training, επέστρεψε ΜΟΝΟ το Personal Training category
+        const personalCategory = PACKAGE_TYPE_TO_QR_CATEGORY['personal_training'];
+        if (personalCategory) {
+          console.log('[ActiveMemberships] User has Personal Training - returning only Personal Training QR category');
+          return [personalCategory];
+        }
+      }
+    } catch (e) {
+      console.warn('[ActiveMemberships] Could not check personal schedule acceptance:', e);
+    }
+
+    // Αν δεν έχει Personal Training, τότε έλεγχος για άλλες συνδρομές
     const activeMemberships = await getUserActiveMembershipsForQR(userId);
     
     // Get unique package types from active memberships
@@ -120,25 +143,6 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
     const availableCategories: QRCodeCategory[] = availablePackageTypes
       .map(packageType => PACKAGE_TYPE_TO_QR_CATEGORY[packageType])
       .filter(Boolean) as QRCodeCategory[]; // Remove undefined entries
-
-    // Επιπλέον: Προσθήκη Personal Training αν υπάρχει εγκεκριμένο πρόγραμμα
-    try {
-      const { data: personalSchedule, error: personalErr } = await supabase
-        .from('personal_training_schedules')
-        .select('id,status')
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (!personalErr && personalSchedule && personalSchedule.length > 0) {
-        const personalCategory = PACKAGE_TYPE_TO_QR_CATEGORY['personal_training'];
-        if (personalCategory && !availableCategories.find(c => c.key === 'personal')) {
-          availableCategories.push(personalCategory);
-        }
-      }
-    } catch (e) {
-      console.warn('[ActiveMemberships] Could not check personal schedule acceptance:', e);
-    }
     
     console.log('[ActiveMemberships] Available QR categories:', availableCategories);
     return availableCategories;

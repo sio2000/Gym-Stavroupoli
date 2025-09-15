@@ -226,10 +226,9 @@ export const hasActivePilatesMembership = async (userId: string): Promise<boolea
       id,
       is_active,
       end_date,
-      membership_packages!inner(package_type)
+      membership_packages(package_type)
     `)
     .eq('user_id', userId)
-    .eq('membership_packages.package_type', 'pilates')
     .eq('is_active', true)
     .gte('end_date', new Date().toISOString().split('T')[0])
     .single();

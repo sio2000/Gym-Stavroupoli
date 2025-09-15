@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 import { formatDate, calculateAge, uploadProfilePhoto } from '@/utils/profileUtils';
+import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
 
 const Profile: React.FC = () => {
@@ -37,6 +38,8 @@ const Profile: React.FC = () => {
     new: false,
     confirm: false
   });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
@@ -443,17 +446,136 @@ const Profile: React.FC = () => {
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation
+    if (!passwordData.currentPassword) {
+      toast.error('Παρακαλώ εισάγετε τον τρέχοντα κωδικό');
+      return;
+    }
+    
+    if (!passwordData.newPassword) {
+      toast.error('Παρακαλώ εισάγετε νέο κωδικό');
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 6) {
+      toast.error('Ο νέος κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες');
+      return;
+    }
+    
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error('Οι κωδικοί δεν ταιριάζουν');
       return;
     }
     
-    // In real app, make API call to change password
-    toast.success('Ο κωδικός πρόσβασης άλλαξε επιτυχώς!');
-    setShowPasswordModal(false);
-    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    if (passwordData.currentPassword === passwordData.newPassword) {
+      toast.error('Ο νέος κωδικός πρέπει να είναι διαφορετικός από τον τρέχοντα');
+      return;
+    }
+    
+    setIsChangingPassword(true);
+    
+    try {
+      // Update password using Supabase Auth
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      });
+      
+      if (error) {
+        // Handle specific error cases
+        if (error.message.includes('Password should be at least')) {
+          toast.error('Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες');
+        } else if (error.message.includes('Invalid password')) {
+          toast.error('Ο τρέχων κωδικός είναι λάθος');
+        } else if (error.message.includes('rate limit') || error.message.includes('too many')) {
+          toast.error('Πολλές προσπάθειες. Παρακαλώ δοκιμάστε αργότερα');
+        } else {
+          toast.error('Σφάλμα κατά την αλλαγή του κωδικού. Παρακαλώ δοκιμάστε ξανά');
+        }
+        return;
+      }
+      
+      // Show success message
+      toast.success('Ο κωδικός πρόσβασης άλλαξε επιτυχώς!');
+      
+      // Close modal and reset form
+      setShowPasswordModal(false);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      
+      // Note: Supabase handles session refresh automatically
+      // The user will remain logged in with the new password
+      
+    } catch (error) {
+      // Handle network or unexpected errors
+      if (error instanceof Error) {
+        if (error.message.includes('network') || error.message.includes('fetch')) {
+          toast.error('Σφάλμα δικτύου. Ελέγξτε τη σύνδεσή σας');
+        } else {
+          toast.error('Σφάλμα κατά την αλλαγή του κωδικού');
+        }
+      } else {
+        toast.error('Σφάλμα κατά την αλλαγή του κωδικού');
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
+  // Handle account deletion
+  const handleDeleteAccount = async () => {
+    if (!user?.id) {
+      toast.error('Δεν βρέθηκε ο χρήστης');
+      return;
+    }
+
+    setIsDeletingAccount(true);
+
+    try {
+      // First, delete user profile from database
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (profileError) {
+        console.error('Error deleting user profile:', profileError);
+        toast.error('Σφάλμα κατά τη διαγραφή του προφίλ');
+        return;
+      }
+
+      // Call the SQL function to delete user data
+      const { data: deleteResult, error: deleteError } = await supabase
+        .rpc('delete_user_account', { user_id_to_delete: user.id });
+
+      if (deleteError) {
+        console.error('Error calling delete_user_account function:', deleteError);
+        toast.error('Σφάλμα κατά τη διαγραφή των δεδομένων');
+        return;
+      }
+
+      if (!deleteResult?.success) {
+        console.error('Delete function returned error:', deleteResult);
+        toast.error('Σφάλμα κατά τη διαγραφή του λογαριασμού');
+        return;
+      }
+
+      // Show success message
+      toast.success('Ο λογαριασμός διαγράφηκε επιτυχώς!');
+      
+      // Close modal
+      setShowDeleteModal(false);
+      
+      // Logout and redirect to login
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error('Σφάλμα κατά τη διαγραφή του λογαριασμού');
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -792,7 +914,7 @@ const Profile: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-600">Κωδικός Παραπομπής</p>
-                      <p className="text-lg font-bold text-gray-900 font-mono">{user?.referralCode || 'N/A'}</p>
+                      <p className="text-lg font-bold text-gray-900 font-mono">{user?.referralCode || 'Φόρτωση...'}</p>
                     </div>
                   </div>
                 </div>
@@ -955,9 +1077,11 @@ const Profile: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+                  disabled={isChangingPassword}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Αλλαγή Κωδικού
+                  {isChangingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {isChangingPassword ? 'Αλλαγή...' : 'Αλλαγή Κωδικού'}
                 </button>
               </div>
             </form>
@@ -1005,9 +1129,12 @@ const Profile: React.FC = () => {
                   Ακύρωση
                 </button>
                 <button
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-2xl hover:from-red-700 hover:to-pink-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+                  onClick={handleDeleteAccount}
+                  disabled={isDeletingAccount}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-2xl hover:from-red-700 hover:to-pink-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Διαγραφή
+                  {isDeletingAccount && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {isDeletingAccount ? 'Διαγραφή...' : 'Διαγραφή'}
                 </button>
               </div>
             </div>

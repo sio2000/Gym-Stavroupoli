@@ -103,7 +103,7 @@ const RegisterForm: React.FC = () => {
             Δημιουργία Λογαριασμού
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Εγγραφείτε στο FreeGym και ξεκινήστε την προπόνησή σας
+            Εγγραφείτε στο Get Fit και ξεκινήστε την προπόνησή σας
           </p>
         </div>
 

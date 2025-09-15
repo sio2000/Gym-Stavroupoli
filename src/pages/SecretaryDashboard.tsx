@@ -1373,7 +1373,7 @@ const SecretaryDashboard: React.FC = () => {
                             </div>
                           </div>
                           <div>
-                            <h3 className="font-medium text-gray-900">{request.user?.name || 'Άγνωστος χρήστης'}</h3>
+                            <h3 className="font-medium text-gray-900">{request.user?.firstName && request.user?.lastName ? `${request.user.firstName} ${request.user.lastName}` : 'Άγνωστος χρήστης'}</h3>
                             <p className="text-sm text-gray-600">{request.user?.email || 'Δεν υπάρχει email'}</p>
                           </div>
                         </div>
@@ -1428,7 +1428,7 @@ const SecretaryDashboard: React.FC = () => {
                           onClick={() => {
                             const reason = prompt('Λόγος απόρριψης:');
                             if (reason) {
-                              handleRejectRequest(request.id, reason);
+                              handleRejectRequest(request.id);
                             }
                           }}
                           className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm"
@@ -1450,7 +1450,8 @@ const SecretaryDashboard: React.FC = () => {
                       </h5>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Old Members */}
+                        {/* Old Members - Hide for Pilates package */}
+                        {request.package?.name !== 'Pilates' && (
                         <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
                           <button
                             onClick={() => {
@@ -1478,8 +1479,10 @@ const SecretaryDashboard: React.FC = () => {
                             </div>
                           </button>
                         </div>
+                        )}
 
-                        {/* Kettlebell Points */}
+                        {/* Kettlebell Points - Hide for Pilates package */}
+                        {request.package?.name !== 'Pilates' && (
                         <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             {isRequestPending(request.id) && '🔒 '}🏋️ Kettlebell Points
@@ -1500,6 +1503,7 @@ const SecretaryDashboard: React.FC = () => {
                             disabled={isRequestPending(request.id)}
                           />
                         </div>
+                        )}
 
                         {/* Cash */}
                         <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
