@@ -178,22 +178,6 @@ const LoginForm: React.FC = () => {
             </p>
           </div>
         </form>
-
-
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-primary-50 text-gray-500">Demo Account</span>
-            </div>
-          </div>
-          <div className="mt-4 text-center text-sm text-gray-600">
-            <p>Email: john.doe@example.com</p>
-            <p>Password: password123</p>
-          </div>
-        </div>
       </div>
     </div>
   );
