@@ -27,7 +27,7 @@ const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-2 sm:mx-4 my-4 sm:my-0 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-2 sm:mx-4 my-2 sm:my-4 max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 sm:p-6 text-white">
           <div className="flex items-center justify-between">
@@ -78,18 +78,13 @@ const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = ({
                 <span className="font-semibold mr-2 flex-shrink-0">2.</span>
                 <span>Κάντε κλικ στον σύνδεσμο επιβεβαίωσης στο email</span>
               </li>
-              <li className="flex items-start">
-                <span className="font-semibold mr-2 flex-shrink-0">3.</span>
-                <div className="flex-1 min-w-0">
-                  <span>Επιστρέψτε εδώ και συνδεθείτε ξανά</span>
-                  <div className="mt-2 p-2 bg-amber-100 border border-amber-300 rounded-lg">
-                    <p className="text-amber-800 text-xs font-semibold">
-                      ⚠️ ΣΗΜΕΙΩΣΗ: Σε περίπτωση που δεν δείτε το email, περιμένετε 10-15 δευτερόλεπτα και ελέγξτε ξανά!
-                    </p>
-                  </div>
-                </div>
-              </li>
             </ol>
+            
+            <div className="mt-4 p-3 bg-amber-100 border border-amber-300 rounded-lg">
+              <p className="text-amber-800 text-xs sm:text-sm font-semibold">
+                ⚠️ ΣΗΜΕΙΩΣΗ: Σε περίπτωση που δεν δείτε το email, περιμένετε 10-15 δευτερόλεπτα και ελέγξτε ξανά!
+              </p>
+            </div>
           </div>
 
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
