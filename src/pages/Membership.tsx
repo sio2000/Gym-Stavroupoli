@@ -446,8 +446,8 @@ const MembershipPage: React.FC = () => {
       <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
       {/* Header */}
         <div className="text-center sm:text-left">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-0">Διαχείριση Συνδρομής</h1>
-          <p className="text-sm sm:text-base text-gray-600">Διαχειριστείτε τη συνδρομή και τις πιστώσεις σας</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-0">Διαχείριση Συνδρομής</h1>
+          <p className="text-sm sm:text-base text-gray-300">Διαχειριστείτε τη συνδρομή και τις πιστώσεις σας</p>
         </div>
 
       {/* Active Memberships */}
@@ -565,7 +565,7 @@ const MembershipPage: React.FC = () => {
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-            <span className="ml-2 text-gray-600">Φόρτωση...</span>
+            <span className="ml-2 text-gray-600">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</span>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">

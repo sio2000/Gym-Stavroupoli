@@ -347,7 +347,7 @@ const MemberRegistration: React.FC<MemberRegistrationProps> = ({ onClose }) => {
         <div className="bg-white rounded-lg p-8">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-            <span>Φόρτωση...</span>
+            <span>Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</span>
           </div>
         </div>
       </div>

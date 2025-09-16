@@ -369,7 +369,7 @@ const Referral: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
           <div className="bg-dark-800 px-6 py-3 rounded-lg border-2 border-primary-400 shadow-lg">
             <span className="text-2xl font-bold text-primary-400 font-mono">
-              {user?.referralCode || 'Φόρτωση...'}
+              {user?.referralCode || 'Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.'}
             </span>
           </div>
           

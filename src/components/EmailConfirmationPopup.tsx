@@ -112,52 +112,49 @@ const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = ({
                 const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                 
                 if (isMobile) {
-                  // Mobile device - try different mail apps in order of preference
-                  const mailApps = [
-                    'googlegmail://co',           // Gmail app - inbox
-                    'message://',                 // Apple Mail - inbox
-                    'ms-outlook://',              // Outlook mobile - inbox
-                    'ymail://',                   // Yahoo Mail - inbox
-                    'outlook://',                 // Outlook desktop
-                    'thunderbird://',             // Thunderbird
-                    'mailto:'                     // Fallback to compose
-                  ];
+                  // Mobile device - use a more reliable approach
+                  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                  const isAndroid = /Android/.test(navigator.userAgent);
                   
                   let opened = false;
                   
-                  // Try each mail app
-                  for (let i = 0; i < mailApps.length; i++) {
+                  if (isIOS) {
+                    // iOS - try to open Mail app directly
                     try {
-                      console.log(`[EmailConfirmationPopup] Trying mail app ${i + 1}: ${mailApps[i]}`);
-                      
-                      // Create a hidden iframe to test if the app exists
-                      const iframe = document.createElement('iframe');
-                      iframe.style.display = 'none';
-                      iframe.src = mailApps[i];
-                      document.body.appendChild(iframe);
-                      
-                      // Set a timeout to remove the iframe
-                      setTimeout(() => {
-                        document.body.removeChild(iframe);
-                      }, 1000);
-                      
-                      // If we get here without error, the app might exist
+                      // Try to open Mail app with inbox
+                      window.location.href = 'message://';
                       opened = true;
-                      break;
-                      
                     } catch (e) {
-                      console.log(`[EmailConfirmationPopup] Mail app ${i + 1} failed:`, e);
-                      continue;
+                      try {
+                        // Fallback to mailto
+                        window.location.href = 'mailto:';
+                        opened = true;
+                      } catch (e2) {
+                        console.log('[EmailConfirmationPopup] iOS mail attempts failed');
+                      }
                     }
-                  }
-                  
-                  if (!opened) {
-                    // If nothing worked, try the simple approach
+                  } else if (isAndroid) {
+                    // Android - try Gmail first, then generic mailto
+                    try {
+                      // Try Gmail app first
+                      window.location.href = 'googlegmail://co';
+                      opened = true;
+                    } catch (e) {
+                      try {
+                        // Try generic mail app
+                        window.location.href = 'mailto:';
+                        opened = true;
+                      } catch (e2) {
+                        console.log('[EmailConfirmationPopup] Android mail attempts failed');
+                      }
+                    }
+                  } else {
+                    // Other mobile devices - try mailto
                     try {
                       window.location.href = 'mailto:';
                       opened = true;
                     } catch (e) {
-                      console.log('[EmailConfirmationPopup] All mail attempts failed');
+                      console.log('[EmailConfirmationPopup] Generic mobile mail attempt failed');
                     }
                   }
                   

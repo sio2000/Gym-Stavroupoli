@@ -20,7 +20,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="animate-spin h-12 w-12 text-primary-600 mx-auto mb-4" />
-          <p className="text-gray-600">Φόρτωση...</p>
+          <p className="text-gray-600">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</p>
         </div>
       </div>
     );

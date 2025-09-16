@@ -914,7 +914,7 @@ const Profile: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-300">Κωδικός Παραπομπής</p>
-                      <p className="text-lg font-bold text-white font-mono">{user?.referralCode || 'Φόρτωση...'}</p>
+                      <p className="text-lg font-bold text-white font-mono">{user?.referralCode || 'Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.'}</p>
                     </div>
                   </div>
                 </div>

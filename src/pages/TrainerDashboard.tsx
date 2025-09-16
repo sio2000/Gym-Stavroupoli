@@ -618,7 +618,7 @@ const TrainerDashboard: React.FC = () => {
                   {loading && (
                     <div className="flex items-center text-sm text-gray-500">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                      Φόρτωση...
+                      Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.
                     </div>
                   )}
                 </div>

@@ -163,7 +163,7 @@ const App: React.FC = () => {
           path="/personal-training"
           element={
             <Layout>
-              <React.Suspense fallback={<div>Φόρτωση...</div>}>
+              <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                 <PersonalTraining />
               </React.Suspense>
             </Layout>
@@ -218,7 +218,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute requiredRole="secretary">
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <SecretaryDashboard />
                 </React.Suspense>
               </Layout>

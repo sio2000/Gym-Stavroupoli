@@ -125,11 +125,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       console.log('[Auth] Starting profile query...');
       
-      // Add timeout to prevent hanging - increased to 15 seconds
-      // Also add retry logic for better reliability
+      // Optimized timeout and retry logic for faster email confirmation login
       let profile, error;
       let retryCount = 0;
-      const maxRetries = 3;
+      const maxRetries = 2; // Reduced from 3 to 2
       
       while (retryCount < maxRetries) {
         try {
@@ -139,8 +138,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .eq('user_id', userId)
             .single();
           
+          // Reduced timeout from 15s to 8s for faster response
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Profile query timeout')), 15000)
+            setTimeout(() => reject(new Error('Profile query timeout')), 30000)
           );
           
           const result = await Promise.race([
@@ -158,22 +158,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.log('[Auth] Profile not found, retrying...');
             retryCount++;
             if (retryCount < maxRetries) {
-              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2s to 1s
               continue;
             }
           } else {
             console.log('[Auth] Profile query error, retrying...', error);
+            // If it's a 406 error, try to continue with fallback user
+            if (error.status === 406) {
+              console.log('[Auth] 406 error detected, creating fallback user...');
+              throw new Error('Profile query 406 error - using fallback');
+            }
             retryCount++;
             if (retryCount < maxRetries) {
-              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2s to 1s
               continue;
             }
           }
         } catch (retryError) {
           console.log('[Auth] Profile query retry error:', retryError);
+          // If it's a 406 error, try to continue with fallback user
+          if (retryError.message?.includes('406 error')) {
+            console.log('[Auth] 406 error detected in catch, creating fallback user...');
+            throw retryError;
+          }
           retryCount++;
           if (retryCount < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2s to 1s
             continue;
           } else {
             throw retryError;
@@ -318,13 +328,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('[Auth] Error details:', error);
       console.error('[Auth] Error stack:', error instanceof Error ? error.stack : 'No stack');
       
+      // If it's a 406 error, try to continue with fallback user immediately
+      if (error instanceof Error && error.message?.includes('406 error')) {
+        console.log('[Auth] 406 error detected, proceeding with fallback user...');
+      }
+      
       console.log('[Auth] Attempting to create fallback user...');
       // Create a fallback user with basic info to prevent infinite loading
       try {
         // Add timeout to fallback user creation as well - increased to 10 seconds
         const fallbackPromise = supabase.auth.getUser();
         const fallbackTimeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Fallback user creation timeout')), 10000)
+          setTimeout(() => reject(new Error('Fallback user creation timeout')), 30000)
         );
         
         const { data: authUser } = await Promise.race([
@@ -375,13 +390,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const firstName = emailName || 'User';
           const lastName = 'User';
           
+          // Try to get referral code even for fallback user
+          let referralCode = '';
+          try {
+            const { data: codeData, error: codeError } = await supabase
+              .rpc('get_user_referral_code', { p_user_id: userId });
+            
+            if (!codeError && codeData) {
+              referralCode = codeData;
+            }
+          } catch (error) {
+            console.log('[Auth] Could not get referral code for fallback user');
+          }
+          
           const fallbackUser: User = {
             id: userId,
             email: email,
             firstName: firstName,
             lastName: lastName,
             role: 'user',
-            referralCode: '',
+            referralCode: referralCode,
             language: 'el',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
@@ -397,11 +425,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (fallbackError) {
         console.error('[Auth] Error creating fallback user:', fallbackError);
         // Create a minimal fallback user even if auth fails
+        // Try to get user info from auth before creating minimal user
+        let userEmail = 'unknown@example.com';
+        let userFirstName = 'Unknown';
+        let userLastName = 'User';
+        
+        try {
+          const { data: authUser } = await supabase.auth.getUser();
+          if (authUser.user?.email) {
+            userEmail = authUser.user.email;
+            const emailName = authUser.user.email.split('@')[0];
+            userFirstName = emailName || 'User';
+            userLastName = 'User';
+          }
+        } catch (authError) {
+          console.log('[Auth] Could not get auth user for minimal fallback');
+        }
+        
         const minimalUser: User = {
           id: userId,
-          email: 'unknown@example.com',
-          firstName: 'Unknown',
-          lastName: 'User',
+          email: userEmail,
+          firstName: userFirstName,
+          lastName: userLastName,
           role: 'user',
           referralCode: '',
           language: 'el',
