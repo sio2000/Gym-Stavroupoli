@@ -4,10 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { RegisterData } from '@/types';
 import { isValidEmail, isValidPassword, isValidPhone } from '@/utils';
 import { Eye, EyeOff, Mail, Lock, User, Loader2, Phone } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 const RegisterForm: React.FC = () => {
-  const [formData, setFormData] = useState<RegisterData>({
+  const [formData, setFormData] = useState<RegisterData & { confirmPassword: string }>({
     email: '',
     password: '',
     confirmPassword: '',
@@ -104,7 +103,7 @@ const RegisterForm: React.FC = () => {
   }, [formData]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-primary-600 rounded-full flex items-center justify-center">
@@ -112,10 +111,10 @@ const RegisterForm: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+          <h2 className="mt-6 text-3xl font-bold text-white">
             Δημιουργία Λογαριασμού
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-300">
             Εγγραφείτε στο Get Fit και ξεκινήστε την προπόνησή σας
           </p>
         </div>
@@ -124,7 +123,7 @@ const RegisterForm: React.FC = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="firstName" className="form-label">
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-300 mb-2">
                   Όνομα
                 </label>
                 <div className="relative">
@@ -137,19 +136,19 @@ const RegisterForm: React.FC = () => {
                     type="text"
                     autoComplete="given-name"
                     required
-                    className={`input-field pl-10 ${errors.firstName ? 'border-error-500 focus:ring-error-500' : ''}`}
+                    className={`w-full px-3 py-2 pl-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-dark-800 border-dark-600 text-white ${errors.firstName ? 'border-red-500' : ''}`}
                     placeholder="εισάγετε το όνομά σας"
                     value={formData.firstName}
                     onChange={handleInputChange}
                   />
                 </div>
                 {errors.firstName && (
-                  <p className="mt-1 text-sm text-error-600">{errors.firstName}</p>
+                  <p className="mt-1 text-sm text-red-400">{errors.firstName}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="lastName" className="form-label">
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-300 mb-2">
                   Επώνυμο
                 </label>
                 <div className="relative">
@@ -162,20 +161,20 @@ const RegisterForm: React.FC = () => {
                     type="text"
                     autoComplete="family-name"
                     required
-                    className={`input-field pl-10 ${errors.lastName ? 'border-error-500 focus:ring-error-500' : ''}`}
+                    className={`w-full px-3 py-2 pl-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-dark-800 border-dark-600 text-white ${errors.lastName ? 'border-red-500' : ''}`}
                     placeholder="εισάγετε το επώνυμο σας"
                     value={formData.lastName}
                     onChange={handleInputChange}
                   />
                 </div>
                 {errors.lastName && (
-                  <p className="mt-1 text-sm text-error-600">{errors.lastName}</p>
+                  <p className="mt-1 text-sm text-red-400">{errors.lastName}</p>
                 )}
               </div>
             </div>
 
             <div>
-              <label htmlFor="email" className="form-label">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                 Email
               </label>
               <div className="relative">
@@ -188,19 +187,19 @@ const RegisterForm: React.FC = () => {
                   type="email"
                   autoComplete="email"
                   required
-                  className={`input-field pl-10 ${errors.email ? 'border-error-500 focus:ring-error-500' : ''}`}
+                  className={`w-full px-3 py-2 pl-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-dark-800 border-dark-600 text-white ${errors.email ? 'border-red-500' : ''}`}
                   placeholder="εισάγετε το email σας"
                   value={formData.email}
                   onChange={handleInputChange}
                 />
               </div>
               {errors.email && (
-                <p className="mt-1 text-sm text-error-600">{errors.email}</p>
+                <p className="mt-1 text-sm text-red-400">{errors.email}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="phone" className="form-label">
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
                 Τηλέφωνο
               </label>
               <div className="relative">
@@ -213,19 +212,19 @@ const RegisterForm: React.FC = () => {
                   type="tel"
                   autoComplete="tel"
                   required
-                  className={`input-field pl-10 ${errors.phone ? 'border-error-500 focus:ring-error-500' : ''}`}
+                  className={`w-full px-3 py-2 pl-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-dark-800 border-dark-600 text-white ${errors.phone ? 'border-red-500' : ''}`}
                   placeholder="π.χ. +306912345678"
                   value={formData.phone}
                   onChange={handleInputChange}
                 />
               </div>
               {errors.phone && (
-                <p className="mt-1 text-sm text-error-600">{errors.phone}</p>
+                <p className="mt-1 text-sm text-red-400">{errors.phone}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="password" className="form-label">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
                 Κωδικός Πρόσβασης
               </label>
               <div className="relative">
@@ -238,7 +237,7 @@ const RegisterForm: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   required
-                  className={`input-field pl-10 pr-10 ${errors.password ? 'border-error-500 focus:ring-error-500' : ''}`}
+                  className={`w-full px-3 py-2 pl-10 pr-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-dark-800 border-dark-600 text-white ${errors.password ? 'border-red-500' : ''}`}
                   placeholder="εισάγετε τον κωδικό πρόσβασης"
                   value={formData.password}
                   onChange={handleInputChange}
@@ -256,12 +255,12 @@ const RegisterForm: React.FC = () => {
                 </button>
               </div>
               {errors.password && (
-                <p className="mt-1 text-sm text-error-600">{errors.password}</p>
+                <p className="mt-1 text-sm text-red-400">{errors.password}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="form-label">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
                 Επιβεβαίωση Κωδικού
               </label>
               <div className="relative">
@@ -274,7 +273,7 @@ const RegisterForm: React.FC = () => {
                   type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   required
-                  className={`input-field pl-10 pr-10 ${errors.confirmPassword ? 'border-error-500 focus:ring-error-500' : ''}`}
+                  className={`w-full px-3 py-2 pl-10 pr-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-dark-800 border-dark-600 text-white ${errors.confirmPassword ? 'border-red-500' : ''}`}
                   placeholder="επιβεβαιώστε τον κωδικό πρόσβασης"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
@@ -292,24 +291,24 @@ const RegisterForm: React.FC = () => {
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-error-600">{errors.confirmPassword}</p>
+                <p className="mt-1 text-sm text-red-400">{errors.confirmPassword}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="referralCode" className="form-label">
+              <label htmlFor="referralCode" className="block text-sm font-medium text-gray-300 mb-2">
                 Κωδικός Παραπομπής (προαιρετικό)
               </label>
               <input
                 id="referralCode"
                 name="referralCode"
                 type="text"
-                className="input-field"
+                className="w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-dark-800 border-dark-600 text-white"
                 placeholder="εισάγετε κωδικό παραπομπής"
                 value={formData.referralCode}
                 onChange={handleInputChange}
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-400">
                 Εισάγετε κωδικό παραπομπής για να λάβετε 5 δωρεάν πιστώσεις
               </p>
             </div>
@@ -321,7 +320,7 @@ const RegisterForm: React.FC = () => {
               disabled={isLoading || !isFormValid}
               className={`w-full flex justify-center items-center py-3 text-base font-medium rounded-lg transition-colors ${
                 isLoading || !isFormValid
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  ? 'bg-dark-700 text-gray-500 cursor-not-allowed'
                   : 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2'
               }`}
             >
@@ -337,11 +336,11 @@ const RegisterForm: React.FC = () => {
           </div>
 
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-300">
               Έχετε ήδη λογαριασμό;{' '}
               <Link
                 to="/login"
-                className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
+                className="font-medium text-primary-400 hover:text-primary-300 transition-colors"
               >
                 Συνδεθείτε εδώ
               </Link>

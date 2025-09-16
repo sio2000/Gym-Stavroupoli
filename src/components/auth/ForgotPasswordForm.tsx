@@ -92,16 +92,16 @@ const ForgotPasswordForm: React.FC = () => {
 
   if (isVerified) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-600">
+              <CheckCircle className="h-6 w-6 text-white" />
             </div>
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            <h2 className="mt-6 text-3xl font-extrabold text-white">
               Επιτυχής Επαλήθευση
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-300">
               Τα στοιχεία σας επαληθεύτηκαν επιτυχώς
             </p>
           </div>
@@ -168,13 +168,13 @@ const ForgotPasswordForm: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-3xl font-extrabold text-white">
             Επαναφορά Κωδικού
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-300">
             Εισάγετε τα στοιχεία σας για να λάβετε προσωρινό κωδικό πρόσβασης
           </p>
         </div>
@@ -182,7 +182,7 @@ const ForgotPasswordForm: React.FC = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
                 Email
               </label>
               <div className="mt-1 relative">
@@ -196,20 +196,20 @@ const ForgotPasswordForm: React.FC = () => {
                   autoComplete="email"
                   required
                   className={`appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 border ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm`}
+                    errors.email ? 'border-red-500' : 'border-dark-600'
+                  } placeholder-gray-400 text-white bg-dark-800 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm`}
                   placeholder="εισάγετε το email σας"
                   value={email}
                   onChange={handleInputChange}
                 />
               </div>
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                <p className="mt-1 text-sm text-red-400">{errors.email}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-300">
                 Τηλέφωνο
               </label>
               <div className="mt-1 relative">
@@ -223,15 +223,15 @@ const ForgotPasswordForm: React.FC = () => {
                   autoComplete="tel"
                   required
                   className={`appearance-none rounded-lg relative block w-full px-3 py-3 pl-10 border ${
-                    errors.phone ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm`}
+                    errors.phone ? 'border-red-500' : 'border-dark-600'
+                  } placeholder-gray-400 text-white bg-dark-800 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm`}
                   placeholder="εισάγετε το τηλέφωνο σας"
                   value={phone}
                   onChange={handleInputChange}
                 />
               </div>
               {errors.phone && (
-                <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+                <p className="mt-1 text-sm text-red-400">{errors.phone}</p>
               )}
             </div>
           </div>
@@ -239,7 +239,7 @@ const ForgotPasswordForm: React.FC = () => {
           <div className="flex items-center justify-between">
             <Link
               to="/login"
-              className="flex items-center text-sm font-medium text-primary-600 hover:text-primary-500 transition-colors"
+              className="flex items-center text-sm font-medium text-primary-400 hover:text-primary-300 transition-colors"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
               Επιστροφή στη Σύνδεση

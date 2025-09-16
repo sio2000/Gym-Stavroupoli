@@ -578,9 +578,9 @@ const Profile: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-black">
       {/* Modern Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 sticky top-0 z-40">
+      <div className="bg-dark-800/80 backdrop-blur-sm border-b border-dark-600/50 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-6">
             <div className="flex items-center space-x-4">
@@ -588,10 +588,10 @@ const Profile: React.FC = () => {
                 <User className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold text-white">
                   Προφίλ Χρήστη
                 </h1>
-                <p className="text-sm text-gray-600 font-medium">Διαχειριστείτε τις πληροφορίες του λογαριασμού σας</p>
+                <p className="text-sm text-gray-300 font-medium">Διαχειριστείτε τις πληροφορίες του λογαριασμού σας</p>
               </div>
             </div>
             
@@ -599,7 +599,7 @@ const Profile: React.FC = () => {
               {!isEditing ? (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-2xl font-medium hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   <Edit3 className="h-5 w-5" />
                   <span className="hidden sm:inline">Επεξεργασία</span>
@@ -608,7 +608,7 @@ const Profile: React.FC = () => {
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={() => setIsEditing(false)}
-                    className="flex items-center space-x-2 px-4 py-3 text-gray-600 bg-white/80 border border-gray-300 rounded-2xl font-medium hover:bg-gray-50 transition-all duration-200"
+                    className="flex items-center space-x-2 px-4 py-3 text-gray-300 bg-dark-700/80 border border-dark-600 rounded-2xl font-medium hover:bg-dark-600 transition-all duration-200"
                   >
                     <X className="h-5 w-5" />
                     <span className="hidden sm:inline">Ακύρωση</span>
@@ -634,7 +634,7 @@ const Profile: React.FC = () => {
           {/* Profile Information - Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Modern Avatar Section */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 shadow-lg border border-white/20">
+            <div className="bg-dark-800/70 backdrop-blur-sm rounded-3xl p-8 shadow-lg border border-dark-600/20">
               <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-6 sm:space-y-0 sm:space-x-8">
                 <div className="relative group">
                   {profilePhotoPreview || formData.profile_photo ? (
@@ -663,27 +663,27 @@ const Profile: React.FC = () => {
                 </div>
                 
                 <div className="flex-1 text-center sm:text-left">
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-3xl font-bold text-white mb-2">
                     {user?.firstName} {user?.lastName}
                   </h2>
                   <div className="flex items-center justify-center sm:justify-start space-x-2 mb-3">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-gray-600 font-medium capitalize">{user?.role}</span>
+                    <span className="text-gray-300 font-medium capitalize">{user?.role}</span>
                   </div>
-                  <p className="text-gray-500 mb-4">
+                  <p className="text-gray-400 mb-4">
                     Μέλος από {formatDate(user?.createdAt || '')}
                   </p>
                   
                   {formData.profile_photo_locked ? (
-                    <div className="inline-flex items-center space-x-2 bg-green-50 border border-green-200 rounded-2xl px-4 py-2">
+                    <div className="inline-flex items-center space-x-2 bg-green-600/20 border border-green-600/30 rounded-2xl px-4 py-2">
                       <Check className="h-4 w-4 text-green-600" />
-                      <p className="text-green-800 text-sm font-medium">Φωτογραφία κλειδωμένη</p>
+                      <p className="text-green-400 text-sm font-medium">Φωτογραφία κλειδωμένη</p>
                     </div>
                   ) : (
                     <div className="flex items-center gap-3">
-                      <label className="inline-flex items-center space-x-2 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-2 cursor-pointer hover:bg-blue-100 transition-all duration-200 hover:shadow-md">
+                      <label className="inline-flex items-center space-x-2 bg-blue-600/20 border border-blue-600/30 rounded-2xl px-4 py-2 cursor-pointer hover:bg-blue-600/30 transition-all duration-200 hover:shadow-md">
                         <Upload className="h-4 w-4 text-blue-600" />
-                        <p className="text-blue-800 text-sm font-medium">Ανεβάστε φωτογραφία</p>
+                        <p className="text-blue-400 text-sm font-medium">Ανεβάστε φωτογραφία</p>
                         <input
                           type="file"
                           accept="image/*"
@@ -694,10 +694,10 @@ const Profile: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleOpenCamera}
-                        className="inline-flex items-center space-x-2 bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-2 hover:bg-indigo-100 transition-all duration-200 hover:shadow-md"
+                        className="inline-flex items-center space-x-2 bg-indigo-600/20 border border-indigo-600/30 rounded-2xl px-4 py-2 hover:bg-indigo-600/30 transition-all duration-200 hover:shadow-md"
                       >
                         <Camera className="h-4 w-4 text-indigo-600" />
-                        <span className="text-indigo-800 text-sm font-medium">Λήψη φωτογραφίας</span>
+                        <span className="text-indigo-400 text-sm font-medium">Λήψη φωτογραφίας</span>
                       </button>
                       <input
                         ref={cameraInputRef}
@@ -714,8 +714,8 @@ const Profile: React.FC = () => {
             </div>
 
             {/* Personal Information Form */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 shadow-lg border border-white/20">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <div className="bg-dark-800/70 backdrop-blur-sm rounded-3xl p-8 shadow-lg border border-dark-600/20">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center">
                 <UserCheck className="h-6 w-6 mr-3 text-blue-600" />
                 Πληροφορίες Προφίλ
               </h3>
@@ -724,26 +724,26 @@ const Profile: React.FC = () => {
                 {/* Basic Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Όνομα</label>
+                    <label className="block text-sm font-semibold text-gray-300">Όνομα</label>
                     <input
                       type="text"
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleInputChange}
                       disabled={!isEditing}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm disabled:bg-gray-100 disabled:text-gray-500 transition-all duration-200"
+                      className="w-full px-4 py-3 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm disabled:bg-dark-600 disabled:text-gray-400 transition-all duration-200 text-white placeholder-gray-400"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Επώνυμο</label>
+                    <label className="block text-sm font-semibold text-gray-300">Επώνυμο</label>
                     <input
                       type="text"
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleInputChange}
                       disabled={!isEditing}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm disabled:bg-gray-100 disabled:text-gray-500 transition-all duration-200"
+                      className="w-full px-4 py-3 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm disabled:bg-dark-600 disabled:text-gray-400 transition-all duration-200 text-white placeholder-gray-400"
                     />
                   </div>
                 </div>
@@ -751,7 +751,7 @@ const Profile: React.FC = () => {
                 {/* Contact Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Email</label>
+                    <label className="block text-sm font-semibold text-gray-300">Email</label>
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <input
@@ -760,13 +760,13 @@ const Profile: React.FC = () => {
                         value={formData.email}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm disabled:bg-gray-100 disabled:text-gray-500 transition-all duration-200"
+                        className="w-full pl-12 pr-4 py-3 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm disabled:bg-dark-600 disabled:text-gray-400 transition-all duration-200 text-white placeholder-gray-400"
                       />
                     </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Τηλέφωνο</label>
+                    <label className="block text-sm font-semibold text-gray-300">Τηλέφωνο</label>
                     <div className="relative">
                       <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <input
@@ -776,7 +776,7 @@ const Profile: React.FC = () => {
                         onChange={handleInputChange}
                         disabled={!isEditing}
                         placeholder="+30 69XXXXXXXX"
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm disabled:bg-gray-100 disabled:text-gray-500 transition-all duration-200"
+                        className="w-full pl-12 pr-4 py-3 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm disabled:bg-dark-600 disabled:text-gray-400 transition-all duration-200 text-white placeholder-gray-400"
                       />
                     </div>
                   </div>
@@ -786,9 +786,9 @@ const Profile: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="block text-sm font-semibold text-gray-700">Ημερομηνία Γέννησης</label>
+                      <label className="block text-sm font-semibold text-gray-300">Ημερομηνία Γέννησης</label>
                       {formData.dob_locked && (
-                        <span className="inline-flex items-center space-x-1 text-xs text-green-600 bg-green-100 px-3 py-1 rounded-full">
+                        <span className="inline-flex items-center space-x-1 text-xs text-green-400 bg-green-600/20 px-3 py-1 rounded-full">
                           <Check className="h-3 w-3" />
                           <span>Κλειδωμένο</span>
                         </span>
@@ -802,24 +802,24 @@ const Profile: React.FC = () => {
                         value={formData.dob}
                         onChange={handleInputChange}
                         disabled={!isEditing || formData.dob_locked}
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm disabled:bg-gray-100 disabled:text-gray-500 transition-all duration-200"
+                        className="w-full pl-12 pr-4 py-3 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm disabled:bg-dark-600 disabled:text-gray-400 transition-all duration-200 text-white placeholder-gray-400"
                       />
                     </div>
                     {formData.dob && (
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-400 mt-1">
                         Ηλικία: {calculateAge(formData.dob)} ετών
                       </p>
                     )}
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">Γλώσσα</label>
+                    <label className="block text-sm font-semibold text-gray-300">Γλώσσα</label>
                     <select
                       name="language"
                       value={formData.language}
                       onChange={handleInputChange}
                       disabled={!isEditing}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm disabled:bg-gray-100 disabled:text-gray-500 transition-all duration-200"
+                      className="w-full px-4 py-3 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm disabled:bg-dark-600 disabled:text-gray-400 transition-all duration-200 text-white placeholder-gray-400"
                     >
                       <option value="el">Ελληνικά</option>
                       <option value="en">English</option>
@@ -829,7 +829,7 @@ const Profile: React.FC = () => {
 
                 {/* Address */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">Διεύθυνση</label>
+                  <label className="block text-sm font-semibold text-gray-300">Διεύθυνση</label>
                   <div className="relative">
                     <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
@@ -839,20 +839,20 @@ const Profile: React.FC = () => {
                       onChange={handleInputChange}
                       disabled={!isEditing}
                       placeholder="Οδός, Αριθμός, Πόλη, ΤΚ"
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm disabled:bg-gray-100 disabled:text-gray-500 transition-all duration-200"
+                      className="w-full pl-12 pr-4 py-3 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm disabled:bg-dark-600 disabled:text-gray-400 transition-all duration-200 text-white placeholder-gray-400"
                     />
                   </div>
                 </div>
 
                 {/* Emergency Contact */}
                 <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <h4 className="text-lg font-semibold text-white flex items-center">
                     <AlertCircle className="h-5 w-5 mr-2 text-orange-500" />
                     Επείγουσα Επικοινωνία
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-gray-700">Όνομα</label>
+                      <label className="block text-sm font-semibold text-gray-300">Όνομα</label>
                       <input
                         type="text"
                         name="emergency_contact_name"
@@ -860,12 +860,12 @@ const Profile: React.FC = () => {
                         onChange={handleInputChange}
                         disabled={!isEditing}
                         placeholder="Όνομα επείγουσας επικοινωνίας"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm disabled:bg-gray-100 disabled:text-gray-500 transition-all duration-200"
+                        className="w-full px-4 py-3 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm disabled:bg-dark-600 disabled:text-gray-400 transition-all duration-200 text-white placeholder-gray-400"
                       />
                     </div>
                     
                     <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-gray-700">Τηλέφωνο</label>
+                      <label className="block text-sm font-semibold text-gray-300">Τηλέφωνο</label>
                       <div className="relative">
                         <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <input
@@ -875,7 +875,7 @@ const Profile: React.FC = () => {
                           onChange={handleInputChange}
                           disabled={!isEditing}
                           placeholder="+30 69XXXXXXXX"
-                          className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm disabled:bg-gray-100 disabled:text-gray-500 transition-all duration-200"
+                          className="w-full pl-12 pr-4 py-3 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm disabled:bg-dark-600 disabled:text-gray-400 transition-all duration-200 text-white placeholder-gray-400"
                         />
                       </div>
                     </div>
@@ -888,57 +888,57 @@ const Profile: React.FC = () => {
           {/* Modern Sidebar */}
           <div className="lg:col-span-1 space-y-8">
             {/* Account Status Card */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-white/20">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <div className="bg-dark-800/70 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-dark-600/20">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center">
                 <Shield className="h-6 w-6 mr-3 text-green-600" />
                 Κατάσταση Λογαριασμού
               </h3>
               
               <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/50">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 rounded-2xl border border-blue-600/30">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
                       <User className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Ρόλος</p>
-                      <p className="text-lg font-bold text-gray-900 capitalize">{user?.role}</p>
+                      <p className="text-sm font-medium text-gray-300">Ρόλος</p>
+                      <p className="text-lg font-bold text-white capitalize">{user?.role}</p>
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-200/50">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-2xl border border-purple-600/30">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
                       <Star className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Κωδικός Παραπομπής</p>
-                      <p className="text-lg font-bold text-gray-900 font-mono">{user?.referralCode || 'Φόρτωση...'}</p>
+                      <p className="text-sm font-medium text-gray-300">Κωδικός Παραπομπής</p>
+                      <p className="text-lg font-bold text-white font-mono">{user?.referralCode || 'Φόρτωση...'}</p>
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200/50">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-2xl border border-green-600/30">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
                       <Calendar className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Εγγραφή</p>
-                      <p className="text-lg font-bold text-gray-900">{formatDate(user?.createdAt || '')}</p>
+                      <p className="text-sm font-medium text-gray-300">Εγγραφή</p>
+                      <p className="text-lg font-bold text-white">{formatDate(user?.createdAt || '')}</p>
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl border border-orange-200/50">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-600/20 to-red-600/20 rounded-2xl border border-orange-600/30">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
                       <Clock className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Τελευταία Ενημέρωση</p>
-                      <p className="text-lg font-bold text-gray-900">{formatDate(user?.updatedAt || '')}</p>
+                      <p className="text-sm font-medium text-gray-300">Τελευταία Ενημέρωση</p>
+                      <p className="text-lg font-bold text-white">{formatDate(user?.updatedAt || '')}</p>
                     </div>
                   </div>
                 </div>
@@ -946,8 +946,8 @@ const Profile: React.FC = () => {
             </div>
 
             {/* Quick Actions Card */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-white/20">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <div className="bg-dark-800/70 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-dark-600/20">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center">
                 <Key className="h-6 w-6 mr-3 text-blue-600" />
                 Γρήγορες Ενέργειες
               </h3>
@@ -955,7 +955,7 @@ const Profile: React.FC = () => {
               <div className="space-y-4">
                 <button
                   onClick={() => setShowPasswordModal(true)}
-                  className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                  className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-2xl font-medium hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   <Key className="h-5 w-5" />
                   <span>Αλλαγή Κωδικού</span>
@@ -964,8 +964,8 @@ const Profile: React.FC = () => {
             </div>
 
             {/* Account Actions Card */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-white/20">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <div className="bg-dark-800/70 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-dark-600/20">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center">
                 <AlertCircle className="h-6 w-6 mr-3 text-red-600" />
                 Ενέργειες Λογαριασμού
               </h3>
@@ -987,17 +987,17 @@ const Profile: React.FC = () => {
       {/* Modern Password Change Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-white/20">
+          <div className="bg-dark-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-dark-600/20">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center">
                   <Key className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">Αλλαγή Κωδικού</h3>
+                <h3 className="text-xl font-bold text-white">Αλλαγή Κωδικού</h3>
               </div>
               <button
                 onClick={() => setShowPasswordModal(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-xl transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1005,7 +1005,7 @@ const Profile: React.FC = () => {
             
             <form onSubmit={handlePasswordSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">Τρέχων Κωδικός</label>
+                <label className="block text-sm font-semibold text-gray-300">Τρέχων Κωδικός</label>
                 <div className="relative">
                   <input
                     type={showPassword.current ? "text" : "password"}
@@ -1013,12 +1013,12 @@ const Profile: React.FC = () => {
                     value={passwordData.currentPassword}
                     onChange={handlePasswordChange}
                     required
-                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm transition-all duration-200"
+                    className="w-full px-4 py-3 pr-12 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm transition-all duration-200 text-white placeholder-gray-400"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(prev => ({ ...prev, current: !prev.current }))}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
                   >
                     {showPassword.current ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -1026,7 +1026,7 @@ const Profile: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">Νέος Κωδικός</label>
+                <label className="block text-sm font-semibold text-gray-300">Νέος Κωδικός</label>
                 <div className="relative">
                   <input
                     type={showPassword.new ? "text" : "password"}
@@ -1034,12 +1034,12 @@ const Profile: React.FC = () => {
                     value={passwordData.newPassword}
                     onChange={handlePasswordChange}
                     required
-                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm transition-all duration-200"
+                    className="w-full px-4 py-3 pr-12 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm transition-all duration-200 text-white placeholder-gray-400"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(prev => ({ ...prev, new: !prev.new }))}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
                   >
                     {showPassword.new ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -1047,7 +1047,7 @@ const Profile: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">Επιβεβαίωση Νέου Κωδικού</label>
+                <label className="block text-sm font-semibold text-gray-300">Επιβεβαίωση Νέου Κωδικού</label>
                 <div className="relative">
                   <input
                     type={showPassword.confirm ? "text" : "password"}
@@ -1055,12 +1055,12 @@ const Profile: React.FC = () => {
                     value={passwordData.confirmPassword}
                     onChange={handlePasswordChange}
                     required
-                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm transition-all duration-200"
+                    className="w-full px-4 py-3 pr-12 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm transition-all duration-200 text-white placeholder-gray-400"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(prev => ({ ...prev, confirm: !prev.confirm }))}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
                   >
                     {showPassword.confirm ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -1071,14 +1071,14 @@ const Profile: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPasswordModal(false)}
-                  className="flex-1 px-6 py-3 text-gray-600 border border-gray-300 rounded-2xl hover:bg-gray-50 transition-all duration-200 font-medium"
+                  className="flex-1 px-6 py-3 text-gray-300 border border-dark-600 rounded-2xl hover:bg-dark-700 transition-all duration-200 font-medium"
                 >
                   Ακύρωση
                 </button>
                 <button
                   type="submit"
                   disabled={isChangingPassword}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-2xl hover:from-primary-700 hover:to-primary-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isChangingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
                   {isChangingPassword ? 'Αλλαγή...' : 'Αλλαγή Κωδικού'}
@@ -1092,29 +1092,29 @@ const Profile: React.FC = () => {
       {/* Modern Delete Account Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-white/20">
+          <div className="bg-dark-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-dark-600/20">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-pink-600 rounded-2xl flex items-center justify-center">
                   <Trash2 className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">Διαγραφή Λογαριασμού</h3>
+                <h3 className="text-xl font-bold text-white">Διαγραφή Λογαριασμού</h3>
               </div>
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-xl transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             
             <div className="space-y-6">
-              <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
+              <div className="p-4 bg-red-600/20 border border-red-600/30 rounded-2xl">
                 <div className="flex items-start space-x-3">
                   <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
                   <div>
-                    <h4 className="font-semibold text-red-900 mb-2">Προσοχή!</h4>
-                    <p className="text-sm text-red-800">
+                    <h4 className="font-semibold text-red-400 mb-2">Προσοχή!</h4>
+                    <p className="text-sm text-red-300">
                       Η διαγραφή του λογαριασμού είναι μη αναστρέψιμη. Όλα τα δεδομένα σας θα διαγραφούν οριστικά.
                     </p>
                   </div>
@@ -1122,10 +1122,10 @@ const Profile: React.FC = () => {
               </div>
               
               <div className="flex space-x-4">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-6 py-3 text-gray-600 border border-gray-300 rounded-2xl hover:bg-gray-50 transition-all duration-200 font-medium"
-                >
+                 <button
+                   onClick={() => setShowDeleteModal(false)}
+                   className="flex-1 px-6 py-3 text-gray-300 border border-dark-600 rounded-2xl hover:bg-dark-700 transition-all duration-200 font-medium"
+                 >
                   Ακύρωση
                 </button>
                 <button
@@ -1142,20 +1142,20 @@ const Profile: React.FC = () => {
         </div>
       )}
 
-      {/* Camera Stream Modal (Desktop) */}
-      {showCameraStream && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-white/20">
+       {/* Camera Stream Modal (Desktop) */}
+       {showCameraStream && (
+         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+           <div className="bg-dark-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-dark-600/20">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center">
                   <Camera className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900">Λήψη φωτογραφίας</h3>
+                <h3 className="text-lg font-bold text-white">Λήψη φωτογραφίας</h3>
               </div>
               <button
                 onClick={handleCloseCameraStream}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-xl transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1167,7 +1167,7 @@ const Profile: React.FC = () => {
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-64 rounded-2xl object-cover border border-gray-200 bg-gray-100"
+                className="w-full h-64 rounded-2xl object-cover border border-dark-600 bg-dark-700"
               />
               <canvas ref={canvasRef} className="hidden" />
             </div>
@@ -1176,7 +1176,7 @@ const Profile: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCloseCameraStream}
-                className="flex-1 px-6 py-3 text-gray-600 border border-gray-300 rounded-2xl hover:bg-gray-50 transition-all duration-200 font-medium"
+                className="flex-1 px-6 py-3 text-gray-300 border border-dark-600 rounded-2xl hover:bg-dark-700 transition-all duration-200 font-medium"
               >
                 Ακύρωση
               </button>
@@ -1193,20 +1193,20 @@ const Profile: React.FC = () => {
         </div>
       )}
 
-      {/* Camera Preview Modal */}
-      {showCameraPreview && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-white/20">
+       {/* Camera Preview Modal */}
+       {showCameraPreview && (
+         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+           <div className="bg-dark-800 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-dark-600/20">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center">
                   <Camera className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900">Προεπισκόπηση φωτογραφίας</h3>
+                <h3 className="text-lg font-bold text-white">Προεπισκόπηση φωτογραφίας</h3>
               </div>
               <button
                 onClick={handleCancelCaptured}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-xl transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1216,10 +1216,10 @@ const Profile: React.FC = () => {
               <img
                 src={capturedPhotoPreview}
                 alt="Captured preview"
-                className="w-full rounded-2xl object-cover border border-gray-200"
+                className="w-full rounded-2xl object-cover border border-dark-600"
               />
             ) : (
-              <div className="w-full h-48 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-500">
+              <div className="w-full h-48 rounded-2xl bg-dark-700 flex items-center justify-center text-gray-400">
                 Καμία εικόνα
               </div>
             )}
@@ -1229,7 +1229,7 @@ const Profile: React.FC = () => {
                 type="button"
                 onClick={handleCancelCaptured}
                 disabled={isUploading}
-                className="flex-1 px-6 py-3 text-gray-600 border border-gray-300 rounded-2xl hover:bg-gray-50 transition-all duration-200 font-medium disabled:opacity-60"
+                className="flex-1 px-6 py-3 text-gray-300 border border-dark-600 rounded-2xl hover:bg-dark-700 transition-all duration-200 font-medium disabled:opacity-60"
               >
                 Ακύρωση
               </button>

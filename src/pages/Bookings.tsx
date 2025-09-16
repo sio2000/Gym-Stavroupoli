@@ -6,16 +6,11 @@ import {
   MapPin, 
   User, 
   Plus, 
-  X,
-  CheckCircle,
-  XCircle,
-  AlertCircle
+  X
 } from 'lucide-react';
 import { mockLessons, mockBookings, mockRooms, mockTrainers } from '@/data/mockData';
 import { 
   formatDate, 
-  formatTime, 
-  getDayName, 
   getLessonCategoryName, 
   getLessonDifficultyName,
   getBookingStatusName
@@ -30,7 +25,7 @@ const Bookings: React.FC = () => {
 
   // Get current month and year
   const currentMonth = selectedDate.getMonth();
-  const currentYear = selectedDate.getYear();
+  const currentYear = selectedDate.getFullYear();
 
   // Generate calendar days
   const getDaysInMonth = (month: number, year: number) => {

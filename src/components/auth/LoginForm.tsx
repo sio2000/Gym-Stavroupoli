@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoginCredentials } from '@/types';
 import { isValidEmail } from '@/utils';
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 const LoginForm: React.FC = () => {
   const [credentials, setCredentials] = useState<LoginCredentials>({
@@ -58,7 +57,7 @@ const LoginForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-primary-600 rounded-full flex items-center justify-center">
@@ -66,10 +65,10 @@ const LoginForm: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+          <h2 className="mt-6 text-3xl font-bold text-white">
             Καλώς ήρθες στο Get Fit
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-300">
             Σύνδεση στην εφαρμογή διαχείρισης γυμναστηρίου
           </p>
         </div>
@@ -77,7 +76,7 @@ const LoginForm: React.FC = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="form-label">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                 Email
               </label>
               <div className="relative">
@@ -90,19 +89,19 @@ const LoginForm: React.FC = () => {
                   type="email"
                   autoComplete="email"
                   required
-                  className={`input-field pl-10 ${errors.email ? 'border-error-500 focus:ring-error-500' : ''}`}
+                  className={`w-full px-3 py-2 pl-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-dark-800 border-dark-600 text-white ${errors.email ? 'border-red-500' : ''}`}
                   placeholder="εισάγετε το email σας"
                   value={credentials.email}
                   onChange={handleInputChange}
                 />
               </div>
               {errors.email && (
-                <p className="mt-1 text-sm text-error-600">{errors.email}</p>
+                <p className="mt-1 text-sm text-red-400">{errors.email}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="password" className="form-label">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
                 Κωδικός Πρόσβασης
               </label>
               <div className="relative">
@@ -115,7 +114,7 @@ const LoginForm: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
-                  className={`input-field pl-10 pr-10 ${errors.password ? 'border-error-500 focus:ring-error-500' : ''}`}
+                  className={`w-full px-3 py-2 pl-10 pr-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-dark-800 border-dark-600 text-white ${errors.password ? 'border-red-500' : ''}`}
                   placeholder="εισάγετε τον κωδικό πρόσβασης"
                   value={credentials.password}
                   onChange={handleInputChange}
@@ -133,7 +132,7 @@ const LoginForm: React.FC = () => {
                 </button>
               </div>
               {errors.password && (
-                <p className="mt-1 text-sm text-error-600">{errors.password}</p>
+                <p className="mt-1 text-sm text-red-400">{errors.password}</p>
               )}
             </div>
           </div>
@@ -142,7 +141,7 @@ const LoginForm: React.FC = () => {
             <div className="text-sm">
               <Link
                 to="/forgot-password"
-                className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
+                className="font-medium text-primary-400 hover:text-primary-300 transition-colors"
               >
                 Ξεχάσατε τον κωδικό;
               </Link>
@@ -153,7 +152,7 @@ const LoginForm: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="btn-primary w-full flex justify-center items-center py-3 text-base font-medium"
+              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
@@ -167,11 +166,11 @@ const LoginForm: React.FC = () => {
           </div>
 
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-300">
               Δεν έχετε λογαριασμό;{' '}
               <Link
                 to="/register"
-                className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
+                className="font-medium text-primary-400 hover:text-primary-300 transition-colors"
               >
                 Εγγραφείτε εδώ
               </Link>

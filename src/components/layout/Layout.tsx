@@ -26,7 +26,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [hasApprovedMembership, setHasApprovedMembership] = useState(false);
+  const [, setHasApprovedMembership] = useState(false);
   const [hasPilatesMembership, setHasPilatesMembership] = useState(false);
   const [hasQRCodeAccess, setHasQRCodeAccess] = useState(false);
   const [hasPersonalTraining, setHasPersonalTraining] = useState(false);
@@ -115,7 +115,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }
 
         // Check specifically for pilates membership - ONLY for pilates package type
-        const { data: pilatesData, error: pilatesError } = await supabase
+        const { data: pilatesData } = await supabase
           .from('memberships')
           .select(`
             id,
@@ -129,7 +129,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         // Check if any of the active memberships is specifically for pilates
         const hasPilatesPackage = pilatesData && pilatesData.some(membership => 
-          membership.membership_packages?.package_type === 'pilates'
+          membership.membership_packages?.some((pkg: any) => pkg.package_type === 'pilates')
         );
 
         if (hasPilatesPackage) {
@@ -141,12 +141,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         // Update QR Code access: only show if user has Free Gym membership (package appears locked in membership page)
         // Check specifically for Free Gym/standard package membership
         const hasFreeGymMembership = data && data.some(membership => 
-          membership.membership_packages?.package_type === 'free_gym' || 
-          membership.membership_packages?.package_type === 'standard'
+          membership.membership_packages?.some((pkg: any) => 
+            pkg.package_type === 'free_gym' || pkg.package_type === 'standard'
+          )
         );
         
         // QR Code access should only be for Free Gym memberships, NOT for personal training or pilates
-        setHasQRCodeAccess(hasFreeGymMembership);
+        setHasQRCodeAccess(hasFreeGymMembership || false);
       } catch (error) {
         console.error('Error checking active membership:', error);
         setHasApprovedMembership(false);
@@ -345,17 +346,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1"></div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
-              <button className="text-gray-400 hover:text-gray-600">
+              <button className="text-gray-400 hover:text-white">
                 <Bell className="h-6 w-6" />
               </button>
-              <button className="text-gray-400 hover:text-gray-600">
+              <button className="text-gray-400 hover:text-white">
                 <Settings className="h-6 w-6" />
               </button>
-              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
+              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-dark-700" />
               <div className="flex items-center gap-x-4">
                 <div className="text-sm">
-                  <p className="font-medium text-gray-900">{user?.firstName} {user?.lastName}</p>
-                  <p className="text-gray-500 capitalize">{user?.role}</p>
+                  <p className="font-medium text-white">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-gray-400 capitalize">{user?.role}</p>
                 </div>
                 <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center">
                   <span className="text-sm font-medium text-white">
@@ -368,7 +369,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* Page content */}
-        <main className="py-6">
+        <main className="py-6 bg-black">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             {children}
           </div>

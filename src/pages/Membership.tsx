@@ -52,7 +52,7 @@ const MembershipPage: React.FC = () => {
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
 
   // Get user's active membership from mock data (for backward compatibility)
-  const userMembership = mockMemberships.find(m => m.userId === user?.id);
+  const userMembership = mockMemberships.find(m => m.user_id === user?.id);
   
   // Get user's payments
   const userPayments = mockPayments.filter(p => p.userId === user?.id);
@@ -510,13 +510,13 @@ const MembershipPage: React.FC = () => {
               <div>
                 <h2 className="text-xl font-bold text-primary-900">Ενεργή Συνδρομή</h2>
                 <p className="text-primary-700">
-                  {allPackages.find(p => p.id === userMembership.packageId)?.name || 'Unknown Package'}
+                  {allPackages.find(p => p.id === userMembership.package_id)?.name || 'Unknown Package'}
                 </p>
               </div>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-primary-900">
-                {userMembership.credits} πιστώσεις
+                {userMembership.credits || 0} πιστώσεις
               </div>
               <p className="text-primary-700">διαθέσιμες</p>
             </div>
@@ -525,12 +525,12 @@ const MembershipPage: React.FC = () => {
           <div className="mt-4">
             <div className="flex justify-between text-sm text-primary-700 mb-2">
               <span>Πρόοδος συνδρομής</span>
-              <span>{getDaysRemaining(userMembership.endDate)} ημέρες ακόμα</span>
+              <span>{getDaysRemaining(userMembership.end_date)} ημέρες ακόμα</span>
             </div>
             <div className="w-full bg-primary-200 rounded-full h-2">
               <div 
                 className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${getMembershipProgress(userMembership.startDate, userMembership.endDate)}%` }}
+                style={{ width: `${getMembershipProgress(userMembership.start_date, userMembership.end_date)}%` }}
               />
             </div>
           </div>
@@ -538,19 +538,19 @@ const MembershipPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-primary-200">
             <div className="text-center">
               <div className="text-lg font-semibold text-primary-900">
-                {formatDate(userMembership.startDate)}
+                {formatDate(userMembership.start_date)}
               </div>
               <p className="text-sm text-primary-700">Ημερομηνία έναρξης</p>
             </div>
             <div className="text-center">
               <div className="text-lg font-semibold text-primary-900">
-                {formatDate(userMembership.endDate)}
+                {formatDate(userMembership.end_date)}
               </div>
               <p className="text-sm text-primary-700">Ημερομηνία λήξης</p>
             </div>
             <div className="text-center">
               <div className="text-lg font-semibold text-primary-900">
-                {userMembership.autoRenew ? 'Ναι' : 'Όχι'}
+                {userMembership.auto_renew ? 'Ναι' : 'Όχι'}
               </div>
               <p className="text-sm text-primary-700">Αυτόματη ανανέωση</p>
             </div>
@@ -573,7 +573,7 @@ const MembershipPage: React.FC = () => {
               const isSpecial = pkg.name === 'Personal Training'; // Personal Training package
               const isFreeGym = pkg.name === 'Free Gym'; // Free Gym package
               const isPilates = pkg.name === 'Pilates'; // Pilates package
-              const hasPersonalTraining = userMemberships.some(m => m.package_id === pkg.id);
+              // const hasPersonalTraining = userMemberships.some(m => m.package_id === pkg.id);
               const isLocked = userMemberships.some(m => m.package_id === pkg.id);
               
               return (

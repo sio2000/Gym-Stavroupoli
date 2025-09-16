@@ -30,7 +30,7 @@ const StatCard: React.FC<{
   index?: number;
 }> = ({ name, value, icon: Icon, color, bgColor, trend, trendColor = 'text-green-600', index = 0 }) => (
   <div
-    className="group relative overflow-hidden bg-white rounded-2xl md:rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-blue-200 hover:-translate-y-1 hover:scale-105 mobile-card-hover mobile-touch-feedback"
+    className="group relative overflow-hidden bg-dark-800 rounded-2xl md:rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-dark-600 hover:border-primary-400 hover:-translate-y-1 hover:scale-105 mobile-card-hover mobile-touch-feedback"
     style={{ 
       animationDelay: `${index * 100}ms`,
       animation: 'fadeInUp 0.6s ease-out forwards',
@@ -38,7 +38,7 @@ const StatCard: React.FC<{
     }}
   >
     <div 
-      className="absolute inset-0 bg-gradient-to-br from-white via-blue-50/30 to-blue-100/50 opacity-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110"
+      className="absolute inset-0 bg-gradient-to-br from-dark-700 via-primary-600/20 to-primary-500/30 opacity-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110"
     />
     <div className="relative p-3 md:p-6">
       <div className="flex flex-col md:flex-row items-center md:justify-between mb-2 md:mb-4">
@@ -56,8 +56,8 @@ const StatCard: React.FC<{
         )}
       </div>
       <div className="text-center md:text-left mobile-text">
-        <p className="text-xs md:text-sm font-semibold text-gray-600 mb-1 md:mb-2 tracking-wide">{name}</p>
-        <p className="text-lg md:text-3xl font-bold text-gray-900 group-hover:scale-105 transition-transform duration-300">
+        <p className="text-xs md:text-sm font-semibold text-gray-300 mb-1 md:mb-2 tracking-wide">{name}</p>
+        <p className="text-lg md:text-3xl font-bold text-white group-hover:scale-105 transition-transform duration-300">
           {value}
         </p>
       </div>
@@ -78,16 +78,16 @@ const ProgressBar: React.FC<{
   
   return (
     <div 
-      className="space-y-3 md:space-y-4 p-3 md:p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl md:rounded-2xl border border-gray-100 hover:shadow-lg transition-all duration-300"
+      className="space-y-3 md:space-y-4 p-3 md:p-4 bg-gradient-to-r from-dark-700 to-dark-600 rounded-xl md:rounded-2xl border border-dark-600 hover:shadow-lg transition-all duration-300"
       style={{
         animation: 'fadeInScale 0.5s ease-out forwards',
         opacity: 0
       }}
     >
       <div className="flex flex-col md:flex-row md:justify-between md:items-center space-y-1 md:space-y-0">
-        <span className="text-sm md:text-sm font-bold text-gray-800 tracking-wide">{label}</span>
+        <span className="text-sm md:text-sm font-bold text-white tracking-wide">{label}</span>
         <span 
-          className="text-xs md:text-sm font-semibold text-gray-600 bg-white px-2 md:px-3 py-1 rounded-full shadow-sm"
+          className="text-xs md:text-sm font-semibold text-gray-300 bg-dark-800 px-2 md:px-3 py-1 rounded-full shadow-sm"
           style={{
             animation: 'slideInRight 0.6s ease-out 0.2s forwards',
             opacity: 0,
@@ -98,7 +98,7 @@ const ProgressBar: React.FC<{
         </span>
       </div>
       <div className="relative">
-        <div className="w-full bg-gray-200 rounded-full h-3 md:h-4 overflow-hidden shadow-inner">
+        <div className="w-full bg-dark-600 rounded-full h-3 md:h-4 overflow-hidden shadow-inner">
           <div 
             className={`h-3 md:h-4 rounded-full ${bgColor} shadow-lg transition-all duration-1000 ease-out`}
             style={{ 
@@ -117,7 +117,7 @@ const ProgressBar: React.FC<{
               transform: 'translateY(10px)'
             }}
           >
-            <span className="bg-gray-100 px-2 py-1 rounded-full text-center md:text-left">Στόχος: {target} {unit}</span>
+            <span className="bg-dark-700 px-2 py-1 rounded-full text-center md:text-left text-gray-300">Στόχος: {target} {unit}</span>
             <span 
               className={`px-2 md:px-3 py-1 rounded-full ${color} bg-opacity-10 animate-pulse text-center md:text-right`}
             >
@@ -143,7 +143,7 @@ const MobileCollapsibleSection: React.FC<{
   
   return (
     <div 
-      className="bg-white rounded-2xl md:rounded-3xl shadow-xl border border-blue-100 mb-4 md:mb-6 overflow-hidden hover:shadow-2xl transition-all duration-500"
+      className="bg-dark-800 rounded-2xl md:rounded-3xl shadow-xl border border-dark-600 mb-4 md:mb-6 overflow-hidden hover:shadow-2xl transition-all duration-500"
       style={{
         animationDelay: `${index * 100}ms`,
         animation: 'fadeInUp 0.6s ease-out forwards',
@@ -152,25 +152,25 @@ const MobileCollapsibleSection: React.FC<{
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 md:p-6 text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:scale-105 transition-all duration-300 group"
+        className="w-full flex items-center justify-between p-4 md:p-6 text-left hover:bg-gradient-to-r hover:from-primary-600/20 hover:to-primary-500/20 hover:scale-105 transition-all duration-300 group"
       >
         <div className="flex items-center space-x-3 md:space-x-4">
           <div 
-            className="p-3 md:p-4 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl md:rounded-2xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg"
+            className="p-3 md:p-4 bg-gradient-to-br from-primary-600/20 to-primary-500/30 rounded-xl md:rounded-2xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg"
           >
             <Icon className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
         </div>
-          <h3 className="text-lg md:text-xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors duration-300">{title}</h3>
+          <h3 className="text-lg md:text-xl font-bold text-white group-hover:text-primary-400 transition-colors duration-300">{title}</h3>
         </div>
         <div
           className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : 'rotate-0'}`}
         >
-          <ChevronDown className="h-5 w-5 md:h-6 md:w-6 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" />
+          <ChevronDown className="h-5 w-5 md:h-6 md:w-6 text-gray-400 group-hover:text-primary-400 transition-colors duration-300" />
       </div>
       </button>
       {isOpen && (
         <div 
-          className="border-t border-gray-100 overflow-hidden transition-all duration-400 ease-in-out"
+          className="border-t border-dark-600 overflow-hidden transition-all duration-400 ease-in-out"
           style={{
             animation: 'fadeInUp 0.4s ease-out forwards',
             opacity: 0,
@@ -304,7 +304,7 @@ const MetricsForm: React.FC<{
 
   return (
     <div 
-      className="bg-white rounded-2xl md:rounded-3xl shadow-xl border border-blue-100 p-4 md:p-8 hover:shadow-2xl transition-all duration-500"
+      className="bg-dark-800 rounded-2xl md:rounded-3xl shadow-xl border border-dark-600 p-4 md:p-8 hover:shadow-2xl transition-all duration-500"
       style={{
         animation: 'fadeInUp 0.6s ease-out forwards',
         opacity: 0
@@ -319,11 +319,11 @@ const MetricsForm: React.FC<{
         }}
       >
         <div 
-          className="p-3 md:p-4 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl md:rounded-2xl shadow-lg hover:rotate-3 hover:scale-110 transition-all duration-300"
+          className="p-3 md:p-4 bg-gradient-to-br from-primary-600/20 to-primary-500/30 rounded-xl md:rounded-2xl shadow-lg hover:rotate-3 hover:scale-110 transition-all duration-300"
         >
           <Edit3 className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
       </div>
-        <h3 className="text-lg md:text-2xl font-bold text-gray-900">Καταχώριση Μετρήσεων</h3>
+        <h3 className="text-lg md:text-2xl font-bold text-white">Καταχώριση Μετρήσεων</h3>
       </div>
       
       <div className="space-y-4 md:space-y-6">
@@ -331,46 +331,46 @@ const MetricsForm: React.FC<{
         <div className="space-y-3 md:space-y-4">
           <div className="flex items-center gap-2 mb-2 md:mb-3">
             <User className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-800 text-sm md:text-base">Προσωπικά Στοιχεία</h4>
+            <h4 className="font-medium text-gray-300 text-sm md:text-base">Προσωπικά Στοιχεία</h4>
         </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Βάρος (kg)</label>
+              <label className="block text-sm font-medium text-gray-300">Βάρος (kg)</label>
               <input 
                 type="number" 
                 step="0.1" 
-                className="w-full border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 value={weight} 
                 onChange={e=>setWeight(e.target.value)} 
                 placeholder="π.χ. 75.5" 
               />
       </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Ύψος (cm)</label>
+              <label className="block text-sm font-medium text-gray-300">Ύψος (cm)</label>
               <input 
                 type="number" 
                 step="0.1" 
-                className="w-full border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 value={height} 
                 onChange={e=>setHeight(e.target.value)} 
                 placeholder="π.χ. 175.0" 
               />
     </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Λίπος (%)</label>
+              <label className="block text-sm font-medium text-gray-300">Λίπος (%)</label>
               <input 
                 type="number" 
                 step="0.1" 
-                className="w-full border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 value={bodyFat} 
                 onChange={e=>setBodyFat(e.target.value)} 
                 placeholder="π.χ. 15.2" 
               />
   </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Φύλο</label>
+              <label className="block text-sm font-medium text-gray-300">Φύλο</label>
               <select 
-                className="w-full border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 value={gender} 
                 onChange={e=>setGender(e.target.value)}
               >
@@ -387,24 +387,24 @@ const MetricsForm: React.FC<{
         <div className="space-y-3 md:space-y-4">
           <div className="flex items-center gap-2 mb-2 md:mb-3">
             <Moon className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-800 text-sm md:text-base">Ύπνος & Ευεξία</h4>
+            <h4 className="font-medium text-gray-300 text-sm md:text-base">Ύπνος & Ευεξία</h4>
       </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Ώρες ύπνου</label>
+              <label className="block text-sm font-medium text-gray-300">Ώρες ύπνου</label>
               <input 
                 type="number" 
                 step="0.5" 
-                className="w-full border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 value={sleepHours} 
                 onChange={e=>setSleepHours(e.target.value)} 
                 placeholder="π.χ. 7.5" 
               />
     </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Ποιότητα ύπνου</label>
+              <label className="block text-sm font-medium text-gray-300">Ποιότητα ύπνου</label>
               <select 
-                className="w-full border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 value={sleepQuality} 
                 onChange={e=>setSleepQuality(e.target.value)}
               >
@@ -416,11 +416,11 @@ const MetricsForm: React.FC<{
               </select>
   </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Νερό (λίτρα)</label>
+              <label className="block text-sm font-medium text-gray-300">Νερό (λίτρα)</label>
               <input 
                 type="number" 
                 step="0.1" 
-                className="w-full border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 value={water} 
                 onChange={e=>setWater(e.target.value)} 
                 placeholder="π.χ. 2.5" 
@@ -433,23 +433,23 @@ const MetricsForm: React.FC<{
         <div className="space-y-3 md:space-y-4">
           <div className="flex items-center gap-2 mb-2 md:mb-3">
             <Dumbbell className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-800 text-sm md:text-base">Δραστηριότητα & Προπόνηση</h4>
+            <h4 className="font-medium text-gray-300 text-sm md:text-base">Δραστηριότητα & Προπόνηση</h4>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Βήματα/ημέρα</label>
+              <label className="block text-sm font-medium text-gray-300">Βήματα/ημέρα</label>
               <input 
                 type="number" 
-                className="w-full border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 value={steps} 
                 onChange={e=>setSteps(e.target.value)} 
                 placeholder="π.χ. 8500" 
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Είδος προπόνησης</label>
+              <label className="block text-sm font-medium text-gray-300">Είδος προπόνησης</label>
               <select 
-                className="w-full border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 value={workoutType} 
                 onChange={e=>setWorkoutType(e.target.value)}
               >
@@ -468,7 +468,7 @@ const MetricsForm: React.FC<{
         <button 
           onClick={handleSave} 
           disabled={saving} 
-          className="w-full py-4 md:py-5 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white rounded-xl md:rounded-2xl font-bold text-base md:text-lg hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed mobile-touch-feedback"
+          className="w-full py-4 md:py-5 bg-gradient-to-r from-primary-600 via-primary-700 to-primary-800 text-white rounded-xl md:rounded-2xl font-bold text-base md:text-lg hover:from-primary-700 hover:via-primary-800 hover:to-primary-900 hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed mobile-touch-feedback"
           style={{
             animation: 'fadeInUp 0.6s ease-out 0.4s forwards',
             opacity: 0,
@@ -550,7 +550,7 @@ const GoalsSection: React.FC<{
   
   return (
     <div 
-      className="bg-white rounded-2xl md:rounded-3xl shadow-xl border border-blue-100 p-4 md:p-8 hover:shadow-2xl transition-all duration-500"
+      className="bg-dark-800 rounded-2xl md:rounded-3xl shadow-xl border border-dark-600 p-4 md:p-8 hover:shadow-2xl transition-all duration-500"
       style={{
         animation: 'fadeInUp 0.6s ease-out forwards',
         opacity: 0
@@ -565,11 +565,11 @@ const GoalsSection: React.FC<{
         }}
       >
         <div 
-          className="p-3 md:p-4 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl md:rounded-2xl shadow-lg hover:rotate-3 hover:scale-110 transition-all duration-300"
+          className="p-3 md:p-4 bg-gradient-to-br from-primary-600/20 to-primary-500/30 rounded-xl md:rounded-2xl shadow-lg hover:rotate-3 hover:scale-110 transition-all duration-300"
         >
           <Target className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
           </div>
-        <h3 className="text-lg md:text-2xl font-bold text-gray-900">Ορισμός Στόχων</h3>
+        <h3 className="text-lg md:text-2xl font-bold text-white">Ορισμός Στόχων</h3>
         </div>
       
       <div className="space-y-4 md:space-y-6">
@@ -577,18 +577,18 @@ const GoalsSection: React.FC<{
         <div className="space-y-3 md:space-y-4">
           <div className="flex items-center gap-2 mb-2 md:mb-3">
             <Weight className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-800 text-sm md:text-base">Στόχοι Βάρους & Λίπους</h4>
+            <h4 className="font-medium text-gray-300 text-sm md:text-base">Στόχοι Βάρους & Λίπους</h4>
           </div>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <input 
-                className="flex-1 border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="flex-1 border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 placeholder="Στόχος βάρους (kg)" 
                 value={targetWeight} 
                 onChange={e=>setTargetWeight(e.target.value)} 
               />
         </div>
-            <div className="text-xs md:text-sm text-gray-600 bg-blue-50 rounded-lg p-3">
+            <div className="text-xs md:text-sm text-gray-300 bg-primary-600/20 rounded-lg p-3">
               {currentW ? (() => {
                 // Ειδικά μηνύματα όταν έχει φτάσει τον στόχο (διαφορά 0.0)
                 if (parseFloat(diffW) === 0) {
@@ -645,12 +645,12 @@ const GoalsSection: React.FC<{
         <div className="space-y-3 md:space-y-4">
           <div className="flex items-center gap-2 mb-2 md:mb-3">
             <Dumbbell className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-800 text-sm md:text-base">Στόχοι Προπόνησης & Δραστηριότητας</h4>
+            <h4 className="font-medium text-gray-300 text-sm md:text-base">Στόχοι Προπόνησης & Δραστηριότητας</h4>
           </div>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <input 
-                className="flex-1 border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="flex-1 border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 placeholder="Στόχος βημάτων (π.χ. 10000)" 
                 value={targetSteps} 
                 onChange={e=>setTargetSteps(e.target.value)} 
@@ -658,7 +658,7 @@ const GoalsSection: React.FC<{
             </div>
             <div className="flex items-center gap-3">
               <input 
-                className="flex-1 border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="flex-1 border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 placeholder="Ημέρες προπόνησης/εβδ. (π.χ. 3)" 
                 value={targetWorkoutDays} 
                 onChange={e=>setTargetWorkoutDays(e.target.value)} 
@@ -671,12 +671,12 @@ const GoalsSection: React.FC<{
         <div className="space-y-3 md:space-y-4">
           <div className="flex items-center gap-2 mb-2 md:mb-3">
             <Moon className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-800 text-sm md:text-base">Στόχοι Ύπνου & Ευεξίας</h4>
+            <h4 className="font-medium text-gray-300 text-sm md:text-base">Στόχοι Ύπνου & Ευεξίας</h4>
           </div>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <input 
-                className="flex-1 border border-gray-200 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm md:text-base" 
+                className="flex-1 border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
                 placeholder="Ώρες ύπνου (π.χ. 8)" 
                 value={targetSleep} 
                 onChange={e=>setTargetSleep(e.target.value)} 
@@ -687,7 +687,7 @@ const GoalsSection: React.FC<{
 
         {/* Central Save Button */}
         <div 
-          className="pt-6 md:pt-8 border-t border-gray-200"
+          className="pt-6 md:pt-8 border-t border-dark-600"
           style={{
             animation: 'fadeInUp 0.6s ease-out 0.6s forwards',
             opacity: 0,
@@ -697,7 +697,7 @@ const GoalsSection: React.FC<{
           <button 
             onClick={saveAllGoals}
             disabled={saving}
-            className="w-full py-4 md:py-5 bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 text-white rounded-xl md:rounded-2xl font-bold text-base md:text-lg hover:from-blue-600 hover:via-blue-700 hover:to-indigo-700 hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 md:py-5 bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 text-white rounded-xl md:rounded-2xl font-bold text-base md:text-lg hover:from-primary-600 hover:via-primary-700 hover:to-primary-800 hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div
               className={saving ? 'animate-spin' : ''}
@@ -1036,7 +1036,7 @@ const Dashboard: React.FC = () => {
       
       <div 
         key={refreshKey} 
-        className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 mobile-smooth-scroll mobile-optimized"
+        className="min-h-screen bg-black mobile-smooth-scroll mobile-optimized"
         style={{
           animation: 'fadeInUp 0.8s ease-out forwards',
           opacity: 0
@@ -1052,7 +1052,7 @@ const Dashboard: React.FC = () => {
           }}
         >
           <div 
-            className="bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-blue-100 p-4 md:p-8 mb-4 md:mb-6 hover:shadow-3xl hover:-translate-y-1 transition-all duration-500"
+            className="bg-dark-800 rounded-2xl md:rounded-3xl shadow-2xl border border-dark-600 p-4 md:p-8 mb-4 md:mb-6 hover:shadow-3xl hover:-translate-y-1 transition-all duration-500"
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div
@@ -1063,7 +1063,7 @@ const Dashboard: React.FC = () => {
                 }}
               >
                 <h1 
-                  className="text-2xl md:text-4xl font-bold text-gray-900 mb-2 md:mb-3"
+                  className="text-2xl md:text-4xl font-bold text-white mb-2 md:mb-3"
                   style={{
                     animation: 'fadeInUp 0.8s ease-out 0.4s forwards',
                     opacity: 0,
@@ -1081,7 +1081,7 @@ const Dashboard: React.FC = () => {
                   </span>
         </h1>
                 <p 
-                  className="text-base md:text-xl text-gray-600 font-medium"
+                  className="text-base md:text-xl text-gray-300 font-medium"
                   style={{
                     animation: 'fadeInUp 0.8s ease-out 0.5s forwards',
                     opacity: 0,
@@ -1100,7 +1100,7 @@ const Dashboard: React.FC = () => {
                 }}
               >
                 <div 
-                  className="p-6 bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 rounded-3xl text-white text-center shadow-xl hover:scale-105 hover:rotate-1 transition-all duration-300"
+                  className="p-6 bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 rounded-3xl text-white text-center shadow-xl hover:scale-105 hover:rotate-1 transition-all duration-300"
                 >
                   <div
                     className="animate-pulse"
@@ -1147,7 +1147,7 @@ const Dashboard: React.FC = () => {
           }}
         >
           <div 
-            className="bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-blue-100 p-4 md:p-8 hover:shadow-3xl hover:-translate-y-1 transition-all duration-500"
+            className="bg-dark-800 rounded-2xl md:rounded-3xl shadow-2xl border border-dark-600 p-4 md:p-8 hover:shadow-3xl hover:-translate-y-1 transition-all duration-500"
           >
             <div 
               className="flex items-center space-x-3 md:space-x-4 mb-6 md:mb-10"
@@ -1162,15 +1162,15 @@ const Dashboard: React.FC = () => {
               >
                 <Target className="h-6 w-6 md:h-7 md:w-7 text-blue-600" />
                   </div>
-              <h2 className="text-xl md:text-3xl font-bold text-gray-900">Πρόοδος προς τους Στόχους</h2>
+              <h2 className="text-xl md:text-3xl font-bold text-white">Πρόοδος προς τους Στόχους</h2>
                 </div>
 
             {/* Global Notifications for Goals Section */}
             <div className="space-y-3 mb-6">
-              <div className="text-purple-600 text-sm bg-purple-50 border border-purple-200 rounded-lg p-3 font-medium">
+              <div className="text-purple-400 text-sm bg-purple-600/20 border border-purple-600/30 rounded-lg p-3 font-medium">
                 🎯 Στο τμήμα "Ορισμός Στόχων" μπορείς να προσθέσεις τους στόχους σου!
               </div>
-              <div className="text-blue-600 text-sm bg-blue-50 border border-blue-200 rounded-lg p-3 font-medium">
+              <div className="text-blue-400 text-sm bg-blue-600/20 border border-blue-600/30 rounded-lg p-3 font-medium">
                 💡 Στο τμήμα "Καταχώρηση Μετρήσεων" μπορείς να καταχωρείς τις μετρήσεις σου για να βλέπεις την πρόοδό σου!
               </div>
             </div>
@@ -1178,7 +1178,7 @@ const Dashboard: React.FC = () => {
             <div className="space-y-6 md:space-y-8">
               {/* Weight & Body Fat Goals */}
               <div className="space-y-3 md:space-y-4">
-                <h3 className="text-base md:text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
                   <Weight className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
                   Στόχοι Βάρους & Λίπους
               </h3>
@@ -1232,7 +1232,7 @@ const Dashboard: React.FC = () => {
 
               {/* Training & Activity Goals */}
           <div className="space-y-3 md:space-y-4">
-                <h3 className="text-base md:text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
                   <Dumbbell className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
                   Στόχοι Προπόνησης & Δραστηριότητας
                 </h3>
@@ -1264,7 +1264,7 @@ const Dashboard: React.FC = () => {
 
               {/* Sleep & Wellness Goals */}
           <div className="space-y-3 md:space-y-4">
-                <h3 className="text-base md:text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
                   <Moon className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
                   Στόχοι Ύπνου & Ευεξίας
                 </h3>
@@ -1338,79 +1338,79 @@ const Dashboard: React.FC = () => {
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 {/* Hydration Tip */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg md:rounded-xl p-3 md:p-4 border border-blue-200 hover:shadow-lg transition-all duration-300">
+                <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/30 rounded-lg md:rounded-xl p-3 md:p-4 border border-blue-600/30 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-start gap-2 md:gap-3">
                     <div className="p-1.5 md:p-2 bg-blue-200 rounded-lg">
                       <div className="w-5 h-5 md:w-6 md:h-6 text-blue-600">💧</div>
           </div>
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-1 text-sm md:text-base">Υδάτωση</h4>
-                      <p className="text-xs md:text-sm text-gray-600">Πίνε 2-3 λίτρα νερό καθημερινά για βέλτιστη υγεία και ενέργεια</p>
+                      <h4 className="font-semibold text-white mb-1 text-sm md:text-base">Υδάτωση</h4>
+                      <p className="text-xs md:text-sm text-gray-300">Πίνε 2-3 λίτρα νερό καθημερινά για βέλτιστη υγεία και ενέργεια</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Protein Tip */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg md:rounded-xl p-3 md:p-4 border border-green-200 hover:shadow-lg transition-all duration-300">
+                <div className="bg-gradient-to-br from-green-600/20 to-green-500/30 rounded-lg md:rounded-xl p-3 md:p-4 border border-green-600/30 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-start gap-2 md:gap-3">
                     <div className="p-1.5 md:p-2 bg-green-200 rounded-lg">
                       <div className="w-5 h-5 md:w-6 md:h-6 text-green-600">🥩</div>
                   </div>
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-1 text-sm md:text-base">Πρωτεΐνη</h4>
-                      <p className="text-xs md:text-sm text-gray-600">Καταναλώνε 1.6-2.2g πρωτεΐνης ανά kg σωματικού βάρους</p>
+                      <h4 className="font-semibold text-white mb-1 text-sm md:text-base">Πρωτεΐνη</h4>
+                      <p className="text-xs md:text-sm text-gray-300">Καταναλώνε 1.6-2.2g πρωτεΐνης ανά kg σωματικού βάρους</p>
                   </div>
                 </div>
               </div>
 
                 {/* Sleep Tip */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg md:rounded-xl p-3 md:p-4 border border-purple-200 hover:shadow-lg transition-all duration-300">
+                <div className="bg-gradient-to-br from-purple-600/20 to-purple-500/30 rounded-lg md:rounded-xl p-3 md:p-4 border border-purple-600/30 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-start gap-2 md:gap-3">
                     <div className="p-1.5 md:p-2 bg-purple-200 rounded-lg">
                       <div className="w-5 h-5 md:w-6 md:h-6 text-purple-600">😴</div>
           </div>
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-1 text-sm md:text-base">Ύπνος</h4>
-                      <p className="text-xs md:text-sm text-gray-600">7-9 ώρες ποιοτικού ύπνου για ανάκαμψη και ανάπτυξη</p>
+                      <h4 className="font-semibold text-white mb-1 text-sm md:text-base">Ύπνος</h4>
+                      <p className="text-xs md:text-sm text-gray-300">7-9 ώρες ποιοτικού ύπνου για ανάκαμψη και ανάπτυξη</p>
         </div>
       </div>
                 </div>
 
                 {/* Exercise Tip */}
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg md:rounded-xl p-3 md:p-4 border border-orange-200 hover:shadow-lg transition-all duration-300">
+                <div className="bg-gradient-to-br from-orange-600/20 to-orange-500/30 rounded-lg md:rounded-xl p-3 md:p-4 border border-orange-600/30 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-start gap-2 md:gap-3">
                     <div className="p-1.5 md:p-2 bg-orange-200 rounded-lg">
                       <div className="w-5 h-5 md:w-6 md:h-6 text-orange-600">🏃</div>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-1 text-sm md:text-base">Άσκηση</h4>
-                      <p className="text-xs md:text-sm text-gray-600">150 λεπτά μέτριας έντασης άσκησης εβδομαδιαίως</p>
+                      <h4 className="font-semibold text-white mb-1 text-sm md:text-base">Άσκηση</h4>
+                      <p className="text-xs md:text-sm text-gray-300">150 λεπτά μέτριας έντασης άσκησης εβδομαδιαίως</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Nutrition Tip */}
-                <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg md:rounded-xl p-3 md:p-4 border border-red-200 hover:shadow-lg transition-all duration-300">
+                <div className="bg-gradient-to-br from-red-600/20 to-red-500/30 rounded-lg md:rounded-xl p-3 md:p-4 border border-red-600/30 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-start gap-2 md:gap-3">
                     <div className="p-1.5 md:p-2 bg-red-200 rounded-lg">
                       <div className="w-5 h-5 md:w-6 md:h-6 text-red-600">🥗</div>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-1 text-sm md:text-base">Διατροφή</h4>
-                      <p className="text-xs md:text-sm text-gray-600">Φρέσκα φρούτα και λαχανικά σε κάθε γεύμα</p>
+                      <h4 className="font-semibold text-white mb-1 text-sm md:text-base">Διατροφή</h4>
+                      <p className="text-xs md:text-sm text-gray-300">Φρέσκα φρούτα και λαχανικά σε κάθε γεύμα</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Recovery Tip */}
-                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg md:rounded-xl p-3 md:p-4 border border-indigo-200 hover:shadow-lg transition-all duration-300">
+                <div className="bg-gradient-to-br from-indigo-600/20 to-indigo-500/30 rounded-lg md:rounded-xl p-3 md:p-4 border border-indigo-600/30 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-start gap-2 md:gap-3">
                     <div className="p-1.5 md:p-2 bg-indigo-200 rounded-lg">
                       <div className="w-5 h-5 md:w-6 md:h-6 text-indigo-600">🧘</div>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-1 text-sm md:text-base">Ανάκαμψη</h4>
-                      <p className="text-xs md:text-sm text-gray-600">Διαλείμματα ανάμεσα στις προπονήσεις για αποτελεσματικότητα</p>
+                      <h4 className="font-semibold text-white mb-1 text-sm md:text-base">Ανάκαμψη</h4>
+                      <p className="text-xs md:text-sm text-gray-300">Διαλείμματα ανάμεσα στις προπονήσεις για αποτελεσματικότητα</p>
                     </div>
                   </div>
                 </div>

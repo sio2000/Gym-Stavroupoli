@@ -232,23 +232,23 @@ const Referral: React.FC = () => {
         className="text-center sm:text-left animate-fadeInUp"
         style={{ opacity: 0 }}
       >
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
           Σύστημα Παραπομπών
         </h1>
-        <p className="text-gray-600 text-sm sm:text-base">
+        <p className="text-gray-300 text-sm sm:text-base">
           Κερδίστε πιστώσεις παρακαλώντας φίλους να εγγραφούν
         </p>
         
         {/* Display current referral points */}
-        <div className="mt-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 border border-green-200">
+        <div className="mt-4 bg-gradient-to-r from-green-600/20 to-blue-600/20 rounded-xl p-4 border border-green-600/30">
           <div className="flex items-center justify-center space-x-2 mb-2">
             <Star className="h-5 w-5 text-yellow-500" />
-            <span className="text-sm font-semibold text-gray-700">Πόντοι Παραπομπής</span>
+            <span className="text-sm font-semibold text-gray-300">Πόντοι Παραπομπής</span>
           </div>
           <div className="text-2xl font-bold text-primary-600 mb-1">
             {points}
           </div>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gray-400">
             Κερδίστε 10 πόντους για κάθε επιτυχή παραπομπή!
           </p>
         </div>
@@ -261,7 +261,7 @@ const Referral: React.FC = () => {
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+            <div className="p-3 bg-dark-800/20 rounded-2xl backdrop-blur-sm">
               <Star className="h-8 w-8 text-yellow-300" />
             </div>
             <div>
@@ -285,7 +285,7 @@ const Referral: React.FC = () => {
             <span>Πρόοδος προς επόμενη ανταμοιβή</span>
             <span>{points}/100</span>
           </div>
-          <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-dark-800/20 rounded-full h-3 overflow-hidden">
             <div 
               className="h-full bg-gradient-to-r from-yellow-300 to-orange-300 rounded-full transition-all duration-1000 ease-out"
               style={{ width: `${Math.min((points / 100) * 100, 100)}%` }}
@@ -306,7 +306,7 @@ const Referral: React.FC = () => {
           <div className="p-3 bg-blue-100 rounded-lg inline-block mb-3">
             <Users className="h-6 w-6 text-blue-600" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">
+          <h3 className="text-2xl font-bold text-white mb-1">
             {totalReferrals}
           </h3>
           <p className="text-gray-600 text-sm">Συνολικές παραπομπές</p>
@@ -319,7 +319,7 @@ const Referral: React.FC = () => {
           <div className="p-3 bg-green-100 rounded-lg inline-block mb-3">
             <CheckCircle className="h-6 w-6 text-green-600" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">
+          <h3 className="text-2xl font-bold text-white mb-1">
             {userReferrals.filter(ref => ref.status === 'completed').length}
           </h3>
           <p className="text-gray-600 text-sm">Ολοκληρωμένες</p>
@@ -332,7 +332,7 @@ const Referral: React.FC = () => {
           <div className="p-3 bg-yellow-100 rounded-lg inline-block mb-3">
             <Clock className="h-6 w-6 text-yellow-600" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">
+          <h3 className="text-2xl font-bold text-white mb-1">
             {userReferrals.filter(ref => ref.status === 'pending').length}
           </h3>
           <p className="text-gray-600 text-sm">Σε εκκρεμότητα</p>
@@ -345,7 +345,7 @@ const Referral: React.FC = () => {
           <div className="p-3 bg-purple-100 rounded-lg inline-block mb-3">
             <Award className="h-6 w-6 text-purple-600" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">
+          <h3 className="text-2xl font-bold text-white mb-1">
             {points}
           </h3>
           <p className="text-gray-600 text-sm">Συνολικές πιστώσεις</p>
@@ -367,8 +367,8 @@ const Referral: React.FC = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
-          <div className="bg-white px-6 py-3 rounded-lg border-2 border-primary-300 shadow-lg">
-            <span className="text-2xl font-bold text-primary-900 font-mono">
+          <div className="bg-dark-800 px-6 py-3 rounded-lg border-2 border-primary-400 shadow-lg">
+            <span className="text-2xl font-bold text-primary-400 font-mono">
               {user?.referralCode || 'Φόρτωση...'}
             </span>
           </div>
@@ -481,17 +481,17 @@ const Referral: React.FC = () => {
             <ShoppingBag className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Κατάλογος Ανταμοιβών</h2>
-            <p className="text-gray-600">Εξαργυρώστε τις πιστώσεις σας</p>
+            <h2 className="text-xl font-bold text-white">Κατάλογος Ανταμοιβών</h2>
+            <p className="text-gray-300">Εξαργυρώστε τις πιστώσεις σας</p>
           </div>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Rewards will be implemented later */}
-          <div className="text-center p-8 bg-gray-50 rounded-xl">
+          <div className="text-center p-8 bg-dark-700 rounded-xl">
             <Gift className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">Ανταμοιβές</h3>
-            <p className="text-gray-500 text-sm">Σύντομα διαθέσιμες!</p>
+            <h3 className="text-lg font-semibold text-gray-300 mb-2">Ανταμοιβές</h3>
+            <p className="text-gray-400 text-sm">Σύντομα διαθέσιμες!</p>
           </div>
           {/* Rewards will be implemented later - commented out to avoid TypeScript errors */}
           {/* {false && [].map((reward, index) => {
@@ -501,12 +501,12 @@ const Referral: React.FC = () => {
             return (
               <div
                 key={reward.id}
-                className={`relative bg-white rounded-xl p-4 sm:p-6 shadow-lg border-2 transition-all duration-300 animate-fadeInScale ${
+                className={`relative bg-dark-800 rounded-xl p-4 sm:p-6 shadow-lg border-2 transition-all duration-300 animate-fadeInScale ${
                   isRedeemed 
-                    ? 'border-gray-300 bg-gray-50 opacity-75' 
+                    ? 'border-dark-600 bg-dark-700 opacity-75' 
                     : canRedeem 
-                      ? 'border-green-200 hover:border-green-300 hover:shadow-xl hover:scale-105 hover:-translate-y-1' 
-                      : 'border-gray-200 hover:border-gray-300 hover:scale-105 hover:-translate-y-1'
+                      ? 'border-green-400 hover:border-green-300 hover:shadow-xl hover:scale-105 hover:-translate-y-1' 
+                      : 'border-dark-600 hover:border-dark-500 hover:scale-105 hover:-translate-y-1'
                 }`}
                 style={{ opacity: 0, animationDelay: `${1.1 + index * 0.1}s` }}
               >
@@ -519,9 +519,9 @@ const Referral: React.FC = () => {
                 
                 <div className="text-center mb-4">
                   <div className="text-4xl sm:text-5xl mb-3">{reward.image}</div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">{reward.name}</h3>
-                  <p className="text-sm text-gray-600 mb-3">{reward.description}</p>
-                  <div className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                  <h3 className="text-lg font-bold text-white mb-2">{reward.name}</h3>
+                  <p className="text-sm text-gray-300 mb-3">{reward.description}</p>
+                  <div className="inline-flex items-center px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full text-sm font-semibold">
                     <Star className="h-4 w-4 mr-1" />
                     {reward.points} πιστώσεις
                   </div>
@@ -549,26 +549,26 @@ const Referral: React.FC = () => {
         className="card animate-fadeInUp"
         style={{ opacity: 0, animationDelay: '1.8s' }}
       >
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Ιστορικό Παραπομπών</h2>
+        <h2 className="text-lg font-semibold text-white mb-4">Ιστορικό Παραπομπών</h2>
         
         <div className="space-y-3">
           {userReferrals.length > 0 ? (
             userReferrals.map((referral, index) => (
               <div 
                 key={referral.id} 
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg animate-slideInLeft"
+                className="flex items-center justify-between p-4 bg-dark-700 rounded-lg animate-slideInLeft"
                 style={{ opacity: 0, animationDelay: `${1.9 + index * 0.1}s` }}
               >
                 <div className="flex items-center space-x-4">
                   <div className={`p-2 rounded-lg ${
-                    referral.status === 'completed' ? 'bg-green-100' :
-                    referral.status === 'pending' ? 'bg-yellow-100' :
-                    'bg-gray-100'
+                    referral.status === 'completed' ? 'bg-green-600/20' :
+                    referral.status === 'pending' ? 'bg-yellow-600/20' :
+                    'bg-dark-600'
                   }`}>
                     <Users className={`h-5 w-5 ${
-                      referral.status === 'completed' ? 'text-green-600' :
-                      referral.status === 'pending' ? 'text-yellow-600' :
-                      'text-gray-600'
+                      referral.status === 'completed' ? 'text-green-400' :
+                      referral.status === 'pending' ? 'text-yellow-400' :
+                      'text-gray-400'
                     }`} />
                   </div>
                   <div>

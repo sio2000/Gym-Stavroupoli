@@ -217,9 +217,11 @@ const App: React.FC = () => {
           path="/secretary/dashboard"
           element={
             <ProtectedRoute requiredRole="secretary">
-              <React.Suspense fallback={<div>Φόρτωση...</div>}>
-                <SecretaryDashboard />
-              </React.Suspense>
+              <Layout>
+                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                  <SecretaryDashboard />
+                </React.Suspense>
+              </Layout>
             </ProtectedRoute>
           }
         />

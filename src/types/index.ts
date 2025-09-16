@@ -108,20 +108,6 @@ export interface Booking {
 
 export type BookingStatus = 'confirmed' | 'cancelled' | 'completed' | 'no-show' | 'pending';
 
-export interface Membership {
-  id: string;
-  userId: string;
-  packageId: string;
-  status: MembershipStatus;
-  credits: number;
-  startDate: string;
-  endDate: string;
-  autoRenew: boolean;
-  frequency: '1x' | '2x' | '3x'; // φορές ανά εβδομάδα
-  createdAt: string;
-  updatedAt: string;
-}
-
 export type MembershipStatus = 'active' | 'expired' | 'cancelled' | 'pending' | 'suspended';
 
 export interface MembershipPackage {
@@ -175,7 +161,7 @@ export interface Membership {
   duration_type: 'year' | 'semester' | 'month' | 'lesson' | 'pilates_trial' | 'pilates_1month' | 'pilates_2months' | 'pilates_3months' | 'pilates_6months' | 'pilates_1year';
   start_date: string;
   end_date: string;
-  status: 'active' | 'expired' | 'cancelled' | 'suspended';
+  status: MembershipStatus;
   approved_by?: string;
   approved_at: string;
   created_at: string;
