@@ -32,15 +32,16 @@ const PublicLessons = React.lazy(() => import('@/pages/PublicLessons'));
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <AuthProvider>
+    <div className="dark">
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <AuthProvider>
         <Routes>
         {/* Public routes */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
         <Route path="/forgot-password" element={<ForgotPasswordForm />} />
-        <Route path="/public-registration" element={<React.Suspense fallback={<div>Φόρτωση...</div>}><PublicRegistration /></React.Suspense>} />
-        <Route path="/public-lessons" element={<React.Suspense fallback={<div>Φόρτωση...</div>}><PublicLessons /></React.Suspense>} />
+        <Route path="/public-registration" element={<React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}><PublicRegistration /></React.Suspense>} />
+        <Route path="/public-lessons" element={<React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}><PublicLessons /></React.Suspense>} />
         
         {/* Protected routes */}
         <Route path="/" element={<RoleBasedRedirect />} />
@@ -72,7 +73,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <Bookings />
                 </React.Suspense>
               </Layout>
@@ -84,7 +85,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <Membership />
                 </React.Suspense>
               </Layout>
@@ -96,7 +97,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <QRCodes />
                 </React.Suspense>
               </Layout>
@@ -108,7 +109,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <Referral />
                 </React.Suspense>
               </Layout>
@@ -122,7 +123,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute requiredRole="admin">
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <AdminPanel />
                 </React.Suspense>
               </Layout>
@@ -136,7 +137,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute requiredRole="trainer">
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <TrainerSpecificDashboard trainerName="Mike" />
                 </React.Suspense>
               </Layout>
@@ -149,7 +150,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute requiredRole="trainer">
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <TrainerSpecificDashboard trainerName="Jordan" />
                 </React.Suspense>
               </Layout>
@@ -175,7 +176,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <PersonalTrainingSchedule />
                 </React.Suspense>
               </Layout>
@@ -189,7 +190,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <PaspartuTraining />
                 </React.Suspense>
               </Layout>
@@ -203,7 +204,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <PilatesCalendar />
                 </React.Suspense>
               </Layout>
@@ -226,8 +227,9 @@ const App: React.FC = () => {
         {/* Catch all route */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+        </AuthProvider>
+      </BrowserRouter>
+    </div>
   );
 };
 
