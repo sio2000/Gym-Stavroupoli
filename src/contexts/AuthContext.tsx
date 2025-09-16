@@ -22,14 +22,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Utility function to clear all auth data
   const clearAllAuthData = () => {
+    console.log('[Auth] Clearing all auth data...');
     setUser(null);
     setJustLoggedIn(false);
     setJustRegistered(false);
     setShowEmailConfirmationPopup(false);
-    localStorage.removeItem('freegym_user');
-    localStorage.removeItem('sb-freegym-auth');
-    localStorage.removeItem('sb-freegym-admin');
+    setIsLoading(false);
+    setIsInitialized(false);
+    
+    // Clear all localStorage items related to auth
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.includes('freegym') || key.includes('supabase'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    // Clear sessionStorage
     sessionStorage.clear();
+    
+    // Clear any Supabase clients from window
+    const w = window as any;
+    if (w.__freegym_supabase) {
+      delete w.__freegym_supabase;
+    }
+    
+    console.log('[Auth] All auth data cleared');
   };
 
   useEffect(() => {
@@ -44,10 +64,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     let mounted = true;
 
-    // Get initial session
+    // Get initial session with better error handling
     const getInitialSession = async () => {
       try {
         console.log('[Auth] Getting initial session...');
+        
+        // Check if we have a cached user first
+        const cachedUser = localStorage.getItem('freegym_user');
+        if (cachedUser) {
+          try {
+            const userData = JSON.parse(cachedUser);
+            console.log('[Auth] Found cached user:', userData.email);
+            setUser(userData);
+            setIsLoading(false);
+            setIsInitialized(true);
+            return;
+          } catch (e) {
+            console.log('[Auth] Invalid cached user data, clearing...');
+            localStorage.removeItem('freegym_user');
+          }
+        }
+        
         const { data: { session }, error } = await supabase.auth.getSession();
         
         console.log('[Auth] Session query result - session:', session?.user?.email, 'error:', error);
@@ -88,7 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('[Auth] Calling getInitialSession...');
     getInitialSession();
 
-    // Listen for auth changes
+    // Listen for auth changes with better session management
     console.log('[Auth] Setting up auth state change listener...');
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[Auth] Auth state change:', event, session?.user?.email);
@@ -102,9 +139,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('[Auth] SIGNED_OUT event, clearing user data');
         setUser(null);
         localStorage.removeItem('freegym_user');
+        setIsLoading(false);
+        setIsInitialized(true);
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
         console.log('[Auth] TOKEN_REFRESHED event, loading user profile...');
         // Handle token refresh to maintain session
+        await loadUserProfile(session.user.id);
+      } else if (event === 'USER_UPDATED' && session?.user) {
+        console.log('[Auth] USER_UPDATED event, reloading user profile...');
         await loadUserProfile(session.user.id);
       }
     });
@@ -177,7 +219,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch (retryError) {
           console.log('[Auth] Profile query retry error:', retryError);
           // If it's a 406 error, try to continue with fallback user
-          if (retryError.message?.includes('406 error')) {
+          if (retryError instanceof Error && retryError.message?.includes('406 error')) {
             console.log('[Auth] 406 error detected in catch, creating fallback user...');
             throw retryError;
           }
@@ -322,6 +364,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(userData);
       console.log('[Auth] Saving to localStorage...');
       localStorage.setItem('freegym_user', JSON.stringify(userData));
+      
+      // Mark as initialized and not loading
+      setIsLoading(false);
+      setIsInitialized(true);
+      
       console.log('[Auth] ===== USER PROFILE LOADED SUCCESSFULLY =====');
     } catch (error) {
       console.error('[Auth] ===== ERROR LOADING USER PROFILE =====');
@@ -417,6 +464,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log('[Auth] Fallback user data:', fallbackUser);
           setUser(fallbackUser);
           localStorage.setItem('freegym_user', JSON.stringify(fallbackUser));
+          
+          // Mark as initialized and not loading
+          setIsLoading(false);
+          setIsInitialized(true);
+          
           console.log('[Auth] ===== FALLBACK USER CREATED =====');
         } else {
           console.log('[Auth] No auth user available, setting user to null');
@@ -456,12 +508,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('[Auth] Creating minimal fallback user due to auth error');
         setUser(minimalUser);
         localStorage.setItem('freegym_user', JSON.stringify(minimalUser));
+        
+        // Mark as initialized and not loading
+        setIsLoading(false);
+        setIsInitialized(true);
       }
       
-      // Mark as initialized immediately after fallback user creation
-      console.log('[Auth] Marking as initialized after fallback user creation');
-      setIsLoading(false);
-      setIsInitialized(true);
       console.log('[Auth] ===== LOADUSERPROFILE COMPLETED =====');
     }
   };
@@ -539,6 +591,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           toast.success(`Καλησπέρα Προπονητή!`);
         } else if (data.user.email === 'admin@freegym.gr') {
           toast.success(`Καλώς ήρθες, Admin!`);
+        } else if (data.user.email?.includes('secretary')) {
+          toast.success(`Καλώς ήρθες, Γραμματεία!`);
         } else {
           toast.success(`Καλώς ήρθες!`);
         }
@@ -685,15 +739,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       
-      // Clear all auth data
+      // Clear all auth data first
+      clearAllAuthData();
+      
+      // Then sign out from Supabase
       await supabase.auth.signOut();
       console.log('[Auth] Supabase signOut completed');
       
       // Cleanup admin client to avoid GoTrueClient conflicts
       cleanupSupabaseAdmin();
-      
-      // Clear all auth data
-      clearAllAuthData();
       
       console.log('[Auth] Logout completed successfully');
       toast.success('Αποσυνδέθηκες επιτυχώς');
@@ -781,8 +835,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const value: AuthContextType = {
     user,
-    isAuthenticated: !!user,
-    isLoading,
+    isAuthenticated: !!(user && isInitialized && !isLoading),
+    isLoading: isLoading || !isInitialized,
+    isInitialized,
     justLoggedIn,
     justRegistered,
     showEmailConfirmationPopup,

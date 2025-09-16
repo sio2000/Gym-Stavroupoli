@@ -217,11 +217,9 @@ const App: React.FC = () => {
           path="/secretary/dashboard"
           element={
             <ProtectedRoute requiredRole="secretary">
-              <Layout>
-                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
-                  <SecretaryDashboard />
-                </React.Suspense>
-              </Layout>
+              <React.Suspense fallback={<div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
+                <SecretaryDashboard />
+              </React.Suspense>
             </ProtectedRoute>
           }
         />
