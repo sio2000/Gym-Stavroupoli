@@ -125,21 +125,61 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       console.log('[Auth] Starting profile query...');
       
-      // Add timeout to prevent hanging
-      const profileQueryPromise = supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
+      // Add timeout to prevent hanging - increased to 15 seconds
+      // Also add retry logic for better reliability
+      let profile, error;
+      let retryCount = 0;
+      const maxRetries = 3;
       
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile query timeout')), 5000)
-      );
-      
-      const { data: profile, error } = await Promise.race([
-        profileQueryPromise,
-        timeoutPromise
-      ]) as any;
+      while (retryCount < maxRetries) {
+        try {
+          const profileQueryPromise = supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+          
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile query timeout')), 15000)
+          );
+          
+          const result = await Promise.race([
+            profileQueryPromise,
+            timeoutPromise
+          ]) as any;
+          
+          profile = result.data;
+          error = result.error;
+          
+          if (!error) {
+            console.log('[Auth] Profile query successful on attempt', retryCount + 1);
+            break;
+          } else if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
+            console.log('[Auth] Profile not found, retrying...');
+            retryCount++;
+            if (retryCount < maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+              continue;
+            }
+          } else {
+            console.log('[Auth] Profile query error, retrying...', error);
+            retryCount++;
+            if (retryCount < maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+              continue;
+            }
+          }
+        } catch (retryError) {
+          console.log('[Auth] Profile query retry error:', retryError);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+            continue;
+          } else {
+            throw retryError;
+          }
+        }
+      }
 
       console.log('[Auth] Profile query completed');
       console.log('[Auth] Profile data:', profile);
@@ -281,10 +321,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('[Auth] Attempting to create fallback user...');
       // Create a fallback user with basic info to prevent infinite loading
       try {
-        // Add timeout to fallback user creation as well
+        // Add timeout to fallback user creation as well - increased to 10 seconds
         const fallbackPromise = supabase.auth.getUser();
         const fallbackTimeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Fallback user creation timeout')), 3000)
+          setTimeout(() => reject(new Error('Fallback user creation timeout')), 10000)
         );
         
         const { data: authUser } = await Promise.race([
@@ -296,11 +336,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (authUser.user) {
           console.log('[Auth] Creating fallback user due to profile loading error');
+          
+          // Try to load profile one more time before creating fallback
+          try {
+            console.log('[Auth] Attempting one final profile load...');
+            const { data: finalProfile, error: finalError } = await supabase
+              .from('user_profiles')
+              .select('first_name, last_name, referral_code, role')
+              .eq('user_id', userId)
+              .single();
+            
+            if (!finalError && finalProfile) {
+              console.log('[Auth] Final profile load successful, using real data');
+              const fallbackUser: User = {
+                id: userId,
+                email: authUser.user.email || '',
+                firstName: finalProfile.first_name || 'User',
+                lastName: finalProfile.last_name || 'User',
+                role: finalProfile.role || 'user',
+                referralCode: finalProfile.referral_code || '',
+                language: 'el',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              };
+              console.log('[Auth] Fallback user data with real profile:', fallbackUser);
+              setUser(fallbackUser);
+              localStorage.setItem('freegym_user', JSON.stringify(fallbackUser));
+              console.log('[Auth] ===== FALLBACK USER WITH REAL PROFILE CREATED =====');
+              return;
+            }
+          } catch (finalProfileError) {
+            console.log('[Auth] Final profile load failed, using email-based fallback');
+          }
+          
+          // If final profile load fails, use email-based fallback
+          const email = authUser.user.email || '';
+          const emailName = email.split('@')[0];
+          const firstName = emailName || 'User';
+          const lastName = 'User';
+          
           const fallbackUser: User = {
             id: userId,
-            email: authUser.user.email || '',
-            firstName: '',
-            lastName: '',
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
             role: 'user',
             referralCode: '',
             language: 'el',
@@ -321,8 +400,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const minimalUser: User = {
           id: userId,
           email: 'unknown@example.com',
-          firstName: '',
-          lastName: '',
+          firstName: 'Unknown',
+          lastName: 'User',
           role: 'user',
           referralCode: '',
           language: 'el',
