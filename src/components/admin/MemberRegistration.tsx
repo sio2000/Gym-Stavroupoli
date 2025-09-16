@@ -134,7 +134,7 @@ const MemberRegistration: React.FC<MemberRegistrationProps> = ({ onClose }) => {
         .from('membership_requests')
         .select(`
           *,
-          user_profiles(first_name, last_name, email),
+          user_profiles(first_name, last_name, email, profile_photo),
           membership_packages(name),
           membership_package_durations(duration_type, price, classes_count)
         `)

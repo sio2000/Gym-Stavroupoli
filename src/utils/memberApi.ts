@@ -114,7 +114,7 @@ export const getRegistrationRequests = async (): Promise<RegistrationRequest[]> 
       .from('membership_requests')
       .select(`
         *,
-        user_profiles(first_name, last_name, email),
+        user_profiles(first_name, last_name, email, profile_photo),
         membership_packages(name),
         membership_package_durations(duration_type, price, classes_count)
       `)
@@ -135,7 +135,7 @@ export const getRegistrationRequestById = async (id: string): Promise<Registrati
       .from('membership_requests')
       .select(`
         *,
-        user_profiles(first_name, last_name, email),
+        user_profiles(first_name, last_name, email, profile_photo),
         membership_packages(name),
         membership_package_durations(duration_type, price, classes_count)
       `)

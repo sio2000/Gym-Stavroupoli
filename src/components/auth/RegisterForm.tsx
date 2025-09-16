@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { RegisterData } from '@/types';
@@ -19,9 +19,15 @@ const RegisterForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Partial<RegisterData & { confirmPassword: string }>>({});
+  const [isFormValid, setIsFormValid] = useState(false);
   
   const { register, isLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Initial validation on component mount
+  useEffect(() => {
+    validateForm();
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<RegisterData & { confirmPassword: string }> = {};
@@ -41,29 +47,31 @@ const RegisterForm: React.FC = () => {
     if (!formData.phone?.trim()) {
       newErrors.phone = 'Το τηλέφωνο είναι υποχρεωτικό';
     } else if (!isValidPhone(formData.phone.trim())) {
-      newErrors.phone = 'Παρακαλώ εισάγετε ένα έγκυρο αριθμό τηλεφώνου (π.χ. +306912345678)';
+      newErrors.phone = 'Το τηλέφωνο πρέπει να ξεκινάει με 69 και να έχει 10 ψηφία (π.χ. 6912345678)';
     }
 
-    if (!formData.email) {
+    if (!formData.email?.trim()) {
       newErrors.email = 'Το email είναι υποχρεωτικό';
-    } else if (!isValidEmail(formData.email)) {
+    } else if (!isValidEmail(formData.email.trim())) {
       newErrors.email = 'Παρακαλώ εισάγετε ένα έγκυρο email';
     }
 
-    if (!formData.password) {
+    if (!formData.password?.trim()) {
       newErrors.password = 'Ο κωδικός πρόσβασης είναι υποχρεωτικός';
-    } else if (!isValidPassword(formData.password)) {
-      newErrors.password = 'Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες, 1 κεφαλαίο, 1 πεζό και 1 αριθμό';
+    } else if (!isValidPassword(formData.password.trim())) {
+      newErrors.password = 'Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες, 1 κεφαλαίο, 1 πεζό, 1 αριθμό και 1 ειδικό χαρακτήρα (@!<#)';
     }
 
-    if (!formData.confirmPassword) {
+    if (!formData.confirmPassword?.trim()) {
       newErrors.confirmPassword = 'Η επιβεβαίωση κωδικού είναι υποχρεωτική';
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Οι κωδικοί δεν ταιριάζουν';
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    setIsFormValid(isValid);
+    return isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -89,6 +97,11 @@ const RegisterForm: React.FC = () => {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
   };
+
+  // Real-time validation when formData changes
+  useEffect(() => {
+    validateForm();
+  }, [formData]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -305,8 +318,12 @@ const RegisterForm: React.FC = () => {
           <div>
             <button
               type="submit"
-              disabled={isLoading}
-              className="btn-primary w-full flex justify-center items-center py-3 text-base font-medium"
+              disabled={isLoading || !isFormValid}
+              className={`w-full flex justify-center items-center py-3 text-base font-medium rounded-lg transition-colors ${
+                isLoading || !isFormValid
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2'
+              }`}
             >
               {isLoading ? (
                 <>

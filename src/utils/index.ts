@@ -126,15 +126,21 @@ export function isValidEmail(email: string): boolean {
 }
 
 export function isValidPassword(password: string): boolean {
-  // Τουλάχιστον 8 χαρακτήρες, 1 κεφαλαίο, 1 πεζό, 1 αριθμό
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
-  return passwordRegex.test(password);
+  // Τουλάχιστον 8 χαρακτήρες, 1 κεφαλαίο, 1 πεζό, 1 αριθμό, 1 ειδικό χαρακτήρα
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[@!<#]/.test(password);
+  const hasMinLength = password.length >= 8;
+  
+  return hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar && hasMinLength;
 }
 
 export function isValidPhone(phone: string): boolean {
-  // Ελληνικό τηλέφωνο: +30, 69, 70, 21, 22, 23, 24, 25, 26, 27, 28, 29
-  const phoneRegex = /^[\+]?[0-9\s\-\(\)]{10,}$/;
-  return phoneRegex.test(phone);
+  // Ελληνικό τηλέφωνο: πρέπει να ξεκινάει με 69 και να έχει 10 ψηφία
+  const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+  const phoneRegex = /^69\d{8}$/;
+  return phoneRegex.test(cleanPhone);
 }
 
 export function formatCurrency(amount: number): string {

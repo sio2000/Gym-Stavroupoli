@@ -207,6 +207,11 @@ const AdminPanel: React.FC = () => {
   const [newPrice, setNewPrice] = useState<string>('');
   const [membershipRequests, setMembershipRequests] = useState<any[]>([]);
   
+  // Pagination and search state for membership requests
+  const [membershipRequestsPage, setMembershipRequestsPage] = useState(1);
+  const [membershipRequestsSearchTerm, setMembershipRequestsSearchTerm] = useState('');
+  const ITEMS_PER_PAGE = 6;
+  
   // Program Options state for membership requests
   const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
     oldMembers?: boolean;
@@ -1372,10 +1377,65 @@ const AdminPanel: React.FC = () => {
     try {
       const requests = await getMembershipRequests();
       setMembershipRequests(requests);
+      // Reset to first page when loading new data
+      setMembershipRequestsPage(1);
     } catch (error) {
       console.error('Error loading membership requests:', error);
       toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων');
     }
+  };
+
+  // Filter and paginate membership requests
+  const getFilteredMembershipRequests = () => {
+    const filtered = membershipRequests.filter(request => {
+      // Filter by package type
+      const packageMatch = request.package?.name === 'Free Gym' || request.package?.name === 'Pilates';
+      
+      // Filter by search term (user name)
+      const searchMatch = membershipRequestsSearchTerm === '' || 
+        `${request.user?.first_name || ''} ${request.user?.last_name || ''}`.toLowerCase()
+          .includes(membershipRequestsSearchTerm.toLowerCase());
+      
+      return packageMatch && searchMatch;
+    });
+
+    // Sort by most recent first (created_at descending)
+    return filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  };
+
+  const getPaginatedMembershipRequests = () => {
+    const filtered = getFilteredMembershipRequests();
+    const startIndex = (membershipRequestsPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filtered.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = () => {
+    const filtered = getFilteredMembershipRequests();
+    return Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  };
+
+  // Handle pagination
+  const handlePreviousPage = () => {
+    setMembershipRequestsPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setMembershipRequestsPage(prev => Math.min(prev + 1, getTotalPages()));
+  };
+
+  const handleFirstPage = () => {
+    setMembershipRequestsPage(1);
+  };
+
+  const handleLastPage = () => {
+    setMembershipRequestsPage(getTotalPages());
+  };
+
+  // Handle search
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMembershipRequestsSearchTerm(e.target.value);
+    setMembershipRequestsPage(1); // Reset to first page when searching
   };
 
   const handlePackageSelect = (pkg: MembershipPackage) => {
@@ -2506,91 +2566,313 @@ const AdminPanel: React.FC = () => {
               )}
 
               {/* Membership Requests */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">Αιτήματα Συνδρομών</h3>
-                  <p className="text-gray-600 mt-1">Διαχειριστείτε τα αιτήματα συνδρομών από χρήστες</p>
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+                {/* Enhanced Header with Gradient */}
+                <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-8 py-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm">
+                        <User className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-white">Αιτήματα Συνδρομών</h3>
+                        <p className="text-slate-200 mt-1">Διαχειριστείτε τα αιτήματα συνδρομών από χρήστες</p>
+                      </div>
                 </div>
                 
-                <div className="p-6">
-                  {membershipRequests.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>Δεν υπάρχουν αιτήματα συνδρομών</p>
+                    {/* Enhanced Search Input */}
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Αναζήτηση με όνομα χρήστη..."
+                        value={membershipRequestsSearchTerm}
+                        onChange={handleSearchChange}
+                        className="pl-12 pr-6 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 w-full lg:w-80 text-white placeholder-slate-300 backdrop-blur-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Enhanced Alert with Better UI */}
+                <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-50 border border-slate-200 rounded-xl p-6 shadow-sm">
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                        <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-bold text-slate-900 mb-3 flex items-center">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                        Οδηγίες Διαχείρισης Αιτημάτων
+                      </h4>
+                      
+                      <div className="space-y-4">
+                        {/* Search Instructions */}
+                        <div className="bg-white rounded-lg p-4 border border-blue-100">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <Search className="h-3 w-3 text-blue-600" />
+                            </div>
+                            <div>
+                              <h5 className="font-semibold text-slate-800 mb-1">Αναζήτηση & Πλοήγηση</h5>
+                              <p className="text-sm text-slate-600 leading-relaxed">
+                                Χρησιμοποιήστε το πεδίο αναζήτησης για να βρείτε γρήγορα αιτήματα με όνομα χρήστη. 
+                                Η λίστα εμφανίζεται σε <span className="font-semibold text-blue-700">6άδες</span> - ελέγξτε την επόμενη σελίδα αν δεν βρείτε το επιθυμητό αίτημα.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Payment Instructions */}
+                        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <DollarSign className="h-3 w-3 text-amber-600" />
+                            </div>
+                            <div>
+                              <h5 className="font-semibold text-amber-800 mb-1 flex items-center">
+                                <span className="w-2 h-2 bg-amber-500 rounded-full mr-2"></span>
+                                Σημαντική Προσοχή - Διαδικασία Πληρωμής
+                              </h5>
+                              <p className="text-sm text-amber-700 leading-relaxed">
+                                <span className="font-semibold">ΠΡΩΤΑ</span> αποθηκεύουμε τα χρήματα στο σύστημα (Cash Register) και 
+                                <span className="font-semibold"> ΕΠΕΙΤΑ</span> επιλέγουμε για το αίτημα του χρήστη εάν εγκρίνεται ή απορρίπτεται.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-8">
+                  {getFilteredMembershipRequests().length === 0 ? (
+                    <div className="text-center py-16">
+                      <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                        <User className="h-10 w-10 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        {membershipRequestsSearchTerm 
+                          ? `Δεν βρέθηκαν αποτελέσματα`
+                          : 'Δεν υπάρχουν αιτήματα'
+                        }
+                      </h3>
+                      <p className="text-gray-500">
+                        {membershipRequestsSearchTerm 
+                          ? `Για την αναζήτηση "${membershipRequestsSearchTerm}"`
+                          : 'Δεν έχουν υποβληθεί αιτήματα συνδρομών ακόμα'
+                        }
+                      </p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {membershipRequests
-                        .filter(request => request.package?.name === 'Free Gym' || request.package?.name === 'Pilates')
-                        .map((request) => (
-                        <div key={request.id} className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between">
+                    <>
+                      {/* Enhanced Results count and pagination info */}
+                      <div className="bg-slate-50 rounded-xl p-6 mb-8">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
                             <div className="flex items-center space-x-4">
                               <div className="p-2 bg-blue-100 rounded-lg">
-                                <User className="h-5 w-5 text-blue-600" />
+                              <Calendar className="h-5 w-5 text-blue-600" />
                               </div>
                               <div>
-                                <h4 className="font-semibold text-gray-900">
+                              <p className="text-sm font-medium text-slate-700">
+                                Εμφάνιση {((membershipRequestsPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(membershipRequestsPage * ITEMS_PER_PAGE, getFilteredMembershipRequests().length)} από {getFilteredMembershipRequests().length} αιτήματα
+                              </p>
+                              <p className="text-xs text-slate-500">Οργανωμένα σε 6άδες για εύκολη πλοήγηση</p>
+                            </div>
+                          </div>
+                          
+                          {/* Enhanced Pagination Controls */}
+                          <div className="flex items-center space-x-2">
+                            {/* First page button */}
+                            {getTotalPages() > 3 && (
+                              <button
+                                onClick={handleFirstPage}
+                                disabled={membershipRequestsPage === 1}
+                                className="px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                                title="Πρώτη σελίδα"
+                              >
+                                ««
+                              </button>
+                            )}
+                            
+                            <button
+                              onClick={handlePreviousPage}
+                              disabled={membershipRequestsPage === 1}
+                              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-2 transition-all duration-200"
+                            >
+                              <span>←</span>
+                              <span>Προηγούμενο</span>
+                            </button>
+                            
+                            <div className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg min-w-[120px] text-center">
+                              {membershipRequestsPage} / {getTotalPages()}
+                            </div>
+                            
+                            <button
+                              onClick={handleNextPage}
+                              disabled={membershipRequestsPage >= getTotalPages()}
+                              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-2 transition-all duration-200"
+                            >
+                              <span>Επόμενο</span>
+                              <span>→</span>
+                            </button>
+                            
+                            {/* Last page button */}
+                            {getTotalPages() > 3 && (
+                              <button
+                                onClick={handleLastPage}
+                                disabled={membershipRequestsPage >= getTotalPages()}
+                                className="px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                                title="Τελευταία σελίδα"
+                              >
+                                »»
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Enhanced Requests List */}
+                      <div className="space-y-6">
+                        {getPaginatedMembershipRequests().map((request) => (
+                        <div key={request.id} className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+                          {/* Main Request Card */}
+                          <div className="p-6">
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+                              {/* User Information */}
+                              <div className="flex items-start space-x-4">
+                                <div className="relative">
+                                  {request.user?.profile_photo ? (
+                                    <div className="w-12 h-12 rounded-xl overflow-hidden shadow-lg border-2 border-white">
+                                      <img 
+                                        src={request.user.profile_photo} 
+                                        alt={`${request.user?.first_name} ${request.user?.last_name}`}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          // Fallback to icon if image fails to load
+                                          e.currentTarget.style.display = 'none';
+                                          const fallbackElement = e.currentTarget.nextElementSibling as HTMLElement;
+                                          if (fallbackElement) {
+                                            fallbackElement.style.display = 'flex';
+                                          }
+                                        }}
+                                      />
+                                      <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center hidden">
+                                        <User className="h-6 w-6 text-white" />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                                      <User className="h-6 w-6 text-white" />
+                                    </div>
+                                  )}
+                                  {request.status === 'pending' && (
+                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full border-2 border-white"></div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-lg font-bold text-slate-900 mb-1">
                                   {request.user?.first_name} {request.user?.last_name}
                                 </h4>
-                                <p className="text-sm text-gray-600">{request.user?.email}</p>
-                                <p className="text-sm text-gray-500">
-                                  {request.package?.name} - {getDurationLabel(request.duration_type)}
-                                </p>
+                                  <p className="text-sm text-slate-600 mb-2 flex items-center">
+                                    <span className="w-2 h-2 bg-slate-300 rounded-full mr-2"></span>
+                                    {request.user?.email}
+                                  </p>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      {request.package?.name}
+                                    </span>
+                                    <span className="text-sm text-slate-500">•</span>
+                                    <span className="text-sm text-slate-600">{getDurationLabel(request.duration_type)}</span>
+                                  </div>
                               </div>
                             </div>
                             
-                            <div className="flex items-center space-x-4">
+                              {/* Price and Date */}
+                              <div className="flex items-center space-x-6">
                               <div className="text-right">
-                                <div className="text-lg font-bold text-gray-900">
+                                  <div className="text-2xl font-bold text-slate-900 mb-1">
                                   {formatPrice(request.requested_price)}
                                 </div>
-                                <div className="text-sm text-gray-600">
+                                  <div className="text-sm text-slate-500 flex items-center">
+                                    <Calendar className="h-4 w-4 mr-1" />
                                   {new Date(request.created_at).toLocaleDateString('el-GR')}
                                 </div>
                               </div>
                               
+                                {/* Status and Actions */}
+                                <div className="flex flex-col items-end space-y-3">
                               {request.status === 'pending' && (
                                 <div className="flex space-x-2">
                                   <button
                                     onClick={() => handleApproveRequest(request.id)}
                                     disabled={loading}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm disabled:opacity-50"
+                                        className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                                   >
-                                    Εγκρίνω
+                                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                        </svg>
+                                        <span>Εγκρίνω</span>
                                   </button>
                                   <button
                                     onClick={() => handleRejectRequest(request.id)}
                                     disabled={loading}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm disabled:opacity-50"
+                                        className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                                   >
-                                    Απορρίπτω
+                                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                        <span>Απορρίπτω</span>
                                   </button>
                                 </div>
                               )}
                               
                               {request.status === 'approved' && (
-                                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
                                   Εγκεκριμένο
                                 </span>
+                                    </div>
                               )}
                               
                               {request.status === 'rejected' && (
-                                <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                      <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-semibold">
                                   Απορριφθέν
                                 </span>
+                                    </div>
                               )}
+                                </div>
+                              </div>
                             </div>
                           </div>
                           
-                          {/* Program Options Section for Free Gym requests - Only show if not approved/rejected OR if pending */}
+                          {/* Enhanced Program Options Section */}
                           {((request.status === 'pending') || 
                             (request.status === 'approved' && isRequestPending(request.id)) || 
                             (request.status === 'rejected' && isRequestPending(request.id))) && (
-                          <div className={`mt-4 p-4 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-gray-50 border-gray-200'}`}>
-                            <h5 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                          <div className={`border-t border-slate-200 ${isRequestPending(request.id) ? 'bg-gradient-to-r from-yellow-50 to-amber-50' : 'bg-slate-50'}`}>
+                            <div className="p-6">
+                              <div className="flex items-center space-x-3 mb-4">
+                                <div className={`p-2 rounded-lg ${isRequestPending(request.id) ? 'bg-yellow-100' : 'bg-slate-100'}`}>
+                                  <Settings className={`h-5 w-5 ${isRequestPending(request.id) ? 'text-yellow-600' : 'text-slate-600'}`} />
+                                </div>
+                                <h5 className={`text-lg font-semibold ${isRequestPending(request.id) ? 'text-yellow-800' : 'text-slate-700'} flex items-center`}>
                               Program Options
-                              {isRequestPending(request.id) && <span className="ml-2">🔒</span>}
+                                  {isRequestPending(request.id) && (
+                                    <span className="ml-2 px-2 py-1 bg-yellow-200 text-yellow-800 rounded-full text-xs font-medium">
+                                      Κλειδωμένο
+                                    </span>
+                                  )}
                             </h5>
+                              </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {/* Old Members - Hide for Pilates package */}
@@ -2815,12 +3097,14 @@ const AdminPanel: React.FC = () => {
                                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                                 Αποθήκευση Program Options
                               </button>
+                              </div>
                             </div>
                           </div>
                           )}
                         </div>
                       ))}
-                    </div>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

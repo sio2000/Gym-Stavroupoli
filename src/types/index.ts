@@ -282,12 +282,14 @@ export interface AuthContextType {
   isLoading: boolean;
   justLoggedIn: boolean;
   justRegistered: boolean;
+  showEmailConfirmationPopup: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   clearJustLoggedIn: () => void;
   clearJustRegistered: () => void;
+  handleEmailConfirmationPopupClose: () => void;
 }
 
 // New interfaces for specialized requirements

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '@/config/supabase';
 import { cleanupSupabaseAdmin } from '@/config/supabaseAdmin';
 import { trackAppVisit } from '@/utils/appVisits';
+import EmailConfirmationPopup from '@/components/EmailConfirmationPopup';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -17,12 +18,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
   const [justRegistered, setJustRegistered] = useState(false);
+  const [showEmailConfirmationPopup, setShowEmailConfirmationPopup] = useState(false);
 
   // Utility function to clear all auth data
   const clearAllAuthData = () => {
     setUser(null);
     setJustLoggedIn(false);
     setJustRegistered(false);
+    setShowEmailConfirmationPopup(false);
     localStorage.removeItem('freegym_user');
     localStorage.removeItem('sb-freegym-auth');
     localStorage.removeItem('sb-freegym-admin');
@@ -112,6 +115,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       subscription.unsubscribe();
     };
   }, [isInitialized]);
+
 
   const loadUserProfile = async (userId: string) => {
     try {
@@ -448,6 +452,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('[Auth] ===== REGISTRATION STARTED =====');
       console.log('[Auth] Registering user:', email);
 
+      // Show popup immediately when registration starts
+      console.log('[Auth] ===== SHOWING EMAIL CONFIRMATION POPUP IMMEDIATELY =====');
+      setShowEmailConfirmationPopup(true);
+      setJustRegistered(true);
+
       // Create user in Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -534,9 +543,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
         
-        // Set flag to indicate user just registered
-        setJustRegistered(true);
-        
         toast.success('Εγγραφή ολοκληρώθηκε επιτυχώς!');
       }
     } catch (error) {
@@ -583,6 +589,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const clearJustRegistered = () => {
     setJustRegistered(false);
+  };
+
+  const handleEmailConfirmationPopupClose = () => {
+    setShowEmailConfirmationPopup(false);
+    // Clear the justRegistered flag after showing the popup
+    clearJustRegistered();
   };
 
   const updateProfile = async (data: Partial<User>): Promise<void> => {
@@ -649,17 +661,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     justLoggedIn,
     justRegistered,
+    showEmailConfirmationPopup,
     login,
     register,
     logout,
     updateProfile,
     clearJustLoggedIn,
-    clearJustRegistered
+    clearJustRegistered,
+    handleEmailConfirmationPopupClose
   };
+
+
+  // Debug useEffect to track state changes
+  useEffect(() => {
+    console.log('[Auth] ===== STATE CHANGE =====');
+    console.log('[Auth] showEmailConfirmationPopup changed to:', showEmailConfirmationPopup);
+    console.log('[Auth] justRegistered changed to:', justRegistered);
+  }, [showEmailConfirmationPopup, justRegistered]);
+
+  console.log('[Auth] ===== RENDERING AUTH PROVIDER =====');
+  console.log('[Auth] showEmailConfirmationPopup:', showEmailConfirmationPopup);
+  console.log('[Auth] justRegistered:', justRegistered);
+  console.log('[Auth] user:', user?.email);
 
   return (
     <AuthContext.Provider value={value}>
       {children}
+      {/* Email Confirmation Popup */}
+      <EmailConfirmationPopup
+        isOpen={showEmailConfirmationPopup}
+        onClose={handleEmailConfirmationPopupClose}
+        isRegistration={justRegistered}
+        userEmail={user?.email || ''}
+      />
     </AuthContext.Provider>
   );
 };

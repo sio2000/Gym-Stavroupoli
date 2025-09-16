@@ -97,7 +97,8 @@ export const getMembershipRequests = async (): Promise<MembershipRequest[]> => {
           user_id,
           first_name,
           last_name,
-          email
+          email,
+          profile_photo
         ),
         package:membership_packages!membership_requests_package_id_fkey(
           id,

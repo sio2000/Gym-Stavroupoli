@@ -5,14 +5,25 @@ interface EmailConfirmationPopupProps {
   isOpen: boolean;
   onClose: () => void;
   isRegistration?: boolean;
+  userEmail?: string;
 }
 
 const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = ({
   isOpen,
   onClose,
-  isRegistration = false
+  isRegistration = false,
+  userEmail = ''
 }) => {
-  if (!isOpen) return null;
+  console.log('[EmailConfirmationPopup] ===== RENDER =====');
+  console.log('[EmailConfirmationPopup] isOpen:', isOpen);
+  console.log('[EmailConfirmationPopup] isRegistration:', isRegistration);
+  
+  if (!isOpen) {
+    console.log('[EmailConfirmationPopup] Not open, returning null');
+    return null;
+  }
+  
+  console.log('[EmailConfirmationPopup] Rendering popup');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
@@ -61,7 +72,7 @@ const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = ({
             <ol className="text-blue-800 text-sm space-y-2">
               <li className="flex items-start">
                 <span className="font-semibold mr-2">1.</span>
-                <span>Ελέγξτε το inbox (και το spam folder) του email σας</span>
+                <span>Ελέγξτε το inbox (και το <span className="font-bold text-orange-600 bg-orange-100 px-1 rounded">spam folder</span>) του email σας</span>
               </li>
               <li className="flex items-start">
                 <span className="font-semibold mr-2">2.</span>
@@ -69,7 +80,14 @@ const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = ({
               </li>
               <li className="flex items-start">
                 <span className="font-semibold mr-2">3.</span>
-                <span>Επιστρέψτε εδώ και συνδεθείτε ξανά</span>
+                <div className="flex-1">
+                  <span>Επιστρέψτε εδώ και συνδεθείτε ξανά</span>
+                  <div className="mt-2 p-2 bg-amber-100 border border-amber-300 rounded-lg">
+                    <p className="text-amber-800 text-xs font-semibold">
+                      ⚠️ ΣΗΜΕΙΩΣΗ: Σε περίπτωση που δεν δείτε το email, περιμένετε 10-15 δευτερόλεπτα και ελέγξτε ξανά!
+                    </p>
+                  </div>
+                </div>
               </li>
             </ol>
           </div>
@@ -87,21 +105,17 @@ const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = ({
             </div>
           </div>
 
-          <div className="flex space-x-3">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-            >
-              Κατάλαβα
-            </button>
+          <div className="flex justify-center">
             <button
               onClick={() => {
-                // Redirect to logout
-                window.location.href = '/login';
+                // Open default email client
+                window.location.href = 'mailto:';
+                onClose();
               }}
-              className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
             >
-              Μετάβαση στη Σύνδεση
+              <Mail className="h-5 w-5" />
+              <span>Μετάβαση στο Mail για Επιβεβαίωση</span>
             </button>
           </div>
         </div>

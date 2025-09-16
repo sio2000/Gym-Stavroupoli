@@ -34,16 +34,14 @@ import {
 import { MembershipPackage, MembershipPackageDuration, MembershipRequest, Membership as MembershipType } from '@/types';
 import toast from 'react-hot-toast';
 import SuccessPopup from '@/components/SuccessPopup';
-import EmailConfirmationPopup from '@/components/EmailConfirmationPopup';
 
 const MembershipPage: React.FC = () => {
-  const { user, justLoggedIn, justRegistered, clearJustLoggedIn, clearJustRegistered } = useAuth();
+  const { user } = useAuth();
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<MembershipPackage | null>(null);
   const [selectedDuration, setSelectedDuration] = useState<MembershipPackageDuration | null>(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successPackageName, setSuccessPackageName] = useState('');
-  const [showEmailConfirmationPopup, setShowEmailConfirmationPopup] = useState(false);
   const [showPersonalTrainingModal, setShowPersonalTrainingModal] = useState(false);
   const [packages, setPackages] = useState<MembershipPackage[]>([]);
   const [packageDurations, setPackageDurations] = useState<MembershipPackageDuration[]>([]);
@@ -220,12 +218,6 @@ const MembershipPage: React.FC = () => {
     loadPilatesDurations();
   }, []);
 
-  // Show email confirmation popup if user just logged in or registered
-  useEffect(() => {
-    if (justLoggedIn || justRegistered) {
-      setShowEmailConfirmationPopup(true);
-    }
-  }, [justLoggedIn, justRegistered]);
 
   const loadPackages = async () => {
     console.log('[Membership] ===== LOADING PACKAGES =====');
@@ -389,16 +381,6 @@ const MembershipPage: React.FC = () => {
     );
   };
 
-  const handleEmailConfirmationPopupClose = () => {
-    setShowEmailConfirmationPopup(false);
-    // Clear the flags after showing the popup
-    if (justLoggedIn) {
-      clearJustLoggedIn();
-    }
-    if (justRegistered) {
-      clearJustRegistered();
-    }
-  };
 
   // Pilates package will be loaded from database
 
@@ -1023,12 +1005,6 @@ const MembershipPage: React.FC = () => {
         </div>
       )}
 
-      {/* Email Confirmation Popup */}
-      <EmailConfirmationPopup
-        isOpen={showEmailConfirmationPopup}
-        onClose={handleEmailConfirmationPopupClose}
-        isRegistration={justRegistered}
-      />
       </div>
     </>
   );
