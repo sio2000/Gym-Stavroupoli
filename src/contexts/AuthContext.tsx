@@ -648,7 +648,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       });
 
-      console.log('[Auth] Auth signup response:', { user: authData.user?.email, error: authError });
+      console.log('[Auth] Auth signup response:', authData);
 
       if (authError) {
         console.error('[Auth] Auth error:', authError);
@@ -656,12 +656,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (authData.user) {
+        console.log('[Auth] User created successfully:', authData.user.email);
+        console.log('[Auth] Email confirmed:', authData.user.email_confirmed_at ? 'Yes' : 'No');
+        
         // Check if email confirmation is required
         if (authData.user.email_confirmed_at === null) {
+          console.log('[Auth] ===== EMAIL CONFIRMATION REQUIRED =====');
           toast.success('Εγγραφή ολοκληρώθηκε! Ελέγξτε το email σας για επιβεβαίωση.');
           return;
         }
 
+        console.log('[Auth] ===== EMAIL ALREADY CONFIRMED =====');
+        console.log('[Auth] Proceeding with profile creation...');
+
+        // If email is already confirmed, proceed with profile creation
         // Περιμένουμε να δημιουργηθεί το profile από το trigger
         const profileReady = await waitForProfile(authData.user.id);
 
