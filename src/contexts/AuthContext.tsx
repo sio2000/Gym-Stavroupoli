@@ -833,7 +833,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const value: AuthContextType = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const value: AuthContextType = React.useMemo(() => ({
     user,
     isAuthenticated: !!(user && isInitialized && !isLoading),
     isLoading: isLoading || !isInitialized,
@@ -848,20 +849,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     clearJustLoggedIn,
     clearJustRegistered,
     handleEmailConfirmationPopupClose
-  };
+  }), [user, isInitialized, isLoading, justLoggedIn, justRegistered, showEmailConfirmationPopup]);
 
 
-  // Debug useEffect to track state changes
-  useEffect(() => {
-    console.log('[Auth] ===== STATE CHANGE =====');
-    console.log('[Auth] showEmailConfirmationPopup changed to:', showEmailConfirmationPopup);
-    console.log('[Auth] justRegistered changed to:', justRegistered);
-  }, [showEmailConfirmationPopup, justRegistered]);
+  // Debug useEffect to track state changes - REMOVED TO PREVENT UNNECESSARY RENDERS
+  // useEffect(() => {
+  //   console.log('[Auth] ===== STATE CHANGE =====');
+  //   console.log('[Auth] showEmailConfirmationPopup changed to:', showEmailConfirmationPopup);
+  //   console.log('[Auth] justRegistered changed to:', justRegistered);
+  // }, [showEmailConfirmationPopup, justRegistered]);
 
-  console.log('[Auth] ===== RENDERING AUTH PROVIDER =====');
-  console.log('[Auth] showEmailConfirmationPopup:', showEmailConfirmationPopup);
-  console.log('[Auth] justRegistered:', justRegistered);
-  console.log('[Auth] user:', user?.email);
+  // console.log('[Auth] ===== RENDERING AUTH PROVIDER =====');
+  // console.log('[Auth] showEmailConfirmationPopup:', showEmailConfirmationPopup);
+  // console.log('[Auth] justRegistered:', justRegistered);
+  // console.log('[Auth] user:', user?.email);
 
   return (
     <AuthContext.Provider value={value}>

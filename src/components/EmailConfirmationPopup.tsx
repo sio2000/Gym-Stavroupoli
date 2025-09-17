@@ -8,22 +8,22 @@ interface EmailConfirmationPopupProps {
   userEmail?: string;
 }
 
-const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = ({
+const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = React.memo(({
   isOpen,
   onClose,
   isRegistration = false,
   userEmail = ''
 }) => {
-  console.log('[EmailConfirmationPopup] ===== RENDER =====');
-  console.log('[EmailConfirmationPopup] isOpen:', isOpen);
-  console.log('[EmailConfirmationPopup] isRegistration:', isRegistration);
+  // console.log('[EmailConfirmationPopup] ===== RENDER =====');
+  // console.log('[EmailConfirmationPopup] isOpen:', isOpen);
+  // console.log('[EmailConfirmationPopup] isRegistration:', isRegistration);
   
   if (!isOpen) {
-    console.log('[EmailConfirmationPopup] Not open, returning null');
+    // console.log('[EmailConfirmationPopup] Not open, returning null');
     return null;
   }
   
-  console.log('[EmailConfirmationPopup] Rendering popup');
+  // console.log('[EmailConfirmationPopup] Rendering popup');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4 overflow-y-auto">
@@ -183,6 +183,6 @@ const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default EmailConfirmationPopup;

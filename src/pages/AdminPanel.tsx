@@ -15,7 +15,8 @@ import {
   Clock,
   Award,
   DollarSign,
-  Loader2
+  Loader2,
+  CreditCard
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
@@ -34,6 +35,7 @@ import {
   updateMembershipPackageDuration,
   getMembershipRequests,
   approveMembershipRequest,
+  approveUltimateMembershipRequest,
   rejectMembershipRequest,
   formatPrice,
   getDurationLabel,
@@ -227,10 +229,16 @@ const AdminPanel: React.FC = () => {
   
   // Pilates package state
   const [pilatesDurations, setPilatesDurations] = useState<MembershipPackageDuration[]>([]);
+  
+  // Installments state
+  const [installmentRequests, setInstallmentRequests] = useState<MembershipRequest[]>([]);
+  const [installmentLoading, setInstallmentLoading] = useState(false);
+  const [installmentSearchTerm, setInstallmentSearchTerm] = useState('');
 
   const tabs = [
     { id: 'personal-training', name: 'Personal Training Πρόγραμμα', icon: Calendar },
     { id: 'membership-packages', name: 'Πακέτα Συνδρομών', icon: Settings },
+    { id: 'installments', name: 'Δόσεις Ultimate', icon: CreditCard },
     { id: 'pilates-schedule', name: 'Πρόγραμμα Pilates', icon: Clock },
     { id: 'kettlebell-points', name: 'Kettlebell Points', icon: Award },
     { id: 'cash-register', name: 'Ταμείο', icon: DollarSign }
@@ -722,6 +730,9 @@ const AdminPanel: React.FC = () => {
     if (user && user.role === 'admin' && activeTab === 'personal-training') {
       console.log('[AdminPanel] User changed - loading data for admin user:', user.email);
       loadAllUsers();
+    } else if (user && user.role === 'admin' && activeTab === 'installments') {
+      console.log('[AdminPanel] Loading installment requests for admin user:', user.email);
+      loadInstallmentRequests();
     } else if (user && user.role !== 'admin') {
       console.warn('[AdminPanel] User is not admin! Role:', user.role, 'Email:', user.email);
     } else if (!user) {
@@ -1385,11 +1396,89 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const loadInstallmentRequests = async () => {
+    try {
+      setInstallmentLoading(true);
+      const requests = await getMembershipRequests();
+      // Filter only Ultimate requests with installments
+      const installmentRequests = requests.filter(request => 
+        request.package?.name === 'Ultimate' && request.has_installments
+      );
+      setInstallmentRequests(installmentRequests);
+    } catch (error) {
+      console.error('Error loading installment requests:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων δόσεων');
+    } finally {
+      setInstallmentLoading(false);
+    }
+  };
+
+  const updateInstallmentAmounts = async (requestId: string, installment1Amount: number, installment2Amount: number, installment3Amount: number, installment1PaymentMethod: string, installment2PaymentMethod: string, installment3PaymentMethod: string, installment1DueDate?: string, installment2DueDate?: string, installment3DueDate?: string) => {
+    try {
+      const updateData: any = {
+        installment_1_amount: installment1Amount,
+        installment_2_amount: installment2Amount,
+        installment_3_amount: installment3Amount,
+        installment_1_payment_method: installment1PaymentMethod,
+        installment_2_payment_method: installment2PaymentMethod,
+        installment_3_payment_method: installment3PaymentMethod
+      };
+
+      // Add due dates if provided
+      if (installment1DueDate) updateData.installment_1_due_date = installment1DueDate;
+      if (installment2DueDate) updateData.installment_2_due_date = installment2DueDate;
+      if (installment3DueDate) updateData.installment_3_due_date = installment3DueDate;
+
+      const { error } = await supabase
+        .from('membership_requests')
+        .update(updateData)
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast.success('Οι δόσεις και ημερομηνίες ενημερώθηκαν επιτυχώς');
+      // Reload installment requests
+      await loadInstallmentRequests();
+    } catch (error) {
+      console.error('Error updating installment amounts:', error);
+      toast.error('Σφάλμα κατά την ενημέρωση των δόσεων');
+    }
+  };
+
+  const deleteInstallmentRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('membership_requests')
+        .delete()
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast.success('Το αίτημα δόσεων διαγράφηκε επιτυχώς');
+      // Reload installment requests
+      await loadInstallmentRequests();
+    } catch (error) {
+      console.error('Error deleting installment request:', error);
+      toast.error('Σφάλμα κατά τη διαγραφή του αιτήματος');
+    }
+  };
+
+  // Filter installment requests by search term
+  const getFilteredInstallmentRequests = () => {
+    return installmentRequests.filter(request => {
+      const searchMatch = installmentSearchTerm === '' || 
+        `${request.user?.first_name || ''} ${request.user?.last_name || ''}`.toLowerCase()
+          .includes(installmentSearchTerm.toLowerCase());
+      
+      return searchMatch;
+    });
+  };
+
   // Filter and paginate membership requests
   const getFilteredMembershipRequests = () => {
     const filtered = membershipRequests.filter(request => {
       // Filter by package type
-      const packageMatch = request.package?.name === 'Free Gym' || request.package?.name === 'Pilates';
+      const packageMatch = request.package?.name === 'Free Gym' || request.package?.name === 'Pilates' || request.package?.name === 'Ultimate';
       
       // Filter by search term (user name)
       const searchMatch = membershipRequestsSearchTerm === '' || 
@@ -1500,10 +1589,25 @@ const AdminPanel: React.FC = () => {
   const handleApproveRequest = async (requestId: string) => {
     try {
       setLoading(true);
-      const success = await approveMembershipRequest(requestId);
-      if (success) {
-        toast.success('Το αίτημα εγκρίθηκε επιτυχώς!');
-        loadMembershipRequests();
+      
+      // Find the request to check if it's Ultimate package
+      const request = membershipRequests.find(r => r.id === requestId);
+      const isUltimatePackage = request?.package?.name === 'Ultimate';
+      
+      if (isUltimatePackage) {
+        // Handle Ultimate package approval with dual activation
+        const success = await approveUltimateMembershipRequest(requestId);
+        if (success) {
+          toast.success('Το Ultimate αίτημα εγκρίθηκε επιτυχώς! Δημιουργήθηκαν 2 συνδρομές: Pilates + Free Gym');
+          loadMembershipRequests();
+        }
+      } else {
+        // Handle regular package approval
+        const success = await approveMembershipRequest(requestId);
+        if (success) {
+          toast.success('Το αίτημα εγκρίθηκε επιτυχώς!');
+          loadMembershipRequests();
+        }
       }
     } catch (error) {
       console.error('Error approving request:', error);
@@ -2874,187 +2978,415 @@ const AdminPanel: React.FC = () => {
                             </h5>
                               </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {/* Old Members - Hide for Pilates package */}
-                              {request.package?.name !== 'Pilates' && (
-                              <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
-                                <button
-                                  onClick={() => {
-                                    if (isRequestPending(request.id)) {
-                                      toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
-                                      return;
-                                    }
-                                    handleRequestOptionChange(request.id, 'oldMembers', !selectedRequestOptions[request.id]?.oldMembers);
-                                  }}
-                                  className={`w-full p-3 rounded-lg text-left transition-colors ${
-                                    selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers
-                                      ? 'bg-green-100 text-green-800 border-2 border-green-300'
-                                      : isRequestPending(request.id)
-                                      ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
-                                      : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-medium">
-                                      {isRequestPending(request.id) && '🔒 '}👴 Παλαιά μέλη
-                                    </span>
-                                    {(selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers) && (
-                                      <span className="text-green-600">✓</span>
-                                    )}
-                                  </div>
-                                </button>
-                              </div>
-                              )}
+                            {/* Program Options Section */}
+                            <div className="space-y-4">
+                              {/* Old Members and Kettlebell Points */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Old Members - Hide for Pilates package */}
+                                {request.package?.name !== 'Pilates' && (
+                                <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                  <button
+                                    onClick={() => {
+                                      if (isRequestPending(request.id)) {
+                                        toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                        return;
+                                      }
+                                      handleRequestOptionChange(request.id, 'oldMembers', !selectedRequestOptions[request.id]?.oldMembers);
+                                    }}
+                                    className={`w-full p-3 rounded-lg text-left transition-colors ${
+                                      selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers
+                                        ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                                        : isRequestPending(request.id)
+                                        ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                        : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium">
+                                        {isRequestPending(request.id) && '🔒 '}👴 Παλαιά μέλη
+                                      </span>
+                                      {(selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers) && (
+                                        <span className="text-green-600">✓</span>
+                                      )}
+                                    </div>
+                                  </button>
+                                </div>
+                                )}
 
-                              {/* Kettlebell Points - Hide for Pilates package */}
-                              {request.package?.name !== 'Pilates' && (
-                              <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  {isRequestPending(request.id) && '🔒 '}🏋️ Kettlebell Points
-                                </label>
-                                <input
-                                  type="number"
-                                  value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.kettlebellPoints || '' : selectedRequestOptions[request.id]?.kettlebellPoints || ''}
-                                  onChange={(e) => {
-                                    if (isRequestPending(request.id)) return;
-                                    handleRequestOptionChange(request.id, 'kettlebellPoints', e.target.value);
-                                  }}
-                                  placeholder="Εισάγετε πόντους"
-                                  className={`w-full p-2 border rounded-lg ${
-                                    isRequestPending(request.id)
-                                      ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
-                                      : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                                  }`}
-                                  disabled={isRequestPending(request.id)}
-                                />
+                                {/* Kettlebell Points - Hide for Pilates package */}
+                                {request.package?.name !== 'Pilates' && (
+                                <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    {isRequestPending(request.id) && '🔒 '}🏋️ Kettlebell Points
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.kettlebellPoints || '' : selectedRequestOptions[request.id]?.kettlebellPoints || ''}
+                                    onChange={(e) => {
+                                      if (isRequestPending(request.id)) return;
+                                      handleRequestOptionChange(request.id, 'kettlebellPoints', e.target.value);
+                                    }}
+                                    placeholder="Εισάγετε πόντους"
+                                    className={`w-full p-2 border rounded-lg ${
+                                      isRequestPending(request.id)
+                                        ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                        : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                                    }`}
+                                    disabled={isRequestPending(request.id)}
+                                  />
+                                </div>
+                                )}
                               </div>
-                              )}
 
-                              {/* Cash */}
-                              <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
-                                <button
-                                  onClick={() => {
-                                    if (isRequestPending(request.id)) {
-                                      toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
-                                      return;
-                                    }
-                                    handleRequestOptionChange(request.id, 'cash', !selectedRequestOptions[request.id]?.cash);
-                                  }}
-                                  className={`w-full p-3 rounded-lg text-left transition-colors ${
-                                    selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash
-                                      ? 'bg-green-100 text-green-800 border-2 border-green-300'
-                                      : isRequestPending(request.id)
-                                      ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
-                                      : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-medium">
-                                      {isRequestPending(request.id) && '🔒 '}💰 Μετρητά
-                                    </span>
+                              {/* Payment Section - Separated from other options */}
+                              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 border-2 border-green-200">
+                                <div className="flex items-center space-x-2 mb-4">
+                                  <span className="text-2xl">💳</span>
+                                  <h3 className="text-lg font-semibold text-gray-800">
+                                    {isRequestPending(request.id) && '🔒 '}SECTION ΠΛΗΡΩΜΩΝ
+                                  </h3>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {/* Cash Payment */}
+                                  <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                    <button
+                                      onClick={() => {
+                                        if (isRequestPending(request.id)) {
+                                          toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                          return;
+                                        }
+                                        handleRequestOptionChange(request.id, 'cash', !selectedRequestOptions[request.id]?.cash);
+                                      }}
+                                      className={`w-full p-3 rounded-lg text-left transition-colors ${
+                                        selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash
+                                          ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                                          : isRequestPending(request.id)
+                                          ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                          : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-medium">
+                                          {isRequestPending(request.id) && '🔒 '}💰 Μετρητά
+                                        </span>
+                                        {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
+                                          <span className="text-green-600">✓</span>
+                                        )}
+                                      </div>
+                                    </button>
+                                    
                                     {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
-                                      <span className="text-green-600">✓</span>
+                                      <div className="mt-2">
+                                        <input
+                                          type="number"
+                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.cashAmount || '' : selectedRequestOptions[request.id]?.cashAmount || ''}
+                                          onChange={(e) => {
+                                            if (isRequestPending(request.id)) return;
+                                            handleRequestOptionChange(request.id, 'cashAmount', parseFloat(e.target.value) || 0);
+                                          }}
+                                          placeholder="Ποσό σε €"
+                                          className={`w-full p-2 border rounded-lg ${
+                                            isRequestPending(request.id)
+                                              ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                              : 'border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500'
+                                          }`}
+                                          disabled={isRequestPending(request.id)}
+                                        />
+                                        <button
+                                          onClick={() => {
+                                            if (isRequestPending(request.id)) return;
+                                            // Handle cash selection
+                                          }}
+                                          className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
+                                            isRequestPending(request.id)
+                                              ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+                                              : 'bg-green-600 text-white hover:bg-green-700'
+                                          }`}
+                                          disabled={isRequestPending(request.id)}
+                                        >
+                                          ✓ Επιλογή
+                                        </button>
+                                      </div>
                                     )}
                                   </div>
-                                </button>
-                                
-                                {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
-                                  <div className="mt-2">
-                                    <input
-                                      type="number"
-                                      value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.cashAmount || '' : selectedRequestOptions[request.id]?.cashAmount || ''}
-                                      onChange={(e) => {
-                                        if (isRequestPending(request.id)) return;
-                                        handleRequestOptionChange(request.id, 'cashAmount', parseFloat(e.target.value) || 0);
-                                      }}
-                                      placeholder="Ποσό σε €"
-                                      className={`w-full p-2 border rounded-lg ${
-                                        isRequestPending(request.id)
-                                          ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
-                                          : 'border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500'
-                                      }`}
-                                      disabled={isRequestPending(request.id)}
-                                    />
+
+                                  {/* POS Payment */}
+                                  <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
                                     <button
                                       onClick={() => {
-                                        if (isRequestPending(request.id)) return;
-                                        // Handle cash selection
+                                        if (isRequestPending(request.id)) {
+                                          toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                          return;
+                                        }
+                                        handleRequestOptionChange(request.id, 'pos', !selectedRequestOptions[request.id]?.pos);
                                       }}
-                                      className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
-                                        isRequestPending(request.id)
-                                          ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
-                                          : 'bg-green-600 text-white hover:bg-green-700'
+                                      className={`w-full p-3 rounded-lg text-left transition-colors ${
+                                        selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos
+                                          ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
+                                          : isRequestPending(request.id)
+                                          ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                          : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
                                       }`}
-                                      disabled={isRequestPending(request.id)}
                                     >
-                                      ✓ Επιλογή
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-medium">
+                                          {isRequestPending(request.id) && '🔒 '}💳 POS
+                                        </span>
+                                        {(selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos) && (
+                                          <span className="text-blue-600">✓</span>
+                                        )}
+                                      </div>
                                     </button>
+                                    
+                                    {(selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos) && (
+                                      <div className="mt-2">
+                                        <input
+                                          type="number"
+                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.posAmount || '' : selectedRequestOptions[request.id]?.posAmount || ''}
+                                          onChange={(e) => {
+                                            if (isRequestPending(request.id)) return;
+                                            handleRequestOptionChange(request.id, 'posAmount', parseFloat(e.target.value) || 0);
+                                          }}
+                                          placeholder="Ποσό σε €"
+                                          className={`w-full p-2 border rounded-lg ${
+                                            isRequestPending(request.id)
+                                              ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                              : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                                          }`}
+                                          disabled={isRequestPending(request.id)}
+                                        />
+                                        <button
+                                          onClick={() => {
+                                            if (isRequestPending(request.id)) return;
+                                            // Handle POS selection
+                                          }}
+                                          className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
+                                            isRequestPending(request.id)
+                                              ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+                                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                                          }`}
+                                          disabled={isRequestPending(request.id)}
+                                        >
+                                          ✓ Επιλογή
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
+                                </div>
                               </div>
 
-                              {/* POS */}
-                              <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
-                                <button
-                                  onClick={() => {
-                                    if (isRequestPending(request.id)) {
-                                      toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
-                                      return;
-                                    }
-                                    handleRequestOptionChange(request.id, 'pos', !selectedRequestOptions[request.id]?.pos);
-                                  }}
-                                  className={`w-full p-3 rounded-lg text-left transition-colors ${
-                                    selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos
-                                      ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
-                                      : isRequestPending(request.id)
-                                      ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
-                                      : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-medium">
-                                      {isRequestPending(request.id) && '🔒 '}💳 POS
-                                    </span>
-                                    {(selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos) && (
-                                      <span className="text-blue-600">✓</span>
-                                    )}
-                                  </div>
-                                </button>
+                              {/* Installments Management - Only for Ultimate package with installments */}
+                              {request.package?.name === 'Ultimate' && request.has_installments && (
+                              <div className={`col-span-2 p-4 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-orange-50 border-orange-200'}`}>
+                                <div className="flex items-center space-x-2 mb-4">
+                                  <span className="text-2xl">💳</span>
+                                  <h4 className="text-lg font-semibold text-orange-800">
+                                    {isRequestPending(request.id) && '🔒 '}Διαχείριση Δόσεων Ultimate
+                                  </h4>
+                                </div>
                                 
-                                {(selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos) && (
-                                  <div className="mt-2">
-                                    <input
-                                      type="number"
-                                      value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.posAmount || '' : selectedRequestOptions[request.id]?.posAmount || ''}
-                                      onChange={(e) => {
-                                        if (isRequestPending(request.id)) return;
-                                        handleRequestOptionChange(request.id, 'posAmount', parseFloat(e.target.value) || 0);
-                                      }}
-                                      placeholder="Ποσό σε €"
-                                      className={`w-full p-2 border rounded-lg ${
-                                        isRequestPending(request.id)
-                                          ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
-                                          : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                                      }`}
-                                      disabled={isRequestPending(request.id)}
-                                    />
-                                    <button
-                                      onClick={() => {
-                                        if (isRequestPending(request.id)) return;
-                                        // Handle POS selection
-                                      }}
-                                      className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
-                                        isRequestPending(request.id)
-                                          ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
-                                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                                      }`}
-                                      disabled={isRequestPending(request.id)}
-                                    >
-                                      ✓ Επιλογή
-                                    </button>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  {/* 1η Δόση */}
+                                  <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">
+                                      1η Δόση
+                                    </label>
+                                    <div className="space-y-2">
+                                      <input
+                                        type="number"
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment1Amount || '' : selectedRequestOptions[request.id]?.installment1Amount || ''}
+                                        onChange={(e) => {
+                                          if (isRequestPending(request.id)) return;
+                                          handleRequestOptionChange(request.id, 'installment1Amount', e.target.value);
+                                        }}
+                                        placeholder="Ποσό"
+                                        className={`w-full p-2 border rounded-lg ${
+                                          isRequestPending(request.id)
+                                            ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
+                                        }`}
+                                        disabled={isRequestPending(request.id)}
+                                      />
+                                      <select
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment1PaymentMethod || 'cash' : selectedRequestOptions[request.id]?.installment1PaymentMethod || 'cash'}
+                                        onChange={(e) => {
+                                          if (isRequestPending(request.id)) return;
+                                          handleRequestOptionChange(request.id, 'installment1PaymentMethod', e.target.value);
+                                        }}
+                                        className={`w-full p-2 border rounded-lg ${
+                                          isRequestPending(request.id)
+                                            ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
+                                        }`}
+                                        disabled={isRequestPending(request.id)}
+                                      >
+                                        <option value="cash">💰 Μετρητά</option>
+                                        <option value="pos">💳 POS</option>
+                                      </select>
+                                      <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                                          📅 Ημερομηνία Πληρωμής
+                                        </label>
+                                        <input
+                                          type="date"
+                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment1DueDate || '' : selectedRequestOptions[request.id]?.installment1DueDate || ''}
+                                          onChange={(e) => {
+                                            if (isRequestPending(request.id)) return;
+                                            handleRequestOptionChange(request.id, 'installment1DueDate', e.target.value);
+                                          }}
+                                          className={`w-full p-2 border rounded-lg text-sm ${
+                                            isRequestPending(request.id)
+                                              ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                              : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
+                                          }`}
+                                          disabled={isRequestPending(request.id)}
+                                        />
+                                      </div>
+                                    </div>
                                   </div>
-                                )}
+
+                                  {/* 2η Δόση */}
+                                  <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">
+                                      2η Δόση
+                                    </label>
+                                    <div className="space-y-2">
+                                      <input
+                                        type="number"
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment2Amount || '' : selectedRequestOptions[request.id]?.installment2Amount || ''}
+                                        onChange={(e) => {
+                                          if (isRequestPending(request.id)) return;
+                                          handleRequestOptionChange(request.id, 'installment2Amount', e.target.value);
+                                        }}
+                                        placeholder="Ποσό"
+                                        className={`w-full p-2 border rounded-lg ${
+                                          isRequestPending(request.id)
+                                            ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
+                                        }`}
+                                        disabled={isRequestPending(request.id)}
+                                      />
+                                      <select
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment2PaymentMethod || 'cash' : selectedRequestOptions[request.id]?.installment2PaymentMethod || 'cash'}
+                                        onChange={(e) => {
+                                          if (isRequestPending(request.id)) return;
+                                          handleRequestOptionChange(request.id, 'installment2PaymentMethod', e.target.value);
+                                        }}
+                                        className={`w-full p-2 border rounded-lg ${
+                                          isRequestPending(request.id)
+                                            ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
+                                        }`}
+                                        disabled={isRequestPending(request.id)}
+                                      >
+                                        <option value="cash">💰 Μετρητά</option>
+                                        <option value="pos">💳 POS</option>
+                                      </select>
+                                      <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                                          📅 Ημερομηνία Πληρωμής
+                                        </label>
+                                        <input
+                                          type="date"
+                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment2DueDate || '' : selectedRequestOptions[request.id]?.installment2DueDate || ''}
+                                          onChange={(e) => {
+                                            if (isRequestPending(request.id)) return;
+                                            handleRequestOptionChange(request.id, 'installment2DueDate', e.target.value);
+                                          }}
+                                          className={`w-full p-2 border rounded-lg text-sm ${
+                                            isRequestPending(request.id)
+                                              ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                              : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
+                                          }`}
+                                          disabled={isRequestPending(request.id)}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* 3η Δόση */}
+                                  <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">
+                                      3η Δόση
+                                    </label>
+                                    <div className="space-y-2">
+                                      <input
+                                        type="number"
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment3Amount || '' : selectedRequestOptions[request.id]?.installment3Amount || ''}
+                                        onChange={(e) => {
+                                          if (isRequestPending(request.id)) return;
+                                          handleRequestOptionChange(request.id, 'installment3Amount', e.target.value);
+                                        }}
+                                        placeholder="Ποσό"
+                                        className={`w-full p-2 border rounded-lg ${
+                                          isRequestPending(request.id)
+                                            ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
+                                        }`}
+                                        disabled={isRequestPending(request.id)}
+                                      />
+                                      <select
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment3PaymentMethod || 'cash' : selectedRequestOptions[request.id]?.installment3PaymentMethod || 'cash'}
+                                        onChange={(e) => {
+                                          if (isRequestPending(request.id)) return;
+                                          handleRequestOptionChange(request.id, 'installment3PaymentMethod', e.target.value);
+                                        }}
+                                        className={`w-full p-2 border rounded-lg ${
+                                          isRequestPending(request.id)
+                                            ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
+                                        }`}
+                                        disabled={isRequestPending(request.id)}
+                                      >
+                                        <option value="cash">💰 Μετρητά</option>
+                                        <option value="pos">💳 POS</option>
+                                      </select>
+                                      <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                                          📅 Ημερομηνία Πληρωμής
+                                        </label>
+                                        <input
+                                          type="date"
+                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment3DueDate || '' : selectedRequestOptions[request.id]?.installment3DueDate || ''}
+                                          onChange={(e) => {
+                                            if (isRequestPending(request.id)) return;
+                                            handleRequestOptionChange(request.id, 'installment3DueDate', e.target.value);
+                                          }}
+                                          className={`w-full p-2 border rounded-lg text-sm ${
+                                            isRequestPending(request.id)
+                                              ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                              : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
+                                          }`}
+                                          disabled={isRequestPending(request.id)}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Total Display */}
+                                <div className="mt-4 p-3 bg-orange-100 rounded-lg">
+                                  <div className="flex justify-between items-center">
+                                    <span className="font-medium text-orange-800">Σύνολο Δόσεων:</span>
+                                    <span className="text-lg font-bold text-orange-900">
+                                      {formatPrice(
+                                        (Number(selectedRequestOptions[request.id]?.installment1Amount || 0) || 
+                                         Number(getRequestFrozenOptions(request.id)?.installment1Amount || 0)) +
+                                        (Number(selectedRequestOptions[request.id]?.installment2Amount || 0) || 
+                                         Number(getRequestFrozenOptions(request.id)?.installment2Amount || 0)) +
+                                        (Number(selectedRequestOptions[request.id]?.installment3Amount || 0) || 
+                                         Number(getRequestFrozenOptions(request.id)?.installment3Amount || 0))
+                                      )}
+                                    </span>
+                                  </div>
+                                  <div className="text-sm text-orange-700 mt-1">
+                                    Από {formatPrice(request.requested_price)} (Πακέτο Ultimate)
+                                  </div>
+                                </div>
                               </div>
+                              )}
+
                             </div>
 
                             {/* Approval Buttons */}
@@ -3108,6 +3440,290 @@ const AdminPanel: React.FC = () => {
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Installments Tab */}
+          {activeTab === 'installments' && !loading && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Δόσεις Ultimate</h2>
+                  <p className="text-gray-600 mt-1">Διαχείριση δόσεων για πακέτα Ultimate</p>
+                </div>
+                <button
+                  onClick={loadInstallmentRequests}
+                  disabled={installmentLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {installmentLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Settings className="h-4 w-4" />
+                  )}
+                  <span>Ανανέωση</span>
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="flex items-center space-x-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
+                        placeholder="Αναζήτηση με όνομα χρήστη..."
+                        value={installmentSearchTerm}
+                        onChange={(e) => setInstallmentSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                    </div>
+                  </div>
+                  {installmentSearchTerm && (
+                    <button
+                      onClick={() => setInstallmentSearchTerm('')}
+                      className="px-3 py-2 text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {installmentLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Φόρτωση αιτημάτων δόσεων...</span>
+                </div>
+              ) : getFilteredInstallmentRequests().length === 0 ? (
+                <div className="text-center py-12">
+                  <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {installmentSearchTerm ? 'Δεν βρέθηκαν αποτελέσματα' : 'Δεν υπάρχουν αιτήματα δόσεων'}
+                  </h3>
+                  <p className="text-gray-600">
+                    {installmentSearchTerm 
+                      ? 'Δοκιμάστε διαφορετικό όνομα για την αναζήτηση.' 
+                      : 'Όταν οι χρήστες επιλέξουν δόσεις για το πακέτο Ultimate, θα εμφανίζονται εδώ.'
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-6">
+                  {getFilteredInstallmentRequests().map((request) => (
+                    <div key={request.id} className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                            <CreditCard className="h-6 w-6 text-orange-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              {request.user?.first_name} {request.user?.last_name}
+                            </h3>
+                            <p className="text-sm text-gray-600">{request.user?.email}</p>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                Ultimate Package
+                              </span>
+                              <span className="text-sm text-gray-500">•</span>
+                              <span className="text-sm text-gray-600">{getDurationLabel(request.duration_type)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-gray-900">
+                            {formatPrice(request.requested_price)}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {new Date(request.created_at).toLocaleDateString('el-GR')}
+                          </div>
+                          <div className="mt-2">
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το αίτημα δόσεων; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.')) {
+                                  deleteInstallmentRequest(request.id);
+                                }
+                              }}
+                              className="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium flex items-center space-x-1"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              <span>Διαγραφή</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Installments Management */}
+                      <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                        <h4 className="text-lg font-semibold text-orange-800 mb-4 flex items-center">
+                          <span className="text-2xl mr-2">💳</span>
+                          Διαχείριση Δόσεων
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* 1η Δόση */}
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">
+                              1η Δόση
+                            </label>
+                            <div className="space-y-2">
+                              <input
+                                type="number"
+                                value={selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || ''}
+                                onChange={(e) => handleRequestOptionChange(request.id, 'installment1Amount', e.target.value)}
+                                placeholder="Ποσό"
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                              />
+                              <select
+                                value={selectedRequestOptions[request.id]?.installment1PaymentMethod || request.installment_1_payment_method || 'cash'}
+                                onChange={(e) => handleRequestOptionChange(request.id, 'installment1PaymentMethod', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                              >
+                                <option value="cash">💰 Μετρητά</option>
+                                <option value="pos">💳 POS</option>
+                              </select>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  📅 Ημερομηνία Πληρωμής
+                                </label>
+                                <input
+                                  type="date"
+                                  value={selectedRequestOptions[request.id]?.installment1DueDate || request.installment_1_due_date || ''}
+                                  onChange={(e) => handleRequestOptionChange(request.id, 'installment1DueDate', e.target.value)}
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 2η Δόση */}
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">
+                              2η Δόση
+                            </label>
+                            <div className="space-y-2">
+                              <input
+                                type="number"
+                                value={selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || ''}
+                                onChange={(e) => handleRequestOptionChange(request.id, 'installment2Amount', e.target.value)}
+                                placeholder="Ποσό"
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                              />
+                              <select
+                                value={selectedRequestOptions[request.id]?.installment2PaymentMethod || request.installment_2_payment_method || 'cash'}
+                                onChange={(e) => handleRequestOptionChange(request.id, 'installment2PaymentMethod', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                              >
+                                <option value="cash">💰 Μετρητά</option>
+                                <option value="pos">💳 POS</option>
+                              </select>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  📅 Ημερομηνία Πληρωμής
+                                </label>
+                                <input
+                                  type="date"
+                                  value={selectedRequestOptions[request.id]?.installment2DueDate || request.installment_2_due_date || ''}
+                                  onChange={(e) => handleRequestOptionChange(request.id, 'installment2DueDate', e.target.value)}
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 3η Δόση */}
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">
+                              3η Δόση
+                            </label>
+                            <div className="space-y-2">
+                              <input
+                                type="number"
+                                value={selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || ''}
+                                onChange={(e) => handleRequestOptionChange(request.id, 'installment3Amount', e.target.value)}
+                                placeholder="Ποσό"
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                              />
+                              <select
+                                value={selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash'}
+                                onChange={(e) => handleRequestOptionChange(request.id, 'installment3PaymentMethod', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                              >
+                                <option value="cash">💰 Μετρητά</option>
+                                <option value="pos">💳 POS</option>
+                              </select>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  📅 Ημερομηνία Πληρωμής
+                                </label>
+                                <input
+                                  type="date"
+                                  value={selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date || ''}
+                                  onChange={(e) => handleRequestOptionChange(request.id, 'installment3DueDate', e.target.value)}
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Total Display */}
+                        <div className="mt-4 p-3 bg-orange-100 rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium text-orange-800">Σύνολο Δόσεων:</span>
+                            <span className="text-lg font-bold text-orange-900">
+                              {formatPrice(
+                                (Number(selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || 0)) +
+                                (Number(selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || 0)) +
+                                (Number(selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || 0))
+                              )}
+                            </span>
+                          </div>
+                          <div className="text-sm text-orange-700 mt-1">
+                            Από {formatPrice(request.requested_price)} (Πακέτο Ultimate)
+                          </div>
+                        </div>
+
+                        {/* Save Button */}
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            onClick={() => {
+                              const installment1Amount = Number(selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || 0);
+                              const installment2Amount = Number(selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || 0);
+                              const installment3Amount = Number(selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || 0);
+                              const installment1PaymentMethod = selectedRequestOptions[request.id]?.installment1PaymentMethod || request.installment_1_payment_method || 'cash';
+                              const installment2PaymentMethod = selectedRequestOptions[request.id]?.installment2PaymentMethod || request.installment_2_payment_method || 'cash';
+                              const installment3PaymentMethod = selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash';
+                              const installment1DueDate = selectedRequestOptions[request.id]?.installment1DueDate || request.installment_1_due_date || '';
+                              const installment2DueDate = selectedRequestOptions[request.id]?.installment2DueDate || request.installment_2_due_date || '';
+                              const installment3DueDate = selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date || '';
+                              
+                              updateInstallmentAmounts(
+                                request.id,
+                                installment1Amount,
+                                installment2Amount,
+                                installment3Amount,
+                                installment1PaymentMethod,
+                                installment2PaymentMethod,
+                                installment3PaymentMethod,
+                                installment1DueDate,
+                                installment2DueDate,
+                                installment3DueDate
+                              );
+                            }}
+                            className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
+                          >
+                            <Save className="h-4 w-4" />
+                            <span>Αποθήκευση Δόσεων & Ημερομηνιών</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

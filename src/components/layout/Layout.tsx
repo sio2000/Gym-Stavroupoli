@@ -103,10 +103,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           .from('memberships')
           .select(`
             id,
-            membership_packages(package_type)
+            package_id,
+            membership_packages(package_type, name)
           `)
           .eq('user_id', user.id)
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .gte('end_date', new Date().toISOString().split('T')[0]); // Not expired
 
         if (!error && data && data.length > 0) {
           setHasApprovedMembership(true);
@@ -121,16 +123,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             id,
             is_active,
             end_date,
-            membership_packages(package_type)
+            package_id,
+            membership_packages(package_type, name)
           `)
           .eq('user_id', user.id)
           .eq('is_active', true)
           .gte('end_date', new Date().toISOString().split('T')[0]);
 
         // Check if any of the active memberships is specifically for pilates
-        const hasPilatesPackage = pilatesData && pilatesData.some(membership => 
-          membership.membership_packages?.some((pkg: any) => pkg.package_type === 'pilates')
-        );
+        const hasPilatesPackage = pilatesData && pilatesData.some(membership => {
+          console.log('[Layout] Checking pilates membership:', membership);
+          console.log('[Layout] Pilates membership packages:', membership.membership_packages);
+          
+          // Check if membership_packages is an array or single object
+          const packages = Array.isArray(membership.membership_packages) 
+            ? membership.membership_packages 
+            : membership.membership_packages ? [membership.membership_packages] : [];
+          
+          return packages.some((pkg: any) => 
+            pkg.package_type === 'pilates' || pkg.name === 'Pilates' || 
+            pkg.package_type === 'ultimate' || pkg.name === 'Ultimate'
+          );
+        });
 
         if (hasPilatesPackage) {
           setHasPilatesMembership(true);
@@ -138,16 +152,44 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           setHasPilatesMembership(false);
         }
 
-        // Update QR Code access: only show if user has Free Gym membership (package appears locked in membership page)
-        // Check specifically for Free Gym/standard package membership
-        const hasFreeGymMembership = data && data.some(membership => 
-          membership.membership_packages?.some((pkg: any) => 
-            pkg.package_type === 'free_gym' || pkg.package_type === 'standard'
-          )
-        );
+        // Update QR Code access: show if user has Free Gym OR Pilates membership
+        // Check for both Free Gym and Pilates package memberships
+        console.log('[Layout] ===== CHECKING QR CODE ACCESS =====');
+        console.log('[Layout] Active memberships data:', data);
         
-        // QR Code access should only be for Free Gym memberships, NOT for personal training or pilates
-        setHasQRCodeAccess(hasFreeGymMembership || false);
+        const hasQRCodeAccessMembership = data && data.some(membership => {
+          console.log('[Layout] Checking membership:', membership);
+          console.log('[Layout] Membership packages:', membership.membership_packages);
+          
+          // Check if membership_packages is an array or single object
+          const packages = Array.isArray(membership.membership_packages) 
+            ? membership.membership_packages 
+            : membership.membership_packages ? [membership.membership_packages] : [];
+          
+          const hasPackage = packages.some((pkg: any) => {
+            console.log('[Layout] Checking package:', pkg);
+            const isFreeGym = pkg.package_type === 'free_gym' || 
+                             pkg.package_type === 'standard' ||
+                             pkg.name === 'Free Gym' ||
+                             pkg.name === 'Ελεύθερο Gym';
+            const isPilates = pkg.package_type === 'pilates' ||
+                             pkg.name === 'Pilates' ||
+                             pkg.name === 'Πιλάτες';
+            const isUltimate = pkg.package_type === 'ultimate' ||
+                              pkg.name === 'Ultimate';
+            console.log('[Layout] Is Free Gym package?', isFreeGym);
+            console.log('[Layout] Is Pilates package?', isPilates);
+            console.log('[Layout] Is Ultimate package?', isUltimate);
+            return isFreeGym || isPilates || isUltimate;
+          });
+          console.log('[Layout] Membership has QR access package?', hasPackage);
+          return hasPackage;
+        });
+        
+        console.log('[Layout] Has QR Code access membership?', hasQRCodeAccessMembership);
+        
+        // QR Code access for both Free Gym and Pilates memberships
+        setHasQRCodeAccess(hasQRCodeAccessMembership || false);
       } catch (error) {
         console.error('Error checking active membership:', error);
         setHasApprovedMembership(false);

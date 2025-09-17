@@ -162,9 +162,14 @@ export async function generateQRCode(
       }
 
       // Check if any membership has the required package type
-      const membership = memberships?.find(m => 
-        m.membership_packages && packageTypes.includes(m.membership_packages.package_type)
-      );
+      const membership = memberships?.find(m => {
+        // Handle membership_packages as either array or single object
+        const packages = Array.isArray(m.membership_packages) 
+          ? m.membership_packages 
+          : m.membership_packages ? [m.membership_packages] : [];
+        
+        return packages.some(pkg => packageTypes.includes(pkg.package_type));
+      });
 
       if (!membership) {
         console.log(`[QR-Generator] No active membership found for category: ${category}, packageTypes: ${packageTypes.join(', ')}`);

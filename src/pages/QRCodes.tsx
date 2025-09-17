@@ -15,6 +15,7 @@ import { getUserQRCodes, generateQRCode, isQRSystemEnabled } from '@/utils/qrSys
 import { getAvailableQRCategories, QRCodeCategory } from '@/utils/activeMemberships';
 import QRCodeLib from 'qrcode';
 import toast from 'react-hot-toast';
+import NoActiveMembershipMessage from '@/components/NoActiveMembershipMessage';
 
 // QR Code Canvas Component
 const QRCodeCanvas: React.FC<{ qrData: string; category: string }> = ({ qrData, category }) => {
@@ -330,19 +331,7 @@ const QRCodes: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8">
-            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Δεν έχετε ενεργά πακέτα</h3>
-            <p className="text-gray-600 mb-4">
-              Για να δημιουργήσετε QR codes, πρέπει να έχετε ενεργές συνδρομές.
-            </p>
-            <a 
-              href="/membership" 
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <span>Περιηγηθείτε στα πακέτα</span>
-            </a>
-          </div>
+          <NoActiveMembershipMessage showQRMessage={true} />
         )}
       </div>
 

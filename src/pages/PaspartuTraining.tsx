@@ -201,88 +201,6 @@ const PaspartuTrainingPage: React.FC = () => {
     }
   }, [schedule, bookings]);
 
-  const handleCancelLesson = async (bookingId: string) => {
-    console.log('[PaspartuTraining] ===== HANDLING CANCEL LESSON =====');
-    console.log('[PaspartuTraining] Booking ID:', bookingId);
-    console.log('[PaspartuTraining] Deposit BEFORE cancellation:', deposit);
-    
-    if (!deposit) {
-      console.log('[PaspartuTraining] No deposit found');
-      toast.error('Δεν βρέθηκε deposit!');
-      return;
-    }
-
-    try {
-      setBookingLoading(bookingId);
-
-      // Update booking status to cancelled
-      const { error: cancelError } = await supabase
-        .from('lesson_bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId);
-
-      if (cancelError) {
-        console.error('Error cancelling lesson:', cancelError);
-        toast.error('Σφάλμα κατά την ακύρωση του μαθήματος');
-        return;
-      }
-
-      // Wait for trigger to execute
-      console.log('[PaspartuTraining] Booking cancelled - checking if trigger updated deposit...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check if deposit was updated by trigger
-      const { data: updatedDeposit, error: depositCheckError } = await supabase
-        .from('lesson_deposits')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (depositCheckError) {
-        console.error('[PaspartuTraining] Error checking deposit after cancellation:', depositCheckError);
-      } else {
-        console.log('[PaspartuTraining] Deposit check after cancellation:', {
-          total: updatedDeposit.total_lessons,
-          used: updatedDeposit.used_lessons,
-          remaining: updatedDeposit.remaining_lessons
-        });
-        
-        // Check if trigger worked
-        if (updatedDeposit.used_lessons === deposit.usedLessons) {
-          console.warn('[PaspartuTraining] ⚠️ TRIGGER NOT WORKING! Applying manual update...');
-          
-          // Manual update as fallback using RPC function
-          const newUsedLessons = Math.max(deposit.usedLessons - 1, 0);
-          const { data: updatedData, error: manualUpdateError } = await supabase
-            .rpc('update_lesson_deposit_manual', {
-              p_user_id: user?.id,
-              p_used_lessons: newUsedLessons
-            });
-
-          if (manualUpdateError) {
-            console.error('[PaspartuTraining] Manual update failed:', manualUpdateError);
-            toast.error('Σφάλμα ενημέρωσης deposit. Επικοινωνήστε με τον διαχειριστή.');
-          } else {
-            console.log('[PaspartuTraining] ✅ Manual update applied successfully');
-          }
-        } else {
-          console.log('[PaspartuTraining] ✅ TRIGGER WORKING! Deposit updated automatically');
-        }
-      }
-
-      console.log('[PaspartuTraining] Booking cancelled successfully, reloading data...');
-      toast.success('Ακυρώσατε επιτυχώς το μάθημα! Το μάθημα επέστρεψε στο deposit σας.');
-      
-      // Reload data to update the UI
-      await loadPaspartuData();
-
-    } catch (error) {
-      console.error('Error cancelling lesson:', error);
-      toast.error('Σφάλμα κατά την ακύρωση του μαθήματος');
-    } finally {
-      setBookingLoading(null);
-    }
-  };
 
   const handleBookLesson = async (slot: AvailableSlot) => {
     console.log('[PaspartuTraining] ===== HANDLING BOOK LESSON =====');
@@ -570,18 +488,6 @@ const PaspartuTrainingPage: React.FC = () => {
                          <div className="flex items-center space-x-2">
                            <CheckCircle className="h-5 w-5 text-green-600" />
                            <span className="text-sm font-medium text-green-800">Κρατημένο</span>
-                           {slot.bookingId && (
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 handleCancelLesson(slot.bookingId!);
-                               }}
-                               disabled={bookingLoading === slot.bookingId}
-                               className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors disabled:opacity-50"
-                             >
-                               {bookingLoading === slot.bookingId ? 'Ακύρωση...' : 'Ακύρωση'}
-                             </button>
-                           )}
                          </div>
                        ) : deposit && deposit.remainingLessons > 0 ? (
                          <button

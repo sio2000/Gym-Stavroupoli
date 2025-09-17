@@ -88,15 +88,25 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
       throw error;
     }
 
-    const activeMemberships: ActiveMembership[] = (data || []).map(membership => ({
-      id: membership.id,
-      packageId: membership.package_id,
-      packageName: membership.membership_packages.name,
-      packageType: membership.membership_packages.package_type,
-      status: membership.is_active ? 'active' : 'expired' as 'active' | 'expired' | 'cancelled' | 'suspended',
-      endDate: membership.end_date,
-      startDate: membership.start_date
-    }));
+    const activeMemberships: ActiveMembership[] = (data || []).map(membership => {
+      // Handle membership_packages as either array or single object
+      const packages = Array.isArray(membership.membership_packages) 
+        ? membership.membership_packages 
+        : membership.membership_packages ? [membership.membership_packages] : [];
+      
+      // For now, just take the first package (most memberships have one package)
+      const pkg = packages[0];
+      
+      return {
+        id: membership.id,
+        packageId: membership.package_id,
+        packageName: pkg?.name || 'Unknown',
+        packageType: pkg?.package_type || 'unknown',
+        status: membership.is_active ? 'active' : 'expired' as 'active' | 'expired' | 'cancelled' | 'suspended',
+        endDate: membership.end_date,
+        startDate: membership.start_date
+      };
+    });
 
     console.log('[ActiveMemberships] Found active memberships:', activeMemberships);
     return activeMemberships;
@@ -111,7 +121,8 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
  */
 export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCategory[]> => {
   try {
-    // ΠΡΩΤΑ: Έλεγχος για Personal Training
+    // Έλεγχος για Personal Training
+    let hasPersonalTraining = false;
     try {
       const { data: personalSchedule, error: personalErr } = await supabase
         .from('personal_training_schedules')
@@ -122,27 +133,36 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
         .limit(1);
       
       if (!personalErr && personalSchedule && personalSchedule.length > 0) {
-        // Αν έχει Personal Training, επέστρεψε ΜΟΝΟ το Personal Training category
-        const personalCategory = PACKAGE_TYPE_TO_QR_CATEGORY['personal_training'];
-        if (personalCategory) {
-          console.log('[ActiveMemberships] User has Personal Training - returning only Personal Training QR category');
-          return [personalCategory];
-        }
+        hasPersonalTraining = true;
+        console.log('[ActiveMemberships] User has Personal Training');
       }
     } catch (e) {
       console.warn('[ActiveMemberships] Could not check personal schedule acceptance:', e);
     }
 
-    // Αν δεν έχει Personal Training, τότε έλεγχος για άλλες συνδρομές
+    // Έλεγχος για άλλες συνδρομές (Free Gym, Pilates)
     const activeMemberships = await getUserActiveMembershipsForQR(userId);
     
     // Get unique package types from active memberships
     const availablePackageTypes = [...new Set(activeMemberships.map(m => m.packageType))];
     
     // Map to QR code categories for Free Gym & Pilates (μέσω ενεργών συνδρομών)
-    const availableCategories: QRCodeCategory[] = availablePackageTypes
+    const membershipCategories: QRCodeCategory[] = availablePackageTypes
       .map(packageType => PACKAGE_TYPE_TO_QR_CATEGORY[packageType])
       .filter(Boolean) as QRCodeCategory[]; // Remove undefined entries
+
+    // Προσθήκη Personal Training αν υπάρχει
+    const availableCategories: QRCodeCategory[] = [...membershipCategories];
+    
+    if (hasPersonalTraining) {
+      const personalCategory = PACKAGE_TYPE_TO_QR_CATEGORY['personal_training'];
+      if (personalCategory) {
+        // Προσθήκη Personal Training αν δεν υπάρχει ήδη
+        if (!availableCategories.find(cat => cat.key === 'personal')) {
+          availableCategories.push(personalCategory);
+        }
+      }
+    }
     
     console.log('[ActiveMemberships] Available QR categories:', availableCategories);
     return availableCategories;

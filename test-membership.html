@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Membership Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        #results { margin-top: 20px; }
+        .log { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 3px; 
+            font-family: monospace; 
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Membership System Test</h1>
+        
+        <div class="test-section info">
+            <h3>Configuration</h3>
+            <p>Make sure to set your Supabase URL and Key in the script below.</p>
+        </div>
+
+        <div class="test-section">
+            <h3>Test Controls</h3>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Supabase Configuration - UPDATE THESE VALUES
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+
+        // Initialize Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function log(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}\n`;
+            
+            if (!resultsDiv.querySelector('.log')) {
+                resultsDiv.innerHTML = '<div class="log"></div>';
+            }
+            
+            const logDiv = resultsDiv.querySelector('.log');
+            logDiv.textContent += logMessage;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function runAllTests() {
+            clearResults();
+            log('🧪 Starting Membership System Tests...\n');
+
+            try {
+                // Test 1: Database Connection
+                log('1️⃣ Testing database connection...');
+                const { data: testData, error: testError } = await supabase
+                    .from('memberships')
+                    .select('id')
+                    .limit(1);
+                
+                if (testError) {
+                    log(`❌ Database connection failed: ${testError.message}`, 'error');
+                    return;
+                }
+                log('✅ Database connection successful');
+
+                // Test 2: Check is_active column
+                log('\n2️⃣ Checking if is_active column exists...');
+                const { data: columns, error: columnError } = await supabase
+                    .from('information_schema.columns')
+                    .select('column_name')
+                    .eq('table_name', 'memberships')
+                    .eq('column_name', 'is_active');
+                
+                if (columnError) {
+                    log(`❌ Error checking columns: ${columnError.message}`, 'error');
+                } else if (columns && columns.length > 0) {
+                    log('✅ is_active column exists');
+                } else {
+                    log('❌ is_active column does not exist - run migration first!', 'error');
+                    return;
+                }
+
+                // Test 3: Check existing memberships
+                log('\n3️⃣ Checking existing memberships...');
+                const { data: memberships, error: membershipError } = await supabase
+                    .from('memberships')
+                    .select('id, is_active, end_date, user_id')
+                    .limit(10);
+                
+                if (membershipError) {
+                    log(`❌ Error fetching memberships: ${membershipError.message}`, 'error');
+                } else {
+                    log(`✅ Found ${memberships.length} memberships`);
+                    memberships.forEach((m, i) => {
+                        log(`   ${i+1}. ID: ${m.id}, Active: ${m.is_active}, End Date: ${m.end_date}`);
+                    });
+                }
+
+                // Test 4: Test expire_memberships function
+                log('\n4️⃣ Testing expire_memberships function...');
+                const { error: expireError } = await supabase.rpc('expire_memberships');
+                
+                if (expireError) {
+                    log(`❌ Error calling expire_memberships: ${expireError.message}`, 'error');
+                } else {
+                    log('✅ expire_memberships function executed successfully');
+                }
+
+                // Test 5: Test check_and_expire_memberships function
+                log('\n5️⃣ Testing check_and_expire_memberships function...');
+                const { error: checkError } = await supabase.rpc('check_and_expire_memberships');
+                
+                if (checkError) {
+                    log(`❌ Error calling check_and_expire_memberships: ${checkError.message}`, 'error');
+                } else {
+                    log('✅ check_and_expire_memberships function executed successfully');
+                }
+
+                // Test 6: Check memberships after expiration
+                log('\n6️⃣ Checking memberships after expiration...');
+                const [activeResult, expiredResult] = await Promise.all([
+                    supabase
+                        .from('memberships')
+                        .select('id, is_active, end_date')
+                        .eq('is_active', true),
+                    supabase
+                        .from('memberships')
+                        .select('id, is_active, end_date')
+                        .eq('is_active', false)
+                ]);
+
+                const { data: activeMemberships, error: activeError } = activeResult;
+                const { data: expiredMemberships, error: expiredError } = expiredResult;
+
+                if (activeError) {
+                    log(`❌ Error fetching active memberships: ${activeError.message}`, 'error');
+                } else {
+                    log(`✅ Found ${activeMemberships.length} active memberships`);
+                }
+
+                if (expiredError) {
+                    log(`❌ Error fetching expired memberships: ${expiredError.message}`, 'error');
+                } else {
+                    log(`✅ Found ${expiredMemberships.length} expired memberships`);
+                }
+
+                log('\n🎉 All tests completed successfully!');
+
+            } catch (error) {
+                log(`❌ Test failed with error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run test if configuration is set
+        if (SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY_HERE') {
+            log('Configuration detected, auto-running tests...');
+            runAllTests();
+        } else {
+            log('⚠️ Please update the Supabase configuration in the script and refresh the page.');
+        }
+    </script>
+</body>
+</html>

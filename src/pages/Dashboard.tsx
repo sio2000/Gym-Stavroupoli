@@ -14,9 +14,9 @@ import {
   Edit3,
   Sparkles
 } from 'lucide-react';
-import { getAvailableQRCategories } from '@/utils/activeMemberships';
+// import { getAvailableQRCategories } from '@/utils/activeMemberships';
 import { addUserMetric, getUserMetrics, getUserGoals, upsertUserGoal } from '@/utils/profileUtils';
-import { getUserVisitStats, trackPageVisit } from '@/utils/appVisits';
+import { trackPageVisit } from '@/utils/appVisits';
 import Toast from '@/components/Toast';
 
 const StatCard: React.FC<{
@@ -28,7 +28,7 @@ const StatCard: React.FC<{
   trend?: string;
   trendColor?: string;
   index?: number;
-}> = ({ name, value, icon: Icon, color, bgColor, trend, trendColor = 'text-green-600', index = 0 }) => (
+}> = React.memo(({ name, value, icon: Icon, color, bgColor, trend, trendColor = 'text-green-600', index = 0 }) => (
   <div
     className="group relative overflow-hidden bg-dark-800 rounded-2xl md:rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-dark-600 hover:border-primary-400 hover:-translate-y-1 hover:scale-105 mobile-card-hover mobile-touch-feedback"
     style={{ 
@@ -63,7 +63,7 @@ const StatCard: React.FC<{
       </div>
     </div>
   </div>
-);
+));
 
 const ProgressBar: React.FC<{
   label: string;
@@ -73,7 +73,7 @@ const ProgressBar: React.FC<{
   bgColor: string;
   unit: string;
   showPercentage?: boolean;
-}> = ({ label, current, target, color, bgColor, unit, showPercentage = true }) => {
+}> = React.memo(({ label, current, target, color, bgColor, unit, showPercentage = true }) => {
   const percentage = Math.min((current / target) * 100, 100);
   
   return (
@@ -128,7 +128,7 @@ const ProgressBar: React.FC<{
       </div>
     </div>
   );
-};
+});
 
 
 // Mobile-Specific Components
@@ -138,7 +138,7 @@ const MobileCollapsibleSection: React.FC<{
   children: React.ReactNode;
   defaultOpen?: boolean;
   index?: number;
-}> = ({ title, icon: Icon, children, defaultOpen = false, index = 0 }) => {
+}> = React.memo(({ title, icon: Icon, children, defaultOpen = false, index = 0 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   
   return (
@@ -184,7 +184,7 @@ const MobileCollapsibleSection: React.FC<{
       )}
   </div>
 );
-};
+});
 
 // Modern Metrics Form Component
 const MetricsForm: React.FC<{ 
@@ -193,7 +193,7 @@ const MetricsForm: React.FC<{
   saving?: boolean; 
   setSaving?: (v: boolean) => void;
   onShowToast: (type: 'success' | 'error', message: string) => void;
-}> = ({ userId, onSaved, saving, setSaving, onShowToast }) => {
+}> = React.memo(({ userId, onSaved, saving, setSaving, onShowToast }) => {
   const [weight, setWeight] = useState<string>('');
   const [height, setHeight] = useState<string>('');
   const [bodyFat, setBodyFat] = useState<string>('');
@@ -485,7 +485,7 @@ const MetricsForm: React.FC<{
     </div>
   </div>
 );
-};
+});
 
 const GoalsSection: React.FC<{ 
   userId: string; 
@@ -493,7 +493,7 @@ const GoalsSection: React.FC<{
   goals: any[]; 
   onChanged: () => Promise<void> | void;
   onShowToast: (type: 'success' | 'error', message: string) => void;
-}> = ({ userId, latestMetric, goals, onChanged, onShowToast }) => {
+}> = React.memo(({ userId, latestMetric, goals, onChanged, onShowToast }) => {
   const weightGoal = goals.find(g=>g.goal_type==='weight');
   const stepsGoal = goals.find(g=>g.goal_type==='steps');
   const sleepGoal = goals.find(g=>g.goal_type==='sleep');
@@ -710,13 +710,13 @@ const GoalsSection: React.FC<{
       </div>
     </div>
   );
-};
+});
 
-const Dashboard: React.FC = () => {
+const Dashboard: React.FC = React.memo(() => {
   const { user } = useAuth();
   const [metrics, setMetrics] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
-  const [visitStats, setVisitStats] = useState<any>(null);
+  // const [visitStats, setVisitStats] = useState<any>(null);
   const [refreshKey, setRefreshKey] = useState(0); // Force re-render key
   
   // Toast state
@@ -739,45 +739,45 @@ const Dashboard: React.FC = () => {
     setToast(prev => ({ ...prev, isVisible: false }));
   };
 
-  // Function to refresh all data
-  const refreshData = async () => {
+  // Function to refresh all data - memoized to prevent unnecessary re-renders
+  const refreshData = React.useCallback(async () => {
     if (!user?.id) return;
     
     try {
-      console.log('[Dashboard] ===== REFRESHING DATA =====');
-      console.log('[Dashboard] User ID:', user.id);
+      // console.log('[Dashboard] ===== REFRESHING DATA =====');
+      // console.log('[Dashboard] User ID:', user.id);
       
-      const categories = await getAvailableQRCategories(user.id);
-      console.log('[Dashboard] Available QR categories:', categories);
+      // const categories = await getAvailableQRCategories(user.id);
+      // console.log('[Dashboard] Available QR categories:', categories);
       
-      console.log('[Dashboard] Fetching user metrics...');
+      // console.log('[Dashboard] Fetching user metrics...');
       const m = await getUserMetrics(user.id, 90);
-      console.log('[Dashboard] User metrics fetched:', m);
+      // console.log('[Dashboard] User metrics fetched:', m);
       
-      console.log('[Dashboard] Fetching user goals...');
+      // console.log('[Dashboard] Fetching user goals...');
       const g = await getUserGoals(user.id);
-      console.log('[Dashboard] User goals fetched:', g);
+      // console.log('[Dashboard] User goals fetched:', g);
       
-      console.log('[Dashboard] Fetching visit stats...');
-      const v = await getUserVisitStats(user.id);
-      console.log('[Dashboard] Visit stats fetched:', v);
+      // console.log('[Dashboard] Fetching visit stats...');
+      // const v = await getUserVisitStats(user.id);
+      // console.log('[Dashboard] Visit stats fetched:', v);
       
       setMetrics(m);
       setGoals(g);
-      setVisitStats(v);
+      // setVisitStats(v);
       
       // Force re-render
       setRefreshKey(prev => prev + 1);
       
-      console.log('[Dashboard] ===== DATA REFRESHED SUCCESSFULLY =====');
-      console.log('[Dashboard] Metrics count:', m?.length || 0);
-      console.log('[Dashboard] Goals count:', g?.length || 0);
-      console.log('[Dashboard] Latest metric:', m?.[0] || 'None');
-      console.log('[Dashboard] Refresh key updated:', refreshKey + 1);
+      // console.log('[Dashboard] ===== DATA REFRESHED SUCCESSFULLY =====');
+      // console.log('[Dashboard] Metrics count:', m?.length || 0);
+      // console.log('[Dashboard] Goals count:', g?.length || 0);
+      // console.log('[Dashboard] Latest metric:', m?.[0] || 'None');
+      // console.log('[Dashboard] Refresh key updated:', refreshKey + 1);
     } catch (error) {
       console.error('[Dashboard] Error refreshing data:', error);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     const load = async () => {
@@ -789,47 +789,47 @@ const Dashboard: React.FC = () => {
       await refreshData();
     };
     load();
-  }, [user?.id]);
+  }, [user?.id]); // Only depend on user.id to prevent infinite loops
 
   const latest = metrics[0] || {} as any;
   const weightGoal = goals.find((g:any)=>g.goal_type==='weight');
   const bodyFatGoal = goals.find((g:any)=>g.goal_type==='body_fat');
   const stepsGoal = goals.find((g:any)=>g.goal_type==='steps');
   const sleepGoal = goals.find((g:any)=>g.goal_type==='sleep');
-  const workoutDaysGoal = goals.find((g:any)=>g.goal_type==='workout_days');
+  // const workoutDaysGoal = goals.find((g:any)=>g.goal_type==='workout_days');
   
-  // Debug logs for latest metric
-  console.log('[Dashboard] ===== LATEST METRIC DEBUG =====');
-  console.log('[Dashboard] Metrics array:', metrics);
-  console.log('[Dashboard] Metrics length:', metrics?.length || 0);
+  // Debug logs for latest metric - REMOVED TO PREVENT UNNECESSARY RENDERS
+  // console.log('[Dashboard] ===== LATEST METRIC DEBUG =====');
+  // console.log('[Dashboard] Metrics array:', metrics);
+  // console.log('[Dashboard] Metrics length:', metrics?.length || 0);
   
-  // Debug logs for goals
-  console.log('[Dashboard] ===== GOALS DEBUG =====');
-  console.log('[Dashboard] Goals array:', goals);
-  console.log('[Dashboard] Goals length:', goals?.length || 0);
-  console.log('[Dashboard] Weight goal:', weightGoal);
-  console.log('[Dashboard] Steps goal:', stepsGoal);
-  console.log('[Dashboard] Sleep goal:', sleepGoal);
-  console.log('[Dashboard] Workout days goal:', workoutDaysGoal);
-  console.log('[Dashboard] ===== END GOALS DEBUG =====');
-  console.log('[Dashboard] All metrics data:', metrics.map((m, i) => ({
-    index: i,
-    date: m.metric_date,
-    weight: m.weight_kg,
-    body_fat: m.body_fat_pct,
-    height: m.height_cm
-  })));
-  console.log('[Dashboard] Latest metric (metrics[0]):', latest);
-  console.log('[Dashboard] Latest weight:', latest?.weight_kg);
-  console.log('[Dashboard] Latest body fat:', latest?.body_fat_pct);
-  console.log('[Dashboard] Latest height:', latest?.height_cm);
-  console.log('[Dashboard] ===== END LATEST METRIC DEBUG =====');
+  // Debug logs for goals - REMOVED TO PREVENT UNNECESSARY RENDERS
+  // console.log('[Dashboard] ===== GOALS DEBUG =====');
+  // console.log('[Dashboard] Goals array:', goals);
+  // console.log('[Dashboard] Goals length:', goals?.length || 0);
+  // console.log('[Dashboard] Weight goal:', weightGoal);
+  // console.log('[Dashboard] Steps goal:', stepsGoal);
+  // console.log('[Dashboard] Sleep goal:', sleepGoal);
+  // console.log('[Dashboard] Workout days goal:', workoutDaysGoal);
+  // console.log('[Dashboard] ===== END GOALS DEBUG =====');
+  // console.log('[Dashboard] All metrics data:', metrics.map((m, i) => ({
+  //   index: i,
+  //   date: m.metric_date,
+  //   weight: m.weight_kg,
+  //   body_fat: m.body_fat_pct,
+  //   height: m.height_cm
+  // })));
+  // console.log('[Dashboard] Latest metric (metrics[0]):', latest);
+  // console.log('[Dashboard] Latest weight:', latest?.weight_kg);
+  // console.log('[Dashboard] Latest body fat:', latest?.body_fat_pct);
+  // console.log('[Dashboard] Latest height:', latest?.height_cm);
+  // console.log('[Dashboard] ===== END LATEST METRIC DEBUG =====');
 
-  // Function to get personal stats cards - recalculates every time
-  const getPersonalStatsCards = () => {
-    console.log('[Dashboard] ===== RECALCULATING PERSONAL STATS =====');
-    console.log('[Dashboard] Latest metric for stats:', latest);
-    console.log('[Dashboard] Visit stats for stats:', visitStats);
+  // Memoize personal stats cards to prevent unnecessary recalculations
+  const personalStatsCards = React.useMemo(() => {
+    // console.log('[Dashboard] ===== RECALCULATING PERSONAL STATS =====');
+    // console.log('[Dashboard] Latest metric for stats:', latest);
+    // console.log('[Dashboard] Visit stats for stats:', null);
     
     return [
     {
@@ -881,9 +881,7 @@ const Dashboard: React.FC = () => {
         trend: ''
       }
     ];
-  };
-  
-  const personalStatsCards = getPersonalStatsCards();
+  }, [latest]);
 
   return (
     <>
@@ -1422,6 +1420,6 @@ const Dashboard: React.FC = () => {
     </div>
     </>
   );
-};
+});
 
 export default Dashboard;

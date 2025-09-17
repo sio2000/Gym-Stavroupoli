@@ -29,13 +29,15 @@ import {
   getDurationLabel,
   formatPrice,
   getPilatesPackageDurations,
-  createPilatesMembershipRequest
+  createPilatesMembershipRequest,
+  getUltimatePackageDurations,
+  createUltimateMembershipRequest
 } from '@/utils/membershipApi';
 import { MembershipPackage, MembershipPackageDuration, MembershipRequest, Membership as MembershipType } from '@/types';
 import toast from 'react-hot-toast';
 import SuccessPopup from '@/components/SuccessPopup';
 
-const MembershipPage: React.FC = () => {
+const MembershipPage: React.FC = React.memo(() => {
   const { user } = useAuth();
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<MembershipPackage | null>(null);
@@ -46,10 +48,14 @@ const MembershipPage: React.FC = () => {
   const [packages, setPackages] = useState<MembershipPackage[]>([]);
   const [packageDurations, setPackageDurations] = useState<MembershipPackageDuration[]>([]);
   const [pilatesDurations, setPilatesDurations] = useState<MembershipPackageDuration[]>([]);
+  const [ultimateDurations, setUltimateDurations] = useState<MembershipPackageDuration[]>([]);
   const [userRequests, setUserRequests] = useState<MembershipRequest[]>([]);
   const [userMemberships, setUserMemberships] = useState<MembershipType[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
+  
+  // Installments state
+  const [hasInstallments, setHasInstallments] = useState(false);
 
   // Get user's active membership from mock data (for backward compatibility)
   const userMembership = mockMemberships.find(m => m.user_id === user?.id);
@@ -216,16 +222,17 @@ const MembershipPage: React.FC = () => {
     loadUserRequests();
     loadUserMemberships();
     loadPilatesDurations();
+    loadUltimateDurations();
   }, []);
 
 
   const loadPackages = async () => {
-    console.log('[Membership] ===== LOADING PACKAGES =====');
+    // console.log('[Membership] ===== LOADING PACKAGES =====');
     setLoading(true);
     try {
       const packagesData = await getMembershipPackages();
-      console.log('[Membership] Packages loaded:', packagesData);
-      console.log('[Membership] Pilates package found:', packagesData.find(p => p.name === 'Pilates'));
+      // console.log('[Membership] Packages loaded:', packagesData);
+      // console.log('[Membership] Pilates package found:', packagesData.find(p => p.name === 'Pilates'));
       setPackages(packagesData);
     } catch (error) {
       console.error('[Membership] Error loading packages:', error);
@@ -273,6 +280,16 @@ const MembershipPage: React.FC = () => {
     }
   };
 
+  const loadUltimateDurations = async () => {
+    try {
+      const durations = await getUltimatePackageDurations();
+      setUltimateDurations(durations);
+    } catch (error) {
+      console.error('Error loading Ultimate durations:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση των επιλογών Ultimate');
+    }
+  };
+
   const handlePackageSelect = async (pkg: MembershipPackage) => {
     // Check if user already has an active membership for this package
     if (user?.id) {
@@ -288,9 +305,14 @@ const MembershipPage: React.FC = () => {
     // Load appropriate durations based on package type
     if (pkg.name === 'Pilates') {
       setPackageDurations(pilatesDurations);
+    } else if (pkg.name === 'Ultimate') {
+      setPackageDurations(ultimateDurations);
     } else {
       loadPackageDurations(pkg.id);
     }
+    
+    // Reset installments state when selecting a new package
+    setHasInstallments(false);
     
     setShowPurchaseModal(true);
   };
@@ -321,6 +343,14 @@ const MembershipPage: React.FC = () => {
           selectedDuration.duration_type,
           selectedDuration.classes_count || 0,
           selectedDuration.price,
+          user.id
+        );
+      } else if (selectedPackage.name === 'Ultimate') {
+        await createUltimateMembershipRequest(
+          selectedPackage.id,
+          selectedDuration.duration_type,
+          selectedDuration.price,
+          hasInstallments,
           user.id
         );
       } else {
@@ -391,7 +421,7 @@ const MembershipPage: React.FC = () => {
 
   // Filter database packages to include Free Gym and Pilates
   const filteredDatabasePackages = packages.filter(pkg => 
-    pkg.name === 'Free Gym' || pkg.name === 'Pilates'
+    pkg.name === 'Free Gym' || pkg.name === 'Pilates' || pkg.name === 'Ultimate'
   );
 
   // Combine filtered packages
@@ -400,10 +430,10 @@ const MembershipPage: React.FC = () => {
     ...filteredDatabasePackages
   ];
 
-  // Debug logging
-  console.log('[Membership] All packages:', allPackages);
-  console.log('[Membership] Filtered database packages:', filteredDatabasePackages);
-  console.log('[Membership] Pilates in allPackages:', allPackages.find(p => p.name === 'Pilates'));
+  // Debug logging - REMOVED TO PREVENT UNNECESSARY RENDERS
+  // console.log('[Membership] All packages:', allPackages);
+  // console.log('[Membership] Filtered database packages:', filteredDatabasePackages);
+  // console.log('[Membership] Pilates in allPackages:', allPackages.find(p => p.name === 'Pilates'));
 
   return (
     <>
@@ -516,7 +546,7 @@ const MembershipPage: React.FC = () => {
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-primary-900">
-                {userMembership.credits || 0} πιστώσεις
+                {(userMembership as any).credits || 0} πιστώσεις
               </div>
               <p className="text-primary-700">διαθέσιμες</p>
             </div>
@@ -550,7 +580,7 @@ const MembershipPage: React.FC = () => {
             </div>
             <div className="text-center">
               <div className="text-lg font-semibold text-primary-900">
-                {userMembership.auto_renew ? 'Ναι' : 'Όχι'}
+                {(userMembership as any).auto_renew ? 'Ναι' : 'Όχι'}
               </div>
               <p className="text-sm text-primary-700">Αυτόματη ανανέωση</p>
             </div>
@@ -573,8 +603,26 @@ const MembershipPage: React.FC = () => {
               const isSpecial = pkg.name === 'Personal Training'; // Personal Training package
               const isFreeGym = pkg.name === 'Free Gym'; // Free Gym package
               const isPilates = pkg.name === 'Pilates'; // Pilates package
+              const isUltimate = pkg.name === 'Ultimate'; // Ultimate package
               // const hasPersonalTraining = userMemberships.some(m => m.package_id === pkg.id);
-              const isLocked = userMemberships.some(m => m.package_id === pkg.id);
+              // Check if user has active membership for this package type
+              const isLocked = userMemberships.some(m => {
+                // For Personal Training, check if user has any personal training membership
+                // BUT exclude Ultimate-sourced memberships
+                if (pkg.name === 'Personal Training') {
+                  return (m.package?.name === 'Personal Training' || 
+                         m.package?.package_type === 'personal_training' ||
+                         (m.package?.package_type === 'standard' && m.source_package_name !== 'Ultimate'));
+                }
+                // For Ultimate package, check if user has any Ultimate-sourced memberships
+                if (pkg.name === 'Ultimate') {
+                  return m.package?.name === 'Ultimate' ||
+                         m.package?.package_type === 'ultimate' ||
+                         (m.source_package_name === 'Ultimate'); // Check Ultimate-sourced memberships
+                }
+                // For other packages, check by package_id
+                return m.package_id === pkg.id;
+              });
               
               return (
                 <div 
@@ -588,7 +636,9 @@ const MembershipPage: React.FC = () => {
                           ? 'border-green-300 hover:border-green-400 cursor-pointer hover:shadow-xl'
                           : isPilates
                             ? 'border-pink-300 hover:border-pink-400 cursor-pointer hover:shadow-xl'
-                            : 'border-gray-200 hover:border-primary-300 cursor-pointer hover:shadow-xl'
+                            : isUltimate
+                              ? 'border-orange-300 hover:border-orange-400 cursor-pointer hover:shadow-xl'
+                              : 'border-gray-200 hover:border-primary-300 cursor-pointer hover:shadow-xl'
                   }`}
                   onClick={() => isLocked ? null : (!isSpecial ? handlePackageSelect(pkg) : null)}
                 >
@@ -607,7 +657,9 @@ const MembershipPage: React.FC = () => {
                           ? 'bg-gradient-to-br from-green-500 to-emerald-600'
                           : isPilates
                             ? 'bg-gradient-to-br from-pink-500 to-rose-500'
-                            : 'bg-gradient-to-br from-primary-500 to-primary-600'
+                            : isUltimate
+                              ? 'bg-gradient-to-br from-orange-500 to-red-500'
+                              : 'bg-gradient-to-br from-primary-500 to-primary-600'
                     }`}>
                       {isSpecial ? (
                         <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
@@ -615,6 +667,8 @@ const MembershipPage: React.FC = () => {
                         <Award className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                       ) : isPilates ? (
                         <span className="text-xl sm:text-2xl">🧘</span>
+                      ) : isUltimate ? (
+                        <span className="text-xl sm:text-2xl">👑</span>
                       ) : (
                         <Award className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                       )}
@@ -913,6 +967,12 @@ const MembershipPage: React.FC = () => {
                         <p className="text-sm text-gray-600">
                           {duration.classes_count ? `${duration.classes_count} μαθήματα` : `${duration.duration_days} ημέρες`}
                         </p>
+                        {/* Special description for Ultimate package */}
+                        {selectedPackage.name === 'Ultimate' && duration.duration_type === 'ultimate_1year' && (
+                          <p className="text-xs text-blue-600 mt-1 font-medium">
+                            1 έτος Pilates με 3 μαθήματα την εβδομάδα + 1 έτος ελεύθερο γυμναστήριο
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className="text-lg font-bold text-primary-600">
@@ -922,6 +982,45 @@ const MembershipPage: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                
+                {/* Installments Option for Ultimate Package */}
+                {selectedPackage.name === 'Ultimate' && selectedDuration && (
+                  <div className="space-y-4 pt-4 border-t border-gray-200">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="installments"
+                        checked={hasInstallments}
+                        onChange={(e) => setHasInstallments(e.target.checked)}
+                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="installments" className="text-sm font-medium text-gray-700">
+                        Πληρωμή με δόσεις
+                      </label>
+                    </div>
+                    
+                    {hasInstallments && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-blue-600 text-sm">ℹ</span>
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium text-blue-900 mb-1">
+                              Πληρωμή με Δόσεις
+                            </h4>
+                            <p className="text-sm text-blue-700">
+                              Με την ενεργοποίηση αυτής της επιλογής, μπορείτε να πληρώσετε το πακέτο Ultimate με έως 3 δόσεις στο γυμναστήριο. 
+                              Ο διαχειριστής θα καθορίσει τα ακριβή ποσά και τις ημερομηνίες πληρωμής.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 <div className="flex space-x-3 pt-4">
                   <button
@@ -1008,6 +1107,6 @@ const MembershipPage: React.FC = () => {
       </div>
     </>
   );
-};
+});
 
 export default MembershipPage;

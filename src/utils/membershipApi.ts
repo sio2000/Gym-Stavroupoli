@@ -262,11 +262,13 @@ export const getUserActiveMemberships = async (userId: string): Promise<Membersh
         package:membership_packages(
           id,
           name,
-          description
+          description,
+          package_type
         )
       `)
       .eq('user_id', userId)
       .eq('is_active', true)
+      .gte('end_date', new Date().toISOString().split('T')[0]) // Not expired
       .order('end_date', { ascending: false });
 
     console.log('[MembershipAPI] Query result - data:', data, 'error:', error);
@@ -276,7 +278,7 @@ export const getUserActiveMemberships = async (userId: string): Promise<Membersh
     // Transform data to match Membership interface
     const transformedData = (data || []).map(membership => ({
       ...membership,
-      status: membership.is_active ? 'active' : 'expired',
+      status: membership.status || 'active',
       duration_type: membership.duration_type || 'month', // Default fallback
       approved_by: membership.approved_by || null,
       approved_at: membership.approved_at || membership.created_at
@@ -307,6 +309,7 @@ export const checkUserHasActiveMembership = async (userId: string, packageId: st
       .eq('user_id', userId)
       .eq('package_id', packageId)
       .eq('is_active', true)
+      .gte('end_date', new Date().toISOString().split('T')[0]) // Not expired
       .limit(1);
 
     if (error) throw error;
@@ -348,7 +351,8 @@ export const getDurationLabel = (durationType: string): string => {
     'pilates_2months': '8 Μαθήματα (2 μήνες)',
     'pilates_3months': '16 Μαθημάτων (3 μήνες)',
     'pilates_6months': '25 Μαθημάτων (6 μήνες)',
-    'pilates_1year': '50 Μαθημάτων (1 έτος)'
+    'pilates_1year': '50 Μαθημάτων (1 έτος)',
+    'ultimate_1year': '1 Έτος Ultimate'
   };
   return labels[durationType as keyof typeof labels] || durationType;
 };
@@ -607,6 +611,270 @@ export const updatePilatesPackagePricing = async (
   } catch (error) {
     console.error('Error updating Pilates pricing:', error);
     toast.error('Σφάλμα κατά την ενημέρωση της τιμής Pilates');
+    return false;
+  }
+};
+
+// ===== INSTALLMENTS API =====
+
+export const createUltimateMembershipRequest = async (
+  packageId: string,
+  durationType: string,
+  requestedPrice: number,
+  hasInstallments: boolean = false,
+  userId?: string
+): Promise<boolean> => {
+  try {
+    let actualUserId = userId;
+    if (!actualUserId) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      actualUserId = user.id;
+    }
+
+    console.log('[MembershipAPI] Creating Ultimate membership request:', {
+      packageId,
+      durationType,
+      requestedPrice,
+      hasInstallments,
+      userId: actualUserId
+    });
+
+    // If packageId is not a UUID, find the actual package ID
+    let actualPackageId = packageId;
+    if (packageId === 'Ultimate' || packageId === 'ultimate-package') {
+      const { data: ultimatePackage, error: packageError } = await supabase
+        .from('membership_packages')
+        .select('id')
+        .eq('name', 'Ultimate')
+        .eq('is_active', true)
+        .single();
+
+      if (packageError || !ultimatePackage) {
+        console.error('Error finding Ultimate package:', packageError);
+        throw new Error('Ultimate package not found');
+      }
+      actualPackageId = ultimatePackage.id;
+    }
+
+    // Prepare the insert data
+    const insertData: any = {
+      user_id: actualUserId,
+      package_id: actualPackageId,
+      duration_type: durationType,
+      requested_price: requestedPrice,
+      has_installments: hasInstallments,
+      status: 'pending'
+    };
+
+    // For installments, we don't set amounts - admin will set them later
+    if (hasInstallments) {
+      insertData.installment_1_amount = 0;
+      insertData.installment_2_amount = 0;
+      insertData.installment_3_amount = 0;
+      insertData.installment_1_payment_method = 'cash';
+      insertData.installment_2_payment_method = 'cash';
+      insertData.installment_3_payment_method = 'cash';
+    }
+
+    const { data, error } = await supabase
+      .from('membership_requests')
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[MembershipAPI] Insert error:', error);
+      throw error;
+    }
+
+    console.log('[MembershipAPI] Ultimate request created successfully:', data);
+    
+    if (hasInstallments) {
+      toast.success(`Αίτημα Ultimate δημιουργήθηκε με επιλογή δόσεων. Ο διαχειριστής θα καθορίσει τα ποσά.`);
+    } else {
+      toast.success(`Αίτημα Ultimate δημιουργήθηκε: ${formatPrice(requestedPrice)}`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating Ultimate membership request:', error);
+    toast.error('Σφάλμα κατά τη δημιουργία του αιτήματος Ultimate');
+    return false;
+  }
+};
+
+export const getUsersWithInstallments = async (): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase.rpc('get_users_with_installments');
+    
+    if (error) {
+      console.error('Error fetching users with installments:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching users with installments:', error);
+    return [];
+  }
+};
+
+export const markInstallmentPaid = async (
+  requestId: string,
+  installmentNumber: number,
+  paymentMethod: string = 'cash'
+): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.rpc('mark_installment_paid', {
+      request_id: requestId,
+      installment_number: installmentNumber,
+      payment_method: paymentMethod
+    });
+    
+    if (error) {
+      console.error('Error marking installment as paid:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error marking installment as paid:', error);
+    toast.error('Σφάλμα κατά την ενημέρωση της δόσης');
+    return false;
+  }
+};
+
+export const getUltimatePackageDurations = async (): Promise<MembershipPackageDuration[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('membership_package_durations')
+      .select(`
+        id,
+        package_id,
+        duration_type,
+        duration_days,
+        price,
+        classes_count,
+        is_active,
+        created_at,
+        updated_at,
+        membership_packages!inner(
+          id,
+          name,
+          package_type
+        )
+      `)
+      .eq('membership_packages.name', 'Ultimate')
+      .eq('is_active', true)
+      .order('price', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching Ultimate package durations:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching Ultimate package durations:', error);
+    return [];
+  }
+};
+
+// Ultimate Package Dual Activation
+export const approveUltimateMembershipRequest = async (requestId: string): Promise<boolean> => {
+  try {
+    console.log('[MembershipAPI] Approving Ultimate membership request with dual activation:', requestId);
+
+    // Get the request details first
+    const { data: requestData, error: requestError } = await supabase
+      .from('membership_requests')
+      .select(`
+        *,
+        user_profiles!membership_requests_user_id_fkey(user_id, first_name, last_name, email),
+        membership_packages!membership_requests_package_id_fkey(id, name, package_type)
+      `)
+      .eq('id', requestId)
+      .single();
+
+    if (requestError || !requestData) {
+      console.error('[MembershipAPI] Error fetching request data:', requestError);
+      throw requestError;
+    }
+
+    // Verify this is an Ultimate package
+    if (requestData.membership_packages?.name !== 'Ultimate') {
+      throw new Error('This function is only for Ultimate package requests');
+    }
+
+    // Update the request status to approved first
+    const { error: updateError } = await supabase
+      .from('membership_requests')
+      .update({ 
+        status: 'approved',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', requestId);
+
+    if (updateError) {
+      console.error('[MembershipAPI] Error updating request status:', updateError);
+      throw updateError;
+    }
+
+    // Call the database function to create dual memberships
+    const { data: dualResult, error: dualError } = await supabase
+      .rpc('create_ultimate_dual_memberships', {
+        p_user_id: requestData.user_id,
+        p_ultimate_request_id: requestId,
+        p_duration_days: 365, // 1 year
+        p_start_date: new Date().toISOString().split('T')[0] // Today's date
+      });
+
+    if (dualError) {
+      console.error('[MembershipAPI] Error creating dual memberships:', dualError);
+      
+      // Rollback the request status update
+      await supabase
+        .from('membership_requests')
+        .update({ 
+          status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
+        
+      throw dualError;
+    }
+
+    // Check if the dual activation was successful
+    if (!dualResult || !dualResult.success) {
+      console.error('[MembershipAPI] Dual activation failed:', dualResult);
+      
+      // Rollback the request status update
+      await supabase
+        .from('membership_requests')
+        .update({ 
+          status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
+        
+      throw new Error(dualResult?.error || 'Failed to create dual memberships');
+    }
+
+    console.log('[MembershipAPI] Ultimate dual activation successful:', {
+      requestId,
+      userId: requestData.user_id,
+      pilatesMembershipId: dualResult.pilates_membership_id,
+      freeGymMembershipId: dualResult.free_gym_membership_id,
+      startDate: dualResult.start_date,
+      endDate: dualResult.end_date
+    });
+
+    return true;
+
+  } catch (error) {
+    console.error('[MembershipAPI] Error approving Ultimate membership request:', error);
+    toast.error('Σφάλμα κατά την έγκριση του Ultimate αιτήματος');
     return false;
   }
 };
