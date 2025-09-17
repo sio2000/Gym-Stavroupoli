@@ -608,11 +608,10 @@ const MembershipPage: React.FC = React.memo(() => {
               // Check if user has active membership for this package type
               const isLocked = userMemberships.some(m => {
                 // For Personal Training, check if user has any personal training membership
-                // BUT exclude Ultimate-sourced memberships
+                // Only lock if user already has Personal Training, not for other package types
                 if (pkg.name === 'Personal Training') {
                   return (m.package?.name === 'Personal Training' || 
-                         m.package?.package_type === 'personal_training' ||
-                         (m.package?.package_type === 'standard' && m.source_package_name !== 'Ultimate'));
+                         m.package?.package_type === 'personal_training');
                 }
                 // For Ultimate package, check if user has any Ultimate-sourced memberships
                 if (pkg.name === 'Ultimate') {
