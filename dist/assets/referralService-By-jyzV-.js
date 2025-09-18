@@ -1,8 +1,0 @@
-import{s}from"./index-CheaihGU.js";const i=async t=>{try{const{data:e,error:r}=await s.rpc("get_user_referral_code",{p_user_id:t});if(r)throw console.error("Error getting referral code:",r),r;return e}catch(e){throw console.error("Error in getUserReferralCode:",e),e}},n=async t=>{try{const{data:e,error:r}=await s.rpc("get_user_referral_points",{p_user_id:t});if(r)throw console.error("Error getting referral points:",r),r;return e||0}catch(e){return console.error("Error in getUserReferralPoints:",e),0}},l=async(t,e)=>{try{const{data:r,error:o}=await s.rpc("process_referral_signup",{p_referred_user_id:t,p_referral_code:e});if(o)throw console.error("Error processing referral signup:",o),o;if(!r||r.length===0)throw new Error("No data returned from referral processing");const a=r[0];return{success:a.success,message:a.message,points_awarded:a.points_awarded}}catch(r){throw console.error("Error in processReferralSignup:",r),r}},f=async t=>{try{const e=await n(t),{data:r,error:o}=await s.from("referral_transactions").select(`
-        *,
-        referred_user:user_profiles!referral_transactions_referred_id_fkey(
-          first_name,
-          last_name,
-          email
-        )
-      `).eq("referrer_id",t).order("created_at",{ascending:!1}).limit(10);if(o)throw console.error("Error getting referral transactions:",o),o;return{total_points:e,total_referrals:(r==null?void 0:r.length)||0,recent_transactions:r||[]}}catch(e){throw console.error("Error in getUserReferralStats:",e),e}};export{i as getUserReferralCode,n as getUserReferralPoints,f as getUserReferralStats,l as processReferralSignup};

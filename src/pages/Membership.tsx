@@ -673,7 +673,9 @@ const MembershipPage: React.FC = React.memo(() => {
                       )}
                     </div>
                     
-                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{pkg.name}</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
+                      {pkg.name === 'Free Gym' ? 'Open Gym' : pkg.name}
+                    </h3>
                     <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">{pkg.description}</p>
                     
                     {isLocked ? (

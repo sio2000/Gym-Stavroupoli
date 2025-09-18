@@ -19,7 +19,7 @@ import {
 // import { mockReferrals } from '@/data/mockData';
 // import { formatDate, getReferralStatusName } from '@/utils';
 import toast from 'react-hot-toast';
-// import { getUserReferralPoints, getUserReferralStats, getUserReferralCode } from '@/services/referralService';
+import { getUserReferralStats } from '@/services/referralService';
 
 // Removed mock data - using real data from backend
 
@@ -28,8 +28,8 @@ const Referral: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [points, setPoints] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
-  // const [redeemedItems] = useState<number[]>([]);
-  const [referralStats] = useState({
+  const [loading, setLoading] = useState(true);
+  const [referralStats, setReferralStats] = useState({
     total_points: 0,
     total_referrals: 0,
     recent_transactions: []
@@ -49,8 +49,27 @@ const Referral: React.FC = () => {
 
   // Load referral points and stats
   useEffect(() => {
-    // Use user's referral points from context as fallback
-    setPoints(user?.referralPoints || 0);
+    const loadReferralData = async () => {
+      if (!user?.id) return;
+      
+      setLoading(true);
+      try {
+        // Use user's referral points from context
+        setPoints(user?.referralPoints || 0);
+        
+        // Load referral stats from backend
+        const stats = await getUserReferralStats(user.id);
+        setReferralStats(stats);
+      } catch (error) {
+        console.error('Error loading referral data:', error);
+        // Use fallback data from context
+        setPoints(user?.referralPoints || 0);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadReferralData();
   }, [user?.id, user?.referralPoints]);
 
   // Animate points counter

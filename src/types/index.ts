@@ -135,6 +135,15 @@ export interface MembershipPackageDuration {
   updated_at: string;
 }
 
+// User data as returned from database (with snake_case)
+export interface DatabaseUser {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  profile_photo?: string;
+}
+
 export interface MembershipRequest {
   id: string;
   user_id: string;
@@ -148,8 +157,19 @@ export interface MembershipRequest {
   rejected_reason?: string;
   created_at: string;
   updated_at: string;
-  // Joined data
-  user?: User;
+  // Ultimate package installments
+  has_installments?: boolean;
+  installment_1_amount?: number;
+  installment_2_amount?: number;
+  installment_3_amount?: number;
+  installment_1_payment_method?: string;
+  installment_2_payment_method?: string;
+  installment_3_payment_method?: string;
+  installment_1_due_date?: string;
+  installment_2_due_date?: string;
+  installment_3_due_date?: string;
+  // Joined data - database format
+  user?: DatabaseUser;
   package?: MembershipPackage;
   duration?: MembershipPackageDuration;
 }

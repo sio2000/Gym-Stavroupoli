@@ -15,7 +15,7 @@ import {
   Check,
   X,
   Save,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
@@ -33,10 +33,16 @@ import {
 import { 
   saveCashTransaction
 } from '@/utils/cashRegisterApi';
+import {
+  saveSecretaryCashTransaction,
+  saveSecretaryKettlebellPoints,
+  saveSecretaryOldMembersUsage
+} from '@/utils/secretaryProgramOptionsApi';
 import { 
   saveProgramApprovalState
 } from '@/utils/programApprovalApi';
 import { MembershipRequest } from '@/types';
+import UltimateInstallmentsTab from '@/components/secretary/UltimateInstallmentsTab';
 import Webcam from 'react-webcam';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { BrowserQRCodeReader } from '@zxing/browser';
@@ -64,7 +70,7 @@ const SecretaryDashboard: React.FC = () => {
   const [showResult, setShowResult] = useState(false);
   const [recentScans, setRecentScans] = useState<any[]>([]);
   const [membershipRequests, setMembershipRequests] = useState<MembershipRequest[]>([]);
-  const [activeTab, setActiveTab] = useState<'scanner' | 'membership-requests'>('scanner');
+  const [activeTab, setActiveTab] = useState<'scanner' | 'membership-requests' | 'ultimate-installments'>('scanner');
   const [loading, setLoading] = useState(false);
   
   // Program Options state for membership requests
@@ -79,6 +85,13 @@ const SecretaryDashboard: React.FC = () => {
   const [requestProgramApprovalStatus, setRequestProgramApprovalStatus] = useState<{[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'}>({});
   const [requestPendingUsers, setRequestPendingUsers] = useState<Set<string>>(new Set());
   const [requestFrozenOptions, setRequestFrozenOptions] = useState<{[requestId: string]: any}>({});
+  
+
+  // Ultimate Installments state
+  const [ultimateRequests, setUltimateRequests] = useState<MembershipRequest[]>([]);
+  const [ultimateLoading, setUltimateLoading] = useState(false);
+  const [ultimateSearchTerm, setUltimateSearchTerm] = useState('');
+
   const webcamRef = useRef<Webcam>(null);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -115,6 +128,8 @@ const SecretaryDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'membership-requests') {
       loadMembershipRequests();
+    } else if (activeTab === 'ultimate-installments') {
+      loadUltimateRequests();
     }
   }, [activeTab]);
 
@@ -173,13 +188,140 @@ const SecretaryDashboard: React.FC = () => {
     }
   };
 
+  // ===== INSTALLMENTS FUNCTIONS =====
+
+  const loadInstallmentRequests = async () => {
+    try {
+      setInstallmentLoading(true);
+      const requests = await getMembershipRequests();
+      // Filter only Ultimate requests with installments
+      const installmentRequests = requests.filter(request => 
+        request.package?.name === 'Ultimate' && request.has_installments
+      );
+      setInstallmentRequests(installmentRequests);
+    } catch (error) {
+      console.error('Error loading installment requests:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων δόσεων');
+    } finally {
+      setInstallmentLoading(false);
+    }
+  };
+
+  const updateInstallmentAmounts = async (requestId: string, installment1Amount: number, installment2Amount: number, installment3Amount: number, installment1PaymentMethod: string, installment2PaymentMethod: string, installment3PaymentMethod: string, installment1DueDate?: string, installment2DueDate?: string, installment3DueDate?: string) => {
+    try {
+      const updateData: any = {
+        installment_1_amount: installment1Amount,
+        installment_2_amount: installment2Amount,
+        installment_3_amount: installment3Amount,
+        installment_1_payment_method: installment1PaymentMethod,
+        installment_2_payment_method: installment2PaymentMethod,
+        installment_3_payment_method: installment3PaymentMethod
+      };
+
+      // Add due dates if provided
+      if (installment1DueDate) updateData.installment_1_due_date = installment1DueDate;
+      if (installment2DueDate) updateData.installment_2_due_date = installment2DueDate;
+      if (installment3DueDate) updateData.installment_3_due_date = installment3DueDate;
+
+      const { error } = await supabase
+        .from('membership_requests')
+        .update(updateData)
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast.success('Οι δόσεις και ημερομηνίες ενημερώθηκαν επιτυχώς');
+      // Reload installment requests
+      await loadInstallmentRequests();
+    } catch (error) {
+      console.error('Error updating installment amounts:', error);
+      toast.error('Σφάλμα κατά την ενημέρωση των δόσεων');
+    }
+  };
+
+  const deleteInstallmentRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('membership_requests')
+        .delete()
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast.success('Το αίτημα δόσεων διαγράφηκε επιτυχώς');
+      // Reload installment requests
+      await loadInstallmentRequests();
+    } catch (error) {
+      console.error('Error deleting installment request:', error);
+      toast.error('Σφάλμα κατά τη διαγραφή του αιτήματος');
+    }
+  };
+
+  // ===== ULTIMATE INSTALLMENTS FUNCTIONS =====
+
+  const loadUltimateRequests = async () => {
+    try {
+      setUltimateLoading(true);
+      const requests = await getMembershipRequests();
+      // Filter all Ultimate requests (with and without installments)
+      const ultimateRequests = requests.filter(request => 
+        request.package?.name === 'Ultimate'
+      );
+      setUltimateRequests(ultimateRequests);
+    } catch (error) {
+      console.error('Error loading ultimate requests:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση των Ultimate αιτημάτων');
+    } finally {
+      setUltimateLoading(false);
+    }
+  };
+
+  const deleteUltimateRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('membership_requests')
+        .delete()
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast.success('Το Ultimate αίτημα διαγράφηκε επιτυχώς');
+      await loadUltimateRequests();
+    } catch (error) {
+      console.error('Error deleting ultimate request:', error);
+      toast.error('Σφάλμα κατά τη διαγραφή του Ultimate αιτήματος');
+    }
+  };
+
+
   const handleApproveRequest = async (requestId: string) => {
     try {
       setLoading(true);
-      const success = await approveMembershipRequest(requestId);
-      if (success) {
-        toast.success('Το αίτημα εγκρίθηκε επιτυχώς!');
-        loadMembershipRequests();
+      
+      // Find the request to check if it's Ultimate package
+      const allRequests = [...membershipRequests, ...ultimateRequests];
+      const request = allRequests.find(r => r.id === requestId);
+      const isUltimatePackage = request?.package?.name === 'Ultimate';
+      
+      if (isUltimatePackage) {
+        // Handle Ultimate package approval with dual activation
+        const { approveUltimateMembershipRequest } = await import('@/utils/membershipApi');
+        const success = await approveUltimateMembershipRequest(requestId);
+        if (success) {
+          toast.success('Το Ultimate αίτημα εγκρίθηκε επιτυχώς! Δημιουργήθηκαν 2 συνδρομές: Pilates + Free Gym');
+          if (activeTab === 'ultimate-installments') {
+            loadUltimateRequests();
+          } else {
+            loadMembershipRequests();
+          }
+        }
+      } else {
+        // Handle regular package approval
+        const success = await approveMembershipRequest(requestId);
+        if (success) {
+          toast.success('Το αίτημα εγκρίθηκε επιτυχώς!');
+          loadMembershipRequests();
+        }
       }
     } catch (error) {
       console.error('Error approving request:', error);
@@ -198,7 +340,11 @@ const SecretaryDashboard: React.FC = () => {
       const success = await rejectMembershipRequest(requestId, reason);
       if (success) {
         toast.success('Το αίτημα απορρίφθηκε επιτυχώς!');
-        loadMembershipRequests();
+        if (activeTab === 'ultimate-installments') {
+          loadUltimateRequests();
+        } else {
+          loadMembershipRequests();
+        }
       }
     } catch (error) {
       console.error('Error rejecting request:', error);
@@ -325,11 +471,13 @@ const SecretaryDashboard: React.FC = () => {
 
   const executeApprovedRequestProgramActions = async (requestId: string, userId: string, userOptions: any) => {
     console.log('Executing approved program actions for membership request:', requestId);
+    console.log('User Options received:', userOptions);
+    console.log('User ID:', userId);
     
     try {
       // 1. Save Old Members usage if selected
       if (userOptions.oldMembers) {
-        const oldMembersSuccess = await markOldMembersUsed(userId, user?.id || '');
+        const oldMembersSuccess = await saveSecretaryOldMembersUsage(userId, user?.id || '');
         if (oldMembersSuccess) {
           console.log(`[APPROVED] Old Members marked as used for membership request: ${requestId}`);
         } else {
@@ -339,7 +487,7 @@ const SecretaryDashboard: React.FC = () => {
 
       // 2. Save Kettlebell Points if provided
       if (userOptions.kettlebellPoints && parseInt(userOptions.kettlebellPoints) > 0) {
-        const kettlebellSuccess = await saveKettlebellPoints(
+        const kettlebellSuccess = await saveSecretaryKettlebellPoints(
           userId, 
           parseInt(userOptions.kettlebellPoints), 
           undefined, // No program_id for now
@@ -354,8 +502,10 @@ const SecretaryDashboard: React.FC = () => {
       }
 
       // 3. Save Cash transactions if provided
+      console.log('Checking cash amount:', userOptions.cashAmount, 'Type:', typeof userOptions.cashAmount);
       if (userOptions.cashAmount && userOptions.cashAmount > 0) {
-        const cashSuccess = await saveCashTransaction(
+        console.log('Attempting to save cash transaction...');
+        const cashSuccess = await saveSecretaryCashTransaction(
           userId,
           userOptions.cashAmount,
           'cash',
@@ -368,11 +518,15 @@ const SecretaryDashboard: React.FC = () => {
         } else {
           console.warn(`[APPROVED] Failed to save Cash transaction for membership request: ${requestId}`);
         }
+      } else {
+        console.log('No cash amount to save or amount is 0');
       }
 
       // 4. Save POS transactions if provided
+      console.log('Checking POS amount:', userOptions.posAmount, 'Type:', typeof userOptions.posAmount);
       if (userOptions.posAmount && userOptions.posAmount > 0) {
-        const posSuccess = await saveCashTransaction(
+        console.log('Attempting to save POS transaction...');
+        const posSuccess = await saveSecretaryCashTransaction(
           userId,
           userOptions.posAmount,
           'pos',
@@ -385,6 +539,8 @@ const SecretaryDashboard: React.FC = () => {
         } else {
           console.warn(`[APPROVED] Failed to save POS transaction for membership request: ${requestId}`);
         }
+      } else {
+        console.log('No POS amount to save or amount is 0');
       }
 
       toast.success('Έγιναν όλες οι απαραίτητες ενέργειες για το εγκεκριμένο αίτημα!');
@@ -1112,62 +1268,82 @@ const SecretaryDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-gradient-to-r from-gray-800 to-gray-900 shadow-2xl border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Secretary Dashboard</h1>
-              <p className="text-gray-600">
-                {activeTab === 'scanner' ? 'Σαρώστε QR codes για είσοδο/έξοδο' : 'Διαχείριση αιτημάτων συνδρομών'}
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Secretary Dashboard
+              </h1>
+              <p className="text-gray-300 mt-1">
+                {activeTab === 'scanner' ? '🔍 Σαρώστε QR codes για είσοδο/έξοδο' : 
+                 activeTab === 'membership-requests' ? '📋 Διαχείριση αιτημάτων συνδρομών' : 
+                 activeTab === 'ultimate-installments' ? '👑 Διαχείριση Ultimate συνδρομών και δόσεων' :
+                 '💳 Διαχείριση δόσεων για πακέτα Ultimate'}
               </p>
             </div>
             <div className="flex items-center space-x-4">
               <button
-                onClick={activeTab === 'scanner' ? loadRecentScans : loadMembershipRequests}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                onClick={activeTab === 'scanner' ? loadRecentScans : 
+                         activeTab === 'membership-requests' ? loadMembershipRequests : 
+                         loadUltimateRequests}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <RefreshCw className="h-4 w-4" />
-                <span>Ανανέωση</span>
+                <span className="font-medium">Ανανέωση</span>
               </button>
               <button
                 onClick={logout}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <X className="h-4 w-4" />
-                <span>Αποσύνδεση</span>
+                <span className="font-medium">Αποσύνδεση</span>
               </button>
             </div>
           </div>
           
           {/* Tabs */}
-          <div className="border-t border-gray-200">
-            <nav className="flex space-x-8">
+          <div className="border-t border-gray-600">
+            <nav className="flex space-x-2 p-2">
               <button
                 onClick={() => setActiveTab('scanner')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-4 px-6 rounded-xl font-medium text-sm transition-all duration-200 transform hover:scale-105 ${
                   activeTab === 'scanner'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg border-2 border-blue-400'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-2 border-transparent'
                 }`}
               >
                 <div className="flex items-center space-x-2">
                   <QrCode className="h-5 w-5" />
-                  <span>QR Scanner</span>
+                  <span>🔍 QR Scanner</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab('membership-requests')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-4 px-6 rounded-xl font-medium text-sm transition-all duration-200 transform hover:scale-105 ${
                   activeTab === 'membership-requests'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg border-2 border-green-400'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-2 border-transparent'
                 }`}
               >
                 <div className="flex items-center space-x-2">
                   <CreditCard className="h-5 w-5" />
-                  <span>Αιτήματα Συνδρομών</span>
+                  <span>📋 Αιτήματα Συνδρομών</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('ultimate-installments')}
+                className={`py-4 px-6 rounded-xl font-medium text-sm transition-all duration-200 transform hover:scale-105 ${
+                  activeTab === 'ultimate-installments'
+                    ? 'bg-gradient-to-r from-orange-600 to-orange-700 text-white shadow-lg border-2 border-orange-400'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-2 border-transparent'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <span className="text-orange-400 text-lg">👑</span>
+                  <span>Ultimate Συνδρομές</span>
                 </div>
               </button>
             </nav>
@@ -1179,21 +1355,26 @@ const SecretaryDashboard: React.FC = () => {
         {activeTab === 'scanner' ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
             {/* QR Scanner */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">QR Code Scanner</h2>
+            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-600 p-6 backdrop-blur-sm">
+              <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
+                <span className="text-2xl mr-2">🔍</span>
+                QR Code Scanner
+              </h2>
             
             <div className="space-y-4">
               {!isScanning ? (
                 <div className="text-center py-12">
-                  <Camera className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Ξεκινήστε τη σάρωση</h3>
-                  <p className="text-gray-600 mb-6">Πατήστε το κουμπί για να ανοίξετε την κάμερα</p>
+                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-full p-4 w-20 h-20 mx-auto mb-4 shadow-lg">
+                    <Camera className="h-12 w-12 text-white" />
+                  </div>
+                  <h3 className="text-lg font-medium text-white mb-2">Ξεκινήστε τη σάρωση</h3>
+                  <p className="text-gray-300 mb-6">Πατήστε το κουμπί για να ανοίξετε την κάμερα</p>
                   <button
                     onClick={() => {
                       console.log('🎯 [UI] Start scanning button clicked');
                       startScanning();
                     }}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium"
                   >
                     <Camera className="h-5 w-5 inline mr-2" />
                     Ξεκινήστε σάρωση
@@ -1285,40 +1466,45 @@ const SecretaryDashboard: React.FC = () => {
           </div>
 
           {/* Recent Scans */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Πρόσφατες σαρώσεις</h2>
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-600 p-6 backdrop-blur-sm">
+            <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
+              <span className="text-2xl mr-2">📋</span>
+              Πρόσφατες σαρώσεις
+            </h2>
             
             {recentScans.length === 0 ? (
               <div className="text-center py-8">
-                <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600">Δεν υπάρχουν πρόσφατες σαρώσεις</p>
+                <div className="bg-gradient-to-br from-gray-600 to-gray-700 rounded-full p-3 w-16 h-16 mx-auto mb-4 shadow-lg">
+                  <QrCode className="h-10 w-10 text-gray-300" />
+                </div>
+                <p className="text-gray-300">Δεν υπάρχουν πρόσφατες σαρώσεις</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {recentScans.map((scan, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-full ${scan.status === 'approved' ? 'bg-green-100' : 'bg-red-100'}`}>
+                  <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-700 to-gray-800 rounded-xl border border-gray-600 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-102">
+                    <div className="flex items-center space-x-4">
+                      <div className={`p-3 rounded-full shadow-lg ${scan.status === 'approved' ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-red-500 to-red-600'}`}>
                         {scan.status === 'approved' ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <CheckCircle className="h-5 w-5 text-white" />
                         ) : (
-                          <XCircle className="h-4 w-4 text-red-600" />
+                          <XCircle className="h-5 w-5 text-white" />
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-white">
                           {scan.user_profiles ? `${scan.user_profiles.first_name} ${scan.user_profiles.last_name}` : 'Άγνωστος'}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-300">
                           {getCategoryLabel(scan.category)} • {scan.scan_type}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-300">
                         {new Date(scan.created_at).toLocaleTimeString('el-GR')}
                       </p>
-                      <p className={`text-xs font-medium ${scan.status === 'approved' ? 'text-green-600' : 'text-red-600'}`}>
+                      <p className={`text-xs font-medium px-2 py-1 rounded-full ${scan.status === 'approved' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                         {scan.status === 'approved' ? 'Εγκεκριμένο' : 'Απορριφθέν'}
                       </p>
                     </div>
@@ -1328,14 +1514,17 @@ const SecretaryDashboard: React.FC = () => {
             )}
           </div>
         </div>
-        ) : (
+        ) : activeTab === 'membership-requests' ? (
           /* Membership Requests */
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-600 p-6 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Αιτήματα Συνδρομών</h2>
+              <h2 className="text-2xl font-bold text-white flex items-center">
+                <span className="text-3xl mr-3">📋</span>
+                Αιτήματα Συνδρομών
+              </h2>
               <button
                 onClick={loadMembershipRequests}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium"
               >
                 <RefreshCw className="h-4 w-4 inline mr-2" />
                 Ανανέωση
@@ -1344,14 +1533,16 @@ const SecretaryDashboard: React.FC = () => {
 
             {loading ? (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Φόρτωση αιτημάτων...</p>
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                <p className="text-gray-300 font-medium">Φόρτωση αιτημάτων...</p>
               </div>
             ) : membershipRequests.length === 0 ? (
               <div className="text-center py-12">
-                <CreditCard className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Δεν υπάρχουν αιτήματα</h3>
-                <p className="text-gray-600">Δεν υπάρχουν αιτήματα συνδρομών για επεξεργασία</p>
+                <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-full p-4 w-20 h-20 mx-auto mb-4 shadow-lg">
+                  <CreditCard className="h-12 w-12 text-white" />
+                </div>
+                <h3 className="text-lg font-medium text-white mb-2">Δεν υπάρχουν αιτήματα</h3>
+                <p className="text-gray-300">Δεν υπάρχουν αιτήματα συνδρομών για επεξεργασία</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1363,66 +1554,86 @@ const SecretaryDashboard: React.FC = () => {
                     (request.status === 'rejected' && isRequestPending(request.id))
                   )
                   .map((request) => (
-                  <div key={request.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                  <div key={request.id} className="bg-gradient-to-r from-gray-700 to-gray-800 border border-gray-600 rounded-2xl p-6 hover:from-gray-600 hover:to-gray-700 transition-all duration-200 shadow-lg hover:shadow-2xl transform hover:scale-102">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
+                        <div className="flex items-center space-x-4 mb-4">
                           <div className="flex-shrink-0">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <User className="h-5 w-5 text-blue-600" />
-                            </div>
+                            {request.user?.profile_photo ? (
+                              <div className="w-12 h-12 rounded-xl overflow-hidden shadow-lg border-2 border-blue-400">
+                                <img 
+                                  src={request.user.profile_photo} 
+                                  alt={`${request.user?.first_name} ${request.user?.last_name}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    const fallbackElement = e.currentTarget.nextElementSibling as HTMLElement;
+                                    if (fallbackElement) {
+                                      fallbackElement.style.display = 'flex';
+                                    }
+                                  }}
+                                />
+                                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center hidden">
+                                  <User className="h-6 w-6 text-white" />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <User className="h-6 w-6 text-white" />
+                              </div>
+                            )}
                           </div>
                           <div>
-                            <h3 className="font-medium text-gray-900">{request.user?.firstName && request.user?.lastName ? `${request.user.firstName} ${request.user.lastName}` : 'Άγνωστος χρήστης'}</h3>
-                            <p className="text-sm text-gray-600">{request.user?.email || 'Δεν υπάρχει email'}</p>
+                            <h3 className="font-semibold text-white text-lg">{request.user?.first_name && request.user?.last_name ? `${request.user.first_name} ${request.user.last_name}` : 'Άγνωστος χρήστης'}</h3>
+                            <p className="text-sm text-gray-300">{request.user?.email || 'Δεν υπάρχει email'}</p>
                           </div>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                          <div className="flex items-center space-x-2">
-                            <CreditCard className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm text-gray-600">
-                              <span className="font-medium">Πακέτο:</span> {request.package?.name || 'Άγνωστο πακέτο'}
+                          <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-500/20 to-blue-600/20 rounded-lg p-3 border border-blue-500/30">
+                            <CreditCard className="h-5 w-5 text-blue-400" />
+                            <span className="text-sm text-gray-200">
+                              <span className="font-medium text-blue-300">Πακέτο:</span> {request.package?.name || 'Άγνωστο πακέτο'}
                             </span>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm text-gray-600">
-                              <span className="font-medium">Διάρκεια:</span> {getDurationLabel(request.duration_type)}
+                          <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-purple-600/20 rounded-lg p-3 border border-purple-500/30">
+                            <Clock className="h-5 w-5 text-purple-400" />
+                            <span className="text-sm text-gray-200">
+                              <span className="font-medium text-purple-300">Διάρκεια:</span> {getDurationLabel(request.duration_type)}
                             </span>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Euro className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm text-gray-600">
-                              <span className="font-medium">Τιμή:</span> {formatPrice(request.requested_price)}
+                          <div className="flex items-center space-x-2 bg-gradient-to-r from-green-500/20 to-green-600/20 rounded-lg p-3 border border-green-500/30">
+                            <Euro className="h-5 w-5 text-green-400" />
+                            <span className="text-sm text-gray-200">
+                              <span className="font-medium text-green-300">Τιμή:</span> {formatPrice(request.requested_price)}
                             </span>
                           </div>
                         </div>
                         
                         {/* Show classes count for Pilates requests */}
                         {request.classes_count && request.classes_count > 0 && (
-                          <div className="mt-3 p-3 bg-pink-50 border border-pink-200 rounded-lg">
+                          <div className="mt-4 p-4 bg-gradient-to-r from-pink-500/20 to-pink-600/20 border border-pink-500/30 rounded-xl">
                             <div className="flex items-center space-x-2">
                               <span className="text-2xl">🧘</span>
-                              <span className="text-sm font-medium text-pink-800">
+                              <span className="text-sm font-medium text-pink-300">
                                 Μαθήματα Pilates: {request.classes_count}
                               </span>
                             </div>
                           </div>
                         )}
                         
-                        <div className="mt-3 text-sm text-gray-500">
-                          <span className="font-medium">Ημερομηνία αίτησης:</span> {new Date(request.created_at).toLocaleDateString('el-GR')}
+                        <div className="mt-4 text-sm text-gray-300 bg-gray-600/30 rounded-lg p-3">
+                          <span className="font-medium text-gray-200">📅 Ημερομηνία αίτησης:</span> {new Date(request.created_at).toLocaleDateString('el-GR')}
                         </div>
                       </div>
                       
-                      <div className="flex space-x-2 ml-4">
+                      <div className="flex flex-col space-y-3 ml-4">
                         <button
                           onClick={() => handleApproveRequest(request.id)}
-                          className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+                          className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
                         >
-                          <Check className="h-4 w-4 inline mr-1" />
-                          Έγκριση
+                          <Check className="h-4 w-4 inline mr-2" />
+                          ✅ Έγκριση
                         </button>
                         <button
                           onClick={() => {
@@ -1431,10 +1642,10 @@ const SecretaryDashboard: React.FC = () => {
                               handleRejectRequest(request.id);
                             }
                           }}
-                          className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm"
+                          className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
                         >
-                          <X className="h-4 w-4 inline mr-1" />
-                          Απόρριψη
+                          <X className="h-4 w-4 inline mr-2" />
+                          ❌ Απόρριψη
                         </button>
                       </div>
                     </div>
@@ -1443,10 +1654,11 @@ const SecretaryDashboard: React.FC = () => {
                     {((request.status === 'pending') || 
                       (request.status === 'approved' && isRequestPending(request.id)) || 
                       (request.status === 'rejected' && isRequestPending(request.id))) && (
-                    <div className={`mt-4 p-4 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-gray-50 border-gray-200'}`}>
-                      <h5 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                    <div className={`mt-6 p-6 rounded-2xl border shadow-lg ${isRequestPending(request.id) ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/30' : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/30'}`}>
+                      <h5 className="text-lg font-bold text-white mb-4 flex items-center">
+                        <span className="text-2xl mr-2">⚙️</span>
                         Program Options
-                        {isRequestPending(request.id) && <span className="ml-2">🔒</span>}
+                        {isRequestPending(request.id) && <span className="ml-2 text-yellow-400">🔒</span>}
                       </h5>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1680,7 +1892,27 @@ const SecretaryDashboard: React.FC = () => {
               </div>
             )}
           </div>
-        )}
+        ) : activeTab === 'ultimate-installments' ? (
+          <UltimateInstallmentsTab
+            ultimateRequests={ultimateRequests}
+            ultimateLoading={ultimateLoading}
+            ultimateSearchTerm={ultimateSearchTerm}
+            setUltimateSearchTerm={setUltimateSearchTerm}
+            selectedRequestOptions={selectedRequestOptions}
+            handleRequestOptionChange={handleRequestOptionChange}
+            updateInstallmentAmounts={updateInstallmentAmounts}
+            deleteUltimateRequest={deleteUltimateRequest}
+            loadUltimateRequests={loadUltimateRequests}
+            handleApproveRequest={handleApproveRequest}
+            handleRejectRequest={handleRejectRequest}
+            loading={loading}
+            requestProgramApprovalStatus={requestProgramApprovalStatus}
+            handleRequestProgramApprovalChange={handleRequestProgramApprovalChange}
+            handleSaveRequestProgramOptions={handleSaveRequestProgramOptions}
+            requestPendingUsers={requestPendingUsers}
+            requestFrozenOptions={requestFrozenOptions}
+          />
+        ) : null}
       </div>
 
       {/* Scan Result Modal */}
