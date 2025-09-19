@@ -586,7 +586,20 @@ const PublicRegistration: React.FC = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Επιλέξτε Διάρκεια:</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {packageDurations.map((duration) => (
+                      {packageDurations
+                        .sort((a, b) => {
+                          // For Pilates packages, sort by classes_count
+                          if (formData.selectedPackage?.name === 'Pilates' && a.classes_count && b.classes_count) {
+                            return a.classes_count - b.classes_count;
+                          }
+                          
+                          // For other packages, use custom sorting by duration_type
+                          const order = { 'lesson': 1, 'month': 30, 'semester': 180, 'year': 365 };
+                          const aOrder = order[a.duration_type as keyof typeof order] || a.duration_days;
+                          const bOrder = order[b.duration_type as keyof typeof order] || b.duration_days;
+                          return aOrder - bOrder;
+                        })
+                        .map((duration) => (
                         <div
                           key={duration.id}
                           className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${

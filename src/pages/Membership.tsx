@@ -944,13 +944,26 @@ const MembershipPage: React.FC = React.memo(() => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
-              Επιλογή Πακέτου: {selectedPackage.name}
+              Επιλογή Πακέτου: {selectedPackage.name === 'Free Gym' ? 'Open Gym' : selectedPackage.name}
             </h3>
             
             {packageDurations.length > 0 ? (
               <div className="space-y-4">
                 <h4 className="font-semibold text-gray-700">Επιλέξτε Διάρκεια:</h4>
-                {packageDurations.map((duration) => (
+                {packageDurations
+                  .sort((a, b) => {
+                    // For Pilates packages, sort by classes_count
+                    if (selectedPackage.name === 'Pilates' && a.classes_count && b.classes_count) {
+                      return a.classes_count - b.classes_count;
+                    }
+                    
+                    // For other packages, use custom sorting by duration_type
+                    const order = { 'lesson': 1, 'month': 30, 'semester': 180, 'year': 365 };
+                    const aOrder = order[a.duration_type as keyof typeof order] || a.duration_days;
+                    const bOrder = order[b.duration_type as keyof typeof order] || b.duration_days;
+                    return aOrder - bOrder;
+                  })
+                  .map((duration) => (
                   <div 
                     key={duration.id}
                     className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${

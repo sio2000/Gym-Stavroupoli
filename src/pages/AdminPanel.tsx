@@ -1678,7 +1678,7 @@ const AdminPanel: React.FC = () => {
         // Handle Ultimate package approval with dual activation
         const success = await approveUltimateMembershipRequest(requestId);
         if (success) {
-          toast.success('Το Ultimate αίτημα εγκρίθηκε επιτυχώς! Δημιουργήθηκαν 2 συνδρομές: Pilates + Free Gym');
+          toast.success('Το Ultimate αίτημα εγκρίθηκε επιτυχώς! Δημιουργήθηκαν 2 συνδρομές: Pilates + Open Gym');
           loadMembershipRequests();
         }
       } else {
