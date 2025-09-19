@@ -25,10 +25,15 @@ import {
   UserWithPersonalTraining,
   TrainerName,
   MembershipPackage,
-  MembershipPackageDuration
+  MembershipPackageDuration,
+  MembershipRequest
 } from '@/types';
 import PilatesScheduleManagement from '@/components/admin/PilatesScheduleManagement';
 import CashRegister from '@/components/admin/CashRegister';
+import GroupAssignmentManager from '@/components/admin/GroupAssignmentManager';
+import GroupProgramsOverview from '@/components/admin/GroupProgramsOverview';
+import GroupAssignmentInterface from '@/components/admin/GroupAssignmentInterface';
+
 import { 
   getMembershipPackages, 
   getMembershipPackageDurations, 
@@ -40,7 +45,7 @@ import {
   formatPrice,
   getDurationLabel,
   getPilatesPackageDurations,
-  updatePilatesPackagePricing
+  updatePilatesPackagePricing,
 } from '@/utils/membershipApi';
 import { 
   markOldMembersUsed, 
@@ -64,14 +69,14 @@ const AVAILABLE_TRAINERS: TrainerName[] = ['Mike', 'Jordan'];
 
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register'>('personal-training');
+  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'installments' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register'>('personal-training');
   const [allUsers, setAllUsers] = useState<UserWithPersonalTraining[]>([]);
   const [programStatuses, setProgramStatuses] = useState<Array<{
     user: UserWithPersonalTraining;
     schedule: PersonalTrainingSchedule;
     status: 'pending' | 'accepted' | 'declined';
   }>>([]);
-  const [selectedUser, setSelectedUser] = useState<UserWithPersonalTraining | null>(null);
+  const [selectedUser] = useState<UserWithPersonalTraining | null>(null);
   const [personalTrainingSchedule, setPersonalTrainingSchedule] = useState<PersonalTrainingSchedule | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(false);
@@ -88,10 +93,17 @@ const AdminPanel: React.FC = () => {
   const [selectedGroupRoom, setSelectedGroupRoom] = useState<'2' | '3' | '6' | null>(null);
   const [weeklyFrequency, setWeeklyFrequency] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [monthlyTotal, setMonthlyTotal] = useState<number>(0);
+  
+  // Group Assignment Manager state
+  const [showGroupAssignmentManager, setShowGroupAssignmentManager] = useState(false);
+  const [groupAssignmentUser, setGroupAssignmentUser] = useState<UserWithPersonalTraining | null>(null);
+  const [groupAssignmentProgramId, setGroupAssignmentProgramId] = useState<string | null>(null);
+  const [groupOverviewKey, setGroupOverviewKey] = useState(0); // For refreshing the overview
+  const [selectedGroupSlots, setSelectedGroupSlots] = useState<{[userId: string]: any[]}>({});
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [userSearchMode, setUserSearchMode] = useState<'dropdown' | 'search'>('dropdown');
-  const [programStatusSearchTerm, setProgramStatusSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'declined'>('all');
+  const [programStatusSearchTerm] = useState('');
+  const [statusFilter] = useState<'all' | 'pending' | 'accepted' | 'declined'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   
   // New panel state variables
@@ -112,6 +124,16 @@ const AdminPanel: React.FC = () => {
       groupRoomSize?: number | null;
       weeklyFrequency?: number | null;
       monthlyTotal?: number | null;
+      // Installment properties
+      installment1Amount?: number;
+      installment2Amount?: number;
+      installment3Amount?: number;
+      installment1PaymentMethod?: string;
+      installment2PaymentMethod?: string;
+      installment3PaymentMethod?: string;
+      installment1DueDate?: string;
+      installment2DueDate?: string;
+      installment3DueDate?: string;
     }
   }>({});
   
@@ -222,6 +244,15 @@ const AdminPanel: React.FC = () => {
     pos?: boolean;
     cashAmount?: number;
     posAmount?: number;
+    installment1Amount?: number;
+    installment2Amount?: number;
+    installment3Amount?: number;
+    installment1PaymentMethod?: string;
+    installment2PaymentMethod?: string;
+    installment3PaymentMethod?: string;
+    installment1DueDate?: string;
+    installment2DueDate?: string;
+    installment3DueDate?: string;
   }}>({});
   const [requestProgramApprovalStatus, setRequestProgramApprovalStatus] = useState<{[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'}>({});
   const [requestPendingUsers, setRequestPendingUsers] = useState<Set<string>>(new Set());
@@ -247,32 +278,6 @@ const AdminPanel: React.FC = () => {
   const days = ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'];
 
 
-  // Function to determine program category based on sessions
-  const getProgramCategory = (schedule: PersonalTrainingSchedule): string => {
-    if (!schedule.scheduleData?.sessions || schedule.scheduleData.sessions.length === 0) {
-      return 'Personal Training';
-    }
-
-    const sessionTypes = schedule.scheduleData.sessions.map(session => session.type);
-    const uniqueTypes = [...new Set(sessionTypes)];
-
-    if (uniqueTypes.length === 1) {
-      switch (uniqueTypes[0]) {
-        case 'personal':
-          return 'Personal Training';
-        case 'kickboxing':
-          return 'Kick Boxing';
-        case 'combo':
-          return 'Combo Training';
-        default:
-          return 'Personal Training';
-      }
-    } else if (uniqueTypes.length > 1) {
-      return 'Combo Training';
-    }
-
-    return 'Personal Training';
-  };
 
   // Helper: block hardcoded test users (UI guard)
   const isBlockedTestUser = (u: { email?: string | null; personalTrainingCode?: string | null; firstName?: string; lastName?: string }): boolean => {
@@ -315,10 +320,6 @@ const AdminPanel: React.FC = () => {
   });
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredProgramStatuses.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedProgramStatuses = filteredProgramStatuses.slice(startIndex, endIndex);
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -1125,27 +1126,30 @@ const AdminPanel: React.FC = () => {
         console.log('[ADMIN] Admin user ID:', user?.id);
 
         // Δημιουργούμε το πρόγραμμα Personal Training
-        const scheduleSessions: PersonalTrainingSession[] = programSessions.map((s) => ({
-          id: s.id,
-          date: s.date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          type: s.type,
-          trainer: s.trainer || 'Mike',
-          room: s.room,
-          notes: s.notes
-        }));
+        // ΓΙΑ GROUP PROGRAMS: Δεν δημιουργούμε προγραμματισμένες σεσίες από το Προσωποποιημένο Πρόγραμμα
+        const scheduleSessions: PersonalTrainingSession[] = trainingType === 'group' 
+          ? [] // Άδεια σεσίες για group programs
+          : programSessions.map((s) => ({
+              id: s.id,
+              date: s.date,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              type: s.type,
+              trainer: s.trainer || 'Mike',
+              room: s.room,
+              notes: s.notes
+            }));
 
         const schedulePayload = {
           user_id: selectedUser.id,
-          trainer_name: scheduleSessions[0]?.trainer || 'Mike',
+          trainer_name: trainingType === 'group' ? 'Mike' : (scheduleSessions[0]?.trainer || 'Mike'),
           month: new Date().getMonth() + 1,
           year: new Date().getFullYear(),
           schedule_data: {
-            sessions: scheduleSessions,
-            notes: '',
-            trainer: scheduleSessions[0]?.trainer || 'Mike',
-            specialInstructions: '',
+            sessions: scheduleSessions, // Άδεια για group programs
+            notes: trainingType === 'group' ? 'Group program - Οι σεσίες θα προστεθούν μέσω του Group Assignment Interface' : '',
+            trainer: trainingType === 'group' ? 'Mike' : (scheduleSessions[0]?.trainer || 'Mike'),
+            specialInstructions: trainingType === 'group' ? 'Ομαδικό πρόγραμμα - Οι λεπτομέρειες των σεσίων διαχειρίζονται ξεχωριστά' : '',
             // Add group room information for group training
             groupRoomSize: trainingType === 'group' ? parseInt(selectedGroupRoom!) : null,
             weeklyFrequency: trainingType === 'group' ? weeklyFrequency : null,
@@ -1290,11 +1294,87 @@ const AdminPanel: React.FC = () => {
 
       const userTypeText = userType === 'personal' ? 'Personal' : 'Paspartu';
       toast.success(`Το πρόγραμμα ${userTypeText} Training δημιουργήθηκε επιτυχώς για ${trainingType === 'individual' ? 'τον χρήστη' : 'τους χρήστες'}: ${userNames}!`);
+      
+      // For group training, create assignments if slots were selected
+      if (trainingType === 'group' && userIds.length > 0 && Object.keys(selectedGroupSlots).length > 0) {
+        console.log('[AdminPanel] Creating group assignments for selected slots:', selectedGroupSlots);
+        
+        // Create assignments for each user
+        for (const userId of userIds) {
+          const userSlots = selectedGroupSlots[userId];
+          if (userSlots && userSlots.length > 0) {
+            // Find the schedule that was just created for this user
+            const { data: userSchedule } = await supabase
+              .from('personal_training_schedules')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('training_type', 'group')
+              .order('created_at', { ascending: false })
+              .limit(1);
+              
+            if (userSchedule && userSchedule.length > 0) {
+              const programId = userSchedule[0].id;
+              
+              // Create assignment for each session
+              for (const session of userSlots) {
+                try {
+                  // Calculate day of week from date
+                  const sessionDate = new Date(session.date);
+                  const dayOfWeek = sessionDate.getDay();
+                  
+                  const { error: assignmentError } = await supabase
+                    .from('group_assignments')
+                    .insert({
+                      program_id: programId,
+                      user_id: userId,
+                      group_type: session.groupType,
+                      day_of_week: dayOfWeek,
+                      start_time: session.startTime,
+                      end_time: session.endTime,
+                      trainer: session.trainer,
+                      room: session.room,
+                      group_identifier: `${session.trainer}-${dayOfWeek}-${session.startTime}-${session.date}`,
+                      weekly_frequency: weeklyFrequency,
+                      assignment_date: session.date,
+                      is_active: true,
+                      created_by: user?.id,
+                      notes: session.notes || `Ανάθεση δημιουργήθηκε κατά τη δημιουργία του προγράμματος`
+                    });
+                    
+                  if (assignmentError) {
+                    console.error('[AdminPanel] Error creating group assignment:', assignmentError);
+                  }
+                } catch (error) {
+                  console.error('[AdminPanel] Exception creating assignment:', error);
+                }
+              }
+              
+              console.log(`[AdminPanel] Created ${userSlots.length} assignments for user ${userId}`);
+            }
+          }
+        }
+        
+        toast.success('Το ομαδικό πρόγραμμα και οι αναθέσεις δημιουργήθηκαν επιτυχώς!');
+        
+        // Refresh the Group Programs Overview
+        setGroupOverviewKey(prev => prev + 1);
+      } else if (trainingType === 'group' && userIds.length > 0) {
+        // No slots selected, show info message
+        toast('Το ομαδικό πρόγραμμα δημιουργήθηκε. Μπορείτε να κάνετε αναθέσεις αργότερα από το Group Programs Overview.', { icon: 'ℹ️' });
+        
+        // Refresh the Group Programs Overview
+        setGroupOverviewKey(prev => prev + 1);
+      }
+      
       setShowCreateCodeModal(false);
       setNewCode({ code: '', selectedUserId: '' });
       setTrainingType('individual');
       setUserType('personal'); // Reset to default
       setSelectedUserIds([]);
+      setSelectedGroupSlots({}); // Reset group slots
+      setSelectedGroupRoom(null);
+      setWeeklyFrequency(null);
+      setMonthlyTotal(0);
       setUserSearchTerm('');
       setUserSearchMode('dropdown');
       setProgramSessions([{ id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', endTime: '19:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }]);
@@ -1991,353 +2071,22 @@ const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
-              {/* Mobile-First Search Bar */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg border border-blue-200 p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-blue-800 mb-2 sm:mb-3">
-                      🔍 Αναζήτηση Χρήστη
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-                        <Search className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Αναζητήστε με όνομα ή email..."
-                        value={programStatusSearchTerm}
-                        onChange={(e) => setProgramStatusSearchTerm(e.target.value)}
-                        className="w-full pl-10 sm:pl-12 pr-4 py-2 sm:py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-700 placeholder-gray-400 text-sm sm:text-base"
-                      />
-                    </div>
-                  </div>
-                  {programStatusSearchTerm && (
-                  <button
-                      onClick={() => setProgramStatusSearchTerm('')}
-                      className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-blue-600 hover:text-red-600 flex items-center space-x-2 bg-white rounded-lg border border-blue-200 hover:border-red-200 transition-all duration-200"
-                  >
-                      <X className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span>Καθαρισμός</span>
-                  </button>
-                  )}
-                </div>
-                {programStatusSearchTerm && (
-                  <div className="mt-4 bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium">
-                    📊 Εμφανίζονται {filteredProgramStatuses.length} από {programStatuses.length} προγράμματα
-                  </div>
-                )}
-              </div>
-
-
-              {/* Mobile-First Program Status List */}
+              {/* Group Programs Overview Section */}
               <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                {/* Mobile Header */}
-                <div className="px-3 sm:px-6 py-4 sm:py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
-                  <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                      <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
-                        📋 Κατάσταση Προγραμμάτων
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
-                          {filteredProgramStatuses.length} προγράμματα
-                        </span>
-                        {totalPages > 1 && (
-                          <span className="bg-gray-100 text-gray-600 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
-                            Σελίδα {currentPage} από {totalPages}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Mobile Filter & Pagination */}
-                    <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:space-x-4">
-                      {statusFilter !== 'all' && (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs sm:text-sm text-gray-600">
-                            Φίλτρο: 
-                            <span className="ml-1 font-semibold text-blue-600">
-                              {statusFilter === 'pending' && '⏳ Σε Αναμονή'}
-                              {statusFilter === 'accepted' && '✅ Αποδεκτά'}
-                              {statusFilter === 'declined' && '❌ Απορριφθέντα'}
-                            </span>
-                          </span>
-                          <button
-                            onClick={() => setStatusFilter('all')}
-                            className="px-2 sm:px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      )}
-                      
-                      {/* Mobile Pagination Controls */}
-                      {totalPages > 1 && (
-                        <div className="flex items-center justify-center sm:justify-end space-x-1 sm:space-x-2">
-                          <button
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                            className="px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                          >
-                            ←
-                          </button>
-                          
-                          <div className="flex items-center space-x-1">
-                            {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                              let pageNum;
-                              if (totalPages <= 3) {
-                                pageNum = i + 1;
-                              } else if (currentPage <= 2) {
-                                pageNum = i + 1;
-                              } else if (currentPage >= totalPages - 1) {
-                                pageNum = totalPages - 2 + i;
-                              } else {
-                                pageNum = currentPage - 1 + i;
-                              }
-                              
-                              return (
-                                <button
-                                  key={pageNum}
-                                  onClick={() => setCurrentPage(pageNum)}
-                                  className={`px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 ${
-                                    currentPage === pageNum
-                                      ? 'bg-blue-600 text-white shadow-lg'
-                                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:text-gray-900'
-                                  }`}
-                                >
-                                  {pageNum}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          
-                          <button
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
-                            className="px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                          >
-                            →
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                <div className="p-4 sm:p-6">
+                  <GroupProgramsOverview 
+                    key={groupOverviewKey}
+                    onManageAssignments={(programId, userId) => {
+                      const user = allUsers.find(u => u.id === userId);
+                      if (user) {
+                        setGroupAssignmentUser(user);
+                        setGroupAssignmentProgramId(programId);
+                        setShowGroupAssignmentManager(true);
+                      }
+                    }}
+                  />
                 </div>
-                
-                {/* Mobile-First Content */}
-                <div className="p-3 sm:p-6">
-                  {paginatedProgramStatuses.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      {programStatusSearchTerm || statusFilter !== 'all' ? (
-                        <div>
-                          <p className="text-sm sm:text-base">
-                            {programStatusSearchTerm 
-                              ? `Δεν βρέθηκαν προγράμματα για την αναζήτηση "${programStatusSearchTerm}"`
-                              : `Δεν βρέθηκαν προγράμματα με κατάσταση "${statusFilter}"`
-                            }
-                          </p>
-                          <div className="mt-3 flex flex-wrap justify-center gap-2">
-                            {programStatusSearchTerm && (
-                              <button
-                                onClick={() => setProgramStatusSearchTerm('')}
-                                className="px-3 py-1 text-xs sm:text-sm bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
-                              >
-                                ✕ Καθαρισμός αναζήτησης
-                              </button>
-                            )}
-                            {statusFilter !== 'all' && (
-                              <button
-                                onClick={() => setStatusFilter('all')}
-                                className="px-3 py-1 text-xs sm:text-sm bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
-                              >
-                                ✕ Καθαρισμός φίλτρου
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-sm sm:text-base">Δεν υπάρχουν προγράμματα Personal Training</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-3 sm:space-y-4">
-                      {paginatedProgramStatuses.map((programStatus) => (
-                        <div
-                          key={programStatus.schedule.id}
-                          className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-lg cursor-pointer transition-all duration-200 hover:border-blue-300"
-                          onClick={() => {
-                            if (isBlockedTestUser({ email: programStatus.user.email })) return;
-                            setSelectedUser(programStatus.user);
-                            loadPersonalTrainingSchedule(programStatus.user.id);
-                            setTimeout(() => {
-                              const el = document.querySelector('#schedule-editor');
-                              if (el) {
-                                el.scrollIntoView({ 
-                                  behavior: 'smooth', 
-                                  block: 'center',
-                                  inline: 'nearest'
-                                });
-                                el.classList.add('animate-pulse');
-                                setTimeout(() => {
-                                  el.classList.remove('animate-pulse');
-                                }, 2000);
-                              }
-                            }, 500);
-                          }}
-                        >
-                          {/* Mobile Card Layout */}
-                          <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
-                            {/* User Info Section */}
-                            <div className="flex items-start space-x-3 sm:space-x-4">
-                              <div className="flex-shrink-0">
-                                {programStatus.user.profile_photo ? (
-                                  <img
-                                    src={programStatus.user.profile_photo}
-                                    alt={`${programStatus.user.firstName} ${programStatus.user.lastName}`}
-                                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white shadow-lg"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.style.display = 'none';
-                                      const parent = target.parentElement;
-                                      if (parent) {
-                                        parent.innerHTML = '<div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg"><svg class="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>';
-                                      }
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
-                                    <User className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-sm sm:text-base font-bold text-gray-900 truncate">
-                                  {programStatus.user.firstName} {programStatus.user.lastName}
-                                </h4>
-                                <p className="text-xs sm:text-sm text-gray-600 truncate flex items-center">
-                                  <span className="mr-1">📧</span>
-                                  {programStatus.user.email}
-                                </p>
-                                
-                                {/* Mobile Tags */}
-                                <div className="flex flex-wrap items-center gap-2 mt-2">
-                                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                    📅 {programStatus.schedule.month}/{programStatus.schedule.year}
-                                  </span>
-                                  <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${
-                                    getProgramCategory(programStatus.schedule) === 'Personal Training'
-                                      ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                      : getProgramCategory(programStatus.schedule) === 'Kick Boxing'
-                                      ? 'bg-red-100 text-red-800 border border-red-200'
-                                      : 'bg-purple-100 text-purple-800 border border-purple-200'
-                                  }`}>
-                                    {getProgramCategory(programStatus.schedule) === 'Personal Training' && '💪'}
-                                    {getProgramCategory(programStatus.schedule) === 'Kick Boxing' && '🥊'}
-                                    {getProgramCategory(programStatus.schedule) === 'Combo Training' && '🔥'}
-                                    <span className="hidden sm:inline ml-1">{getProgramCategory(programStatus.schedule)}</span>
-                                  </span>
-                                </div>
-                                
-                                {/* Mobile Date Info */}
-                                <div className="mt-2 text-xs text-gray-500">
-                                  <p>Δημιουργήθηκε: {new Date(programStatus.schedule.createdAt).toLocaleDateString('el-GR')}</p>
-                                  {programStatus.status === 'accepted' && programStatus.schedule.acceptedAt && (
-                                    <p className="text-green-600">
-                                      Αποδεκτό: {new Date(programStatus.schedule.acceptedAt).toLocaleDateString('el-GR')}
-                                    </p>
-                                  )}
-                                  {programStatus.status === 'declined' && programStatus.schedule.declinedAt && (
-                                    <p className="text-red-600">
-                                      Απορρίφθηκε: {new Date(programStatus.schedule.declinedAt).toLocaleDateString('el-GR')}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Status Badge */}
-                            <div className="flex-shrink-0 mt-3 sm:mt-0">
-                              <span className={`inline-flex items-center px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold shadow-lg ${
-                                programStatus.status === 'pending' 
-                                  ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white'
-                                  : programStatus.status === 'accepted'
-                                  ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white'
-                                  : 'bg-gradient-to-r from-red-400 to-pink-500 text-white'
-                              }`}>
-                                {programStatus.status === 'pending' && '⏳ Σε Αναμονή'}
-                                {programStatus.status === 'accepted' && '✅ Αποδεκτό'}
-                                {programStatus.status === 'declined' && '❌ Απορριφθέν'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Mobile-First Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="px-3 sm:px-6 py-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
-                    <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="text-center sm:text-left">
-                        <span className="text-xs sm:text-sm text-gray-600">
-                          Εμφανίζονται {startIndex + 1}-{Math.min(endIndex, filteredProgramStatuses.length)} από {filteredProgramStatuses.length} προγράμματα
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center justify-center space-x-1 sm:space-x-2">
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                          disabled={currentPage === 1}
-                          className="px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                        >
-                          ← Προηγούμενη
-                        </button>
-                        
-                        <div className="flex items-center space-x-1">
-                          {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                            let pageNum;
-                            if (totalPages <= 3) {
-                              pageNum = i + 1;
-                            } else if (currentPage <= 2) {
-                              pageNum = i + 1;
-                            } else if (currentPage >= totalPages - 1) {
-                              pageNum = totalPages - 2 + i;
-                            } else {
-                              pageNum = currentPage - 1 + i;
-                            }
-                            
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() => setCurrentPage(pageNum)}
-                                className={`px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 ${
-                                  currentPage === pageNum
-                                    ? 'bg-blue-600 text-white shadow-lg'
-                                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:text-gray-900'
-                                }`}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                          disabled={currentPage === totalPages}
-                          className="px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                        >
-                          Επόμενη →
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
-
 
               {/* Mobile-First Schedule Editor */}
               {selectedUser && personalTrainingSchedule && !isBlockedTestUser({ email: selectedUser.email, personalTrainingCode: selectedUser.personalTrainingCode }) && (
@@ -3877,7 +3626,7 @@ const AdminPanel: React.FC = () => {
           )}
 
           {/* Other tabs placeholder */}
-          {activeTab !== 'personal-training' && activeTab !== 'membership-packages' && activeTab !== 'pilates-schedule' && activeTab !== 'kettlebell-points' && activeTab !== 'cash-register' && !loading && (
+          {activeTab !== 'personal-training' && activeTab !== 'membership-packages' && activeTab !== 'installments' && activeTab !== 'pilates-schedule' && activeTab !== 'kettlebell-points' && activeTab !== 'cash-register' && !loading && (
             <div className="text-center py-8 text-gray-500">
               <p>Αυτή η κατηγορία θα υλοποιηθεί σύντομα.</p>
             </div>
@@ -4253,25 +4002,15 @@ const AdminPanel: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Group Assignment Summary */}
+                    {/* Group Assignment Interface */}
                     {selectedGroupRoom && weeklyFrequency && (
-                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-300 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-sm font-medium text-gray-700">Περίληψη Ανάθεσης Ομάδας</div>
-                            <div className="text-lg font-bold text-green-800">
-                              {selectedUserIds.length} χρήστες (μέγιστο {selectedGroupRoom} άτομα)
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {weeklyFrequency} φορές/εβδομάδα • {monthlyTotal} συνεδρίες/μήνα
-                            </div>
-                            <div className="text-sm text-green-600 mt-2 font-medium">
-                              ✅ Ευέλικτη ομαδική ανάθεση - ο admin μπορεί να προσθέσει/αφαιρέσει χρήστες
-                            </div>
-                          </div>
-                          <div className="text-3xl">✅</div>
-                        </div>
-                      </div>
+                      <GroupAssignmentInterface 
+                        selectedGroupRoom={selectedGroupRoom}
+                        weeklyFrequency={weeklyFrequency}
+                        monthlyTotal={monthlyTotal}
+                        selectedUserIds={selectedUserIds}
+                        onSlotsChange={setSelectedGroupSlots}
+                      />
                     )}
                   </div>
                 </div>
@@ -4793,8 +4532,9 @@ const AdminPanel: React.FC = () => {
               )}
 
             
-                             {/* Excel-Style Προσωποποιημένο Πρόγραμμα */}
-               <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-4 sm:p-6 border border-orange-200">
+              {/* Excel-Style Προσωποποιημένο Πρόγραμμα - HIDE WHEN GROUP IS SELECTED */}
+              {trainingType !== 'group' && (
+                <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-4 sm:p-6 border border-orange-200">
                  <div className="flex items-center justify-between mb-4 sm:mb-6">
                    <h4 className="text-lg sm:text-xl font-bold text-orange-800 flex items-center">
                    🏋️‍♂️ Προσωποποιημένο Πρόγραμμα 
@@ -4991,7 +4731,8 @@ const AdminPanel: React.FC = () => {
                      </div>
                    </div>
                  </div>
-               </div>
+                </div>
+              )}
             </div>
             
             {/* Enhanced Action Buttons */}
@@ -5010,6 +4751,73 @@ const AdminPanel: React.FC = () => {
                 ✅ Δημιουργία Προγράμματος
               </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Group Assignment Manager Modal */}
+      {showGroupAssignmentManager && groupAssignmentUser && groupAssignmentProgramId && weeklyFrequency && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  Διαχείριση Ομαδικών Αναθέσεων
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowGroupAssignmentManager(false);
+                    setGroupAssignmentUser(null);
+                    setGroupAssignmentProgramId(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <GroupAssignmentManager
+                selectedUser={groupAssignmentUser}
+                programId={groupAssignmentProgramId}
+                weeklyFrequency={weeklyFrequency}
+                onAssignmentComplete={() => {
+                  // Refresh the overview when assignments are completed
+                  setGroupOverviewKey(prev => prev + 1);
+                  
+                  // Check if there are more users to assign
+                  const currentUserIndex = selectedUserIds.findIndex(id => id === groupAssignmentUser.id);
+                  if (currentUserIndex < selectedUserIds.length - 1) {
+                    // Move to next user
+                    const nextUserId = selectedUserIds[currentUserIndex + 1];
+                    const nextUser = allUsers.find(u => u.id === nextUserId);
+                    if (nextUser) {
+                      // Find the schedule for the next user
+                      supabase
+                        .from('personal_training_schedules')
+                        .select('id')
+                        .eq('user_id', nextUser.id)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .then(({ data }) => {
+                          if (data && data.length > 0) {
+                            setGroupAssignmentUser(nextUser);
+                            setGroupAssignmentProgramId(data[0].id);
+                            toast.success(`Μετάβαση στον επόμενο χρήστη: ${nextUser.firstName} ${nextUser.lastName}`);
+                          }
+                        });
+                    }
+                  } else {
+                    // All users assigned, close modal
+                    toast.success('Όλες οι αναθέσεις ολοκληρώθηκαν!');
+                    setShowGroupAssignmentManager(false);
+                    setGroupAssignmentUser(null);
+                    setGroupAssignmentProgramId(null);
+                  }
+                }}
+              />
             </div>
           </div>
         </div>

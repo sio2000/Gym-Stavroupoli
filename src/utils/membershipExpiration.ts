@@ -2,161 +2,151 @@ import { supabase } from '@/config/supabase';
 
 /**
  * Utility functions for handling membership expiration
+ * 🎯 PURPOSE: Manual expiration management since no scheduled jobs exist
  */
+
+export interface ExpirationResult {
+  success: boolean;
+  expiredCount: number;
+  message: string;
+  error?: string;
+}
 
 /**
  * Manually expire memberships that have passed their end_date
- * This function should be called periodically (e.g., via cron job)
+ * 🔧 USAGE: Call this from admin panel or secretary dashboard
  */
-export const expireMemberships = async (): Promise<{ success: boolean; expiredCount: number; error?: string }> => {
+export const expireOverdueMemberships = async (): Promise<ExpirationResult> => {
   try {
     console.log('[MembershipExpiration] Starting manual expiration process...');
     
-    const { error } = await supabase.rpc('expire_memberships');
+    // Call the database function to expire overdue memberships
+    const { data, error } = await supabase.rpc('manual_expire_overdue_memberships');
     
     if (error) {
-      console.error('[MembershipExpiration] Error calling expire_memberships RPC:', error);
-      return { success: false, expiredCount: 0, error: error.message };
+      console.error('[MembershipExpiration] Error calling manual_expire_overdue_memberships:', error);
+      return { 
+        success: false, 
+        expiredCount: 0, 
+        message: 'Σφάλμα κατά τη λήξη συνδρομών',
+        error: error.message 
+      };
     }
     
-    console.log('[MembershipExpiration] Successfully expired memberships');
-    return { success: true, expiredCount: 0 }; // RPC doesn't return count, but we know it succeeded
+    const result = data?.[0];
+    console.log('[MembershipExpiration] Expiration result:', result);
+    
+    return {
+      success: result?.success || false,
+      expiredCount: result?.expired_count || 0,
+      message: result?.message || 'Ολοκληρώθηκε η διαδικασία λήξης συνδρομών'
+    };
   } catch (error) {
     console.error('[MembershipExpiration] Unexpected error:', error);
     return { 
       success: false, 
       expiredCount: 0, 
+      message: 'Απρόσμενο σφάλμα',
       error: error instanceof Error ? error.message : 'Unknown error' 
     };
   }
 };
 
 /**
- * Check and expire memberships using the check_and_expire_memberships function
- * This is a more comprehensive function that includes logging
+ * Get user's active memberships using deterministic logic
+ * 🔧 USAGE: Use this instead of basic membership queries
  */
-export const checkAndExpireMemberships = async (): Promise<{ success: boolean; expiredCount: number; error?: string }> => {
+export const getUserActiveMembershipsDeterministic = async (userId: string) => {
   try {
-    console.log('[MembershipExpiration] Starting check and expire process...');
+    console.log('[MembershipExpiration] Getting deterministic active memberships for:', userId);
     
-    const { error } = await supabase.rpc('check_and_expire_memberships');
+    const { data, error } = await supabase.rpc('get_user_active_memberships_deterministic', {
+      p_user_id: userId
+    });
     
     if (error) {
-      console.error('[MembershipExpiration] Error calling check_and_expire_memberships RPC:', error);
-      return { success: false, expiredCount: 0, error: error.message };
+      console.error('[MembershipExpiration] Error getting deterministic memberships:', error);
+      return [];
     }
     
-    console.log('[MembershipExpiration] Successfully checked and expired memberships');
-    return { success: true, expiredCount: 0 }; // RPC doesn't return count, but we know it succeeded
+    console.log('[MembershipExpiration] Deterministic active memberships:', data);
+    return data || [];
   } catch (error) {
-    console.error('[MembershipExpiration] Unexpected error:', error);
-    return { 
-      success: false, 
-      expiredCount: 0, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    };
+    console.error('[MembershipExpiration] Error in getUserActiveMembershipsDeterministic:', error);
+    return [];
   }
 };
 
 /**
- * Get count of expired memberships for a specific user
+ * Check if user has QR access using deterministic logic
+ * 🔧 USAGE: Use this for QR code visibility decisions
  */
-export const getExpiredMembershipsCount = async (userId: string): Promise<number> => {
+export const userHasQRAccess = async (userId: string): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
-      .from('memberships')
-      .select('id', { count: 'exact' })
-      .eq('user_id', userId)
-      .eq('is_active', false);
+    console.log('[MembershipExpiration] Checking deterministic QR access for:', userId);
+    
+    const { data, error } = await supabase.rpc('user_has_qr_access', {
+      p_user_id: userId
+    });
     
     if (error) {
-      console.error('[MembershipExpiration] Error getting expired memberships count:', error);
-      return 0;
+      console.error('[MembershipExpiration] Error checking QR access:', error);
+      return false;
     }
     
-    return data?.length || 0;
+    const hasAccess = data === true;
+    console.log('[MembershipExpiration] User QR access:', hasAccess);
+    return hasAccess;
   } catch (error) {
-    console.error('[MembershipExpiration] Unexpected error getting expired count:', error);
-    return 0;
-  }
-};
-
-/**
- * Get count of active memberships for a specific user
- */
-export const getActiveMembershipsCount = async (userId: string): Promise<number> => {
-  try {
-    const { data, error } = await supabase
-      .from('memberships')
-      .select('id', { count: 'exact' })
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .gte('end_date', new Date().toISOString().split('T')[0]);
-    
-    if (error) {
-      console.error('[MembershipExpiration] Error getting active memberships count:', error);
-      return 0;
-    }
-    
-    return data?.length || 0;
-  } catch (error) {
-    console.error('[MembershipExpiration] Unexpected error getting active count:', error);
-    return 0;
-  }
-};
-
-/**
- * Check if a user has any active memberships
- */
-export const userHasActiveMemberships = async (userId: string): Promise<boolean> => {
-  try {
-    const activeCount = await getActiveMembershipsCount(userId);
-    return activeCount > 0;
-  } catch (error) {
-    console.error('[MembershipExpiration] Error checking if user has active memberships:', error);
+    console.error('[MembershipExpiration] Error in userHasQRAccess:', error);
     return false;
   }
 };
 
 /**
- * Get membership status for a user (for debugging)
+ * Get system-wide membership status summary
+ * 🔧 USAGE: For admin dashboard monitoring
  */
-export const getUserMembershipStatus = async (userId: string): Promise<{
-  hasActive: boolean;
-  activeCount: number;
-  expiredCount: number;
-  totalCount: number;
-}> => {
+export const getMembershipStatusSummary = async () => {
   try {
-    const [activeCount, expiredCount, totalCount] = await Promise.all([
-      getActiveMembershipsCount(userId),
-      getExpiredMembershipsCount(userId),
-      supabase
-        .from('memberships')
-        .select('id', { count: 'exact' })
-        .eq('user_id', userId)
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('[MembershipExpiration] Error getting total count:', error);
-            return 0;
-          }
-          return data?.length || 0;
-        })
-    ]);
+    console.log('[MembershipExpiration] Getting membership status summary...');
+    
+    const { data, error } = await supabase.rpc('get_membership_status_summary');
+    
+    if (error) {
+      console.error('[MembershipExpiration] Error getting status summary:', error);
+      return null;
+    }
+    
+    const summary = data?.[0];
+    console.log('[MembershipExpiration] Status summary:', summary);
+    return summary;
+  } catch (error) {
+    console.error('[MembershipExpiration] Error in getMembershipStatusSummary:', error);
+    return null;
+  }
+};
+
+/**
+ * Force refresh user's membership status
+ * 🔧 USAGE: Call after membership changes to ensure UI updates
+ */
+export const refreshUserMembershipStatus = async (userId: string) => {
+  try {
+    // First expire any overdue memberships
+    await expireOverdueMemberships();
+    
+    // Then get fresh deterministic data
+    const activeMemberships = await getUserActiveMembershipsDeterministic(userId);
+    const hasQRAccess = await userHasQRAccess(userId);
     
     return {
-      hasActive: activeCount > 0,
-      activeCount,
-      expiredCount,
-      totalCount
+      activeMemberships,
+      hasQRAccess,
+      refreshedAt: new Date().toISOString()
     };
   } catch (error) {
-    console.error('[MembershipExpiration] Error getting membership status:', error);
-    return {
-      hasActive: false,
-      activeCount: 0,
-      expiredCount: 0,
-      totalCount: 0
-    };
+    console.error('[MembershipExpiration] Error refreshing membership status:', error);
+    return null;
   }
 };

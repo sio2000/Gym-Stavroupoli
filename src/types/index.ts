@@ -365,6 +365,9 @@ export interface PersonalTrainingSchedule {
   declineReason?: string;
   userType?: 'personal' | 'paspartu'; // New field to distinguish user types
   isFlexible?: boolean; // New field to indicate if schedule allows flexible booking
+  trainingType?: 'individual' | 'group'; // Training type
+  groupRoomSize?: number; // Group size (2, 3, or 6)
+  weeklyFrequency?: number; // Weekly frequency for group training
 }
 
 export interface PersonalTrainingScheduleData {
@@ -372,6 +375,10 @@ export interface PersonalTrainingScheduleData {
   notes?: string;
   trainer?: string;
   specialInstructions?: string;
+  // Group training specific fields
+  groupRoomSize?: number | null;
+  weeklyFrequency?: number | null;
+  monthlyTotal?: number | null;
 }
 
 export interface PersonalTrainingSession {
@@ -400,6 +407,71 @@ export interface UserWithPersonalTraining {
   hasPersonalTrainingCode: boolean;
   personalTrainingCode?: string;
   packageType?: 'personal' | 'kickboxing' | 'combo';
+}
+
+// Group Assignment System Types
+export interface GroupScheduleTemplate {
+  id: string;
+  groupType: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  trainer: string;
+  room: string;
+  groupIdentifier: string;
+  maxCapacity: number;
+  currentAssignments: number;
+  availableSpots: number;
+  isFull: boolean;
+}
+
+export interface GroupAssignment {
+  id: string;
+  programId: string;
+  userId: string;
+  groupType: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  trainer: string;
+  room: string;
+  groupIdentifier: string;
+  weeklyFrequency: number;
+  assignmentDate: string;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  notes?: string;
+  userInfo?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+}
+
+export interface UserWeeklyAssignment {
+  id: string;
+  userId: string;
+  programId: string;
+  targetWeeklyFrequency: number;
+  currentAssignmentsCount: number;
+  weekStartDate: string;
+  isComplete: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GroupAssignmentValidation {
+  isValid: boolean;
+  errorMessage: string;
+  errorType: string;
+}
+
+export interface GroupAssignmentResult {
+  success: boolean;
+  assignmentId: string | null;
+  message: string;
 }
 
 // Lesson Deposit System Types for Paspartu Users

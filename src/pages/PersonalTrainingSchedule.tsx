@@ -11,18 +11,23 @@ import {
   Dumbbell,
   Zap,
   Target,
-  MessageSquare
+  MessageSquare,
+  Users,
+  MapPin
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
-  PersonalTrainingSchedule
+  PersonalTrainingSchedule,
+  GroupAssignment
 } from '@/types';
+import { getUserGroupAssignments, getDayName, formatTime } from '@/utils/groupAssignmentApi';
 
 const PersonalTrainingSchedulePage: React.FC = () => {
   console.log('[PersonalTrainingSchedule] Component rendering');
   const { user } = useAuth();
   console.log('[PersonalTrainingSchedule] User from useAuth:', user?.email, 'ID:', user?.id);
   const [schedule, setSchedule] = useState<PersonalTrainingSchedule | null>(null);
+  const [groupAssignments, setGroupAssignments] = useState<GroupAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeclineMessage, setShowDeclineMessage] = useState(false);
   const [isLoading, setIsLoading] = useState(false); // Protection against multiple calls
@@ -108,10 +113,10 @@ const PersonalTrainingSchedulePage: React.FC = () => {
 
       console.log('[PersonalTrainingSchedule] Querying personal_training_schedules...');
       
-      // Optimized query - only select necessary fields
+      // Optimized query - only select necessary fields including group information
       const { data, error } = await supabase
         .from('personal_training_schedules')
-        .select('id,user_id,month,year,schedule_data,status,created_by,created_at,updated_at,trainer_name,accepted_at,declined_at')
+        .select('id,user_id,month,year,schedule_data,status,created_by,created_at,updated_at,trainer_name,accepted_at,declined_at,training_type,group_room_size,weekly_frequency')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -140,10 +145,26 @@ const PersonalTrainingSchedulePage: React.FC = () => {
           createdAt: row.created_at,
           updatedAt: row.updated_at,
           acceptedAt: row.accepted_at,
-          declinedAt: row.declined_at
+          declinedAt: row.declined_at,
+          trainingType: row.training_type,
+          groupRoomSize: row.group_room_size,
+          weeklyFrequency: row.weekly_frequency
         } as any;
         
         console.log('[PersonalTrainingSchedule] Loaded schedule:', loaded);
+        
+        // Load group assignments if this is a group training
+        if (loaded.trainingType === 'group') {
+          try {
+            const assignments = await getUserGroupAssignments(user.id, loaded.id);
+            setGroupAssignments(assignments);
+            console.log('[PersonalTrainingSchedule] Loaded group assignments:', assignments);
+          } catch (error) {
+            console.error('[PersonalTrainingSchedule] Error loading group assignments:', error);
+            // Don't show error to user as this is optional data
+          }
+        }
+        
         // Auto-accept any pending schedule for this user
         if (loaded.status === 'pending') {
           try {
@@ -343,18 +364,84 @@ const PersonalTrainingSchedulePage: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Πρόγραμμα Personal Training</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Πρόγραμμα Personal Training
+                {schedule.trainingType === 'group' && (
+                  <span className="ml-2 text-lg text-blue-600">
+                    (Ομαδικό - {schedule.groupRoomSize} άτομα)
+                  </span>
+                )}
+              </h1>
               <p className="text-gray-600 mt-1">
                 {days[schedule.month - 1]} {schedule.year}
+                {schedule.trainingType === 'group' && schedule.weeklyFrequency && (
+                  <span className="ml-2 text-blue-600">
+                    • {schedule.weeklyFrequency} φορές/εβδομάδα
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex items-center space-x-2">
+              {schedule.trainingType === 'group' && (
+                <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                  👥 Group Training
+                </span>
+              )}
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(schedule.status)}`}>
                 {getStatusText(schedule.status)}
               </span>
             </div>
           </div>
         </div>
+
+        {/* Group Assignments - Only for Group Training */}
+        {schedule.trainingType === 'group' && groupAssignments.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <Users className="h-5 w-5 mr-2 text-blue-600" />
+              Οι Ομαδικές σας Θέσεις
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {groupAssignments.map((assignment) => (
+                <div key={assignment.id} className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="font-medium text-blue-900">
+                        {getDayName(assignment.dayOfWeek)}
+                      </h3>
+                      <p className="text-sm text-blue-700">
+                        {formatTime(assignment.startTime)} - {formatTime(assignment.endTime)}
+                      </p>
+                    </div>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                      👥 {assignment.groupType} άτομα
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1 text-sm text-blue-700">
+                    <div className="flex items-center">
+                      <User className="h-4 w-4 mr-2" />
+                      Προπονητής: {assignment.trainer}
+                    </div>
+                    {assignment.room && (
+                      <div className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        {assignment.room}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {assignment.notes && (
+                    <div className="mt-2 text-xs text-blue-600 bg-blue-100 rounded p-2">
+                      💬 {assignment.notes}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Schedule Sessions */}
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
