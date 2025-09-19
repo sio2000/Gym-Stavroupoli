@@ -1268,7 +1268,7 @@ const AdminPanel: React.FC = () => {
           package_id: personalPackage.id,
           duration_type: 'lesson', // Default duration type
           start_date: new Date().toISOString().split('T')[0],
-          end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year from now
+          end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 month from now
           is_active: true,
           approved_by: user?.id,
           approved_at: new Date().toISOString()
