@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/config/supabase';
 import { 
@@ -16,7 +16,7 @@ import {
   Award,
   DollarSign,
   Loader2,
-  CreditCard
+  AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
@@ -28,11 +28,14 @@ import {
   MembershipPackageDuration,
   MembershipRequest
 } from '@/types';
+import { createUserGroupSessions, deleteUserGroupSessions } from '@/utils/groupSessionsApi';
 import PilatesScheduleManagement from '@/components/admin/PilatesScheduleManagement';
 import CashRegister from '@/components/admin/CashRegister';
 import GroupAssignmentManager from '@/components/admin/GroupAssignmentManager';
-import GroupProgramsOverview from '@/components/admin/GroupProgramsOverview';
 import GroupAssignmentInterface from '@/components/admin/GroupAssignmentInterface';
+import GroupTrainingCalendar from '@/components/admin/GroupTrainingCalendar';
+import AdminUltimateInstallmentsTab from '@/components/admin/AdminUltimateInstallmentsTab';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 import { 
   getMembershipPackages, 
@@ -67,15 +70,42 @@ import {
 // Available trainers for dropdown selection
 const AVAILABLE_TRAINERS: TrainerName[] = ['Mike', 'Jordan'];
 
+// Large dataset handling constants
+const LARGE_DATASET_THRESHOLD = 100;
+const ITEMS_PER_PAGE = 50;
+
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'installments' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register'>('personal-training');
+  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'ultimate-subscriptions' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register'>('personal-training');
   const [allUsers, setAllUsers] = useState<UserWithPersonalTraining[]>([]);
   const [programStatuses, setProgramStatuses] = useState<Array<{
     user: UserWithPersonalTraining;
     schedule: PersonalTrainingSchedule;
     status: 'pending' | 'accepted' | 'declined';
   }>>([]);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage] = useState(10);
+  
+  // Data caching state - track which tabs have loaded data
+  const [dataLoaded, setDataLoaded] = useState({
+    'personal-training': false,
+    'membership-packages': false,
+    'ultimate-subscriptions': false,
+    'pilates-schedule': false,
+    'kettlebell-points': false,
+    'cash-register': false
+  });
+  
+  // Memoized pagination logic
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * usersPerPage;
+    const endIndex = startIndex + usersPerPage;
+    return allUsers.slice(startIndex, endIndex);
+  }, [allUsers, currentPage, usersPerPage]);
+  
+  const totalPages = Math.ceil(allUsers.length / usersPerPage);
   const [selectedUser] = useState<UserWithPersonalTraining | null>(null);
   const [personalTrainingSchedule, setPersonalTrainingSchedule] = useState<PersonalTrainingSchedule | null>(null);
   const [loading, setLoading] = useState(false);
@@ -85,7 +115,7 @@ const AdminPanel: React.FC = () => {
     code: '',
     selectedUserId: '' 
   });
-  const [trainingType, setTrainingType] = useState<'individual' | 'group'>('individual');
+  const [trainingType, setTrainingType] = useState<'individual' | 'group' | 'combination'>('individual');
   const [userType, setUserType] = useState<'personal' | 'paspartu'>('personal'); // New state for user type selection
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   
@@ -94,17 +124,22 @@ const AdminPanel: React.FC = () => {
   const [weeklyFrequency, setWeeklyFrequency] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [monthlyTotal, setMonthlyTotal] = useState<number>(0);
   
+  // Combination training state
+  const [combinationPersonalSessions, setCombinationPersonalSessions] = useState(1);
+  const [combinationGroupSessions, setCombinationGroupSessions] = useState(2);
+  
   // Group Assignment Manager state
   const [showGroupAssignmentManager, setShowGroupAssignmentManager] = useState(false);
   const [groupAssignmentUser, setGroupAssignmentUser] = useState<UserWithPersonalTraining | null>(null);
   const [groupAssignmentProgramId, setGroupAssignmentProgramId] = useState<string | null>(null);
-  const [groupOverviewKey, setGroupOverviewKey] = useState(0); // For refreshing the overview
   const [selectedGroupSlots, setSelectedGroupSlots] = useState<{[userId: string]: any[]}>({});
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [userSearchMode, setUserSearchMode] = useState<'dropdown' | 'search'>('dropdown');
   const [programStatusSearchTerm] = useState('');
   const [statusFilter] = useState<'all' | 'pending' | 'accepted' | 'declined'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Feature flags
+  const [groupCalendarEnabled] = useState(true); // Feature flag for Group Training Calendar
   
   // New panel state variables
   const [usedOldMembers, setUsedOldMembers] = useState<Set<string>>(new Set());
@@ -151,6 +186,15 @@ const AdminPanel: React.FC = () => {
 
   // Program Approval state
   const [programApprovalStatus, setProgramApprovalStatus] = useState<'none' | 'approved' | 'rejected' | 'pending'>('none');
+  
+  // Ultimate Subscriptions state
+  const [ultimateRequests, setUltimateRequests] = useState<MembershipRequest[]>([]);
+  const [ultimateLoading, setUltimateLoading] = useState(false);
+  const [ultimateSearchTerm, setUltimateSearchTerm] = useState('');
+  
+  // Large dataset handling state
+  const [isLoadingLargeDataset, setIsLoadingLargeDataset] = useState(false);
+  const [largeDatasetPage, setLargeDatasetPage] = useState(1);
   
   // Pending state for UI
   const [pendingUsers, setPendingUsers] = useState<Set<string>>(new Set());
@@ -204,11 +248,27 @@ const AdminPanel: React.FC = () => {
       setWeeklyFrequency(null);
       setMonthlyTotal(0);
     }
+    // For combination, we keep group room options so user can configure group part
+    
+    // Force personal user type for combination training
+    if (trainingType === 'combination') {
+      setUserType('personal');
+    }
   }, [trainingType]);
+  
+  // Auto-set default group room for group and combination training (since admin will choose per session)
+  useEffect(() => {
+    if ((trainingType === 'group' && selectedUserIds.length > 0) || (trainingType === 'combination' && newCode.selectedUserId)) {
+      if (!selectedGroupRoom) {
+        console.log('[AdminPanel] Auto-setting default group room to 3 for', trainingType);
+        setSelectedGroupRoom('3'); // Default value since admin will customize per session
+      }
+    }
+  }, [trainingType, selectedUserIds.length, newCode.selectedUserId]);
 
   // Load frozen options when user is selected
   useEffect(() => {
-    if (trainingType === 'individual' && newCode.selectedUserId) {
+    if ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) {
       const frozen = getFrozenOptions(newCode.selectedUserId);
       if (frozen) {
         setKettlebellPoints(frozen.kettlebellPoints || '');
@@ -261,15 +321,11 @@ const AdminPanel: React.FC = () => {
   // Pilates package state
   const [pilatesDurations, setPilatesDurations] = useState<MembershipPackageDuration[]>([]);
   
-  // Installments state
-  const [installmentRequests, setInstallmentRequests] = useState<MembershipRequest[]>([]);
-  const [installmentLoading, setInstallmentLoading] = useState(false);
-  const [installmentSearchTerm, setInstallmentSearchTerm] = useState('');
 
   const tabs = [
     { id: 'personal-training', name: 'Personal Training Πρόγραμμα', icon: Calendar },
     { id: 'membership-packages', name: 'Πακέτα Συνδρομών', icon: Settings },
-    { id: 'installments', name: 'Δόσεις Ultimate', icon: CreditCard },
+    { id: 'ultimate-subscriptions', name: '👑 Ultimate Συνδρομές', icon: User },
     { id: 'pilates-schedule', name: 'Πρόγραμμα Pilates', icon: Clock },
     { id: 'kettlebell-points', name: 'Kettlebell Points', icon: Award },
     { id: 'cash-register', name: 'Ταμείο', icon: DollarSign }
@@ -453,7 +509,7 @@ const AdminPanel: React.FC = () => {
   };
 
   // Load all users and their personal training schedules from the database
-  const loadAllUsers = async () => {
+  const loadAllUsers = useCallback(async () => {
     console.log('[AdminPanel] ===== DATA LOADING STARTED =====');
     console.log('[AdminPanel] Current user:', user?.email, 'Role:', user?.role);
     
@@ -605,6 +661,9 @@ const AdminPanel: React.FC = () => {
       console.log('[AdminPanel] Transformed users count:', usersWithAuthData.length);
       setAllUsers(usersWithAuthData);
       
+      // Mark data as loaded to prevent re-loading
+      setDataLoaded(prev => ({ ...prev, 'personal-training': true }));
+      
       // Create real program statuses from schedules data
       console.log('[AdminPanel] Creating program statuses from schedules...');
       console.log('[AdminPanel] Schedules data:', schedules);
@@ -672,6 +731,7 @@ const AdminPanel: React.FC = () => {
       
       await checkPersonalTrainingCodes(usersWithAuthData);
       
+      setDataLoaded(prev => ({ ...prev, 'personal-training': true }));
       console.log('[AdminPanel] ===== DATA LOADING COMPLETED SUCCESSFULLY =====');
       
     } catch (error) {
@@ -686,7 +746,7 @@ const AdminPanel: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.email, user?.role]);
 
   // Check which users have personal training codes
   const checkPersonalTrainingCodes = async (users: UserWithPersonalTraining[]) => {
@@ -724,34 +784,46 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  // Load data when user changes (after login)
+  // Track loading states to prevent duplicate calls
+  const [loadingStates, setLoadingStates] = useState<{[key: string]: boolean}>({});
+
+  // Load data when user changes (after login) - OPTIMIZED
   useEffect(() => {
     console.log('[AdminPanel] useEffect triggered - user:', user?.email, 'role:', user?.role, 'activeTab:', activeTab);
     
-    if (user && user.role === 'admin' && activeTab === 'personal-training') {
-      console.log('[AdminPanel] User changed - loading data for admin user:', user.email);
-      loadAllUsers();
-    } else if (user && user.role === 'admin' && activeTab === 'installments') {
-      console.log('[AdminPanel] Loading installment requests for admin user:', user.email);
-      loadInstallmentRequests();
-    } else if (user && user.role !== 'admin') {
-      console.warn('[AdminPanel] User is not admin! Role:', user.role, 'Email:', user.email);
-    } else if (!user) {
+    if (!user) {
       console.log('[AdminPanel] No user logged in');
+      return;
     }
-  }, [user, activeTab]);
-
-  // Load Old Members usage data when users are loaded
-  // Load old members usage data for all users
-  // This is now handled by the main loadOldMembersUsage useEffect above
-  // No need to loop through all users individually
-
-  useEffect(() => {
-    if (activeTab === 'personal-training') {
-      console.log('[AdminPanel] useEffect triggered - loading data for personal-training tab');
-      loadAllUsers();
+    
+    if (user.role !== 'admin') {
+      console.warn('[AdminPanel] User is not admin! Role:', user.role, 'Email:', user.email);
+      return;
     }
-  }, [activeTab]);
+    
+    // Prevent duplicate loading calls
+    if (loadingStates[activeTab]) {
+      console.log(`[AdminPanel] ${activeTab} is already loading, skipping...`);
+      return;
+    }
+    
+    // Load data based on active tab - ONLY if not already loaded
+    if (activeTab === 'personal-training' && !dataLoaded['personal-training']) {
+      console.log('[AdminPanel] Loading data for personal-training tab');
+      setLoadingStates(prev => ({ ...prev, [activeTab]: true }));
+      loadAllUsers().finally(() => setLoadingStates(prev => ({ ...prev, [activeTab]: false })));
+    } else if (activeTab === 'membership-packages' && !dataLoaded['membership-packages']) {
+      console.log('[AdminPanel] Loading membership packages');
+      setLoadingStates(prev => ({ ...prev, [activeTab]: true }));
+      loadMembershipPackages().finally(() => setLoadingStates(prev => ({ ...prev, [activeTab]: false })));
+    } else if (activeTab === 'kettlebell-points' && !dataLoaded['kettlebell-points']) {
+      console.log('[AdminPanel] Loading kettlebell points');
+      setLoadingStates(prev => ({ ...prev, [activeTab]: true }));
+      loadKettlebellPointsData().finally(() => setLoadingStates(prev => ({ ...prev, [activeTab]: false })));
+    } else {
+      console.log(`[AdminPanel] ${activeTab} data already loaded, skipping reload`);
+    }
+  }, [user?.id, activeTab]); // Removed dataLoaded from dependencies to prevent infinite loops
 
 
 
@@ -888,14 +960,14 @@ const AdminPanel: React.FC = () => {
 
     try {
       setLoading(true);
-      const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+      const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
       
       if (userIds.length === 0) {
         toast.error('Δεν υπάρχουν επιλεγμένοι χρήστες');
         return;
       }
 
-      // Validate group room selection for group training
+      // Validate group room selection for group training and combination
       if (trainingType === 'group') {
         if (!selectedGroupRoom || !weeklyFrequency) {
           toast.error('Παρακαλώ επιλέξτε Ομαδική Αίθουσα και συχνότητα εβδομάδας');
@@ -907,6 +979,15 @@ const AdminPanel: React.FC = () => {
           return;
         }
       }
+      
+      // For combination training, also validate group room selection if group sessions are configured
+      if (trainingType === 'combination' && combinationGroupSessions > 0) {
+        if (!selectedGroupRoom || !weeklyFrequency) {
+          toast.error('Για συνδυασμένο πρόγραμμα με ομαδικές σεσίες, παρακαλώ επιλέξτε Ομαδική Αίθουσα και συχνότητα εβδομάδας');
+          return;
+        }
+      }
+      
 
       // Save approval states for each user
       for (const userId of userIds) {
@@ -925,11 +1006,11 @@ const AdminPanel: React.FC = () => {
             cashAmount: userOptions.cashAmount || 0,
             posAmount: userOptions.posAmount || 0,
             createdBy: user.id,
-            // Add group room information for group training
-            groupRoomSize: trainingType === 'group' ? parseInt(selectedGroupRoom!) : null,
-            weeklyFrequency: trainingType === 'group' ? weeklyFrequency : null,
-            monthlyTotal: trainingType === 'group' ? monthlyTotal : null,
-            notes: `Program options saved with ${programApprovalStatus} status${isPending ? ' (from frozen state)' : ''}${trainingType === 'group' ? ` - Ομαδική Αίθουσα: ${selectedGroupRoom} χρήστες, ${weeklyFrequency} φορές/εβδομάδα` : ''}`
+            // Add group room information for group training and combination
+            groupRoomSize: (trainingType === 'group' || trainingType === 'combination') ? parseInt(selectedGroupRoom!) : null,
+            weeklyFrequency: (trainingType === 'group' || trainingType === 'combination') ? weeklyFrequency : null,
+            monthlyTotal: (trainingType === 'group' || trainingType === 'combination') ? monthlyTotal : null,
+            notes: `Program options saved with ${programApprovalStatus} status${isPending ? ' (from frozen state)' : ''}${(trainingType === 'group' || trainingType === 'combination') ? ` - Ομαδική Αίθουσα: ${selectedGroupRoom} χρήστες, ${weeklyFrequency} φορές/εβδομάδα` : ''}`
           }
         );
 
@@ -966,10 +1047,10 @@ const AdminPanel: React.FC = () => {
               pos: userOptions.pos,
               cashAmount: userOptions.cashAmount,
               posAmount: userOptions.posAmount,
-              // Add group room information for group training
-              groupRoomSize: trainingType === 'group' ? parseInt(selectedGroupRoom!) : null,
-              weeklyFrequency: trainingType === 'group' ? weeklyFrequency : null,
-              monthlyTotal: trainingType === 'group' ? monthlyTotal : null
+              // Add group room information for group training and combination
+              groupRoomSize: (trainingType === 'group' || trainingType === 'combination') ? parseInt(selectedGroupRoom!) : null,
+              weeklyFrequency: (trainingType === 'group' || trainingType === 'combination') ? weeklyFrequency : null,
+              monthlyTotal: (trainingType === 'group' || trainingType === 'combination') ? monthlyTotal : null
             };
             newPendingUsers.add(userId);
           }
@@ -1101,7 +1182,7 @@ const AdminPanel: React.FC = () => {
   };
 
   const createPersonalTrainingProgram = async () => {
-    const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+    const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
     
     if (userIds.length === 0) {
       toast.error('Παρακαλώ επιλέξτε χρήστη/ες');
@@ -1126,19 +1207,71 @@ const AdminPanel: React.FC = () => {
         console.log('[ADMIN] Admin user ID:', user?.id);
 
         // Δημιουργούμε το πρόγραμμα Personal Training
-        // ΓΙΑ GROUP PROGRAMS: Δεν δημιουργούμε προγραμματισμένες σεσίες από το Προσωποποιημένο Πρόγραμμα
-        const scheduleSessions: PersonalTrainingSession[] = trainingType === 'group' 
-          ? [] // Άδεια σεσίες για group programs
-          : programSessions.map((s) => ({
-              id: s.id,
-              date: s.date,
-              startTime: s.startTime,
-              endTime: s.endTime,
-              type: s.type,
-              trainer: s.trainer || 'Mike',
-              room: s.room,
-              notes: s.notes
-            }));
+        // ΓΙΑ GROUP PROGRAMS: Δημιουργούμε sessions όπως για Individual (για Paspartu users)
+        // ΓΙΑ COMBINATION PROGRAMS: Δημιουργούμε μόνο τις personal sessions από το Προσωποποιημένο Πρόγραμμα
+        let scheduleSessions: PersonalTrainingSession[] = [];
+        
+        if (trainingType === 'group') {
+          // Για Group Paspartu: δημιουργούμε sessions από Group Assignment Interface ή από programSessions
+          if (userType === 'paspartu') {
+            // Get sessions from Group Assignment Interface for this user
+            const userGroupSlots = selectedGroupSlots[selectedUser.id] || [];
+            if (userGroupSlots.length > 0) {
+              // Use sessions from Group Assignment Interface
+              scheduleSessions = userGroupSlots.map((slot, index) => ({
+                id: `group-session-${index + 1}`,
+                date: slot.date,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+                type: 'personal' as const,
+                trainer: slot.trainer || 'Mike',
+                room: slot.room || 'Αίθουσα Mike',
+                notes: `Group Paspartu Session ${index + 1} - ${slot.notes || ''}`
+              }));
+            } else {
+              // ✅ FIXED: Use programSessions for Group Paspartu (same as Individual)
+              // This ensures that admin-created sessions are used for Group Paspartu
+              scheduleSessions = programSessions.map((s) => ({
+                id: s.id,
+                date: s.date,
+                startTime: s.startTime,
+                endTime: s.endTime,
+                type: s.type,
+                trainer: s.trainer || 'Mike',
+                room: s.room,
+                notes: s.notes + ' (Group Paspartu)'
+              }));
+              
+              console.log(`[ADMIN] Using ${scheduleSessions.length} program sessions for Group Paspartu user: ${selectedUser.email}`);
+            }
+          } else {
+            scheduleSessions = []; // Άδεια σεσίες για κανονικά group programs
+          }
+        } else if (trainingType === 'combination') {
+          // Για combination, παίρνουμε μόνο τις πρώτες N σεσίες για personal training
+          scheduleSessions = programSessions.slice(0, combinationPersonalSessions).map((s) => ({
+            id: s.id,
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            type: s.type,
+            trainer: s.trainer || 'Mike',
+            room: s.room,
+            notes: s.notes + ' (Personal - Συνδυασμός)'
+          }));
+        } else {
+          // Individual training - όλες οι σεσίες
+          scheduleSessions = programSessions.map((s) => ({
+            id: s.id,
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            type: s.type,
+            trainer: s.trainer || 'Mike',
+            room: s.room,
+            notes: s.notes
+          }));
+        }
 
         const schedulePayload = {
           user_id: selectedUser.id,
@@ -1146,23 +1279,34 @@ const AdminPanel: React.FC = () => {
           month: new Date().getMonth() + 1,
           year: new Date().getFullYear(),
           schedule_data: {
-            sessions: scheduleSessions, // Άδεια για group programs
-            notes: trainingType === 'group' ? 'Group program - Οι σεσίες θα προστεθούν μέσω του Group Assignment Interface' : '',
+            sessions: scheduleSessions,
+            notes: trainingType === 'group' 
+              ? 'Group program - Οι σεσίες θα προστεθούν μέσω του Group Assignment Interface'
+              : trainingType === 'combination'
+              ? `Combination program - ${combinationPersonalSessions} Personal + ${combinationGroupSessions} Group sessions`
+              : '',
             trainer: trainingType === 'group' ? 'Mike' : (scheduleSessions[0]?.trainer || 'Mike'),
-            specialInstructions: trainingType === 'group' ? 'Ομαδικό πρόγραμμα - Οι λεπτομέρειες των σεσίων διαχειρίζονται ξεχωριστά' : '',
-            // Add group room information for group training
-            groupRoomSize: trainingType === 'group' ? parseInt(selectedGroupRoom!) : null,
-            weeklyFrequency: trainingType === 'group' ? weeklyFrequency : null,
-            monthlyTotal: trainingType === 'group' ? monthlyTotal : null
+            specialInstructions: trainingType === 'group' 
+              ? 'Ομαδικό πρόγραμμα - Οι λεπτομέρειες των σεσίων διαχειρίζονται ξεχωριστά'
+              : trainingType === 'combination'
+              ? `Συνδυασμένο πρόγραμμα - Περιλαμβάνει ${combinationPersonalSessions} ατομικές σεσίες και ${combinationGroupSessions} ομαδικές σεσίες`
+              : '',
+            // Add group room information for group training and combination
+            groupRoomSize: (trainingType === 'group' || trainingType === 'combination') ? parseInt(selectedGroupRoom!) : null,
+            weeklyFrequency: (trainingType === 'group' || trainingType === 'combination') ? weeklyFrequency : null,
+            monthlyTotal: (trainingType === 'group' || trainingType === 'combination') ? monthlyTotal : null,
+            // Add combination-specific information
+            combinationPersonalSessions: trainingType === 'combination' ? combinationPersonalSessions : null,
+            combinationGroupSessions: trainingType === 'combination' ? combinationGroupSessions : null
           },
           status: 'accepted',
           created_by: user?.id,
           user_type: userType, // Add user type to schedule
           is_flexible: userType === 'paspartu', // Paspartu users get flexible schedules
-          training_type: trainingType, // Add training type (individual/group)
-          group_room_size: trainingType === 'group' ? parseInt(selectedGroupRoom!) : null,
-          weekly_frequency: trainingType === 'group' ? weeklyFrequency : null,
-          monthly_total: trainingType === 'group' ? monthlyTotal : null
+          training_type: trainingType, // Add training type (individual/group/combination)
+          group_room_size: (trainingType === 'group' || trainingType === 'combination') ? parseInt(selectedGroupRoom!) : null,
+          weekly_frequency: (trainingType === 'group' || trainingType === 'combination') ? weeklyFrequency : null,
+          monthly_total: (trainingType === 'group' || trainingType === 'combination') ? monthlyTotal : null
         };
 
         console.log('[ADMIN] Schedule payload:', schedulePayload);
@@ -1180,6 +1324,63 @@ const AdminPanel: React.FC = () => {
         }
         
         console.log('[ADMIN] Schedule inserted successfully for user:', selectedUser.email);
+
+        // For combination training, create group_sessions for individual sessions from Προσωποποιημένο Πρόγραμμα
+        if (trainingType === 'combination' && scheduleSessions.length > 0) {
+          console.log('[ADMIN] Creating group_sessions for combination individual sessions...', scheduleSessions);
+          
+          // Convert individual sessions to group_sessions format with group_type = null
+          const individualGroupSessions = scheduleSessions.map(session => ({
+            session_date: session.date,
+            start_time: session.startTime,
+            end_time: session.endTime,
+            trainer: session.trainer,
+            room: session.room,
+            group_type: null, // Individual sessions have no group_type (NULL in database)
+            notes: session.notes + ' (Individual - Combination Program)'
+          }));
+          
+          console.log('[ADMIN] Individual group sessions to insert:', individualGroupSessions);
+          
+          // Insert group_sessions directly to database for individual sessions
+          const { data: groupSessionsData, error: groupSessionsError } = await supabase
+            .from('group_sessions')
+            .insert(
+              individualGroupSessions.map(session => ({
+                program_id: scheduleData.id,
+                user_id: selectedUser.id,
+                session_date: session.session_date,
+                start_time: session.start_time,
+                end_time: session.end_time,
+                trainer: session.trainer,
+                room: session.room,
+                group_type: session.group_type, // null for individual sessions
+                notes: session.notes,
+                is_active: true,
+                created_by: user?.id || ''
+              }))
+            );
+          
+          if (groupSessionsError) {
+            console.error('[ADMIN] Error creating group_sessions for combination individual sessions:', groupSessionsError);
+            console.error('[ADMIN] Error details:', {
+              message: groupSessionsError.message,
+              details: groupSessionsError.details,
+              hint: groupSessionsError.hint,
+              code: groupSessionsError.code
+            });
+            toast.error('Σφάλμα κατά τη δημιουργία των ατομικών σεσίων του συνδυασμού');
+          } else {
+            console.log('[ADMIN] Created group_sessions for combination individual sessions:', groupSessionsData);
+            console.log('[ADMIN] Number of individual sessions created:', groupSessionsData?.length || 0);
+          }
+        } else {
+          console.log('[ADMIN] Skipping individual sessions creation:', {
+            trainingType,
+            scheduleSessionsLength: scheduleSessions.length,
+            willCreate: trainingType === 'combination' && scheduleSessions.length > 0
+          });
+        }
 
         // Save program options (Old Members and Kettlebell Points)
         const userOptions = selectedOptions[selectedUser.id];
@@ -1212,7 +1413,7 @@ const AdminPanel: React.FC = () => {
 
         // Special logic for Paspartu users - replace old schedule and reset deposit
         if (userType === 'paspartu') {
-          console.log('[ADMIN] Handling Paspartu user - replacing old schedule and resetting deposit...');
+          console.log('[ADMIN] Handling Paspartu user - replacing old schedule and managing deposits...');
           
           // First, replace any old Paspartu schedule with the new one
           const { error: replaceError } = await supabase
@@ -1228,11 +1429,35 @@ const AdminPanel: React.FC = () => {
             console.log('[ADMIN] Old Paspartu schedule replaced successfully for user:', selectedUser.email);
           }
           
-          // Reset lesson deposit with 5 lessons
+          // Calculate deposit based on training type
+          let totalDeposits = 5; // Paspartu users always start with 5 deposits
+          let usedDeposits = 0;
+          
+          if (trainingType === 'combination') {
+            // For combination: used_deposits = personal_sessions + group_sessions
+            usedDeposits = combinationPersonalSessions + combinationGroupSessions;
+            console.log(`[ADMIN] Combination Paspartu: ${combinationPersonalSessions} personal + ${combinationGroupSessions} group = ${usedDeposits} used deposits`);
+          } else if (trainingType === 'individual') {
+            // For individual: credit 5 lessons, no deduction (original behavior preserved)
+            usedDeposits = 0;
+            console.log(`[ADMIN] Individual Paspartu: Credit 5 lessons, no deduction (original behavior)`);
+          } else if (trainingType === 'group') {
+            // For group Paspartu: same logic as individual (credit 5 lessons, no deduction)
+            usedDeposits = 0;
+            console.log(`[ADMIN] Group Paspartu: Credit 5 lessons, no deduction (same as Individual)`);
+          }
+          
+          // Ensure we don't exceed available deposits
+          if (usedDeposits > totalDeposits) {
+            console.warn(`[ADMIN] Warning: Used deposits (${usedDeposits}) exceeds total deposits (${totalDeposits}). Setting to max.`);
+            usedDeposits = totalDeposits;
+          }
+          
+          // Reset lesson deposit with calculated values
           const { error: depositError } = await supabase
             .rpc('reset_lesson_deposit_for_new_program', {
               p_user_id: selectedUser.id,
-              p_total_lessons: 5,
+              p_total_lessons: totalDeposits,
               p_created_by: user?.id
             });
 
@@ -1240,7 +1465,56 @@ const AdminPanel: React.FC = () => {
             console.error('[ADMIN] Lesson deposit reset error:', depositError);
             console.warn('[ADMIN] Failed to reset lesson deposit, but schedule was created successfully');
           } else {
-            console.log('[ADMIN] Lesson deposit reset successfully for Paspartu user:', selectedUser.email);
+            console.log(`[ADMIN] Lesson deposit reset successfully for Paspartu user: ${selectedUser.email}`);
+            console.log(`[ADMIN] Deposits: ${totalDeposits} total, ${usedDeposits} will be used, ${totalDeposits - usedDeposits} remaining`);
+            
+            // If we have used deposits, update the used count
+            if (usedDeposits > 0) {
+              const { error: updateError } = await supabase
+                .from('lesson_deposits')
+                .update({ 
+                  used_lessons: usedDeposits,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('user_id', selectedUser.id);
+                
+              if (updateError) {
+                console.error('[ADMIN] Error updating used deposits:', updateError);
+              } else {
+                console.log(`[ADMIN] Updated used deposits to ${usedDeposits} for user: ${selectedUser.email}`);
+              }
+            }
+          }
+        }
+
+        // ✅ CRITICAL FIX: Ensure lesson deposit exists for ALL Paspartu users
+        if (userType === 'paspartu') {
+          console.log('[ADMIN] Ensuring lesson deposit exists for Paspartu user:', selectedUser.email);
+          
+          // Check if deposit already exists
+          const { data: existingDeposit } = await supabase
+            .from('lesson_deposits')
+            .select('id')
+            .eq('user_id', selectedUser.id)
+            .single();
+          
+          if (!existingDeposit) {
+            // Create lesson deposit if it doesn't exist
+            const { error: depositError } = await supabase
+              .from('lesson_deposits')
+              .insert({
+                user_id: selectedUser.id,
+                total_lessons: 5,
+                used_lessons: 0
+              });
+            
+            if (depositError) {
+              console.error('[ADMIN] Error creating lesson deposit:', depositError);
+            } else {
+              console.log('[ADMIN] Lesson deposit created successfully for Paspartu user:', selectedUser.email);
+            }
+          } else {
+            console.log('[ADMIN] Lesson deposit already exists for Paspartu user:', selectedUser.email);
           }
         }
 
@@ -1293,13 +1567,15 @@ const AdminPanel: React.FC = () => {
       }).join(', ');
 
       const userTypeText = userType === 'personal' ? 'Personal' : 'Paspartu';
-      toast.success(`Το πρόγραμμα ${userTypeText} Training δημιουργήθηκε επιτυχώς για ${trainingType === 'individual' ? 'τον χρήστη' : 'τους χρήστες'}: ${userNames}!`);
+      const typeText = trainingType === 'individual' ? 'Ατομικό' : trainingType === 'combination' ? 'Συνδυασμένο' : 'Ομαδικό';
+      const userText = (trainingType === 'individual' || trainingType === 'combination') ? 'τον χρήστη' : 'τους χρήστες';
+      toast.success(`Το πρόγραμμα ${typeText} ${userTypeText} Training δημιουργήθηκε επιτυχώς για ${userText}: ${userNames}!`);
       
-      // For group training, create assignments if slots were selected
-      if (trainingType === 'group' && userIds.length > 0 && Object.keys(selectedGroupSlots).length > 0) {
-        console.log('[AdminPanel] Creating group assignments for selected slots:', selectedGroupSlots);
+      // For group training or combination training, create group sessions if slots were selected
+      if ((trainingType === 'group' || trainingType === 'combination') && userIds.length > 0 && Object.keys(selectedGroupSlots).length > 0) {
+        console.log('[AdminPanel] Creating group sessions for selected slots:', selectedGroupSlots);
         
-        // Create assignments for each user
+        // Create group sessions for each user
         for (const userId of userIds) {
           const userSlots = selectedGroupSlots[userId];
           if (userSlots && userSlots.length > 0) {
@@ -1308,62 +1584,66 @@ const AdminPanel: React.FC = () => {
               .from('personal_training_schedules')
               .select('id')
               .eq('user_id', userId)
-              .eq('training_type', 'group')
+              .in('training_type', ['group', 'combination']) // Support both group and combination
               .order('created_at', { ascending: false })
               .limit(1);
               
             if (userSchedule && userSchedule.length > 0) {
               const programId = userSchedule[0].id;
               
-              // Create assignment for each session
-              for (const session of userSlots) {
-                try {
-                  // Calculate day of week from date
-                  const sessionDate = new Date(session.date);
-                  const dayOfWeek = sessionDate.getDay();
+              // Convert sessions to group_sessions format
+              const groupSessions = userSlots.map(session => ({
+                session_date: session.date,
+                start_time: session.startTime,
+                end_time: session.endTime,
+                trainer: session.trainer,
+                room: session.room,
+                group_type: session.groupType,
+                notes: session.notes || `Group session created by admin`
+              }));
+              
+              // Create group sessions using the new API
+              const result = await createUserGroupSessions(
+                userId,
+                programId,
+                groupSessions,
+                user?.id || ''
+              );
+              
+              if (result.success) {
+                console.log(`[AdminPanel] Created ${result.createdCount} group sessions for user ${userId}`);
+                
+                // Show warning if some sessions were blocked
+                if (result.blockedSessions && result.blockedSessions.length > 0) {
+                  const blockedCount = result.blockedSessions.length;
+                  const createdCount = result.createdCount || 0;
                   
-                  const { error: assignmentError } = await supabase
-                    .from('group_assignments')
-                    .insert({
-                      program_id: programId,
-                      user_id: userId,
-                      group_type: session.groupType,
-                      day_of_week: dayOfWeek,
-                      start_time: session.startTime,
-                      end_time: session.endTime,
-                      trainer: session.trainer,
-                      room: session.room,
-                      group_identifier: `${session.trainer}-${dayOfWeek}-${session.startTime}-${session.date}`,
-                      weekly_frequency: weeklyFrequency,
-                      assignment_date: session.date,
-                      is_active: true,
-                      created_by: user?.id,
-                      notes: session.notes || `Ανάθεση δημιουργήθηκε κατά τη δημιουργία του προγράμματος`
-                    });
-                    
-                  if (assignmentError) {
-                    console.error('[AdminPanel] Error creating group assignment:', assignmentError);
-                  }
-                } catch (error) {
-                  console.error('[AdminPanel] Exception creating assignment:', error);
+                  toast.error(
+                    `Δημιουργήθηκαν ${createdCount} σεσίες, αλλά ${blockedCount} σεσίες αποκλείστηκαν λόγω γεμάτου capacity. ` +
+                    `Λεπτομέρειες: ${result.blockedSessions.slice(0, 2).join(', ')}${blockedCount > 2 ? '...' : ''}`
+                  );
+                }
+              } else {
+                console.error('[AdminPanel] Error creating group sessions:', result.error);
+                
+                // Show specific error for capacity issues
+                if (result.error?.includes('capacity')) {
+                  toast.error(`Δεν μπορούν να δημιουργηθούν σεσίες: ${result.error}`);
+                } else {
+                  toast.error(`Σφάλμα δημιουργίας σεσίων: ${result.error}`);
                 }
               }
-              
-              console.log(`[AdminPanel] Created ${userSlots.length} assignments for user ${userId}`);
             }
           }
         }
         
         toast.success('Το ομαδικό πρόγραμμα και οι αναθέσεις δημιουργήθηκαν επιτυχώς!');
         
-        // Refresh the Group Programs Overview
-        setGroupOverviewKey(prev => prev + 1);
-      } else if (trainingType === 'group' && userIds.length > 0) {
+      } else if ((trainingType === 'group' || trainingType === 'combination') && userIds.length > 0) {
         // No slots selected, show info message
-        toast('Το ομαδικό πρόγραμμα δημιουργήθηκε. Μπορείτε να κάνετε αναθέσεις αργότερα από το Group Programs Overview.', { icon: 'ℹ️' });
+        const programType = trainingType === 'combination' ? 'συνδυασμένο' : 'ομαδικό';
+        toast(`Το ${programType} πρόγραμμα δημιουργήθηκε. ${trainingType === 'combination' ? 'Μπορείτε να κάνετε ομαδικές αναθέσεις αργότερα από το Group Programs Overview.' : 'Μπορείτε να κάνετε αναθέσεις αργότερα από το Group Programs Overview.'}`, { icon: 'ℹ️' });
         
-        // Refresh the Group Programs Overview
-        setGroupOverviewKey(prev => prev + 1);
       }
       
       setShowCreateCodeModal(false);
@@ -1417,7 +1697,7 @@ const AdminPanel: React.FC = () => {
 
   // ===== MEMBERSHIP PACKAGES FUNCTIONS =====
 
-  const loadMembershipPackages = async () => {
+  const loadMembershipPackages = useCallback(async () => {
     try {
       setLoading(true);
       const packages = await getMembershipPackages();
@@ -1442,6 +1722,7 @@ const AdminPanel: React.FC = () => {
       );
       
       setMembershipPackages(filteredPackages);
+      setDataLoaded(prev => ({ ...prev, 'membership-packages': true }));
       
       // Load Pilates durations
       const pilatesDurations = await getPilatesPackageDurations();
@@ -1452,7 +1733,7 @@ const AdminPanel: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const loadPackageDurations = async (packageId: string) => {
     try {
@@ -1476,83 +1757,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const loadInstallmentRequests = async () => {
-    try {
-      setInstallmentLoading(true);
-      const requests = await getMembershipRequests();
-      // Filter only Ultimate requests with installments
-      const installmentRequests = requests.filter(request => 
-        request.package?.name === 'Ultimate' && request.has_installments
-      );
-      setInstallmentRequests(installmentRequests);
-    } catch (error) {
-      console.error('Error loading installment requests:', error);
-      toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων δόσεων');
-    } finally {
-      setInstallmentLoading(false);
-    }
-  };
-
-  const updateInstallmentAmounts = async (requestId: string, installment1Amount: number, installment2Amount: number, installment3Amount: number, installment1PaymentMethod: string, installment2PaymentMethod: string, installment3PaymentMethod: string, installment1DueDate?: string, installment2DueDate?: string, installment3DueDate?: string) => {
-    try {
-      const updateData: any = {
-        installment_1_amount: installment1Amount,
-        installment_2_amount: installment2Amount,
-        installment_3_amount: installment3Amount,
-        installment_1_payment_method: installment1PaymentMethod,
-        installment_2_payment_method: installment2PaymentMethod,
-        installment_3_payment_method: installment3PaymentMethod
-      };
-
-      // Add due dates if provided
-      if (installment1DueDate) updateData.installment_1_due_date = installment1DueDate;
-      if (installment2DueDate) updateData.installment_2_due_date = installment2DueDate;
-      if (installment3DueDate) updateData.installment_3_due_date = installment3DueDate;
-
-      const { error } = await supabase
-        .from('membership_requests')
-        .update(updateData)
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      toast.success('Οι δόσεις και ημερομηνίες ενημερώθηκαν επιτυχώς');
-      // Reload installment requests
-      await loadInstallmentRequests();
-    } catch (error) {
-      console.error('Error updating installment amounts:', error);
-      toast.error('Σφάλμα κατά την ενημέρωση των δόσεων');
-    }
-  };
-
-  const deleteInstallmentRequest = async (requestId: string) => {
-    try {
-      const { error } = await supabase
-        .from('membership_requests')
-        .delete()
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      toast.success('Το αίτημα δόσεων διαγράφηκε επιτυχώς');
-      // Reload installment requests
-      await loadInstallmentRequests();
-    } catch (error) {
-      console.error('Error deleting installment request:', error);
-      toast.error('Σφάλμα κατά τη διαγραφή του αιτήματος');
-    }
-  };
-
-  // Filter installment requests by search term
-  const getFilteredInstallmentRequests = () => {
-    return installmentRequests.filter(request => {
-      const searchMatch = installmentSearchTerm === '' || 
-        `${request.user?.first_name || ''} ${request.user?.last_name || ''}`.toLowerCase()
-          .includes(installmentSearchTerm.toLowerCase());
-      
-      return searchMatch;
-    });
-  };
 
   // Filter and paginate membership requests
   const getFilteredMembershipRequests = () => {
@@ -1906,7 +2110,7 @@ const AdminPanel: React.FC = () => {
 
   // ===== KETTLEBELL POINTS FUNCTIONS =====
 
-  const loadKettlebellPointsData = async () => {
+  const loadKettlebellPointsData = useCallback(async () => {
     try {
       setLoading(true);
       const [totalPoints, summary] = await Promise.all([
@@ -1916,13 +2120,14 @@ const AdminPanel: React.FC = () => {
       
       setTotalKettlebellPoints(totalPoints);
       setKettlebellSummary(summary);
+      setDataLoaded(prev => ({ ...prev, 'kettlebell-points': true }));
     } catch (error) {
       console.error('Error loading kettlebell points data:', error);
       toast.error('Σφάλμα κατά τη φόρτωση των Kettlebell Points');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const loadUserKettlebellPoints = async (userId: string) => {
     try {
@@ -1995,6 +2200,245 @@ const AdminPanel: React.FC = () => {
 
     loadOldMembersUsage();
   }, [user]);
+
+  // ===== ULTIMATE SUBSCRIPTIONS FUNCTIONS =====
+
+  const loadUltimateRequests = async () => {
+    try {
+      setUltimateLoading(true);
+      
+      const requests = await withDatabaseRetry(
+        () => getMembershipRequests(),
+        'φόρτωση Ultimate αιτημάτων'
+      );
+      
+      // Filter all Ultimate requests (with and without installments)
+      const ultimateRequests = requests.filter((request: MembershipRequest) => 
+        request.package?.name === 'Ultimate'
+      );
+      
+      // Handle large datasets
+      if (ultimateRequests.length > LARGE_DATASET_THRESHOLD) {
+        console.log(`[AdminPanel] Large Ultimate dataset detected: ${ultimateRequests.length} items`);
+        toast(`Φορτώθηκαν ${ultimateRequests.length} Ultimate αιτήματα. Χρησιμοποιείται σελιδοποίηση.`, { icon: '👑' });
+      }
+      
+      setUltimateRequests(ultimateRequests);
+      setDataLoaded(prev => ({ ...prev, 'ultimate-subscriptions': true }));
+    } catch (error) {
+      handleDatabaseError(error, 'φόρτωση Ultimate αιτημάτων');
+    } finally {
+      setUltimateLoading(false);
+    }
+  };
+
+  const deleteUltimateRequest = async (requestId: string) => {
+    try {
+      await withDatabaseRetry(
+        async () => {
+          const { error } = await supabase
+            .from('membership_requests')
+            .delete()
+            .eq('id', requestId);
+
+          if (error) throw error;
+          return true;
+        },
+        'διαγραφή Ultimate αιτήματος'
+      );
+
+      toast.success('Το Ultimate αίτημα διαγράφηκε επιτυχώς');
+      await loadUltimateRequests();
+    } catch (error) {
+      handleDatabaseError(error, 'διαγραφή Ultimate αιτήματος');
+    }
+  };
+
+  const handleUltimateApproveRequest = async (requestId: string) => {
+    try {
+      setLoading(true);
+      
+      // Find the request to check if it's Ultimate package
+      const request = ultimateRequests.find(r => r.id === requestId);
+      const isUltimatePackage = request?.package?.name === 'Ultimate';
+      
+      if (isUltimatePackage) {
+        // Handle Ultimate package approval with dual activation
+        await withDatabaseRetry(
+          async () => {
+            const { approveUltimateMembershipRequest } = await import('@/utils/membershipApi');
+            const success = await approveUltimateMembershipRequest(requestId);
+            if (!success) throw new Error('Approval failed');
+            return success;
+          },
+          'έγκριση Ultimate αιτήματος'
+        );
+        
+        toast.success('Το Ultimate αίτημα εγκρίθηκε επιτυχώς! Δημιουργήθηκαν 2 συνδρομές: Pilates + Open Gym');
+        loadUltimateRequests();
+      }
+    } catch (error) {
+      handleDatabaseError(error, 'έγκριση Ultimate αιτήματος');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUltimateRejectRequest = async (requestId: string) => {
+    const reason = prompt('Παρακαλώ εισάγετε τον λόγο απόρριψης:');
+    if (!reason) return;
+
+    try {
+      setLoading(true);
+      
+      await withDatabaseRetry(
+        async () => {
+          const success = await rejectMembershipRequest(requestId, reason);
+          if (!success) throw new Error('Rejection failed');
+          return success;
+        },
+        'απόρριψη Ultimate αιτήματος'
+      );
+      
+      toast.success('Το Ultimate αίτημα απορρίφθηκε επιτυχώς!');
+      loadUltimateRequests();
+    } catch (error) {
+      handleDatabaseError(error, 'απόρριψη Ultimate αιτήματος');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateInstallmentAmounts = async (requestId: string, installment1Amount: number, installment2Amount: number, installment3Amount: number, installment1PaymentMethod: string, installment2PaymentMethod: string, installment3PaymentMethod: string, installment1DueDate?: string, installment2DueDate?: string, installment3DueDate?: string) => {
+    try {
+      const updateData: any = {
+        installment_1_amount: installment1Amount,
+        installment_2_amount: installment2Amount,
+        installment_3_amount: installment3Amount,
+        installment_1_payment_method: installment1PaymentMethod,
+        installment_2_payment_method: installment2PaymentMethod,
+        installment_3_payment_method: installment3PaymentMethod
+      };
+
+      // Add due dates if provided
+      if (installment1DueDate) updateData.installment_1_due_date = installment1DueDate;
+      if (installment2DueDate) updateData.installment_2_due_date = installment2DueDate;
+      if (installment3DueDate) updateData.installment_3_due_date = installment3DueDate;
+
+      await withDatabaseRetry(
+        async () => {
+          const { error } = await supabase
+            .from('membership_requests')
+            .update(updateData)
+            .eq('id', requestId);
+
+          if (error) throw error;
+          return true;
+        },
+        'ενημέρωση δόσεων'
+      );
+
+      toast.success('Οι δόσεις και ημερομηνίες ενημερώθηκαν επιτυχώς');
+      // Reload ultimate requests
+      await loadUltimateRequests();
+    } catch (error) {
+      handleDatabaseError(error, 'ενημέρωση δόσεων');
+    }
+  };
+
+  // Load ultimate requests when tab is active
+  useEffect(() => {
+    if (activeTab === 'ultimate-subscriptions' && !dataLoaded['ultimate-subscriptions']) {
+      console.log('[AdminPanel] Loading Ultimate Subscriptions data...');
+      loadUltimateRequests();
+    }
+  }, [activeTab]);
+
+  // Additional effect to ensure data is loaded for ultimate subscriptions
+  useEffect(() => {
+    if (activeTab === 'ultimate-subscriptions' && ultimateRequests.length === 0 && !ultimateLoading) {
+      console.log('[AdminPanel] Ultimate Subscriptions tab active but no data, reloading...');
+      loadUltimateRequests();
+    }
+  }, [activeTab, ultimateRequests.length, ultimateLoading]);
+
+  // ===== LARGE DATASET HANDLING UTILITIES =====
+
+  const paginateData = (data: any[], page: number, itemsPerPage: number) => {
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return data.slice(startIndex, endIndex);
+  };
+
+  const handleLargeDataset = async (loadFunction: () => Promise<any[]>, setDataFunction: (data: any[]) => void, datasetName: string) => {
+    try {
+      setIsLoadingLargeDataset(true);
+      console.log(`[AdminPanel] Loading ${datasetName} dataset...`);
+      
+      const data = await loadFunction();
+      
+      if (data.length > LARGE_DATASET_THRESHOLD) {
+        console.log(`[AdminPanel] Large dataset detected (${data.length} items), implementing pagination`);
+        toast(`Φορτώθηκαν ${data.length} εγγραφές. Χρησιμοποιείται σελιδοποίηση για βελτίωση επιδόσεων.`, { icon: '📄' });
+        
+        // Reset to first page for large datasets
+        setLargeDatasetPage(1);
+      }
+      
+      setDataFunction(data);
+      return data;
+    } catch (error) {
+      console.error(`[AdminPanel] Error loading ${datasetName}:`, error);
+      toast.error(`Σφάλμα κατά τη φόρτωση ${datasetName}`);
+      throw error;
+    } finally {
+      setIsLoadingLargeDataset(false);
+    }
+  };
+
+  const getDatasetTotalPages = (dataLength: number) => {
+    return Math.ceil(dataLength / ITEMS_PER_PAGE);
+  };
+
+  // ===== DATABASE RETRY LOGIC & ERROR HANDLING =====
+
+  const withDatabaseRetry = async (
+    operation: () => Promise<any>, 
+    context: string = 'operation',
+    maxRetries: number = 3
+  ): Promise<any> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error: any) {
+        console.error(`[AdminPanel] Database ${context} failed (attempt ${attempt}/${maxRetries}):`, error);
+        
+        if (attempt === maxRetries) {
+          const errorMessage = `Σφάλμα σύνδεσης με τη βάση δεδομένων κατά ${context}. Παρακαλώ ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.`;
+          toast.error(errorMessage);
+          throw error;
+        }
+        
+        // Exponential backoff: 1s, 2s, 3s
+        const delay = 1000 * attempt;
+        console.log(`[AdminPanel] Retrying ${context} in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    throw new Error(`Failed to complete ${context} after ${maxRetries} attempts`);
+  };
+
+  const handleDatabaseError = (error: any, context: string) => {
+    console.error(`[AdminPanel] Database error in ${context}:`, error);
+    
+    if (error.message?.includes('network') || error.message?.includes('connection')) {
+      toast.error('Πρόβλημα σύνδεσης δικτύου. Παρακαλώ ελέγξτε τη σύνδεσή σας.');
+    } else if (error.message?.includes('timeout')) {
+      toast.error('Η λειτουργία διήρκησε πολύ. Παρακαλώ δοκιμάστε ξανά.');
+    } else {
+      toast.error(`Παρουσιάστηκε σφάλμα κατά ${context}. Παρακαλώ δοκιμάστε ξανά.`);
+    }
+  };
 
   // Load Kettlebell Points when selected user changes
   useEffect(() => {
@@ -2071,22 +2515,6 @@ const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
-              {/* Group Programs Overview Section */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                <div className="p-4 sm:p-6">
-                  <GroupProgramsOverview 
-                    key={groupOverviewKey}
-                    onManageAssignments={(programId, userId) => {
-                      const user = allUsers.find(u => u.id === userId);
-                      if (user) {
-                        setGroupAssignmentUser(user);
-                        setGroupAssignmentProgramId(programId);
-                        setShowGroupAssignmentManager(true);
-                      }
-                    }}
-                  />
-                </div>
-              </div>
 
               {/* Mobile-First Schedule Editor */}
               {selectedUser && personalTrainingSchedule && !isBlockedTestUser({ email: selectedUser.email, personalTrainingCode: selectedUser.personalTrainingCode }) && (
@@ -2281,6 +2709,15 @@ const AdminPanel: React.FC = () => {
                     ) : (
                       <p className="text-sm text-gray-900">{personalTrainingSchedule.scheduleData.notes || 'Δεν υπάρχουν σημειώσεις'}</p>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* Group Training Calendar Section - ΜΟΝΟ στην καρτέλα Personal Training */}
+              {groupCalendarEnabled && (
+                <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl shadow-lg border-2 border-green-200">
+                  <div className="p-4 sm:p-6">
+                    <GroupTrainingCalendar featureEnabled={groupCalendarEnabled} />
                   </div>
                 </div>
               )}
@@ -3193,288 +3630,6 @@ const AdminPanel: React.FC = () => {
           )}
 
           {/* Installments Tab */}
-          {activeTab === 'installments' && !loading && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Δόσεις Ultimate</h2>
-                  <p className="text-gray-600 mt-1">Διαχείριση δόσεων για πακέτα Ultimate</p>
-                </div>
-                <button
-                  onClick={loadInstallmentRequests}
-                  disabled={installmentLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
-                >
-                  {installmentLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Settings className="h-4 w-4" />
-                  )}
-                  <span>Ανανέωση</span>
-                </button>
-              </div>
-
-              {/* Search Bar */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <div className="flex items-center space-x-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <input
-                        type="text"
-                        placeholder="Αναζήτηση με όνομα χρήστη..."
-                        value={installmentSearchTerm}
-                        onChange={(e) => setInstallmentSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      />
-                    </div>
-                  </div>
-                  {installmentSearchTerm && (
-                    <button
-                      onClick={() => setInstallmentSearchTerm('')}
-                      className="px-3 py-2 text-gray-500 hover:text-gray-700 transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {installmentLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                  <span className="ml-2 text-gray-600">Φόρτωση αιτημάτων δόσεων...</span>
-                </div>
-              ) : getFilteredInstallmentRequests().length === 0 ? (
-                <div className="text-center py-12">
-                  <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    {installmentSearchTerm ? 'Δεν βρέθηκαν αποτελέσματα' : 'Δεν υπάρχουν αιτήματα δόσεων'}
-                  </h3>
-                  <p className="text-gray-600">
-                    {installmentSearchTerm 
-                      ? 'Δοκιμάστε διαφορετικό όνομα για την αναζήτηση.' 
-                      : 'Όταν οι χρήστες επιλέξουν δόσεις για το πακέτο Ultimate, θα εμφανίζονται εδώ.'
-                    }
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-6">
-                  {getFilteredInstallmentRequests().map((request) => (
-                    <div key={request.id} className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                            <CreditCard className="h-6 w-6 text-orange-600" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              {request.user?.first_name} {request.user?.last_name}
-                            </h3>
-                            <p className="text-sm text-gray-600">{request.user?.email}</p>
-                            <div className="flex items-center space-x-2 mt-1">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                Ultimate Package
-                              </span>
-                              <span className="text-sm text-gray-500">•</span>
-                              <span className="text-sm text-gray-600">{getDurationLabel(request.duration_type)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-gray-900">
-                            {formatPrice(request.requested_price)}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {new Date(request.created_at).toLocaleDateString('el-GR')}
-                          </div>
-                          <div className="mt-2">
-                            <button
-                              onClick={() => {
-                                if (window.confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το αίτημα δόσεων; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.')) {
-                                  deleteInstallmentRequest(request.id);
-                                }
-                              }}
-                              className="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium flex items-center space-x-1"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              <span>Διαγραφή</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Installments Management */}
-                      <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                        <h4 className="text-lg font-semibold text-orange-800 mb-4 flex items-center">
-                          <span className="text-2xl mr-2">💳</span>
-                          Διαχείριση Δόσεων
-                        </h4>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {/* 1η Δόση */}
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">
-                              1η Δόση
-                            </label>
-                            <div className="space-y-2">
-                              <input
-                                type="number"
-                                value={selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || ''}
-                                onChange={(e) => handleRequestOptionChange(request.id, 'installment1Amount', e.target.value)}
-                                placeholder="Ποσό"
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              />
-                              <select
-                                value={selectedRequestOptions[request.id]?.installment1PaymentMethod || request.installment_1_payment_method || 'cash'}
-                                onChange={(e) => handleRequestOptionChange(request.id, 'installment1PaymentMethod', e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              >
-                                <option value="cash">💰 Μετρητά</option>
-                                <option value="pos">💳 POS</option>
-                              </select>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">
-                                  📅 Ημερομηνία Πληρωμής
-                                </label>
-                                <input
-                                  type="date"
-                                  value={selectedRequestOptions[request.id]?.installment1DueDate || request.installment_1_due_date || ''}
-                                  onChange={(e) => handleRequestOptionChange(request.id, 'installment1DueDate', e.target.value)}
-                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 2η Δόση */}
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">
-                              2η Δόση
-                            </label>
-                            <div className="space-y-2">
-                              <input
-                                type="number"
-                                value={selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || ''}
-                                onChange={(e) => handleRequestOptionChange(request.id, 'installment2Amount', e.target.value)}
-                                placeholder="Ποσό"
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              />
-                              <select
-                                value={selectedRequestOptions[request.id]?.installment2PaymentMethod || request.installment_2_payment_method || 'cash'}
-                                onChange={(e) => handleRequestOptionChange(request.id, 'installment2PaymentMethod', e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              >
-                                <option value="cash">💰 Μετρητά</option>
-                                <option value="pos">💳 POS</option>
-                              </select>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">
-                                  📅 Ημερομηνία Πληρωμής
-                                </label>
-                                <input
-                                  type="date"
-                                  value={selectedRequestOptions[request.id]?.installment2DueDate || request.installment_2_due_date || ''}
-                                  onChange={(e) => handleRequestOptionChange(request.id, 'installment2DueDate', e.target.value)}
-                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 3η Δόση */}
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">
-                              3η Δόση
-                            </label>
-                            <div className="space-y-2">
-                              <input
-                                type="number"
-                                value={selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || ''}
-                                onChange={(e) => handleRequestOptionChange(request.id, 'installment3Amount', e.target.value)}
-                                placeholder="Ποσό"
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              />
-                              <select
-                                value={selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash'}
-                                onChange={(e) => handleRequestOptionChange(request.id, 'installment3PaymentMethod', e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              >
-                                <option value="cash">💰 Μετρητά</option>
-                                <option value="pos">💳 POS</option>
-                              </select>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">
-                                  📅 Ημερομηνία Πληρωμής
-                                </label>
-                                <input
-                                  type="date"
-                                  value={selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date || ''}
-                                  onChange={(e) => handleRequestOptionChange(request.id, 'installment3DueDate', e.target.value)}
-                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Total Display */}
-                        <div className="mt-4 p-3 bg-orange-100 rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium text-orange-800">Σύνολο Δόσεων:</span>
-                            <span className="text-lg font-bold text-orange-900">
-                              {formatPrice(
-                                (Number(selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || 0)) +
-                                (Number(selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || 0)) +
-                                (Number(selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || 0))
-                              )}
-                            </span>
-                          </div>
-                          <div className="text-sm text-orange-700 mt-1">
-                            Από {formatPrice(request.requested_price)} (Πακέτο Ultimate)
-                          </div>
-                        </div>
-
-                        {/* Save Button */}
-                        <div className="mt-4 flex justify-end">
-                          <button
-                            onClick={() => {
-                              const installment1Amount = Number(selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || 0);
-                              const installment2Amount = Number(selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || 0);
-                              const installment3Amount = Number(selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || 0);
-                              const installment1PaymentMethod = selectedRequestOptions[request.id]?.installment1PaymentMethod || request.installment_1_payment_method || 'cash';
-                              const installment2PaymentMethod = selectedRequestOptions[request.id]?.installment2PaymentMethod || request.installment_2_payment_method || 'cash';
-                              const installment3PaymentMethod = selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash';
-                              const installment1DueDate = selectedRequestOptions[request.id]?.installment1DueDate || request.installment_1_due_date || '';
-                              const installment2DueDate = selectedRequestOptions[request.id]?.installment2DueDate || request.installment_2_due_date || '';
-                              const installment3DueDate = selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date || '';
-                              
-                              updateInstallmentAmounts(
-                                request.id,
-                                installment1Amount,
-                                installment2Amount,
-                                installment3Amount,
-                                installment1PaymentMethod,
-                                installment2PaymentMethod,
-                                installment3PaymentMethod,
-                                installment1DueDate,
-                                installment2DueDate,
-                                installment3DueDate
-                              );
-                            }}
-                            className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
-                          >
-                            <Save className="h-4 w-4" />
-                            <span>Αποθήκευση Δόσεων & Ημερομηνιών</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Pilates Schedule Tab */}
           {activeTab === 'pilates-schedule' && !loading && (
@@ -3625,8 +3780,9 @@ const AdminPanel: React.FC = () => {
             </div>
           )}
 
+
           {/* Other tabs placeholder */}
-          {activeTab !== 'personal-training' && activeTab !== 'membership-packages' && activeTab !== 'installments' && activeTab !== 'pilates-schedule' && activeTab !== 'kettlebell-points' && activeTab !== 'cash-register' && !loading && (
+          {activeTab !== 'personal-training' && activeTab !== 'membership-packages' && activeTab !== 'ultimate-subscriptions' && activeTab !== 'pilates-schedule' && activeTab !== 'kettlebell-points' && activeTab !== 'cash-register' && !loading && (
             <div className="text-center py-8 text-gray-500">
               <p>Αυτή η κατηγορία θα υλοποιηθεί σύντομα.</p>
             </div>
@@ -3684,6 +3840,17 @@ const AdminPanel: React.FC = () => {
                    >
                      👥 Group
                    </button>
+                   <button
+                     type="button"
+                     onClick={() => setTrainingType('combination')}
+                     className={`px-4 sm:px-6 py-2 sm:py-3 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                       trainingType === 'combination' 
+                         ? 'bg-indigo-600 text-white shadow-lg' 
+                         : 'bg-white text-indigo-600 border-2 border-indigo-200 hover:border-indigo-400'
+                     }`}
+                   >
+                     🔀 Συνδυασμός
+                   </button>
                  </div>
                </div>
 
@@ -3704,20 +3871,24 @@ const AdminPanel: React.FC = () => {
                    >
                      🏋️‍♂️ Personal User
                    </button>
-                   <button
-                     type="button"
-                     onClick={() => setUserType('paspartu')}
-                     className={`px-4 sm:px-6 py-2 sm:py-3 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                       userType === 'paspartu' 
-                         ? 'bg-blue-600 text-white shadow-lg' 
-                         : 'bg-white text-blue-600 border-2 border-blue-200 hover:border-blue-400'
-                     }`}
-                   >
-                     🎯 Paspartu User
-                   </button>
+                   {trainingType !== 'combination' && (
+                     <button
+                       type="button"
+                       onClick={() => setUserType('paspartu')}
+                       className={`px-4 sm:px-6 py-2 sm:py-3 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                         userType === 'paspartu' 
+                           ? 'bg-blue-600 text-white shadow-lg' 
+                           : 'bg-white text-blue-600 border-2 border-blue-200 hover:border-blue-400'
+                       }`}
+                     >
+                       🎯 Paspartu User
+                     </button>
+                   )}
                  </div>
                  <div className="mt-3 text-sm text-blue-700">
-                   {userType === 'personal' ? (
+                   {trainingType === 'combination' ? (
+                     <span>📋 Combination Training: Μόνο Personal Users - κλειδωμένο πρόγραμμα με συγκεκριμένες ώρες</span>
+                   ) : userType === 'personal' ? (
                      <span>📋 Personal Users: Παίρνουν κλειδωμένο πρόγραμμα με συγκεκριμένες ώρες</span>
                    ) : (
                      <span>💳 Paspartu Users: Παίρνουν 5 μαθήματα και επιλέγουν ελεύθερα τις ώρες</span>
@@ -3725,10 +3896,57 @@ const AdminPanel: React.FC = () => {
                  </div>
                </div>
 
+               {/* Combination Configuration - Only show for combination type */}
+               {trainingType === 'combination' && (
+                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200">
+                   <label className="block text-base sm:text-lg font-bold text-purple-800 mb-3 sm:mb-4 flex items-center">
+                     🔀 Διαμόρφωση Συνδυασμού
+                   </label>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div className="bg-white rounded-lg p-4 border border-purple-200">
+                       <label className="block text-sm font-bold text-purple-700 mb-2">
+                         👤 Ατομικές Σεσίες
+                       </label>
+                       <select
+                         value={combinationPersonalSessions}
+                         onChange={(e) => setCombinationPersonalSessions(parseInt(e.target.value))}
+                         className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                       >
+                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                           <option key={num} value={num}>{num} σεσίες</option>
+                         ))}
+                       </select>
+                     </div>
+                     <div className="bg-white rounded-lg p-4 border border-purple-200">
+                       <label className="block text-sm font-bold text-purple-700 mb-2">
+                         👥 Ομαδικές Σεσίες
+                       </label>
+                       <select
+                         value={combinationGroupSessions}
+                         onChange={(e) => setCombinationGroupSessions(parseInt(e.target.value))}
+                         className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                       >
+                         {[1, 2, 3, 4, 5].map(num => (
+                           <option key={num} value={num}>{num} {num === 1 ? 'φορά' : 'φορές'}/εβδομάδα</option>
+                         ))}
+                       </select>
+                     </div>
+                   </div>
+                   <div className="mt-3 text-sm text-purple-700 bg-purple-100 p-3 rounded-lg">
+                     <strong>📊 Σύνολο:</strong> {combinationPersonalSessions} ατομικές σεσίες + {combinationGroupSessions} {combinationGroupSessions === 1 ? 'φορά' : 'φορές'}/εβδομάδα ομαδικές
+                   </div>
+                 </div>
+               )}
+
                {/* Enhanced User Selection */}
                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
                  <label className="block text-lg font-bold text-blue-800 mb-4 flex items-center">
-                   👤 {trainingType === 'individual' ? 'Επιλογή Χρήστη' : 'Επιλογή Χρηστών (Group)'}
+                   👤 {trainingType === 'individual' ? 'Επιλογή Χρήστη' : trainingType === 'combination' ? 'Επιλογή Χρήστη (Συνδυασμός)' : 'Επιλογή Χρηστών (Group)'}
+                   {(trainingType === 'individual' || trainingType === 'combination') && (
+                     <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                       Selected: {newCode.selectedUserId ? '✅' : '❌'}
+                     </span>
+                   )}
                  </label>
                 
                 {/* Enhanced Mode Selection */}
@@ -3759,11 +3977,14 @@ const AdminPanel: React.FC = () => {
 
                                  {/* Enhanced User Selection based on mode */}
                  {userSearchMode === 'dropdown' ? (
-                   trainingType === 'individual' ? (
+                   (trainingType === 'individual' || trainingType === 'combination') ? (
                      <select
                        className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-700"
                        value={newCode.selectedUserId}
-                       onChange={(e) => setNewCode({ ...newCode, selectedUserId: e.target.value })}
+                       onChange={(e) => {
+                         console.log('[AdminPanel] User selected:', e.target.value);
+                         setNewCode({ ...newCode, selectedUserId: e.target.value });
+                       }}
                      >
                        <option value="">-- Επιλέξτε χρήστη --</option>
                        {allUsers.length > 0 ? (
@@ -3778,8 +3999,8 @@ const AdminPanel: React.FC = () => {
                      </select>
                    ) : (
                      <div className="max-h-48 overflow-y-auto border-2 border-blue-200 rounded-xl bg-white">
-                       {allUsers.length > 0 ? (
-                         allUsers.map((user) => (
+                       {paginatedUsers.length > 0 ? (
+                         paginatedUsers.map((user) => (
                            <div
                              key={user.id}
                              className={`p-3 hover:bg-blue-50 cursor-pointer border-b border-blue-100 last:border-b-0 transition-all duration-200 ${
@@ -3828,12 +4049,12 @@ const AdminPanel: React.FC = () => {
                              <div
                                key={user.id}
                                className={`p-4 hover:bg-blue-50 cursor-pointer border-b border-blue-100 last:border-b-0 transition-all duration-200 ${
-                                 trainingType === 'individual' 
+                                 (trainingType === 'individual' || trainingType === 'combination')
                                    ? (newCode.selectedUserId === user.id ? 'bg-blue-100 border-l-4 border-l-blue-500' : '')
                                    : (selectedUserIds.includes(user.id) ? 'bg-blue-100 border-l-4 border-l-blue-500' : '')
                                }`}
                                onClick={() => {
-                                 if (trainingType === 'individual') {
+                                 if (trainingType === 'individual' || trainingType === 'combination') {
                                    setNewCode({ ...newCode, selectedUserId: user.id });
                                  } else {
                                    if (selectedUserIds.includes(user.id)) {
@@ -3865,7 +4086,7 @@ const AdminPanel: React.FC = () => {
                  )}
                 
                                  {/* Enhanced Selected User Display */}
-                 {(trainingType === 'individual' ? newCode.selectedUserId : selectedUserIds.length > 0) && (
+                 {((trainingType === 'individual' || trainingType === 'combination') ? newCode.selectedUserId : selectedUserIds.length > 0) && (
                    <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
                      <div className="flex items-center">
                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
@@ -3873,9 +4094,9 @@ const AdminPanel: React.FC = () => {
                        </div>
                        <div>
                          <div className="text-sm font-bold text-green-800">
-                           ✅ {trainingType === 'individual' ? 'Επιλεγμένος:' : 'Επιλεγμένοι:'}
+                           ✅ {(trainingType === 'individual' || trainingType === 'combination') ? 'Επιλεγμένος:' : 'Επιλεγμένοι:'}
                          </div>
-                         {trainingType === 'individual' ? (
+                         {(trainingType === 'individual' || trainingType === 'combination') ? (
                            <div className="text-xs text-green-600">
                              {allUsers.find(u => u.id === newCode.selectedUserId)?.firstName} {allUsers.find(u => u.id === newCode.selectedUserId)?.lastName} ({allUsers.find(u => u.id === newCode.selectedUserId)?.email})
                            </div>
@@ -3893,72 +4114,26 @@ const AdminPanel: React.FC = () => {
                  )}
               </div>
 
-              {/* Group Room Options - Only for Group Training */}
-              {trainingType === 'group' && selectedUserIds.length > 0 && (
+              {/* Group Room Options - For Group Training and Combination */}
+              {((trainingType === 'group' && selectedUserIds.length > 0) || (trainingType === 'combination' && newCode.selectedUserId)) && (
                 <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-4 sm:p-6 border border-orange-200 mt-4">
                   <h4 className="text-lg sm:text-xl font-bold text-orange-800 mb-4 sm:mb-6 flex items-center">
-                    🏠 Επιλογές Ομαδικής Αίθουσας
+                    🏠 {trainingType === 'combination' ? 'Επιλογές Ομαδικής Αίθουσας (για Group Sessions)' : 'Επιλογές Ομαδικής Αίθουσας'}
                   </h4>
                   
                   <div className="space-y-6">
-                    {/* Group Room Size Selection */}
-                    <div>
-                      <label className="block text-base font-semibold text-orange-700 mb-3">
-                        Επιλέξτε Μέγιστο Μέγεθος Ομαδικής Αίθουσας:
-                      </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedGroupRoom('2')}
-                          className={`p-4 rounded-lg border-2 transition-all duration-200 ${
-                            selectedGroupRoom === '2'
-                              ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
-                              : 'bg-white text-orange-600 border-orange-300 hover:border-orange-500'
-                          }`}
-                        >
-                          <div className="text-center">
-                            <div className="text-2xl mb-2">👥</div>
-                            <div className="font-bold">2 Χρήστες</div>
-                            <div className="text-sm opacity-75">Μέγιστο 2 άτομα</div>
-                          </div>
-                        </button>
-                        
-                        <button
-                          type="button"
-                          onClick={() => setSelectedGroupRoom('3')}
-                          className={`p-4 rounded-lg border-2 transition-all duration-200 ${
-                            selectedGroupRoom === '3'
-                              ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
-                              : 'bg-white text-orange-600 border-orange-300 hover:border-orange-500'
-                          }`}
-                        >
-                          <div className="text-center">
-                            <div className="text-2xl mb-2">👥👥</div>
-                            <div className="font-bold">3 Χρήστες</div>
-                            <div className="text-sm opacity-75">Μέγιστο 3 άτομα</div>
-                          </div>
-                        </button>
-                        
-                        <button
-                          type="button"
-                          onClick={() => setSelectedGroupRoom('6')}
-                          className={`p-4 rounded-lg border-2 transition-all duration-200 ${
-                            selectedGroupRoom === '6'
-                              ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
-                              : 'bg-white text-orange-600 border-orange-300 hover:border-orange-500'
-                          }`}
-                        >
-                          <div className="text-center">
-                            <div className="text-2xl mb-2">👥👥👥</div>
-                            <div className="font-bold">6 Χρήστες</div>
-                            <div className="text-sm opacity-75">Μέγιστο 6 άτομα</div>
-                          </div>
-                        </button>
+                    {/* Info about per-session group room selection */}
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2">
+                        <div className="text-purple-600">💡</div>
+                        <div className="text-sm text-purple-700">
+                          <strong>Νέα Λειτουργία:</strong> Θα επιλέξετε το Group Size (2, 3, ή 6 άτομα) για κάθε σεσία ξεχωριστά στη Διαχείριση Ομαδικών Αναθέσεων
+                        </div>
                       </div>
                     </div>
-
+                    
                     {/* Weekly Frequency Selection */}
-                    {selectedGroupRoom && (
+                    <div>
                       <div>
                         <label className="block text-base font-semibold text-orange-700 mb-3">
                           Πόσες φορές την εβδομάδα θα παρακολουθούν οι χρήστες;
@@ -3985,7 +4160,7 @@ const AdminPanel: React.FC = () => {
                           ))}
                         </div>
                       </div>
-                    )}
+                    </div>
 
                     {/* Monthly Total Display */}
                     {selectedGroupRoom && weeklyFrequency && (
@@ -4002,13 +4177,13 @@ const AdminPanel: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Group Assignment Interface */}
+                    {/* Group Assignment Interface - For Group Training and Combination */}
                     {selectedGroupRoom && weeklyFrequency && (
                       <GroupAssignmentInterface 
                         selectedGroupRoom={selectedGroupRoom}
                         weeklyFrequency={weeklyFrequency}
                         monthlyTotal={monthlyTotal}
-                        selectedUserIds={selectedUserIds}
+                        selectedUserIds={trainingType === 'combination' ? [newCode.selectedUserId] : selectedUserIds}
                         onSlotsChange={setSelectedGroupSlots}
                       />
                     )}
@@ -4017,7 +4192,7 @@ const AdminPanel: React.FC = () => {
               )}
 
               {/* New Options Panel */}
-              {(trainingType === 'individual' ? newCode.selectedUserId : selectedUserIds.length > 0) && (
+              {((trainingType === 'individual' || trainingType === 'combination') ? newCode.selectedUserId : selectedUserIds.length > 0) && (
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200 mt-4">
                   <h4 className="text-lg sm:text-xl font-bold text-purple-800 mb-4 sm:mb-6 flex items-center">
                     ⚙️ Επιλογές Προγράμματος
@@ -4025,11 +4200,11 @@ const AdminPanel: React.FC = () => {
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* Παλαιά μέλη - Μόνο αν δεν έχει χρησιμοποιηθεί */}
-                    {!((trainingType === 'individual' 
+                    {!(((trainingType === 'individual' || trainingType === 'combination')
                       ? usedOldMembers.has(newCode.selectedUserId)
                       : selectedUserIds.some(id => usedOldMembers.has(id)))) && (
                       <div className={`rounded-lg p-4 border ${
-                        (trainingType === 'individual' 
+                        ((trainingType === 'individual' || trainingType === 'combination')
                           ? isUserPending(newCode.selectedUserId)
                           : selectedUserIds.some(id => isUserPending(id)))
                           ? 'bg-yellow-100 border-yellow-300' 
@@ -4038,7 +4213,7 @@ const AdminPanel: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                            const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                             
                             // Check if any user is pending
                             const hasPendingUser = userIds.some(id => isUserPending(id));
@@ -4059,7 +4234,7 @@ const AdminPanel: React.FC = () => {
                             });
                           }}
                           className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 relative shadow-lg ${
-                            (trainingType === 'individual' && newCode.selectedUserId) 
+                            ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                               ? (isUserPending(newCode.selectedUserId) 
                                   ? (getFrozenOptions(newCode.selectedUserId)?.oldMembers 
                                       ? 'bg-green-500 text-white' 
@@ -4074,7 +4249,7 @@ const AdminPanel: React.FC = () => {
                         >
                           <div className="flex items-center justify-center space-x-2">
                             <span>👴 Παλαιά μέλη</span>
-                            {((trainingType === 'individual' && newCode.selectedUserId) 
+                            {(((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                               ? (isUserPending(newCode.selectedUserId) 
                                   ? getFrozenOptions(newCode.selectedUserId)?.oldMembers
                                   : selectedOptions[newCode.selectedUserId]?.oldMembers)
@@ -4093,7 +4268,7 @@ const AdminPanel: React.FC = () => {
 
                     {/* Kettlebell Points */}
                     <div className={`rounded-lg p-4 border ${
-                      (trainingType === 'individual' 
+                      ((trainingType === 'individual' || trainingType === 'combination')
                         ? isUserPending(newCode.selectedUserId)
                         : selectedUserIds.some(id => isUserPending(id)))
                         ? 'bg-yellow-100 border-yellow-300' 
@@ -4101,7 +4276,7 @@ const AdminPanel: React.FC = () => {
                     }`}>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         🏋️‍♂️ Kettlebell Points
-                        {(trainingType === 'individual' 
+                        {((trainingType === 'individual' || trainingType === 'combination')
                           ? isUserPending(newCode.selectedUserId)
                           : selectedUserIds.some(id => isUserPending(id))) && (
                           <span className="text-yellow-600 ml-2">🔒</span>
@@ -4109,7 +4284,7 @@ const AdminPanel: React.FC = () => {
                       </label>
                       <input
                         type="number"
-                        value={(trainingType === 'individual' && newCode.selectedUserId) 
+                        value={((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                           ? (isUserPending(newCode.selectedUserId) 
                               ? (getFrozenOptions(newCode.selectedUserId)?.kettlebellPoints || '')
                               : kettlebellPoints)
@@ -4144,7 +4319,7 @@ const AdminPanel: React.FC = () => {
                             : 'border-gray-300 focus:ring-purple-500 focus:border-purple-500'
                         }`}
                         placeholder="Εισάγετε αριθμό..."
-                        disabled={(trainingType === 'individual' 
+                        disabled={((trainingType === 'individual' || trainingType === 'combination') 
                           ? isUserPending(newCode.selectedUserId)
                           : selectedUserIds.some(id => isUserPending(id)))}
                       />
@@ -4152,7 +4327,7 @@ const AdminPanel: React.FC = () => {
 
                     {/* Μετρητά */}
                     <div className={`rounded-lg p-4 border ${
-                      (trainingType === 'individual' 
+                      ((trainingType === 'individual' || trainingType === 'combination')
                         ? isUserPending(newCode.selectedUserId)
                         : selectedUserIds.some(id => isUserPending(id)))
                         ? 'bg-yellow-100 border-yellow-300' 
@@ -4160,7 +4335,7 @@ const AdminPanel: React.FC = () => {
                     }`}>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         💰 Μετρητά (€)
-                        {(trainingType === 'individual' 
+                        {((trainingType === 'individual' || trainingType === 'combination')
                           ? isUserPending(newCode.selectedUserId)
                           : selectedUserIds.some(id => isUserPending(id))) && (
                           <span className="text-yellow-600 ml-2">🔒</span>
@@ -4170,7 +4345,7 @@ const AdminPanel: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                            const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                             
                             // Check if any user is pending
                             const hasPendingUser = userIds.some(id => isUserPending(id));
@@ -4182,7 +4357,7 @@ const AdminPanel: React.FC = () => {
                             setShowCashInput(true);
                           }}
                           className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg ${
-                            (trainingType === 'individual' && newCode.selectedUserId) 
+                            ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                               ? (isUserPending(newCode.selectedUserId) 
                                   ? (getFrozenOptions(newCode.selectedUserId)?.cash 
                                       ? 'bg-green-500 text-white cursor-not-allowed'
@@ -4192,7 +4367,7 @@ const AdminPanel: React.FC = () => {
                                   ? 'bg-yellow-500 text-white cursor-not-allowed'
                                   : 'bg-green-500 text-white hover:bg-green-600')
                           }`}
-                          disabled={(trainingType === 'individual' 
+                          disabled={((trainingType === 'individual' || trainingType === 'combination') 
                             ? isUserPending(newCode.selectedUserId)
                             : selectedUserIds.some(id => isUserPending(id)))}
                         >
@@ -4204,13 +4379,13 @@ const AdminPanel: React.FC = () => {
                             type="number"
                             step="0.01"
                             min="0"
-                            value={(trainingType === 'individual' && newCode.selectedUserId) 
+                            value={((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                               ? (isUserPending(newCode.selectedUserId) 
                                   ? (getFrozenOptions(newCode.selectedUserId)?.cashAmount?.toString() || '')
                                   : cashAmount)
                               : cashAmount}
                             onChange={(e) => {
-                              const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                              const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                               
                               // Check if any user is pending
                               const hasPendingUser = userIds.some(id => isUserPending(id));
@@ -4230,7 +4405,7 @@ const AdminPanel: React.FC = () => {
                             }`}
                             placeholder="Εισάγετε ποσό σε €..."
                             autoFocus
-                            disabled={(trainingType === 'individual' 
+                            disabled={((trainingType === 'individual' || trainingType === 'combination') 
                               ? isUserPending(newCode.selectedUserId)
                               : selectedUserIds.some(id => isUserPending(id)))}
                           />
@@ -4238,7 +4413,7 @@ const AdminPanel: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                                const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                                 
                                 // Check if any user is pending
                                 const hasPendingUser = userIds.some(id => isUserPending(id));
@@ -4267,7 +4442,7 @@ const AdminPanel: React.FC = () => {
                                 setCashAmount('');
                               }}
                               className={`flex-1 px-3 py-2 text-white rounded-lg transition-colors text-sm ${
-                                (trainingType === 'individual' && newCode.selectedUserId) 
+                                ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                                   ? (isUserPending(newCode.selectedUserId) 
                                       ? (getFrozenOptions(newCode.selectedUserId)?.cash 
                                           ? 'bg-green-600 cursor-not-allowed'
@@ -4277,7 +4452,7 @@ const AdminPanel: React.FC = () => {
                                       ? 'bg-yellow-500 cursor-not-allowed'
                                       : 'bg-green-600 hover:bg-green-700')
                               }`}
-                              disabled={(trainingType === 'individual' 
+                              disabled={((trainingType === 'individual' || trainingType === 'combination') 
                                 ? isUserPending(newCode.selectedUserId)
                                 : selectedUserIds.some(id => isUserPending(id)))}
                             >
@@ -4300,7 +4475,7 @@ const AdminPanel: React.FC = () => {
 
                     {/* POS */}
                     <div className={`rounded-lg p-4 border ${
-                      (trainingType === 'individual' 
+                      ((trainingType === 'individual' || trainingType === 'combination')
                         ? isUserPending(newCode.selectedUserId)
                         : selectedUserIds.some(id => isUserPending(id)))
                         ? 'bg-yellow-100 border-yellow-300' 
@@ -4308,7 +4483,7 @@ const AdminPanel: React.FC = () => {
                     }`}>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         💳 POS (€)
-                        {(trainingType === 'individual' 
+                        {((trainingType === 'individual' || trainingType === 'combination')
                           ? isUserPending(newCode.selectedUserId)
                           : selectedUserIds.some(id => isUserPending(id))) && (
                           <span className="text-yellow-600 ml-2">🔒</span>
@@ -4318,7 +4493,7 @@ const AdminPanel: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                            const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                             
                             // Check if any user is pending
                             const hasPendingUser = userIds.some(id => isUserPending(id));
@@ -4330,7 +4505,7 @@ const AdminPanel: React.FC = () => {
                             setShowPosInput(true);
                           }}
                           className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg ${
-                            (trainingType === 'individual' && newCode.selectedUserId) 
+                            ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                               ? (isUserPending(newCode.selectedUserId) 
                                   ? (getFrozenOptions(newCode.selectedUserId)?.pos 
                                       ? 'bg-blue-500 text-white cursor-not-allowed'
@@ -4340,7 +4515,7 @@ const AdminPanel: React.FC = () => {
                                   ? 'bg-yellow-500 text-white cursor-not-allowed'
                                   : 'bg-blue-500 text-white hover:bg-blue-600')
                           }`}
-                          disabled={(trainingType === 'individual' 
+                          disabled={((trainingType === 'individual' || trainingType === 'combination') 
                             ? isUserPending(newCode.selectedUserId)
                             : selectedUserIds.some(id => isUserPending(id)))}
                         >
@@ -4352,13 +4527,13 @@ const AdminPanel: React.FC = () => {
                             type="number"
                             step="0.01"
                             min="0"
-                            value={(trainingType === 'individual' && newCode.selectedUserId) 
+                            value={((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                               ? (isUserPending(newCode.selectedUserId) 
                                   ? (getFrozenOptions(newCode.selectedUserId)?.posAmount?.toString() || '')
                                   : posAmount)
                               : posAmount}
                             onChange={(e) => {
-                              const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                              const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                               
                               // Check if any user is pending
                               const hasPendingUser = userIds.some(id => isUserPending(id));
@@ -4378,7 +4553,7 @@ const AdminPanel: React.FC = () => {
                             }`}
                             placeholder="Εισάγετε ποσό σε €..."
                             autoFocus
-                            disabled={(trainingType === 'individual' 
+                            disabled={((trainingType === 'individual' || trainingType === 'combination') 
                               ? isUserPending(newCode.selectedUserId)
                               : selectedUserIds.some(id => isUserPending(id)))}
                           />
@@ -4386,7 +4561,7 @@ const AdminPanel: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                const userIds = trainingType === 'individual' ? [newCode.selectedUserId] : selectedUserIds;
+                                const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                                 
                                 // Check if any user is pending
                                 const hasPendingUser = userIds.some(id => isUserPending(id));
@@ -4415,7 +4590,7 @@ const AdminPanel: React.FC = () => {
                                 setPosAmount('');
                               }}
                               className={`flex-1 px-3 py-2 text-white rounded-lg transition-colors text-sm ${
-                                (trainingType === 'individual' && newCode.selectedUserId) 
+                                ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                                   ? (isUserPending(newCode.selectedUserId) 
                                       ? (getFrozenOptions(newCode.selectedUserId)?.pos 
                                           ? 'bg-blue-600 cursor-not-allowed'
@@ -4425,7 +4600,7 @@ const AdminPanel: React.FC = () => {
                                       ? 'bg-yellow-500 cursor-not-allowed'
                                       : 'bg-blue-600 hover:bg-blue-700')
                               }`}
-                              disabled={(trainingType === 'individual' 
+                              disabled={((trainingType === 'individual' || trainingType === 'combination') 
                                 ? isUserPending(newCode.selectedUserId)
                                 : selectedUserIds.some(id => isUserPending(id)))}
                             >
@@ -4538,9 +4713,28 @@ const AdminPanel: React.FC = () => {
                  <div className="flex items-center justify-between mb-4 sm:mb-6">
                    <h4 className="text-lg sm:text-xl font-bold text-orange-800 flex items-center">
                    🏋️‍♂️ Προσωποποιημένο Πρόγραμμα 
+                   {trainingType === 'combination' && (
+                     <span className="ml-2 text-sm bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                       Personal Sessions
+                     </span>
+                   )}
                  </h4>
-                   <div className="text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded-lg">
+                   <div className={`text-sm px-3 py-2 rounded-lg ${
+                     trainingType === 'combination' && programSessions.length > combinationPersonalSessions
+                       ? 'bg-red-100 text-red-700 border border-red-300'
+                       : 'text-gray-600 bg-gray-100'
+                   }`}>
                      📊 Σύνολο: {programSessions.length} σεσίας
+                     {trainingType === 'combination' && (
+                       <span className={`ml-2 ${
+                         programSessions.length > combinationPersonalSessions ? 'text-red-600' : 'text-purple-600'
+                       }`}>
+                         ({combinationPersonalSessions} θα χρησιμοποιηθούν)
+                         {programSessions.length > combinationPersonalSessions && (
+                           <span className="ml-1 font-bold">⚠️ Περισσότερες από όσες θα χρησιμοποιηθούν!</span>
+                         )}
+                       </span>
+                     )}
                    </div>
                  </div>
 
@@ -4548,14 +4742,16 @@ const AdminPanel: React.FC = () => {
                  <div className="bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden">
                    {/* Table Header */}
                    <div className="bg-gradient-to-r from-gray-100 to-gray-200 border-b-2 border-gray-400">
-                     <div className="grid grid-cols-8 gap-0 text-sm font-bold text-gray-800">
+                     <div className={`grid gap-0 text-sm font-bold text-gray-800 ${trainingType === 'individual' ? 'grid-cols-7' : 'grid-cols-8'}`}>
                        <div className="col-span-1 text-center py-3 border-r border-gray-300 bg-gray-200">#</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">📅 Ημερομηνία</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">🕐 Έναρξη</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">🕕 Λήξη</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">💪 Τύπος</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">🏠 Αίθουσα</div>
-                       <div className="col-span-1 py-3 px-2 border-r border-gray-300">👥 Group</div>
+                       {trainingType !== 'individual' && (
+                         <div className="col-span-1 py-3 px-2 border-r border-gray-300">👥 Group</div>
+                       )}
                        <div className="col-span-1 py-3 px-2">👨‍🏫 Προπονητής</div>
                            </div>
                          </div>
@@ -4563,7 +4759,7 @@ const AdminPanel: React.FC = () => {
                    {/* Table Body */}
                    <div className="divide-y divide-gray-300">
                      {programSessions.map((session, idx) => (
-                       <div key={session.id} className="grid grid-cols-8 gap-0 hover:bg-blue-50 transition-colors">
+                       <div key={session.id} className={`grid gap-0 hover:bg-blue-50 transition-colors ${trainingType === 'individual' ? 'grid-cols-7' : 'grid-cols-8'}`}>
                          {/* Row Number & Actions */}
                          <div className="col-span-1 flex items-center justify-center space-x-2 py-3 border-r border-gray-300 bg-gray-50">
                            <span className="text-sm font-bold text-gray-700">{idx + 1}</span>
@@ -4643,19 +4839,29 @@ const AdminPanel: React.FC = () => {
                            </select>
                          </div>
 
-                         {/* Group */}
-                         <div className="col-span-1 p-2 border-r border-gray-300">
-                           <select 
-                             className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                             value={session.group || ''}
-                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, group: e.target.value as '2ΑτομαGroup' | '3ΑτομαGroup' | '6ΑτομαGroup' | undefined } : ps))}
-                           >
-                             <option value="">Επιλέξτε Group</option>
-                             <option value="2ΑτομαGroup">2ΑτομαGroup</option>
-                             <option value="3ΑτομαGroup">3ΑτομαGroup</option>
-                             <option value="6ΑτομαGroup">6ΑτομαGroup</option>
-                           </select>
-                         </div>
+                        {/* Group - Only show for non-individual training */}
+                        {trainingType !== 'individual' && (
+                          <div className="col-span-1 p-2 border-r border-gray-300">
+                            {trainingType === 'combination' ? (
+                              // For combination, lock to 1 person (individual sessions)
+                              <div className="w-full px-2 py-2 text-sm border-2 border-gray-200 rounded bg-gray-100 text-gray-600 font-medium">
+                                🔒 1 άτομο (Ατομική)
+                              </div>
+                            ) : (
+                              // For group training, allow selection
+                              <select 
+                                className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                value={session.group || ''}
+                                onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, group: e.target.value as '2ΑτομαGroup' | '3ΑτομαGroup' | '6ΑτομαGroup' | undefined } : ps))}
+                              >
+                                <option value="">Επιλέξτε Group</option>
+                                <option value="2ΑτομαGroup">2ΑτομαGroup</option>
+                                <option value="3ΑτομαGroup">3ΑτομαGroup</option>
+                                <option value="6ΑτομαGroup">6ΑτομαGroup</option>
+                              </select>
+                            )}
+                          </div>
+                        )}
 
                          {/* Trainer */}
                          <div className="col-span-1 p-2">
@@ -4681,17 +4887,25 @@ const AdminPanel: React.FC = () => {
                      <button 
                        type="button" 
                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium flex items-center justify-center"
-                       onClick={() => setProgramSessions(prev => [...prev, {
-                         id: `tmp-${Date.now()}`,
-                         date: new Date().toISOString().split('T')[0], 
-                         startTime: '19:00', 
-                         endTime: '20:00', 
-                         type: 'personal', 
-                         trainer: 'Mike', 
-                         room: 'Αίθουσα Mike', 
-                         group: '2ΑτομαGroup',
-                         notes: prev[0]?.notes || ''
-                       }])}
+                       onClick={() => {
+                         // Validation για combination training
+                         if (trainingType === 'combination' && programSessions.length >= combinationPersonalSessions) {
+                           toast.error(`Για συνδυασμένο πρόγραμμα μπορείτε να έχετε μέγιστο ${combinationPersonalSessions} ατομικές σεσίες`);
+                           return;
+                         }
+                         
+                        setProgramSessions(prev => [...prev, {
+                          id: `tmp-${Date.now()}`,
+                          date: new Date().toISOString().split('T')[0], 
+                          startTime: '19:00', 
+                          endTime: '20:00', 
+                          type: 'personal', 
+                          trainer: 'Mike', 
+                          room: 'Αίθουσα Mike', 
+                          group: trainingType === 'combination' ? undefined : '2ΑτομαGroup', // For combination, no group (individual sessions)
+                          notes: prev[0]?.notes || ''
+                        }]);
+                       }}
                      >
                        ➕ Προσθήκη Σέσιας
                      </button>
@@ -4699,6 +4913,12 @@ const AdminPanel: React.FC = () => {
                        type="button"
                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center justify-center"
                        onClick={() => {
+                         // Validation για combination training
+                         if (trainingType === 'combination' && programSessions.length >= combinationPersonalSessions) {
+                           toast.error(`Για συνδυασμένο πρόγραμμα μπορείτε να έχετε μέγιστο ${combinationPersonalSessions} ατομικές σεσίες`);
+                           return;
+                         }
+                         
                          const newSession = {
                            id: `tmp-${Date.now()}`,
                            date: new Date().toISOString().split('T')[0],
@@ -4744,11 +4964,22 @@ const AdminPanel: React.FC = () => {
                 ❌ Ακύρωση
               </button>
               <button
-                onClick={createPersonalTrainingProgram}
-                disabled={trainingType === 'individual' ? !newCode.selectedUserId : selectedUserIds.length === 0}
+                onClick={() => {
+                  console.log('[AdminPanel] Button clicked - trainingType:', trainingType, 'selectedUserId:', newCode.selectedUserId);
+                  createPersonalTrainingProgram();
+                }}
+                disabled={(trainingType === 'individual' || trainingType === 'combination') ? !newCode.selectedUserId : selectedUserIds.length === 0}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-green-500 disabled:hover:to-emerald-500"
+                title={
+                  (trainingType === 'individual' || trainingType === 'combination') 
+                    ? (!newCode.selectedUserId ? 'Παρακαλώ επιλέξτε χρήστη' : 'Δημιουργία Προγράμματος')
+                    : (selectedUserIds.length === 0 ? 'Παρακαλώ επιλέξτε χρήστες' : 'Δημιουργία Προγράμματος')
+                }
               >
                 ✅ Δημιουργία Προγράμματος
+                {(trainingType === 'individual' || trainingType === 'combination') && !newCode.selectedUserId && (
+                  <span className="ml-2 text-xs opacity-75">(Επιλέξτε χρήστη)</span>
+                )}
               </button>
               </div>
             </div>
@@ -4784,8 +5015,6 @@ const AdminPanel: React.FC = () => {
                 programId={groupAssignmentProgramId}
                 weeklyFrequency={weeklyFrequency}
                 onAssignmentComplete={() => {
-                  // Refresh the overview when assignments are completed
-                  setGroupOverviewKey(prev => prev + 1);
                   
                   // Check if there are more users to assign
                   const currentUserIndex = selectedUserIds.findIndex(id => id === groupAssignmentUser.id);
@@ -4821,6 +5050,53 @@ const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Ultimate Subscriptions Tab */}
+      {activeTab === 'ultimate-subscriptions' && !loading && (
+        <ErrorBoundary
+          fallback={
+            <div className="text-center py-16">
+              <div className="bg-red-100 rounded-full p-6 w-24 h-24 mx-auto mb-6">
+                <AlertTriangle className="h-12 w-12 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                Σφάλμα στη φόρτωση Ultimate Συνδρομών
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Παρουσιάστηκε ένα σφάλμα. Παρακαλώ ανανεώστε τη σελίδα ή δοκιμάστε ξανά.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+              >
+                Ανανέωση Σελίδας
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-6">
+            <AdminUltimateInstallmentsTab
+              ultimateRequests={ultimateRequests}
+              ultimateLoading={ultimateLoading}
+              ultimateSearchTerm={ultimateSearchTerm}
+              setUltimateSearchTerm={setUltimateSearchTerm}
+              selectedRequestOptions={selectedRequestOptions}
+              handleRequestOptionChange={handleRequestOptionChange}
+              updateInstallmentAmounts={updateInstallmentAmounts}
+              deleteUltimateRequest={deleteUltimateRequest}
+              loadUltimateRequests={loadUltimateRequests}
+              handleApproveRequest={handleUltimateApproveRequest}
+              handleRejectRequest={handleUltimateRejectRequest}
+              loading={loading}
+              requestProgramApprovalStatus={requestProgramApprovalStatus}
+              handleRequestProgramApprovalChange={handleRequestProgramApprovalChange}
+              handleSaveRequestProgramOptions={handleSaveRequestProgramOptions}
+              requestPendingUsers={requestPendingUsers}
+              requestFrozenOptions={requestFrozenOptions}
+            />
+          </div>
+        </ErrorBoundary>
       )}
 
     </div>

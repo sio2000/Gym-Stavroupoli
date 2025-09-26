@@ -171,7 +171,7 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
     endDate.setDate(endDate.getDate() + duration.duration_days);
     const endDateStr = endDate.toISOString().split('T')[0];
 
-    // Start transaction
+    // Start transaction-like sequence (Supabase JS doesn't support multi-statement tx)
     const { error: updateError } = await supabase
       .from('membership_requests')
       .update({
@@ -199,22 +199,75 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
 
     if (membershipError) throw membershipError;
 
-    // If this is a Pilates request with classes_count, create a lesson deposit
-    if (request.classes_count && request.classes_count > 0) {
-      const { error: lessonDepositError } = await supabase
-        .from('lesson_deposits')
-        .insert({
-          user_id: request.user_id,
-          package_id: request.package_id,
-          total_classes: request.classes_count,
-          remaining_classes: request.classes_count
-        });
+    // Pilates deposit crediting (robust mapping)
+    const pilatesDurationToDeposit: Record<string, number> = {
+      pilates_trial: 1,
+      pilates_1month: 4,
+      pilates_2months: 8,
+      pilates_3months: 16,
+      pilates_6months: 25,
+      pilates_1year: 50
+    };
 
-      if (lessonDepositError) {
-        console.error('Error creating lesson deposit:', lessonDepositError);
-        // Don't throw error here, just log it as the membership was already created
+    let isPilatesPackage = false;
+    try {
+      const { data: pkg } = await supabase
+        .from('membership_packages')
+        .select('name')
+        .eq('id', request.package_id)
+        .single();
+      isPilatesPackage = pkg?.name === 'Pilates';
+    } catch (e) {
+      console.warn('[MembershipAPI] Could not verify package name for pilates deposit logic. Skipping deposit credit.');
+    }
+
+    if (isPilatesPackage) {
+      let depositCount = 0;
+      if (typeof request.classes_count === 'number' && request.classes_count > 0) {
+        depositCount = request.classes_count;
+      }
+      try {
+        const { data: durRow } = await supabase
+          .from('membership_package_durations')
+          .select('classes_count, price, duration_days, duration_type')
+          .eq('package_id', request.package_id)
+          .eq('duration_type', request.duration_type)
+          .single();
+        if (!depositCount && durRow?.classes_count) {
+          depositCount = durRow.classes_count as number;
+        }
+        if (!depositCount) {
+          depositCount = pilatesDurationToDeposit[(durRow?.duration_type || request.duration_type) as keyof typeof pilatesDurationToDeposit] || 0;
+        }
+        if (!depositCount && typeof durRow?.price === 'number') {
+          const price = Math.round(durRow.price);
+          const priceMap: Record<number, number> = { 0: 1, 44: 4, 80: 8, 144: 16, 190: 25, 350: 50 };
+          depositCount = priceMap[price] || 0;
+        }
+      } catch (e) {
+        console.warn('[MembershipAPI] Could not read duration row for pilates deposit mapping:', e);
+      }
+      if (!depositCount) {
+        depositCount = pilatesDurationToDeposit[request.duration_type as keyof typeof pilatesDurationToDeposit] || 0;
+      }
+
+      if (depositCount > 0) {
+        const expiresAt = new Date(endDateStr + 'T23:59:59Z').toISOString();
+        // Use SECURITY DEFINER RPC to bypass RLS safely
+        const { error: rpcError } = await supabase.rpc('credit_pilates_deposit', {
+          p_user_id: request.user_id,
+          p_package_id: request.package_id,
+          p_deposit_remaining: depositCount,
+          p_expires_at: expiresAt,
+          p_created_by: user.id
+        });
+        if (rpcError) {
+          console.error('[MembershipAPI] Error creating pilates deposit via RPC:', rpcError);
+        } else {
+          console.log(`[MembershipAPI] Pilates deposit credited via RPC: ${depositCount} lessons for user ${request.user_id}`);
+        }
       } else {
-        console.log(`[MembershipAPI] Lesson deposit created: ${request.classes_count} classes for user ${request.user_id}`);
+        console.warn('[MembershipAPI] Pilates deposit mapping resulted in 0 credits. Check configuration.');
       }
     }
 
@@ -362,8 +415,8 @@ export const getDurationDays = (durationType: string): number => {
     'year': 365,
     'semester': 180,
     'month': 30,
-    'lesson': 1,
-    'pilates_trial': 1,
+    'lesson': 7, // Changed from 1 to 7 days for Free Gym lesson option
+    'pilates_trial': 7, // Changed from 1 to 7 days for Pilates trial option
     'pilates_1month': 30,
     'pilates_2months': 60,
     'pilates_3months': 90,
@@ -378,6 +431,29 @@ export const calculateEndDate = (startDate: string, durationDays: number): strin
   const end = new Date(start);
   end.setDate(end.getDate() + durationDays);
   return end.toISOString().split('T')[0];
+};
+
+export const getDurationDisplayText = (durationType: string, durationDays: number): string => {
+  // Special cases for the updated duration types
+  if (durationType === 'lesson' && durationDays === 7) {
+    return '1 εβδομάδα';
+  }
+  if (durationType === 'pilates_trial' && durationDays === 7) {
+    return '1 εβδομάδα';
+  }
+  
+  // Default display for other cases
+  if (durationDays === 1) {
+    return '1 ημέρα';
+  } else if (durationDays === 7) {
+    return '1 εβδομάδα';
+  } else if (durationDays === 30) {
+    return '1 μήνας';
+  } else if (durationDays === 365) {
+    return '1 έτος';
+  } else {
+    return `${durationDays} ημέρες`;
+  }
 };
 
 export const updateMembershipPackageDuration = async (

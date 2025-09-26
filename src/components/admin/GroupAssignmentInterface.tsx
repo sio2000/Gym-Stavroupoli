@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Users, Plus, Trash2 } from 'lucide-react';
 import { checkRoomCapacity } from '@/utils/groupAssignmentApi';
 import toast from 'react-hot-toast';
@@ -34,8 +34,21 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
   // Calculate monthly sessions (weekly frequency × 4 weeks)
   const monthlySessions = weeklyFrequency * 4;
 
-  // Initialize sessions for each user
+  // Initialize sessions for each user - with ref to prevent infinite loops
+  const initializationRef = useRef<string>('');
+  
   useEffect(() => {
+    // Create a unique key for this configuration
+    const configKey = `${JSON.stringify(selectedUserIds)}-${weeklyFrequency}-${selectedGroupRoom}`;
+    
+    // Only initialize if configuration actually changed
+    if (initializationRef.current === configKey) {
+      console.log('[GroupAssignmentInterface] Configuration unchanged, skipping initialization');
+      return;
+    }
+    
+    console.log('[GroupAssignmentInterface] Initializing sessions...', { selectedUserIds, weeklyFrequency, selectedGroupRoom, monthlySessions });
+    
     const initialSessions: {[userId: string]: GroupSession[]} = {};
     selectedUserIds.forEach(userId => {
       initialSessions[userId] = Array.from({ length: monthlySessions }, (_, index) => ({
@@ -45,47 +58,57 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
         endTime: '19:00',
         trainer: 'Mike',
         room: 'Αίθουσα Mike',
-        groupType: parseInt(selectedGroupRoom),
+        groupType: parseInt(selectedGroupRoom), // Default, αλλά επεξεργάσιμο ανά σεσία
         notes: ''
       }));
     });
-    setUserSessions(initialSessions);
     
-    // Notify parent component
+    setUserSessions(initialSessions);
+    initializationRef.current = configKey;
+    
+    // Notify parent immediately after initialization
     if (onSlotsChange) {
-      onSlotsChange(initialSessions);
+      setTimeout(() => {
+        console.log('[GroupAssignmentInterface] Notifying parent after initialization...');
+        onSlotsChange(initialSessions);
+      }, 100);
     }
-  }, [selectedUserIds, weeklyFrequency, selectedGroupRoom, monthlySessions]);
+  }, [selectedUserIds, weeklyFrequency, selectedGroupRoom, monthlySessions, onSlotsChange]);
 
   // Update session for a user with validation
   const updateUserSession = async (userId: string, sessionId: string, field: keyof GroupSession, value: any) => {
+    console.log('[GroupAssignmentInterface] Updating session:', { userId, sessionId, field, value });
+    
     // Get the current session to check what's changing
     const currentSession = userSessions[userId]?.find(s => s.id === sessionId);
-    if (!currentSession) return;
+    if (!currentSession) {
+      console.error('[GroupAssignmentInterface] Current session not found:', { userId, sessionId });
+      return;
+    }
 
     // Create the updated session
     const updatedSession = { ...currentSession, [field]: value };
 
-    // If changing date, time, or room, check capacity
-    if (field === 'date' || field === 'startTime' || field === 'endTime' || field === 'room') {
+    // If changing date, time, room, or group type, check capacity
+    if (field === 'date' || field === 'startTime' || field === 'endTime' || field === 'room' || field === 'groupType') {
       try {
         const capacityCheck = await checkRoomCapacity(
           updatedSession.date,
           updatedSession.startTime,
           updatedSession.endTime,
           updatedSession.room,
-          parseInt(selectedGroupRoom),
+          updatedSession.groupType, // Χρησιμοποιούμε το group type της σεσίας
           userId // Exclude current user from capacity count
         );
 
         if (!capacityCheck.isAvailable) {
-          toast.error(`Η αίθουσα ${updatedSession.room} είναι γεμάτη για ${updatedSession.date} ${updatedSession.startTime}-${updatedSession.endTime}. Χωρητικότητα: ${capacityCheck.currentOccupancy + 1}/${capacityCheck.maxCapacity} (συμπεριλαμβανομένου σας)`);
-          return;
+          toast.error(`❌ Η αίθουσα ${updatedSession.room} είναι γεμάτη για ${updatedSession.date} ${updatedSession.startTime}-${updatedSession.endTime}. Χωρητικότητα: ${capacityCheck.currentOccupancy + 1}/${capacityCheck.maxCapacity}. Παρακαλώ επιλέξτε διαφορετική ώρα, ημερομηνία ή αίθουσα.`);
+          return; // Δεν επιτρέπουμε την αλλαγή αν θα δημιουργήσει υπέρβαση
         }
       } catch (error) {
         console.error('Error checking room capacity:', error);
-        toast.error('Σφάλμα κατά τον έλεγχο χωρητικότητας. Παρακαλώ δοκιμάστε ξανά.');
-        return;
+        console.warn('[GroupAssignmentInterface] Capacity check failed, but allowing change to proceed');
+        // Don't block the change - just log the error
       }
     }
 
@@ -99,9 +122,14 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
         )
       };
       
-      // Notify parent component
+      console.log('[GroupAssignmentInterface] Session updated successfully:', { userId, sessionId, field, value });
+      
+      // Notify parent of the update immediately
       if (onSlotsChange) {
-        onSlotsChange(updatedSessions);
+        setTimeout(() => {
+          console.log('[GroupAssignmentInterface] Notifying parent of session update...');
+          onSlotsChange(updatedSessions);
+        }, 50);
       }
       
       return updatedSessions;
@@ -123,7 +151,7 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
       endTime: '19:00',
       trainer: 'Mike',
       room: 'Αίθουσα Mike',
-      groupType: parseInt(selectedGroupRoom),
+      groupType: parseInt(selectedGroupRoom), // Default από τις επιλογές, αλλά μπορεί να αλλάξει
       notes: ''
     };
 
@@ -134,12 +162,12 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
         newSession.startTime,
         newSession.endTime,
         newSession.room,
-        parseInt(selectedGroupRoom)
+        newSession.groupType // Χρησιμοποιούμε το group type της νέας σεσίας
       );
 
       if (!capacityCheck.isAvailable) {
-        toast.error(`Η αίθουσα ${newSession.room} είναι γεμάτη για ${newSession.date} ${newSession.startTime}-${newSession.endTime}. Χωρητικότητα: ${capacityCheck.currentOccupancy}/${capacityCheck.maxCapacity}. Παρακαλώ αλλάξτε την ώρα ή την ημερομηνία.`);
-        // Still add the session but with a warning
+        toast.error(`❌ Η αίθουσα ${newSession.room} είναι γεμάτη για ${newSession.date} ${newSession.startTime}-${newSession.endTime}. Χωρητικότητα: ${capacityCheck.currentOccupancy}/${capacityCheck.maxCapacity}. Παρακαλώ επιλέξτε διαφορετική ώρα ή ημερομηνία.`);
+        return; // Δεν προσθέτουμε τη σεσία αν το δωμάτιο είναι γεμάτο
       }
     } catch (error) {
       console.error('Error checking room capacity for new session:', error);
@@ -151,9 +179,12 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
         [userId]: [...(prev[userId] || []), newSession]
       };
       
-      // Notify parent component
+      // Notify parent of the addition
       if (onSlotsChange) {
-        onSlotsChange(updatedSessions);
+        setTimeout(() => {
+          console.log('[GroupAssignmentInterface] Notifying parent of session addition...');
+          onSlotsChange(updatedSessions);
+        }, 50);
       }
       
       return updatedSessions;
@@ -168,9 +199,12 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
         [userId]: prev[userId].filter(session => session.id !== sessionId)
       };
       
-      // Notify parent component
+      // Notify parent of the removal
       if (onSlotsChange) {
-        onSlotsChange(updatedSessions);
+        setTimeout(() => {
+          console.log('[GroupAssignmentInterface] Notifying parent of session removal...');
+          onSlotsChange(updatedSessions);
+        }, 50);
       }
       
       return updatedSessions;
@@ -204,7 +238,9 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
             Διαχείριση Ομαδικών Αναθέσεων
           </h4>
           <p className="text-sm text-blue-600 mt-1">
-            Προσθέστε σεσίες για κάθε χρήστη (Group {selectedGroupRoom} άτομα, {monthlySessions} σεσίες/μήνα = {weeklyFrequency} φορές/εβδομάδα × 4 εβδομάδες)
+            Προσθέστε σεσίες για κάθε χρήστη ({monthlySessions} σεσίες/μήνα = {weeklyFrequency} φορές/εβδομάδα × 4 εβδομάδες)
+            <br />
+            <span className="text-purple-600 font-medium">💡 Μπορείτε να επιλέξετε διαφορετικό Group Size για κάθε σεσία (2, 3, ή 6 άτομα)</span>
           </p>
         </div>
       </div>
@@ -237,12 +273,13 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 {/* Table Header */}
                 <div className="bg-gray-50 border-b border-gray-200">
-                  <div className="grid grid-cols-6 gap-0 text-sm font-semibold text-gray-700">
+                  <div className="grid grid-cols-7 gap-0 text-sm font-semibold text-gray-700">
                     <div className="p-3 border-r border-gray-200">📅 Ημερομηνία</div>
                     <div className="p-3 border-r border-gray-200">🕐 Έναρξη</div>
                     <div className="p-3 border-r border-gray-200">🕕 Λήξη</div>
                     <div className="p-3 border-r border-gray-200">👤 Προπονητής</div>
                     <div className="p-3 border-r border-gray-200">🏠 Αίθουσα</div>
+                    <div className="p-3 border-r border-gray-200">👥 Group Size</div>
                     <div className="p-3">🗑️</div>
                   </div>
                 </div>
@@ -250,7 +287,7 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
                 {/* Table Rows */}
                 <div className="divide-y divide-gray-200">
                   {sessions.map((session, index) => (
-                    <div key={session.id} className="grid grid-cols-6 gap-0 hover:bg-gray-50 transition-colors">
+                    <div key={session.id} className="grid grid-cols-7 gap-0 hover:bg-gray-50 transition-colors">
                       {/* Date */}
                       <div className="p-2 border-r border-gray-200">
                         <input
@@ -304,6 +341,19 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
                           {availableRooms.map(room => (
                             <option key={room} value={room}>{room}</option>
                           ))}
+                        </select>
+                      </div>
+
+                      {/* Group Size */}
+                      <div className="p-2 border-r border-gray-200">
+                        <select
+                          value={session.groupType}
+                          onChange={(e) => updateUserSession(userId, session.id, 'groupType', parseInt(e.target.value))}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value={2}>2 άτομα</option>
+                          <option value={3}>3 άτομα</option>
+                          <option value={6}>6 άτομα</option>
                         </select>
                       </div>
 

@@ -3,13 +3,17 @@ import {
   Save, 
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Info
 } from 'lucide-react';
 import { 
   PilatesScheduleSlot
 } from '@/types';
 import { 
-  getPilatesScheduleSlots
+  getPilatesScheduleSlots,
+  getPilatesAvailableSlots,
+  subscribePilatesRealtime,
+  getPilatesSlotBookings
 } from '@/utils/pilatesScheduleApi';
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
@@ -19,12 +23,20 @@ const PilatesScheduleManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [scheduleGrid, setScheduleGrid] = useState<{[key: string]: boolean}>({});
+  const [occupancy, setOccupancy] = useState<{ [key: string]: { booked: number, cap: number } }>({});
   const [currentWeek, setCurrentWeek] = useState(() => {
     // Start with the same week as user panel - 13 Sep (Saturday)
     const adminWeek = new Date('2025-09-13T00:00:00.000Z');
     console.log('Admin: Using fixed week - 13 Sep:', adminWeek.toISOString());
     return adminWeek;
   });
+  const [selectedSlotInfo, setSelectedSlotInfo] = useState<{
+    slotId: string;
+    date: string;
+    time: string;
+    bookings: any[];
+  } | null>(null);
+  const [loadingSlotInfo, setLoadingSlotInfo] = useState(false);
 
   // Available time slots (Monday to Friday)
   const timeSlots = [
@@ -35,9 +47,14 @@ const PilatesScheduleManagement: React.FC = () => {
   const days = ['Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή'];
 
   useEffect(() => {
-    // Force refresh to avoid caching issues
     console.log('Admin: useEffect triggered - currentWeek changed to:', currentWeek.toISOString());
     loadSlots();
+    const ch = subscribePilatesRealtime(() => {
+      loadSlots();
+    });
+    return () => {
+      try { ch.unsubscribe(); } catch {}
+    };
   }, [currentWeek]);
 
   const loadSlots = async () => {
@@ -89,6 +106,17 @@ const PilatesScheduleManagement: React.FC = () => {
       console.log(`Grid summary: ${activeCount} active, ${inactiveCount} inactive`);
       
       setScheduleGrid(grid);
+
+      // Load occupancy from view in range
+      const start = weekDates[0];
+      const end = weekDates[weekDates.length - 1];
+      const slotsWithOcc = await getPilatesAvailableSlots(start, end);
+      const occ: { [key: string]: { booked: number, cap: number } } = {};
+      slotsWithOcc.forEach(s => {
+        const key = `${s.date}-${s.start_time.slice(0,5)}`;
+        occ[key] = { booked: (s as any).booked_count || 0, cap: s.max_capacity };
+      });
+      setOccupancy(occ);
     } catch (error) {
       console.error('Error loading slots:', error);
       toast.error('Σφάλμα φόρτωσης προγράμματος pilates');
@@ -103,9 +131,8 @@ const PilatesScheduleManagement: React.FC = () => {
     
     console.log('Admin: getWeekDates - currentWeek:', startDate);
     
-    // Generate 10 days (2 weeks, Monday to Friday) starting from currentWeek
-    // currentWeek is already Monday, so start from there
-    for (let i = 0; i < 10; i++) {
+    // Generate 14 days (2 εβδομάδες)
+    for (let i = 0; i < 14; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
       dates.push(date.toISOString().split('T')[0]);
@@ -230,7 +257,11 @@ const PilatesScheduleManagement: React.FC = () => {
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     const newWeek = new Date(currentWeek);
-    newWeek.setDate(newWeek.getDate() + (direction === 'next' ? 7 : -7));
+    if (direction === 'prev') {
+      newWeek.setDate(newWeek.getDate() - 14); // βήμα 2 εβδομάδων προς τα πίσω
+    } else {
+      newWeek.setDate(newWeek.getDate() + 14); // βήμα 2 εβδομάδων προς τα εμπρός
+    }
     setCurrentWeek(newWeek);
   };
 
@@ -240,6 +271,24 @@ const PilatesScheduleManagement: React.FC = () => {
       day: 'numeric', 
       month: 'short' 
     });
+  };
+
+  const handleInfoClick = async (slotId: string, date: string, time: string) => {
+    try {
+      setLoadingSlotInfo(true);
+      const bookings = await getPilatesSlotBookings(slotId);
+      setSelectedSlotInfo({
+        slotId,
+        date,
+        time,
+        bookings
+      });
+    } catch (error) {
+      console.error('Error loading slot info:', error);
+      toast.error('Σφάλμα φόρτωσης πληροφοριών slot');
+    } finally {
+      setLoadingSlotInfo(false);
+    }
   };
 
   if (loading) {
@@ -303,7 +352,7 @@ const PilatesScheduleManagement: React.FC = () => {
       {/* Week Navigation Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="text-lg font-semibold text-blue-800 mb-2">
-          Εβδομάδα: {formatDate(weekDates[0])} - {formatDate(weekDates[9])}
+          2 εβδομάδες: {formatDate(weekDates[0])} - {formatDate(weekDates[13])}
         </h3>
         <p className="text-sm text-blue-700">
           Κάντε κλικ στις κόκκινες ώρες για να τις απενεργοποιήσετε (δεν θα εμφανίζονται στους χρήστες)
@@ -341,6 +390,9 @@ const PilatesScheduleManagement: React.FC = () => {
                     const dayOfWeek = new Date(date).getDay();
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday (0) or Saturday (6)
                     
+                    const occVal = occupancy[key];
+                    const booked = occVal?.booked ?? 0;
+                    const cap = occVal?.cap ?? 4;
                     return (
                       <td key={key} className="px-4 py-3 text-center border-r border-gray-200">
                         {isWeekend ? (
@@ -348,20 +400,41 @@ const PilatesScheduleManagement: React.FC = () => {
                             <span className="text-xs text-gray-400">Σαβ/Κυρ</span>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => toggleSlot(date, time)}
-                            className={`w-full h-8 rounded transition-all duration-200 flex items-center justify-center ${
-                              isActive
-                                ? 'bg-green-100 text-green-800 hover:bg-green-200 border-2 border-green-300'
-                                : 'bg-red-100 text-red-800 hover:bg-red-200 border-2 border-red-300'
-                            }`}
-                          >
-                            {isActive ? (
-                              <CheckCircle className="h-5 w-5" />
-                            ) : (
-                              <XCircle className="h-5 w-5" />
+                          <div className="relative w-full h-8">
+                            <button
+                              onClick={() => toggleSlot(date, time)}
+                              className={`w-full h-8 rounded transition-all duration-200 flex items-center justify-center ${
+                                isActive
+                                  ? (booked >= cap ? 'bg-red-100 text-red-800 border-2 border-red-300' : 'bg-green-100 text-green-800 hover:bg-green-200 border-2 border-green-300')
+                                  : 'bg-red-100 text-red-800 hover:bg-red-200 border-2 border-red-300'
+                              }`}
+                            >
+                              {isActive ? (
+                                <span className="text-xs font-semibold">{booked}/{cap}</span>
+                              ) : (
+                                <XCircle className="h-5 w-5" />
+                              )}
+                            </button>
+                            {/* Info button - only show for active slots with bookings */}
+                            {isActive && booked > 0 && booked < cap && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Find the slot ID from the existing slots
+                                  const slot = slots.find(s => 
+                                    s.date === date && s.start_time === `${time}:00`
+                                  );
+                                  if (slot) {
+                                    handleInfoClick(slot.id, date, time);
+                                  }
+                                }}
+                                className="absolute top-0 right-0 w-4 h-4 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white text-xs transition-colors"
+                                title="Πληροφορίες κρατήσεων"
+                              >
+                                <Info size={10} />
+                              </button>
                             )}
-                          </button>
+                          </div>
                         )}
                       </td>
                     );
@@ -407,6 +480,57 @@ const PilatesScheduleManagement: React.FC = () => {
         </div>
       </div>
 
+      {/* Slot Info Panel */}
+      {selectedSlotInfo && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Κρατήσεις για {formatDate(selectedSlotInfo.date)} στις {selectedSlotInfo.time}
+            </h3>
+            <button
+              onClick={() => setSelectedSlotInfo(null)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XCircle size={20} />
+            </button>
+          </div>
+          
+          {loadingSlotInfo ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="ml-2 text-gray-600">Φόρτωση...</span>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {selectedSlotInfo.bookings.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600 mb-3">
+                    {selectedSlotInfo.bookings.length} κρατήσεις:
+                  </p>
+                  {selectedSlotInfo.bookings.map((booking, index) => (
+                    <div key={booking.id || index} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {booking.user?.first_name} {booking.user?.last_name}
+                        </p>
+                        <p className="text-sm text-gray-600">{booking.user?.email}</p>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        Κράτηση: {new Date(booking.booking_date).toLocaleDateString('el-GR')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">
+                  Δεν υπάρχουν κρατήσεις για αυτό το slot
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Info Box */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start">
@@ -418,6 +542,7 @@ const PilatesScheduleManagement: React.FC = () => {
               <li>• Κάντε κλικ στις ώρες που δεν θέλετε να δουλεύετε</li>
               <li>• Το πρόγραμμα εμφανίζεται στους χρήστες με ενεργή pilates συνδρομή</li>
               <li>• Μην ξεχάσετε να αποθηκεύσετε τις αλλαγές!</li>
+              <li>• Κάντε κλικ στο μπλε κουμπί "i" για να δείτε τις κρατήσεις ενός slot</li>
             </ul>
           </div>
         </div>

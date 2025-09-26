@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import { getAllGroupAssignmentsForMonth, getAllGroupProgramsForMonth } from '@/utils/groupAssignmentApi';
+import { getBookedGroupSessionsForMonth, MonthlyBookedGroupSlotSummary } from '@/utils/groupSessionsApi';
 import { GroupAssignment } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -8,7 +9,7 @@ interface GroupProgramsOverviewProps {
   onManageAssignments?: (programId: string, userId: string) => void;
 }
 
-const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = () => {
+const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = React.memo(() => {
   const [currentDate, setCurrentDate] = useState(() => {
     // Use actual current date
     return new Date();
@@ -16,15 +17,94 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = () => {
   const [groupAssignments, setGroupAssignments] = useState<GroupAssignment[]>([]);
   const [groupPrograms, setGroupPrograms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bookedSummaries, setBookedSummaries] = useState<MonthlyBookedGroupSlotSummary[]>([]);
   const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [dataLoaded, setDataLoaded] = useState<{[key: string]: boolean}>({});
 
   // Get current month and year
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
+  const cacheKey = `${currentYear}-${currentMonth}`;
 
   useEffect(() => {
-    loadData();
-  }, [currentMonth, currentYear]);
+    if (!dataLoaded[cacheKey]) {
+      loadData();
+    }
+  }, [currentMonth, currentYear, cacheKey]); // Removed dataLoaded from dependencies
+
+  // Μετατροπή των booked summaries σε pseudo-assignments για ενιαία απεικόνιση
+  const bookedAsAssignments: GroupAssignment[] = useMemo(() => {
+    const assignments: GroupAssignment[] = [];
+    
+    bookedSummaries.forEach((s, sessionIdx) => {
+      const day = new Date(s.session_date).getDay();
+      
+      // Δημιουργούμε ένα assignment για κάθε χρήστη που έχει κάνει κράτηση
+      s.users.forEach((user, userIdx) => {
+        assignments.push({
+          id: `booked-${s.session_date}-${s.start_time}-${sessionIdx}-${userIdx}`,
+          programId: '',
+          userId: '',
+          groupType: s.group_type,
+          dayOfWeek: day,
+          startTime: `${s.start_time}:00`,
+          endTime: `${s.end_time}:00`,
+          trainer: s.trainer,
+          room: s.room,
+          groupIdentifier: 'booked',
+          weeklyFrequency: 0,
+          assignmentDate: s.session_date,
+          isActive: true,
+          createdBy: '',
+          createdAt: '',
+          updatedAt: '',
+          // Πραγματικές πληροφορίες χρήστη
+          userInfo: {
+            first_name: user.first_name,
+            last_name: user.last_name
+          }
+        } as GroupAssignment);
+      });
+    });
+    
+    return assignments;
+  }, [bookedSummaries]);
+
+  const combinedAssignments: GroupAssignment[] = useMemo(() => {
+    return [...groupAssignments, ...bookedAsAssignments];
+  }, [groupAssignments, bookedAsAssignments]);
+
+  // Memoize the grouped assignments to prevent unnecessary re-calculations
+  const groupedAssignments = useMemo(() => {
+    return combinedAssignments.reduce((acc: Record<string, any>, assignment: GroupAssignment) => {
+      const key = `${assignment.assignmentDate}-${assignment.dayOfWeek}-${assignment.startTime}-${assignment.endTime}-${assignment.trainer}-${assignment.room}`;
+      if (!acc[key]) {
+        acc[key] = {
+          dayOfWeek: assignment.dayOfWeek,
+          startTime: assignment.startTime,
+          endTime: assignment.endTime,
+          trainer: assignment.trainer,
+          room: assignment.room,
+          groupType: assignment.groupType,
+          groupIdentifier: assignment.groupIdentifier,
+          assignmentDate: assignment.assignmentDate,
+          assignments: []
+        };
+      }
+      acc[key].assignments.push(assignment);
+      return acc;
+    }, {} as {[key: string]: {
+      dayOfWeek: number;
+      startTime: string;
+      endTime: string;
+      trainer: string;
+      room: string;
+      groupType: number;
+      groupIdentifier: string;
+      assignmentDate: string;
+      assignments: GroupAssignment[];
+    }});
+  }, [combinedAssignments]);
 
   const loadData = async () => {
     try {
@@ -34,16 +114,20 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = () => {
       console.log('[GroupProgramsOverview] Loading data for month:', currentMonth, 'year:', currentYear);
       console.log('[GroupProgramsOverview] Expected: December 2024 (month: 12, year: 2024)');
       
-      const [assignments, programs] = await Promise.all([
+      const [assignments, programs, booked] = await Promise.all([
         getAllGroupAssignmentsForMonth(currentYear, currentMonth),
-        getAllGroupProgramsForMonth(currentYear, currentMonth)
+        getAllGroupProgramsForMonth(currentYear, currentMonth),
+        getBookedGroupSessionsForMonth(currentYear, currentMonth)
       ]);
       setGroupAssignments(assignments);
       setGroupPrograms(programs);
+      setBookedSummaries(booked);
+      setDataLoaded(prev => ({ ...prev, [cacheKey]: true }));
       
       console.log('[GroupProgramsOverview] ===== RESULTS =====');
       console.log('[GroupProgramsOverview] Loaded assignments:', assignments.length);
       console.log('[GroupProgramsOverview] Loaded programs:', programs.length);
+      console.log('[GroupProgramsOverview] Loaded booked summaries:', booked.length);
       
       if (assignments.length > 0) {
         console.log('[GroupProgramsOverview] Sample assignment:', assignments[0]);
@@ -52,17 +136,8 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = () => {
         console.log('[GroupProgramsOverview] Sample program:', programs[0]);
       }
       
-      // Group assignments for display
-      const grouped = assignments.reduce((acc, assignment) => {
-        const key = `${assignment.dayOfWeek}-${assignment.startTime}-${assignment.endTime}`;
-        if (!acc[key]) {
-          acc[key] = { assignments: [] };
-        }
-        acc[key].assignments.push(assignment);
-        return acc;
-      }, {} as any);
-      
-      console.log('[GroupProgramsOverview] Grouped assignments:', Object.keys(grouped).length, 'groups');
+      // Διατηρώ μόνο logs για αναφορές
+      console.log('[GroupProgramsOverview] Grouped assignments:', assignments.length, 'assignments');
     } catch (error) {
       console.error('Error loading group data:', error);
       toast.error('Σφάλμα κατά τη φόρτωση των ομαδικών προγραμμάτων');
@@ -88,9 +163,9 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = () => {
     setCurrentDate(newDate);
   };
 
-  // Handle session click - CLICKABLE SESSIONS
+  // Handle session click - CLICKABLE SESSIONS (υποστηρίζει και booked sessions)
   const handleSessionClick = (dateStr: string, time: string) => {
-    const dayAssignments = groupAssignments.filter(a => a.assignmentDate === dateStr);
+    const dayAssignments = combinedAssignments.filter(a => a.assignmentDate === dateStr);
     const slotAssignments = dayAssignments.filter(a => a.startTime.startsWith(time));
     
     if (slotAssignments.length === 0) return;
@@ -103,48 +178,21 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = () => {
       trainer: slotAssignments[0].trainer,
       room: slotAssignments[0].room,
       groupType: slotAssignments[0].groupType,
+      groupIdentifier: slotAssignments[0].groupIdentifier || 'booked', // Fallback για booked sessions
       assignments: slotAssignments
     };
     
     setSelectedSession(sessionData);
   };
 
-  // Group assignments by date, day and time for easier display
-  const groupedAssignments = groupAssignments.reduce((acc, assignment) => {
-    // Use assignment date for more specific grouping
-    const key = `${assignment.assignmentDate}-${assignment.dayOfWeek}-${assignment.startTime}-${assignment.endTime}-${assignment.trainer}-${assignment.room}`;
-    if (!acc[key]) {
-      acc[key] = {
-        dayOfWeek: assignment.dayOfWeek,
-        startTime: assignment.startTime,
-        endTime: assignment.endTime,
-        trainer: assignment.trainer,
-        room: assignment.room,
-        groupType: assignment.groupType,
-        groupIdentifier: assignment.groupIdentifier,
-        assignmentDate: assignment.assignmentDate,
-        assignments: []
-      };
-    }
-    acc[key].assignments.push(assignment);
-    return acc;
-  }, {} as {[key: string]: {
-    dayOfWeek: number;
-    startTime: string;
-    endTime: string;
-    trainer: string;
-    room: string;
-    groupType: number;
-    groupIdentifier: string;
-    assignmentDate: string;
-    assignments: GroupAssignment[];
-  }});
-
-  console.log('[GroupProgramsOverview] Grouped assignments keys:', Object.keys(groupedAssignments));
-  console.log('[GroupProgramsOverview] Total grouped sessions:', Object.keys(groupedAssignments).length);
+  // Memoized console logs to prevent excessive logging
+  useEffect(() => {
+    console.log('[GroupProgramsOverview] Grouped assignments keys:', Object.keys(groupedAssignments));
+    console.log('[GroupProgramsOverview] Total grouped sessions:', Object.keys(groupedAssignments).length);
+  }, [groupedAssignments]);
 
   // Sort grouped assignments by day and time
-  const sortedGroupedAssignments = Object.values(groupedAssignments).sort((a, b) => {
+  const sortedGroupedAssignments = Object.values(groupedAssignments).sort((a: any, b: any) => {
     if (a.dayOfWeek !== b.dayOfWeek) {
       return a.dayOfWeek - b.dayOfWeek;
     }
@@ -252,10 +300,12 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = () => {
                 const dateStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                 
                 // Get assignments for this day
-                const dayAssignments = groupAssignments.filter(a => a.assignmentDate === dateStr);
+                const dayAssignments = combinedAssignments.filter(a => a.assignmentDate === dateStr);
+                const uniqueTimes = [...new Set(dayAssignments.map(a => a.startTime.substring(0, 5)))];
+                const timeSlotCount = uniqueTimes.length;
                 
                 calendarDays.push(
-                  <div key={day} className="h-32 border border-gray-200 rounded-lg p-2 bg-white hover:shadow-md transition-shadow">
+                  <div key={day} className={`min-h-32 ${timeSlotCount > 3 ? 'h-auto pb-2' : timeSlotCount > 2 ? 'h-40' : 'h-32'} border border-gray-200 rounded-lg p-2 bg-white hover:shadow-md transition-shadow`}>
                     {/* Day Number */}
                     <div className="text-sm font-bold text-gray-800 mb-2">{day}</div>
                     
@@ -275,19 +325,21 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = () => {
                         const occupancy = slotAssignments.length;
                         const percentage = (occupancy / maxCapacity) * 100;
                         
-                        // Color coding - ΠΟΛΥ ΑΠΛΟ
+                        // Color coding - ΔΙΟΡΘΩΜΕΝΟ για υπερβάσεις
                         let bgColor = 'bg-green-200'; // Default: Ελεύθερα
                         let textColor = 'text-green-800';
                         let emoji = '🟢';
                         
-                        if (percentage > 50 && percentage < 100) {
-                          bgColor = 'bg-yellow-200'; // Μισά
-                          textColor = 'text-yellow-800';
-                          emoji = '🟡';
-                        } else if (percentage === 100) {
-                          bgColor = 'bg-red-200'; // Γεμάτα
+                        if (occupancy >= maxCapacity) {
+                          // Γεμάτα ή υπερβάσεις (π.χ. 3/2 = 150%)
+                          bgColor = 'bg-red-200'; 
                           textColor = 'text-red-800';
                           emoji = '🔴';
+                        } else if (percentage > 50) {
+                          // Μισά (π.χ. 2/3 = 67%)
+                          bgColor = 'bg-yellow-200';
+                          textColor = 'text-yellow-800';
+                          emoji = '🟡';
                         }
                         
                         return (
@@ -390,8 +442,12 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = () => {
                   <h5 className="text-sm font-bold text-gray-700 mb-2">👥 Μέλη στο Μάθημα:</h5>
                   <div className="flex flex-wrap gap-2">
                     {selectedSession.assignments.map((assignment: any) => (
-                      <div key={assignment.id} className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium border border-blue-200 hover:bg-blue-200 transition-colors">
-                        👤 {assignment.userInfo?.first_name} {assignment.userInfo?.last_name}
+                      <div key={assignment.id} className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                        assignment.groupIdentifier === 'booked' 
+                          ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200' 
+                          : 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200'
+                      }`}>
+                        {assignment.groupIdentifier === 'booked' ? '📅' : '👤'} {assignment.userInfo?.first_name} {assignment.userInfo?.last_name}
                       </div>
                     ))}
                   </div>
@@ -417,6 +473,6 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = () => {
       </div>
     </div>
   );
-};
+});
 
 export default GroupProgramsOverview;

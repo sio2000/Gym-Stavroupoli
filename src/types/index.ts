@@ -365,7 +365,7 @@ export interface PersonalTrainingSchedule {
   declineReason?: string;
   userType?: 'personal' | 'paspartu'; // New field to distinguish user types
   isFlexible?: boolean; // New field to indicate if schedule allows flexible booking
-  trainingType?: 'individual' | 'group'; // Training type
+  trainingType?: 'individual' | 'group' | 'combination'; // Training type
   groupRoomSize?: number; // Group size (2, 3, or 6)
   weeklyFrequency?: number; // Weekly frequency for group training
 }

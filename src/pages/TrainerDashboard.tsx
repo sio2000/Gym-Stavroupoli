@@ -43,6 +43,18 @@ const TrainerDashboard: React.FC = () => {
   const [realSchedules, setRealSchedules] = useState<PersonalTrainingSchedule[]>([]);
   const [loading, setLoading] = useState(false);
   const [trainerName, setTrainerName] = useState<TrainerName | null>(null);
+  
+  // Auto-hide loading after 5 seconds
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => {
+        setLoading(false);
+        console.log('[TrainerDashboard] Loading timeout - auto-hiding loading state');
+      }, 5000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [loading]);
   const [trainerUsers, setTrainerUsers] = useState<TrainerUser[]>([]);
   const [userAbsences, setUserAbsences] = useState<{ [userId: string]: UserAbsence[] }>({});
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -618,7 +630,7 @@ const TrainerDashboard: React.FC = () => {
                   {loading && (
                     <div className="flex items-center text-sm text-gray-500">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                      Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.
+                      Φόρτωση δεδομένων...
                     </div>
                   )}
                 </div>

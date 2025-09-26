@@ -7,17 +7,648 @@ import {
   Ruler,
   Heart,
   ChevronDown,
-  User,
   Moon,
   Dumbbell,
   Save,
-  Edit3,
-  Sparkles
+  Sparkles,
+  X,
+  Activity
 } from 'lucide-react';
 // import { getAvailableQRCategories } from '@/utils/activeMemberships';
 import { addUserMetric, getUserMetrics, getUserGoals, upsertUserGoal } from '@/utils/profileUtils';
 import { trackPageVisit } from '@/utils/appVisits';
 import Toast from '@/components/Toast';
+
+// Simple Popup Modal Component
+const PopupModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}> = React.memo(({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-dark-800 rounded-xl shadow-xl border border-dark-600 w-full max-w-md max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b border-dark-600">
+          <h3 className="text-lg font-bold text-white">{title}</h3>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-dark-700 rounded transition-colors"
+          >
+            <X className="h-5 w-5 text-gray-400" />
+          </button>
+        </div>
+        <div className="p-4">
+          {children}
+      </div>
+      </div>
+    </div>
+  );
+});
+
+// Individual Metric Popup Components
+const WeightPopup: React.FC<{
+  userId: string; 
+  onSaved: () => Promise<void> | void; 
+  onShowToast: (type: 'success' | 'error', message: string) => void;
+  goals?: any[];
+}> = React.memo(({ userId, onSaved, onShowToast, goals = [] }) => {
+  const [weight, setWeight] = useState<string>('');
+  const [targetWeight, setTargetWeight] = useState<string>('');
+  const [saving, setSaving] = useState<boolean>(false);
+
+  // Get existing weight goal
+  const weightGoal = goals.find(g => g.goal_type === 'weight');
+  React.useEffect(() => {
+    if (weightGoal?.target_value) {
+      setTargetWeight(weightGoal.target_value.toString());
+    }
+  }, [weightGoal]);
+
+  const handleSaveAll = async () => {
+    if (!userId) return;
+    
+    setSaving(true);
+    try {
+      let hasChanges = false;
+      
+      // Save goal if provided
+      if (targetWeight) {
+        await upsertUserGoal(userId, {
+          goal_type: 'weight',
+          target_value: parseFloat(targetWeight),
+          unit: 'kg',
+          title: 'Στόχος Βάρους'
+        });
+        hasChanges = true;
+      }
+      
+      // Save metric if provided
+      if (weight) {
+        await addUserMetric(userId, {
+          metric_date: new Date().toISOString().slice(0,10),
+          weight_kg: parseFloat(weight)
+        });
+        setWeight('');
+        hasChanges = true;
+      }
+      
+      if (hasChanges) {
+        await onSaved();
+        onShowToast('success', 'Όλα τα δεδομένα αποθηκεύτηκαν επιτυχώς!');
+      }
+    } catch (error) {
+      onShowToast('error', 'Σφάλμα κατά την αποθήκευση των δεδομένων.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  return (
+    <div className="space-y-4">
+      {/* Goal Setting */}
+      <div className="bg-green-600/10 rounded-lg p-4 border border-green-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Target className="h-5 w-5 text-green-500" />
+          <h4 className="font-semibold text-white">Στόχος Βάρους</h4>
+      </div>
+        <input 
+          type="number" 
+          step="0.1" 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
+          value={targetWeight} 
+          onChange={e => setTargetWeight(e.target.value)} 
+          placeholder="Στόχος βάρους (kg)" 
+          />
+        </div>
+
+      {/* Current Weight Input */}
+      <div className="bg-green-600/10 rounded-lg p-4 border border-green-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Weight className="h-5 w-5 text-green-500" />
+          <h4 className="font-semibold text-white">Τρέχον Βάρος</h4>
+          </div>
+        <input 
+          type="number" 
+          step="0.1" 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
+          value={weight} 
+          onChange={e => setWeight(e.target.value)} 
+          placeholder="Βάρος (kg)" 
+        />
+      </div>
+
+      <button 
+        onClick={handleSaveAll} 
+        disabled={saving || (!targetWeight && !weight)} 
+        className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Save className="h-5 w-5" />
+        {saving ? 'Αποθήκευση...' : 'Αποθήκευση'}
+      </button>
+    </div>
+  );
+});
+
+const HeightPopup: React.FC<{
+  userId: string;
+  onSaved: () => Promise<void> | void;
+  onShowToast: (type: 'success' | 'error', message: string) => void;
+}> = React.memo(({ userId, onSaved, onShowToast }) => {
+  const [height, setHeight] = useState<string>('');
+  const [saving, setSaving] = useState<boolean>(false);
+
+  const handleSave = async () => {
+    if (!userId || !height) return;
+    
+    setSaving(true);
+    try {
+      await addUserMetric(userId, {
+        metric_date: new Date().toISOString().slice(0,10),
+        height_cm: parseFloat(height)
+      });
+      
+      setHeight('');
+      await onSaved();
+      onShowToast('success', 'Το ύψος αποθηκεύτηκε επιτυχώς!');
+    } catch (error) {
+      onShowToast('error', 'Σφάλμα κατά την αποθήκευση του ύψους.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  return (
+    <div className="space-y-4">
+      <div className="bg-purple-600/10 rounded-lg p-4 border border-purple-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Ruler className="h-5 w-5 text-purple-500" />
+          <h4 className="font-semibold text-white">Ύψος</h4>
+        </div>
+        <input 
+          type="number" 
+          step="0.1" 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
+          value={height} 
+          onChange={e => setHeight(e.target.value)} 
+          placeholder="Ύψος (cm)" 
+        />
+        </div>
+
+      <button 
+        onClick={handleSave} 
+        disabled={saving || !height} 
+        className="w-full py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Save className="h-5 w-5" />
+        {saving ? 'Αποθήκευση...' : 'Αποθήκευση'}
+      </button>
+  </div>
+);
+});
+
+const BodyFatPopup: React.FC<{
+  userId: string; 
+  onSaved: () => Promise<void> | void; 
+  onShowToast: (type: 'success' | 'error', message: string) => void;
+  goals?: any[];
+}> = React.memo(({ userId, onSaved, onShowToast, goals = [] }) => {
+  const [bodyFat, setBodyFat] = useState<string>('');
+  const [targetBodyFat, setTargetBodyFat] = useState<string>('');
+  const [saving, setSaving] = useState<boolean>(false);
+
+  // Get existing body fat goal
+  const bodyFatGoal = goals.find(g => g.goal_type === 'body_fat');
+  React.useEffect(() => {
+    if (bodyFatGoal?.target_value) {
+      setTargetBodyFat(bodyFatGoal.target_value.toString());
+    }
+  }, [bodyFatGoal]);
+
+  const handleSaveAll = async () => {
+    if (!userId) return;
+    
+    setSaving(true);
+    try {
+      let hasChanges = false;
+      
+      // Save goal if provided
+      if (targetBodyFat) {
+        await upsertUserGoal(userId, {
+          goal_type: 'body_fat',
+          target_value: parseFloat(targetBodyFat),
+          unit: '%',
+          title: 'Στόχος Λίπους'
+        });
+        hasChanges = true;
+      }
+      
+      // Save metric if provided
+      if (bodyFat) {
+        await addUserMetric(userId, {
+          metric_date: new Date().toISOString().slice(0,10),
+          body_fat_pct: parseFloat(bodyFat)
+        });
+        setBodyFat('');
+        hasChanges = true;
+      }
+      
+      if (hasChanges) {
+        await onSaved();
+        onShowToast('success', 'Όλα τα δεδομένα αποθηκεύτηκαν επιτυχώς!');
+      }
+    } catch (error) {
+      onShowToast('error', 'Σφάλμα κατά την αποθήκευση των δεδομένων.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Goal Setting */}
+      <div className="bg-red-600/10 rounded-lg p-4 border border-red-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Target className="h-5 w-5 text-red-500" />
+          <h4 className="font-semibold text-white">Στόχος Λίπους</h4>
+        </div>
+        <input 
+          type="number" 
+          step="0.1" 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
+          value={targetBodyFat} 
+          onChange={e => setTargetBodyFat(e.target.value)} 
+          placeholder="Στόχος λίπους (%)" 
+        />
+      </div>
+
+      {/* Current Body Fat Input */}
+      <div className="bg-red-600/10 rounded-lg p-4 border border-red-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Heart className="h-5 w-5 text-red-500" />
+          <h4 className="font-semibold text-white">Τρέχον Λίπος</h4>
+        </div>
+        <input 
+          type="number" 
+          step="0.1" 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
+          value={bodyFat} 
+          onChange={e => setBodyFat(e.target.value)} 
+          placeholder="Λίπος (%)" 
+        />
+      </div>
+
+      <button 
+        onClick={handleSaveAll} 
+        disabled={saving || (!targetBodyFat && !bodyFat)} 
+        className="w-full py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Save className="h-5 w-5" />
+        {saving ? 'Αποθήκευση...' : 'Αποθήκευση'}
+      </button>
+    </div>
+  );
+});
+
+const SleepPopup: React.FC<{
+  userId: string;
+  onSaved: () => Promise<void> | void;
+  onShowToast: (type: 'success' | 'error', message: string) => void;
+  goals?: any[];
+}> = React.memo(({ userId, onSaved, onShowToast, goals = [] }) => {
+  const [sleepHours, setSleepHours] = useState<string>('');
+  const [sleepQuality, setSleepQuality] = useState<string>('');
+  const [targetSleep, setTargetSleep] = useState<string>('');
+  const [saving, setSaving] = useState<boolean>(false);
+
+  // Get existing sleep goal
+  const sleepGoal = goals.find(g => g.goal_type === 'sleep');
+  React.useEffect(() => {
+    if (sleepGoal?.target_value) {
+      setTargetSleep(sleepGoal.target_value.toString());
+    }
+  }, [sleepGoal]);
+
+  const handleSaveAll = async () => {
+    if (!userId) return;
+    
+    setSaving(true);
+    try {
+      let hasChanges = false;
+      
+      // Save goal if provided
+      if (targetSleep) {
+        await upsertUserGoal(userId, {
+          goal_type: 'sleep',
+          target_value: parseFloat(targetSleep),
+          unit: 'hours',
+          title: 'Στόχος Ύπνου'
+        });
+        hasChanges = true;
+      }
+      
+      // Save metric if provided
+      if (sleepHours || sleepQuality) {
+        const payload: any = {
+          metric_date: new Date().toISOString().slice(0,10)
+        };
+        
+        if (sleepHours) payload.sleep_hours = parseFloat(sleepHours);
+        if (sleepQuality) payload.sleep_quality = sleepQuality;
+        
+        await addUserMetric(userId, payload);
+        setSleepHours('');
+        setSleepQuality('');
+        hasChanges = true;
+      }
+      
+      if (hasChanges) {
+        await onSaved();
+        onShowToast('success', 'Όλα τα δεδομένα αποθηκεύτηκαν επιτυχώς!');
+      }
+    } catch (error) {
+      onShowToast('error', 'Σφάλμα κατά την αποθήκευση των δεδομένων.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Goal Setting */}
+      <div className="bg-indigo-600/10 rounded-lg p-4 border border-indigo-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Target className="h-5 w-5 text-indigo-500" />
+          <h4 className="font-semibold text-white">Στόχος Ύπνου</h4>
+        </div>
+        <input 
+          type="number" 
+          step="0.5" 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
+          value={targetSleep} 
+          onChange={e => setTargetSleep(e.target.value)} 
+          placeholder="Στόχος ύπνου (ώρες)" 
+        />
+      </div>
+
+      {/* Sleep Hours Input */}
+      <div className="bg-indigo-600/10 rounded-lg p-4 border border-indigo-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Moon className="h-5 w-5 text-indigo-500" />
+          <h4 className="font-semibold text-white">Ώρες Ύπνου</h4>
+        </div>
+        <input 
+          type="number" 
+          step="0.5" 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
+          value={sleepHours} 
+          onChange={e => setSleepHours(e.target.value)} 
+          placeholder="Ώρες ύπνου" 
+        />
+      </div>
+
+      {/* Sleep Quality Input */}
+      <div className="bg-indigo-600/10 rounded-lg p-4 border border-indigo-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Moon className="h-5 w-5 text-indigo-500" />
+          <h4 className="font-semibold text-white">Ποιότητα Ύπνου</h4>
+        </div>
+        <select 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white" 
+          value={sleepQuality} 
+          onChange={e => setSleepQuality(e.target.value)}
+        >
+          <option value="">Επιλέξτε...</option>
+          <option value="excellent">Εξαιρετική</option>
+          <option value="good">Καλή</option>
+          <option value="average">Μέτρια</option>
+          <option value="poor">Κακή</option>
+        </select>
+      </div>
+
+      <button 
+        onClick={handleSaveAll} 
+        disabled={saving || (!targetSleep && !sleepHours && !sleepQuality)} 
+        className="w-full py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Save className="h-5 w-5" />
+        {saving ? 'Αποθήκευση...' : 'Αποθήκευση'}
+      </button>
+    </div>
+  );
+});
+
+const StepsPopup: React.FC<{
+  userId: string;
+  onSaved: () => Promise<void> | void;
+  onShowToast: (type: 'success' | 'error', message: string) => void;
+  goals?: any[];
+}> = React.memo(({ userId, onSaved, onShowToast, goals = [] }) => {
+  const [steps, setSteps] = useState<string>('');
+  const [targetSteps, setTargetSteps] = useState<string>('');
+  const [saving, setSaving] = useState<boolean>(false);
+
+  // Get existing steps goal
+  const stepsGoal = goals.find(g => g.goal_type === 'steps');
+  React.useEffect(() => {
+    if (stepsGoal?.target_value) {
+      setTargetSteps(stepsGoal.target_value.toString());
+    }
+  }, [stepsGoal]);
+
+  const handleSaveAll = async () => {
+    if (!userId) return;
+    
+    setSaving(true);
+    try {
+      let hasChanges = false;
+      
+      // Save goal if provided
+      if (targetSteps) {
+        await upsertUserGoal(userId, {
+          goal_type: 'steps',
+          target_value: parseInt(targetSteps),
+          unit: 'steps',
+          title: 'Στόχος Βημάτων'
+        });
+        hasChanges = true;
+      }
+      
+      // Save metric if provided
+      if (steps) {
+        await addUserMetric(userId, {
+          metric_date: new Date().toISOString().slice(0,10),
+          steps_per_day: parseInt(steps)
+        });
+        setSteps('');
+        hasChanges = true;
+      }
+      
+      if (hasChanges) {
+        await onSaved();
+        onShowToast('success', 'Όλα τα δεδομένα αποθηκεύτηκαν επιτυχώς!');
+      }
+    } catch (error) {
+      onShowToast('error', 'Σφάλμα κατά την αποθήκευση των δεδομένων.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Goal Setting */}
+      <div className="bg-emerald-600/10 rounded-lg p-4 border border-emerald-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Target className="h-5 w-5 text-emerald-500" />
+          <h4 className="font-semibold text-white">Στόχος Βημάτων</h4>
+        </div>
+        <input 
+          type="number" 
+          step="100" 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
+          value={targetSteps} 
+          onChange={e => setTargetSteps(e.target.value)} 
+          placeholder="Στόχος βημάτων/ημέρα" 
+        />
+      </div>
+
+      {/* Current Steps Input */}
+      <div className="bg-emerald-600/10 rounded-lg p-4 border border-emerald-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity className="h-5 w-5 text-emerald-500" />
+          <h4 className="font-semibold text-white">Βήματα Σήμερα</h4>
+        </div>
+        <input 
+          type="number" 
+          step="100" 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
+          value={steps} 
+          onChange={e => setSteps(e.target.value)} 
+          placeholder="Βήματα σήμερα" 
+        />
+      </div>
+
+      <button 
+        onClick={handleSaveAll} 
+        disabled={saving || (!targetSteps && !steps)} 
+        className="w-full py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Save className="h-5 w-5" />
+        {saving ? 'Αποθήκευση...' : 'Αποθήκευση'}
+      </button>
+    </div>
+  );
+});
+
+const WorkoutPopup: React.FC<{
+  userId: string; 
+  onSaved: () => Promise<void> | void;
+  onShowToast: (type: 'success' | 'error', message: string) => void;
+  goals?: any[];
+}> = React.memo(({ userId, onSaved, onShowToast, goals = [] }) => {
+  const [workoutType, setWorkoutType] = useState<string>('');
+  const [targetWorkoutDays, setTargetWorkoutDays] = useState<string>('');
+  const [saving, setSaving] = useState<boolean>(false);
+
+  // Get existing workout days goal
+  const workoutDaysGoal = goals.find(g => g.goal_type === 'workout_days');
+  React.useEffect(() => {
+    if (workoutDaysGoal?.target_value) {
+      setTargetWorkoutDays(workoutDaysGoal.target_value.toString());
+    }
+  }, [workoutDaysGoal]);
+
+  const handleSaveAll = async () => {
+    if (!userId) return;
+    
+    setSaving(true);
+    try {
+      let hasChanges = false;
+      
+      // Save goal if provided
+      if (targetWorkoutDays) {
+          await upsertUserGoal(userId, { 
+          goal_type: 'workout_days',
+          target_value: parseInt(targetWorkoutDays),
+          unit: 'days/week',
+          title: 'Στόχος Προπόνησης'
+        });
+        hasChanges = true;
+      }
+      
+      // Save metric if provided
+      if (workoutType) {
+        await addUserMetric(userId, {
+          metric_date: new Date().toISOString().slice(0,10),
+          workout_type: workoutType
+        });
+        setWorkoutType('');
+        hasChanges = true;
+      }
+      
+      if (hasChanges) {
+        await onSaved();
+        onShowToast('success', 'Όλα τα δεδομένα αποθηκεύτηκαν επιτυχώς!');
+      }
+    } catch (error) {
+      onShowToast('error', 'Σφάλμα κατά την αποθήκευση των δεδομένων.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  return (
+    <div className="space-y-4">
+      {/* Goal Setting */}
+      <div className="bg-orange-600/10 rounded-lg p-4 border border-orange-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Target className="h-5 w-5 text-orange-500" />
+          <h4 className="font-semibold text-white">Στόχος Προπόνησης</h4>
+        </div>
+        <input 
+          type="number" 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
+          value={targetWorkoutDays} 
+          onChange={e => setTargetWorkoutDays(e.target.value)} 
+          placeholder="Ημέρες προπόνησης/εβδομάδα" 
+        />
+      </div>
+
+      {/* Workout Type Input */}
+      <div className="bg-orange-600/10 rounded-lg p-4 border border-orange-600/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Dumbbell className="h-5 w-5 text-orange-500" />
+          <h4 className="font-semibold text-white">Είδος Προπόνησης</h4>
+        </div>
+        <select 
+          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white" 
+          value={workoutType} 
+          onChange={e => setWorkoutType(e.target.value)}
+        >
+          <option value="">Επιλέξτε...</option>
+          <option value="weights">Βάρη</option>
+          <option value="cardio">Καρδιο</option>
+          <option value="hiit">HIIT</option>
+          <option value="yoga">Γιόγκα</option>
+          <option value="pilates">Πιλάτες</option>
+          <option value="crossfit">CrossFit</option>
+        </select>
+      </div>
+
+      <button 
+        onClick={handleSaveAll} 
+        disabled={saving || (!targetWorkoutDays && !workoutType)} 
+        className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Save className="h-5 w-5" />
+        {saving ? 'Αποθήκευση...' : 'Αποθήκευση'}
+      </button>
+    </div>
+  );
+});
 
 const StatCard: React.FC<{
   name: string;
@@ -28,25 +659,33 @@ const StatCard: React.FC<{
   trend?: string;
   trendColor?: string;
   index?: number;
-}> = React.memo(({ name, value, icon: Icon, color, bgColor, trend, trendColor = 'text-green-600', index = 0 }) => (
+  onClick?: () => void;
+}> = React.memo(({ name, value, icon: Icon, color, bgColor, trend, trendColor = 'text-green-600', index = 0, onClick }) => (
   <div
-    className="group relative overflow-hidden bg-dark-800 rounded-2xl md:rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-dark-600 hover:border-primary-400 hover:-translate-y-1 hover:scale-105 mobile-card-hover mobile-touch-feedback"
-    style={{ 
+    onClick={onClick}
+    className="group relative overflow-hidden bg-dark-800 rounded-2xl md:rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-dark-600 hover:border-primary-400 hover:-translate-y-1 hover:scale-105 mobile-card-hover mobile-touch-feedback cursor-pointer"
+      style={{
       animationDelay: `${index * 100}ms`,
-      animation: 'fadeInUp 0.6s ease-out forwards',
-      opacity: 0
-    }}
-  >
-    <div 
+        animation: 'fadeInUp 0.6s ease-out forwards',
+        opacity: 0
+      }}
+    >
+      <div 
       className="absolute inset-0 bg-gradient-to-br from-dark-700 via-primary-600/20 to-primary-500/30 opacity-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110"
     />
+    
+    {/* Always visible clickable indicator */}
+    <div className="absolute top-3 right-3">
+      <div className="w-2 h-2 bg-primary-500 rounded-full shadow-lg"></div>
+    </div>
+    
     <div className="relative p-3 md:p-6">
       <div className="flex flex-col md:flex-row items-center md:justify-between mb-2 md:mb-4">
         <div 
-          className={`p-2 md:p-4 rounded-xl md:rounded-2xl ${bgColor} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg mb-2 md:mb-0`}
+          className={`p-2 md:p-4 rounded-xl md:rounded-2xl ${bgColor} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg mb-2 md:mb-0 relative`}
         >
           <Icon className={`h-4 w-4 md:h-6 md:w-6 ${color}`} />
-        </div>
+          </div>
         {trend && (
           <span 
             className={`text-xs font-semibold px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 ${trendColor} shadow-sm group-hover:scale-105 transition-transform duration-300 hidden md:inline-block`}
@@ -54,15 +693,30 @@ const StatCard: React.FC<{
             {trend}
           </span>
         )}
-      </div>
+        </div>
       <div className="text-center md:text-left mobile-text">
-        <p className="text-xs md:text-sm font-semibold text-gray-300 mb-1 md:mb-2 tracking-wide">{name}</p>
+        <div className="flex items-center justify-center md:justify-start gap-2">
+          <p className="text-xs md:text-sm font-semibold text-gray-300 mb-1 md:mb-2 tracking-wide">{name}</p>
+          {/* Always visible click hint */}
+          <div className="text-xs text-primary-400 font-medium opacity-80">
+            κλικ
+          </div>
+        </div>
         <p className="text-lg md:text-3xl font-bold text-white group-hover:scale-105 transition-transform duration-300">
           {value}
         </p>
-      </div>
-    </div>
-  </div>
+        </div>
+
+      {/* Always visible bottom indicator */}
+      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
+        <div className="flex space-x-1">
+          <div className="w-1 h-1 bg-primary-400 rounded-full"></div>
+          <div className="w-1 h-1 bg-primary-400 rounded-full"></div>
+          <div className="w-1 h-1 bg-primary-400 rounded-full"></div>
+          </div>
+            </div>
+            </div>
+          </div>
 ));
 
 const ProgressBar: React.FC<{
@@ -96,7 +750,7 @@ const ProgressBar: React.FC<{
         >
           {current} {unit} / {target} {unit}
         </span>
-      </div>
+          </div>
       <div className="relative">
         <div className="w-full bg-dark-600 rounded-full h-3 md:h-4 overflow-hidden shadow-inner">
           <div 
@@ -106,8 +760,8 @@ const ProgressBar: React.FC<{
               ['--progress-width' as any]: `${percentage}%`,
               animation: 'progressFill 1.2s ease-out 0.3s forwards'
             }}
-          />
-        </div>
+              />
+            </div>
         {showPercentage && (
           <div 
             className="flex flex-col md:flex-row justify-between text-xs font-semibold text-gray-600 mt-2 md:mt-3 space-y-1 md:space-y-0"
@@ -125,7 +779,7 @@ const ProgressBar: React.FC<{
             </span>
           </div>
         )}
-      </div>
+        </div>
     </div>
   );
 });
@@ -144,22 +798,22 @@ const MobileCollapsibleSection: React.FC<{
   return (
     <div 
       className="bg-dark-800 rounded-2xl md:rounded-3xl shadow-xl border border-dark-600 mb-4 md:mb-6 overflow-hidden hover:shadow-2xl transition-all duration-500"
-      style={{
+          style={{
         animationDelay: `${index * 100}ms`,
         animation: 'fadeInUp 0.6s ease-out forwards',
         opacity: 0
-      }}
-    >
-      <button
+          }}
+        >
+          <button 
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-4 md:p-6 text-left hover:bg-gradient-to-r hover:from-primary-600/20 hover:to-primary-500/20 hover:scale-105 transition-all duration-300 group"
-      >
-        <div className="flex items-center space-x-3 md:space-x-4">
-          <div 
-            className="p-3 md:p-4 bg-gradient-to-br from-primary-600/20 to-primary-500/30 rounded-xl md:rounded-2xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg"
           >
+        <div className="flex items-center space-x-3 md:space-x-4">
+            <div
+            className="p-3 md:p-4 bg-gradient-to-br from-primary-600/20 to-primary-500/30 rounded-xl md:rounded-2xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg"
+            >
             <Icon className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
-        </div>
+            </div>
           <h3 className="text-lg md:text-xl font-bold text-white group-hover:text-primary-400 transition-colors duration-300">{title}</h3>
         </div>
         <div
@@ -179,538 +833,14 @@ const MobileCollapsibleSection: React.FC<{
         >
           <div className="px-4 md:px-6 pb-4 md:pb-6 pt-3 md:pt-4">
             {children}
-    </div>
         </div>
+      </div>
       )}
-  </div>
-);
-});
-
-// Modern Metrics Form Component
-const MetricsForm: React.FC<{ 
-  userId: string; 
-  onSaved: () => Promise<void> | void; 
-  saving?: boolean; 
-  setSaving?: (v: boolean) => void;
-  onShowToast: (type: 'success' | 'error', message: string) => void;
-}> = React.memo(({ userId, onSaved, saving, setSaving, onShowToast }) => {
-  const [weight, setWeight] = useState<string>('');
-  const [height, setHeight] = useState<string>('');
-  const [bodyFat, setBodyFat] = useState<string>('');
-  const [water, setWater] = useState<string>('');
-  const [age, setAge] = useState<string>('');
-  const [gender, setGender] = useState<string>('');
-  const [sleepHours, setSleepHours] = useState<string>('');
-  const [sleepQuality, setSleepQuality] = useState<string>('');
-  const [steps, setSteps] = useState<string>('');
-  const [workoutType, setWorkoutType] = useState<string>('');
-  const [date] = useState<string>(new Date().toISOString().slice(0,10));
-
-  const handleSave = async () => {
-    if (!userId) return;
-    
-    console.log('[MetricsForm] ===== SAVING METRICS =====');
-    console.log('[MetricsForm] User ID:', userId);
-    console.log('[MetricsForm] Form values:', {
-      weight, height, bodyFat, water, age, gender, 
-      sleepHours, sleepQuality, steps, workoutType
-    });
-    
-    // Check if at least one field has a value
-    const hasAnyValue = weight || height || bodyFat || water || age || gender || 
-                       sleepHours || sleepQuality || steps || workoutType;
-    
-    if (!hasAnyValue) {
-      console.log('[MetricsForm] No values to save');
-      return;
-    }
-    
-    setSaving?.(true);
-    try {
-      const payload: any = {
-        metric_date: date
-      };
-      
-      // Only include fields that have values
-      if (weight) {
-        payload.weight_kg = parseFloat(weight);
-        console.log('[MetricsForm] Adding weight:', payload.weight_kg);
-      }
-      if (height) {
-        payload.height_cm = parseFloat(height);
-        console.log('[MetricsForm] Adding height:', payload.height_cm);
-      }
-      if (bodyFat) {
-        payload.body_fat_pct = parseFloat(bodyFat);
-        console.log('[MetricsForm] Adding body fat:', payload.body_fat_pct);
-      }
-      if (water) {
-        payload.water_liters = parseFloat(water);
-        console.log('[MetricsForm] Adding water:', payload.water_liters);
-      }
-      if (age) {
-        payload.age_years = parseInt(age);
-        console.log('[MetricsForm] Adding age:', payload.age_years);
-      }
-      if (gender) {
-        payload.gender = gender;
-        console.log('[MetricsForm] Adding gender:', payload.gender);
-      }
-      if (sleepHours) {
-        payload.sleep_hours = parseFloat(sleepHours);
-        console.log('[MetricsForm] Adding sleep hours:', payload.sleep_hours);
-      }
-      if (sleepQuality) {
-        payload.sleep_quality = sleepQuality;
-        console.log('[MetricsForm] Adding sleep quality:', payload.sleep_quality);
-      }
-      if (steps) {
-        payload.steps_per_day = parseInt(steps);
-        console.log('[MetricsForm] Adding steps:', payload.steps_per_day);
-      }
-      if (workoutType) {
-        payload.workout_type = workoutType;
-        console.log('[MetricsForm] Adding workout type:', payload.workout_type);
-      }
-      
-      console.log('[MetricsForm] Final payload:', payload);
-      
-      const result = await addUserMetric(userId, payload);
-      console.log('[MetricsForm] Save result:', result);
-      
-      // Clear form
-      setWeight(''); setHeight(''); setBodyFat(''); setWater('');
-      setAge(''); setGender(''); setSleepHours(''); setSleepQuality(''); setSteps(''); setWorkoutType('');
-      
-      // Refresh data
-      console.log('[MetricsForm] Refreshing data...');
-      await onSaved();
-      
-      console.log('[MetricsForm] ===== DATA SAVED AND REFRESHED SUCCESSFULLY =====');
-      
-      // Show success toast
-      onShowToast('success', 'Οι μετρήσεις αποθηκεύτηκαν επιτυχώς!');
-      
-    } catch (error) {
-      console.error('[MetricsForm] Error saving metrics:', error);
-      
-      // Show error toast
-      onShowToast('error', 'Σφάλμα κατά την αποθήκευση των μετρήσεων. Παρακαλώ δοκιμάστε ξανά.');
-      
-    } finally {
-      setSaving?.(false);
-    }
-  };
-
-  return (
-    <div 
-      className="bg-dark-800 rounded-2xl md:rounded-3xl shadow-xl border border-dark-600 p-4 md:p-8 hover:shadow-2xl transition-all duration-500"
-      style={{
-        animation: 'fadeInUp 0.6s ease-out forwards',
-        opacity: 0
-      }}
-    >
-      <div 
-        className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8"
-        style={{
-          animation: 'slideInLeft 0.6s ease-out 0.2s forwards',
-          opacity: 0,
-          transform: 'translateX(-20px)'
-        }}
-      >
-        <div 
-          className="p-3 md:p-4 bg-gradient-to-br from-primary-600/20 to-primary-500/30 rounded-xl md:rounded-2xl shadow-lg hover:rotate-3 hover:scale-110 transition-all duration-300"
-        >
-          <Edit3 className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
-      </div>
-        <h3 className="text-lg md:text-2xl font-bold text-white">Καταχώριση Μετρήσεων</h3>
-      </div>
-      
-      <div className="space-y-4 md:space-y-6">
-        {/* Personal Stats */}
-        <div className="space-y-3 md:space-y-4">
-          <div className="flex items-center gap-2 mb-2 md:mb-3">
-            <User className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-300 text-sm md:text-base">Προσωπικά Στοιχεία</h4>
-        </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Βάρος (kg)</label>
-              <input 
-                type="number" 
-                step="0.1" 
-                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                value={weight} 
-                onChange={e=>setWeight(e.target.value)} 
-                placeholder="π.χ. 75.5" 
-              />
-      </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Ύψος (cm)</label>
-              <input 
-                type="number" 
-                step="0.1" 
-                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                value={height} 
-                onChange={e=>setHeight(e.target.value)} 
-                placeholder="π.χ. 175.0" 
-              />
-    </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Λίπος (%)</label>
-              <input 
-                type="number" 
-                step="0.1" 
-                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                value={bodyFat} 
-                onChange={e=>setBodyFat(e.target.value)} 
-                placeholder="π.χ. 15.2" 
-              />
-  </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Φύλο</label>
-              <select 
-                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                value={gender} 
-                onChange={e=>setGender(e.target.value)}
-              >
-                <option value="">Επιλέξτε...</option>
-                <option value="male">Άνδρας</option>
-                <option value="female">Γυναίκα</option>
-                <option value="other">Άλλο</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Wellness & Sleep */}
-        <div className="space-y-3 md:space-y-4">
-          <div className="flex items-center gap-2 mb-2 md:mb-3">
-            <Moon className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-300 text-sm md:text-base">Ύπνος & Ευεξία</h4>
-      </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Ώρες ύπνου</label>
-              <input 
-                type="number" 
-                step="0.5" 
-                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                value={sleepHours} 
-                onChange={e=>setSleepHours(e.target.value)} 
-                placeholder="π.χ. 7.5" 
-              />
-    </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Ποιότητα ύπνου</label>
-              <select 
-                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                value={sleepQuality} 
-                onChange={e=>setSleepQuality(e.target.value)}
-              >
-                <option value="">Επιλέξτε...</option>
-                <option value="excellent">Εξαιρετική</option>
-                <option value="good">Καλή</option>
-                <option value="average">Μέτρια</option>
-                <option value="poor">Κακή</option>
-              </select>
-  </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Νερό (λίτρα)</label>
-              <input 
-                type="number" 
-                step="0.1" 
-                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                value={water} 
-                onChange={e=>setWater(e.target.value)} 
-                placeholder="π.χ. 2.5" 
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Activity & Training */}
-        <div className="space-y-3 md:space-y-4">
-          <div className="flex items-center gap-2 mb-2 md:mb-3">
-            <Dumbbell className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-300 text-sm md:text-base">Δραστηριότητα & Προπόνηση</h4>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Βήματα/ημέρα</label>
-              <input 
-                type="number" 
-                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                value={steps} 
-                onChange={e=>setSteps(e.target.value)} 
-                placeholder="π.χ. 8500" 
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Είδος προπόνησης</label>
-              <select 
-                className="w-full border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                value={workoutType} 
-                onChange={e=>setWorkoutType(e.target.value)}
-              >
-                <option value="">Επιλέξτε...</option>
-                <option value="weights">Βάρη</option>
-                <option value="cardio">Καρδιο</option>
-                <option value="hiit">HIIT</option>
-                <option value="yoga">Γιόγκα</option>
-                <option value="pilates">Πιλάτες</option>
-                <option value="crossfit">CrossFit</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <button 
-          onClick={handleSave} 
-          disabled={saving} 
-          className="w-full py-4 md:py-5 bg-gradient-to-r from-primary-600 via-primary-700 to-primary-800 text-white rounded-xl md:rounded-2xl font-bold text-base md:text-lg hover:from-primary-700 hover:via-primary-800 hover:to-primary-900 hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed mobile-touch-feedback"
-          style={{
-            animation: 'fadeInUp 0.6s ease-out 0.4s forwards',
-            opacity: 0,
-            transform: 'translateY(20px)'
-          }}
-        >
-          <div
-            className={saving ? 'animate-spin' : ''}
-          >
-            <Save className="h-5 w-5 md:h-6 md:w-6" />
-          </div>
-          {saving ? 'Αποθήκευση...' : 'Αποθήκευση Μετρήσεων'}
-        </button>
-    </div>
-  </div>
-);
-});
-
-const GoalsSection: React.FC<{ 
-  userId: string; 
-  latestMetric: any; 
-  goals: any[]; 
-  onChanged: () => Promise<void> | void;
-  onShowToast: (type: 'success' | 'error', message: string) => void;
-}> = React.memo(({ userId, latestMetric, goals, onChanged, onShowToast }) => {
-  const weightGoal = goals.find(g=>g.goal_type==='weight');
-  const stepsGoal = goals.find(g=>g.goal_type==='steps');
-  const sleepGoal = goals.find(g=>g.goal_type==='sleep');
-  const workoutDaysGoal = goals.find(g=>g.goal_type==='workout_days');
-
-  const [targetWeight, setTargetWeight] = useState<string>(weightGoal?.target_value?.toString()||'');
-  const [targetSteps, setTargetSteps] = useState<string>(stepsGoal?.target_value?.toString()||'10000');
-  const [targetSleep, setTargetSleep] = useState<string>(sleepGoal?.target_value?.toString()||'8');
-  const [targetWorkoutDays, setTargetWorkoutDays] = useState<string>(workoutDaysGoal?.target_value?.toString()||'3');
-  const [saving, setSaving] = useState<boolean>(false);
-
-  const saveAllGoals = async () => {
-    if (!userId) return;
-    
-    setSaving(true);
-    try {
-      console.log('[GoalsSection] ===== SAVING ALL GOALS =====');
-      
-      const goalsToSave = [
-        { type: 'weight' as const, value: targetWeight, unit: 'kg', title: 'Στόχος Βάρους' },
-        { type: 'steps' as const, value: targetSteps, unit: 'steps', title: 'Στόχος Βημάτων' },
-        { type: 'sleep' as const, value: targetSleep, unit: 'hours', title: 'Στόχος Ύπνου' },
-        { type: 'workout_days' as const, value: targetWorkoutDays, unit: 'days/week', title: 'Στόχος Προπόνησης' }
-      ];
-
-      for (const goal of goalsToSave) {
-        const numValue = parseFloat(goal.value);
-        if (!isNaN(numValue) && numValue > 0) {
-          console.log('[GoalsSection] Saving goal:', goal.type, numValue);
-          await upsertUserGoal(userId, { 
-            goal_type: goal.type, 
-            target_value: numValue, 
-            unit: goal.unit, 
-            title: goal.title 
-          });
-        }
-      }
-      
-      await onChanged();
-      onShowToast('success', 'Όλοι οι στόχοι αποθηκεύτηκαν επιτυχώς!');
-      console.log('[GoalsSection] ===== ALL GOALS SAVED SUCCESSFULLY =====');
-      
-    } catch (error) {
-      console.error('[GoalsSection] Error saving goals:', error);
-      onShowToast('error', 'Σφάλμα κατά την αποθήκευση των στόχων. Παρακαλώ δοκιμάστε ξανά.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const currentW = latestMetric?.weight_kg || 0;
-  const goalW = weightGoal?.target_value ?? (targetWeight ? parseFloat(targetWeight) : currentW);
-  const diffW = currentW && goalW ? (currentW - goalW).toFixed(1) : '0';
-  
-  return (
-    <div 
-      className="bg-dark-800 rounded-2xl md:rounded-3xl shadow-xl border border-dark-600 p-4 md:p-8 hover:shadow-2xl transition-all duration-500"
-      style={{
-        animation: 'fadeInUp 0.6s ease-out forwards',
-        opacity: 0
-      }}
-    >
-      <div 
-        className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8"
-        style={{
-          animation: 'slideInLeft 0.6s ease-out 0.2s forwards',
-          opacity: 0,
-          transform: 'translateX(-20px)'
-        }}
-      >
-        <div 
-          className="p-3 md:p-4 bg-gradient-to-br from-primary-600/20 to-primary-500/30 rounded-xl md:rounded-2xl shadow-lg hover:rotate-3 hover:scale-110 transition-all duration-300"
-        >
-          <Target className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
-          </div>
-        <h3 className="text-lg md:text-2xl font-bold text-white">Ορισμός Στόχων</h3>
-        </div>
-      
-      <div className="space-y-4 md:space-y-6">
-        {/* Weight & Body Fat Goals */}
-        <div className="space-y-3 md:space-y-4">
-          <div className="flex items-center gap-2 mb-2 md:mb-3">
-            <Weight className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-300 text-sm md:text-base">Στόχοι Βάρους & Λίπους</h4>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <input 
-                className="flex-1 border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                placeholder="Στόχος βάρους (kg)" 
-                value={targetWeight} 
-                onChange={e=>setTargetWeight(e.target.value)} 
-              />
-        </div>
-            <div className="text-xs md:text-sm text-gray-300 bg-primary-600/20 rounded-lg p-3">
-              {currentW ? (() => {
-                // Ειδικά μηνύματα όταν έχει φτάσει τον στόχο (διαφορά 0.0)
-                if (parseFloat(diffW) === 0) {
-                  const goalAchievedMessages = [
-                    `🎉 ΣΥΓΧΑΡΗΤΗΡΙΑ! Έφτασες τον στόχο σου! ${currentW} kg - Τέλεια! 🏆`,
-                    `🌟 ΕΚΠΛΗΚΤΙΚΟ! Είσαι ακριβώς στα ${currentW} kg που θέλεις! Θαύμα! ✨`,
-                    `🥇 ΠΕΡΙΕΡΓΟ! Στόχος επιτεύχθηκε! ${currentW} kg - Είσαι άψογος! 💎`,
-                    `🎊 ΦΑΝΤΑΣΤΙΚΟ! Έφτασες ακριβώς τον στόχο σου! ${currentW} kg - Μπράβο! 🌈`,
-                    `👑 ΥΠΕΡΟΧΟ! Στόχος ${currentW} kg επιτεύχθηκε! Είσαι ο καλύτερος! ⭐`,
-                    `🎯 ΤΕΛΕΙΟ! Είσαι ακριβώς στα ${currentW} kg που θέλεις! Συγχαρητήρια! 🎪`,
-                    `💫 ΑΠΙΣΤΕΥΤΟ! Στόχος επιτεύχθηκε! ${currentW} kg - Εντυπωσιακό! 🌺`,
-                    `🏅 ΕΚΤΑΚΤΟ! Έφτασες τον στόχο σου! ${currentW} kg - Μπράβο σου! 🔥`,
-                    `⭐ ΘΑΥΜΑΣΙΟ! Στόχος ${currentW} kg επιτεύχθηκε! Είσαι φοβερός! ⚡`,
-                    `🌈 ΑΠΟΛΥΤΟ! Είσαι ακριβώς στα ${currentW} kg που θέλεις! Συγχαρητήρια! 💪`,
-                    `🎊 ΕΚΠΛΗΚΤΙΚΟ! Στόχος επιτεύχθηκε! ${currentW} kg - Είσαι άξιος! 🌟`,
-                    `🏆 ΥΠΕΡΟΧΟ! Έφτασες τον στόχο σου! ${currentW} kg - Μπράβο! 🦁`,
-                    `✨ ΤΕΛΕΙΟ! Στόχος ${currentW} kg επιτεύχθηκε! Είσαι ο χρυσός! 👑`,
-                    `🎯 ΦΑΝΤΑΣΤΙΚΟ! Είσαι ακριβώς στα ${currentW} kg που θέλεις! Συγχαρητήρια! 💎`,
-                    `🌟 ΑΠΙΣΤΕΥΤΟ! Στόχος επιτεύχθηκε! ${currentW} kg - Εντυπωσιακό! 🎪`
-                  ];
-                  return goalAchievedMessages[Math.floor(Math.random() * goalAchievedMessages.length)];
-                }
-                
-                // Κανονικά μηνύματα ενθάρρυνσης για όλες τις άλλες περιπτώσεις
-                const encouragementMessages = [
-                  `Είσαι ${currentW} kg, στόχος ${goalW} kg — διαφορά ${diffW} kg. Πάμε δυνατά! 💪`,
-                  `Βάρος: ${currentW} kg → Στόχος: ${goalW} kg (${diffW} kg διαφορά). Είσαι στο σωστό δρόμο! 🚀`,
-                  `Τρέχεις προς τους ${goalW} kg από τα ${currentW} kg! Μόνο ${diffW} kg ακόμα! ⚡`,
-                  `Εντυπωσιακά! Από ${currentW} kg σε στόχος ${goalW} kg. Διαφορά: ${diffW} kg. Συνέχισε έτσι! 🌟`,
-                  `Τα ${currentW} kg σου είναι βήμα προς τους ${goalW} kg! Διαφορά: ${diffW} kg. Θα τα καταφέρεις! 💫`,
-                  `Βάρος ${currentW} kg → Στόχος ${goalW} kg. Μόνο ${diffW} kg μακριά! Είσαι φανταστικός! 🎯`,
-                  `Είσαι στα ${currentW} kg και στοχεύεις στα ${goalW} kg! Διαφορά: ${diffW} kg. Πάλεψε! ⚔️`,
-                  `Τρέχεις από ${currentW} kg προς ${goalW} kg! Μόλις ${diffW} kg ακόμα! Είσαι μάχη! 🔥`,
-                  `Εντυπωσιακό! ${currentW} kg → ${goalW} kg στόχος! Διαφορά: ${diffW} kg. Θα τα πετύχεις! 🌈`,
-                  `Βάρος ${currentW} kg, στόχος ${goalW} kg. Διαφορά: ${diffW} kg. Είσαι άξιος! 👑`,
-                  `Τα ${currentW} kg σου σε φέρνουν πιο κοντά στους ${goalW} kg! Διαφορά: ${diffW} kg. Συνεχίζεις! 🏃‍♂️`,
-                  `Είσαι στα ${currentW} kg και στοχεύεις στα ${goalW} kg! Μόνο ${diffW} kg ακόμα! Θα τα καταφέρεις! ⭐`,
-                  `Βάρος ${currentW} kg → Στόχος ${goalW} kg. Διαφορά: ${diffW} kg. Είσαι ο χρυσός! 🥇`,
-                  `Τρέχεις προς τους ${goalW} kg από τα ${currentW} kg! Διαφορά: ${diffW} kg. Είσαι υπέροχος! 🌺`,
-                  `Εντυπωσιακά! Από ${currentW} kg σε στόχος ${goalW} kg. Μόλις ${diffW} kg ακόμα! Δυνατός! 💪`,
-                  `Βάρος ${currentW} kg, στόχος ${goalW} kg! Διαφορά: ${diffW} kg. Είσαι φοβερός! 🦁`,
-                  `Τα ${currentW} kg σου είναι βήμα προς τους ${goalW} kg! Διαφορά: ${diffW} kg. Θα τα πετύχεις! 🎪`,
-                  `Είσαι στα ${currentW} kg και στοχεύεις στα ${goalW} kg! Μόνο ${diffW} kg ακόμα! Είσαι μάχη! ⚡`,
-                  `Βάρος ${currentW} kg → Στόχος ${goalW} kg. Διαφορά: ${diffW} kg. Είσαι ο καλύτερος! 🏆`,
-                  `Τρέχεις προς τους ${goalW} kg από τα ${currentW} kg! Διαφορά: ${diffW} kg. Είσαι άξιος! 🌟`
-                ];
-                return encouragementMessages[Math.floor(Math.random() * encouragementMessages.length)];
-              })() : 'Καταχώρισε πρώτα βάρος για να δούμε πρόοδο.'}
-        </div>
-    </div>
-        </div>
-
-        {/* Training & Activity Goals */}
-        <div className="space-y-3 md:space-y-4">
-          <div className="flex items-center gap-2 mb-2 md:mb-3">
-            <Dumbbell className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-300 text-sm md:text-base">Στόχοι Προπόνησης & Δραστηριότητας</h4>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <input 
-                className="flex-1 border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                placeholder="Στόχος βημάτων (π.χ. 10000)" 
-                value={targetSteps} 
-                onChange={e=>setTargetSteps(e.target.value)} 
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <input 
-                className="flex-1 border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                placeholder="Ημέρες προπόνησης/εβδ. (π.χ. 3)" 
-                value={targetWorkoutDays} 
-                onChange={e=>setTargetWorkoutDays(e.target.value)} 
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Sleep & Wellness Goals */}
-        <div className="space-y-3 md:space-y-4">
-          <div className="flex items-center gap-2 mb-2 md:mb-3">
-            <Moon className="h-4 w-4 text-blue-600" />
-            <h4 className="font-medium text-gray-300 text-sm md:text-base">Στόχοι Ύπνου & Ευεξίας</h4>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <input 
-                className="flex-1 border border-dark-600 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm md:text-base bg-dark-700 text-white placeholder-gray-400" 
-                placeholder="Ώρες ύπνου (π.χ. 8)" 
-                value={targetSleep} 
-                onChange={e=>setTargetSleep(e.target.value)} 
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Central Save Button */}
-        <div 
-          className="pt-6 md:pt-8 border-t border-dark-600"
-          style={{
-            animation: 'fadeInUp 0.6s ease-out 0.6s forwards',
-            opacity: 0,
-            transform: 'translateY(20px)'
-          }}
-        >
-          <button 
-            onClick={saveAllGoals}
-            disabled={saving}
-            className="w-full py-4 md:py-5 bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 text-white rounded-xl md:rounded-2xl font-bold text-base md:text-lg hover:from-primary-600 hover:via-primary-700 hover:to-primary-800 hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div
-              className={saving ? 'animate-spin' : ''}
-            >
-              <Save className="h-5 w-5 md:h-6 md:w-6" />
-            </div>
-            {saving ? 'Αποθήκευση...' : 'Αποθήκευση Όλων των Στόχων'}
-      </button>
-        </div>
-      </div>
     </div>
   );
 });
+
+
 
 const Dashboard: React.FC = React.memo(() => {
   const { user } = useAuth();
@@ -730,6 +860,16 @@ const Dashboard: React.FC = React.memo(() => {
     isVisible: false
   });
 
+  // Popup states
+  const [popupStates, setPopupStates] = useState({
+    weight: false,
+    height: false,
+    bodyFat: false,
+    sleep: false,
+    steps: false,
+    workout: false
+  });
+
   // Toast functions
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message, isVisible: true });
@@ -737,6 +877,15 @@ const Dashboard: React.FC = React.memo(() => {
 
   const hideToast = () => {
     setToast(prev => ({ ...prev, isVisible: false }));
+  };
+
+  // Popup functions
+  const openPopup = (popupType: keyof typeof popupStates) => {
+    setPopupStates(prev => ({ ...prev, [popupType]: true }));
+  };
+
+  const closePopup = (popupType: keyof typeof popupStates) => {
+    setPopupStates(prev => ({ ...prev, [popupType]: false }));
   };
 
   // Function to refresh all data - memoized to prevent unnecessary re-renders
@@ -838,7 +987,8 @@ const Dashboard: React.FC = React.memo(() => {
       icon: Weight,
       color: 'text-green-600',
       bgColor: 'bg-green-100',
-        trend: ''
+        trend: '',
+        onClick: () => openPopup('weight')
     },
     {
       name: 'Ύψος',
@@ -846,7 +996,8 @@ const Dashboard: React.FC = React.memo(() => {
       icon: Ruler,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100',
-        trend: ''
+        trend: '',
+        onClick: () => openPopup('height')
     },
     {
       name: 'Λίπος',
@@ -854,7 +1005,8 @@ const Dashboard: React.FC = React.memo(() => {
       icon: Heart,
       color: 'text-red-600',
       bgColor: 'bg-red-100',
-        trend: ''
+        trend: '',
+        onClick: () => openPopup('bodyFat')
       },
       {
         name: 'Ύπνος',
@@ -862,23 +1014,26 @@ const Dashboard: React.FC = React.memo(() => {
         icon: Clock,
         color: 'text-indigo-600',
         bgColor: 'bg-indigo-100',
-        trend: ''
+        trend: '',
+        onClick: () => openPopup('sleep')
       },
       {
         name: 'Βήματα/ημέρα',
         value: typeof latest.steps_per_day === 'number' ? latest.steps_per_day : '—',
-        icon: Target,
+        icon: Activity,
         color: 'text-emerald-600',
         bgColor: 'bg-emerald-100',
-        trend: ''
+        trend: '',
+        onClick: () => openPopup('steps')
       },
       {
         name: 'Προπόνηση',
         value: latest.workout_type || '—',
-        icon: Target,
+        icon: Dumbbell,
         color: 'text-orange-600',
         bgColor: 'bg-orange-100',
-        trend: ''
+        trend: '',
+        onClick: () => openPopup('workout')
       }
     ];
   }, [latest]);
@@ -1305,25 +1460,6 @@ const Dashboard: React.FC = React.memo(() => {
             transform: 'translateY(30px)'
           }}
         >
-          {/* Metrics Input Form */}
-          <MobileCollapsibleSection title="Καταχώριση Μετρήσεων" icon={Edit3} defaultOpen={false} index={0}>
-            <MetricsForm 
-              userId={user?.id || ''} 
-              onSaved={refreshData} 
-              onShowToast={showToast}
-            />
-        </MobileCollapsibleSection>
-
-          {/* Goals Section */}
-          <MobileCollapsibleSection title="Ορισμός Στόχων" icon={Target} defaultOpen={false} index={1}>
-            <GoalsSection 
-              userId={user?.id || ''} 
-              latestMetric={latest} 
-              goals={goals} 
-              onChanged={refreshData}
-              onShowToast={showToast}
-            />
-          </MobileCollapsibleSection>
 
           {/* Nutrition Tips & Wellness - Moved from Progress Section */}
           <MobileCollapsibleSection title="Συμβουλές Διατροφής & Ευεξίας" icon={Heart} defaultOpen={false} index={2}>
@@ -1417,6 +1553,84 @@ const Dashboard: React.FC = React.memo(() => {
           </MobileCollapsibleSection>
         </div>
       </div>
+
+      {/* Popup Modals */}
+      <PopupModal 
+        isOpen={popupStates.weight} 
+        onClose={() => closePopup('weight')} 
+        title="Βάρος"
+      >
+        <WeightPopup 
+          userId={user?.id || ''} 
+          onSaved={refreshData} 
+          onShowToast={showToast}
+          goals={goals}
+        />
+      </PopupModal>
+
+      <PopupModal 
+        isOpen={popupStates.height} 
+        onClose={() => closePopup('height')} 
+        title="Ύψος"
+      >
+        <HeightPopup 
+          userId={user?.id || ''} 
+          onSaved={refreshData} 
+          onShowToast={showToast}
+        />
+      </PopupModal>
+
+      <PopupModal 
+        isOpen={popupStates.bodyFat} 
+        onClose={() => closePopup('bodyFat')} 
+        title="Λίπος"
+      >
+        <BodyFatPopup 
+          userId={user?.id || ''} 
+          onSaved={refreshData} 
+          onShowToast={showToast}
+          goals={goals}
+        />
+      </PopupModal>
+
+      <PopupModal 
+        isOpen={popupStates.sleep} 
+        onClose={() => closePopup('sleep')} 
+        title="Ύπνος"
+      >
+        <SleepPopup 
+          userId={user?.id || ''} 
+          onSaved={refreshData} 
+          onShowToast={showToast}
+          goals={goals}
+        />
+      </PopupModal>
+
+      <PopupModal 
+        isOpen={popupStates.steps} 
+        onClose={() => closePopup('steps')} 
+        title="Βήματα"
+      >
+        <StepsPopup 
+          userId={user?.id || ''} 
+          onSaved={refreshData} 
+          onShowToast={showToast}
+          goals={goals}
+        />
+      </PopupModal>
+
+      <PopupModal 
+        isOpen={popupStates.workout} 
+        onClose={() => closePopup('workout')} 
+        title="Προπόνηση"
+      >
+        <WorkoutPopup 
+          userId={user?.id || ''} 
+          onSaved={refreshData} 
+          onShowToast={showToast}
+          goals={goals}
+        />
+      </PopupModal>
     </div>
     </>
   );

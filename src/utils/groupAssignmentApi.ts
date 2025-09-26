@@ -420,33 +420,56 @@ export const checkRoomCapacity = async (
   try {
     console.log('[GroupAssignmentAPI] Checking room capacity...', { date, startTime, endTime, room, groupType, excludeUserId });
 
-    // Get all assignments for this date/time/room
-    let query = supabase
+    // Get all assignments for this date/time/room WITH SAME GROUP TYPE
+    let assignmentsQuery = supabase
       .from('group_assignments')
       .select('id, user_id, group_type')
       .eq('assignment_date', date)
       .eq('start_time', startTime)
       .eq('end_time', endTime)
       .eq('room', room)
+      .eq('group_type', groupType) // ΕΛΕΓΧΟΣ ΜΟΝΟ ΓΙΑ ΤΗΝ ΙΔΙΑ ΧΩΡΗΤΙΚΟΤΗΤΑ
       .eq('is_active', true);
 
     // Exclude current user if updating existing session
     if (excludeUserId) {
-      query = query.neq('user_id', excludeUserId);
+      assignmentsQuery = assignmentsQuery.neq('user_id', excludeUserId);
     }
 
-    const { data: existingAssignments, error } = await query;
+    const { data: existingAssignments, error: assignmentsError } = await assignmentsQuery;
 
-    if (error) {
-      console.error('[GroupAssignmentAPI] Error checking room capacity:', error);
-      throw error;
+    if (assignmentsError) {
+      console.error('[GroupAssignmentAPI] Error checking assignments:', assignmentsError);
+      throw assignmentsError;
     }
 
-    const currentOccupancy = existingAssignments?.length || 0;
+    // Also check group_sessions for this date/time/room WITH SAME GROUP TYPE
+    const { data: existingSessions, error: sessionsError } = await supabase
+      .from('group_sessions')
+      .select('id, user_id, group_type')
+      .eq('session_date', date)
+      .eq('start_time', startTime)
+      .eq('end_time', endTime)
+      .eq('room', room)
+      .eq('group_type', groupType) // ΕΛΕΓΧΟΣ ΜΟΝΟ ΓΙΑ ΤΗΝ ΙΔΙΑ ΧΩΡΗΤΙΚΟΤΗΤΑ
+      .eq('is_active', true);
+
+    if (sessionsError) {
+      console.error('[GroupAssignmentAPI] Error checking sessions:', sessionsError);
+      throw sessionsError;
+    }
+
+    // Count total occupancy from both assignments and sessions WITH SAME GROUP TYPE
+    const assignmentsCount = existingAssignments?.length || 0;
+    const sessionsCount = existingSessions?.length || 0;
+    const currentOccupancy = assignmentsCount + sessionsCount;
     const maxCapacity = groupType; // The room capacity is determined by group type
     const isAvailable = currentOccupancy < maxCapacity;
 
-    console.log('[GroupAssignmentAPI] Room capacity check result:', {
+    console.log('[GroupAssignmentAPI] Room capacity check result (SAME GROUP TYPE ONLY):', {
+      groupType,
+      assignmentsCount,
+      sessionsCount,
       currentOccupancy,
       maxCapacity,
       isAvailable,
@@ -521,9 +544,22 @@ export const sendGroupProgramNotification = async (
   }
 };
 
+// Cache για group assignments και programs
+const assignmentCache = new Map<string, { data: GroupAssignment[], timestamp: number }>();
+const programCache = new Map<string, { data: any[], timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 λεπτά
+
 // Get all group assignments for overview (monthly view)
 export const getAllGroupAssignmentsForMonth = async (year: number, month: number): Promise<GroupAssignment[]> => {
   try {
+    const cacheKey = `assignments-${year}-${month}`;
+    const cached = assignmentCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log('[GroupAssignmentAPI] Using cached assignments for month...', { year, month });
+      return cached.data;
+    }
+    
     console.log('[GroupAssignmentAPI] Fetching all group assignments for month...', { year, month });
 
     const { data, error } = await supabase
@@ -594,6 +630,11 @@ export const getAllGroupAssignmentsForMonth = async (year: number, month: number
       notes: assignment.notes,
       userInfo: assignment.user_profiles
     }));
+
+    // Αποθήκευση στο cache
+    assignmentCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    
+    return result;
   } catch (error) {
     console.error('[GroupAssignmentAPI] Failed to fetch monthly group assignments:', error);
     throw error;
@@ -603,9 +644,17 @@ export const getAllGroupAssignmentsForMonth = async (year: number, month: number
 // Get all group programs (schedules) for a month, including those without assignments yet
 export const getAllGroupProgramsForMonth = async (year: number, month: number) => {
   try {
+    const cacheKey = `programs-${year}-${month}`;
+    const cached = programCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log('[GroupAssignmentAPI] Using cached programs for month...', { year, month });
+      return cached.data;
+    }
+    
     console.log('[GroupAssignmentAPI] Fetching all group programs for month...', { year, month });
 
-    // Try with the standard user_profiles join first
+    // Get group programs without join first to avoid foreign key issues
     let { data: programs, error: programsError } = await supabase
       .from('personal_training_schedules')
       .select(`
@@ -619,115 +668,25 @@ export const getAllGroupProgramsForMonth = async (year: number, month: number) =
         monthly_total,
         status,
         created_at,
-        updated_at,
-        user_profiles (
-          first_name,
-          last_name,
-          email
-        )
+        updated_at
       `)
       .eq('training_type', 'group')
       .eq('month', month)
       .eq('year', year)
       .order('created_at', { ascending: false });
 
-    // If the join fails, fall back to separate queries
     if (programsError) {
-      console.warn('[GroupAssignmentAPI] Join failed, trying separate queries:', programsError);
-      
-      // First get the group programs without join
-      const { data: programsOnly, error: programsOnlyError } = await supabase
-        .from('personal_training_schedules')
-        .select(`
-          id,
-          user_id,
-          month,
-          year,
-          training_type,
-          group_room_size,
-          weekly_frequency,
-          monthly_total,
-          status,
-          created_at,
-          updated_at
-        `)
-        .eq('training_type', 'group')
-        .eq('month', month)
-        .eq('year', year)
-        .order('created_at', { ascending: false });
-
-      if (programsOnlyError) {
-        console.error('[GroupAssignmentAPI] Error fetching group programs:', programsOnlyError);
-        throw programsOnlyError;
-      }
-
-      if (!programsOnly || programsOnly.length === 0) {
-        console.log('[GroupAssignmentAPI] No group programs found for month');
-        return [];
-      }
-
-      // Get user IDs from the programs
-      const userIds = programsOnly.map(p => p.user_id);
-
-      // Fetch user profiles separately
-      const { data: userProfiles, error: usersError } = await supabase
-        .from('user_profiles')
-        .select('user_id, first_name, last_name, email')
-        .in('user_id', userIds);
-
-      if (usersError) {
-        console.error('[GroupAssignmentAPI] Error fetching user profiles:', usersError);
-        throw usersError;
-      }
-
-      console.log('[GroupAssignmentAPI] Fetched group programs (fallback):', programsOnly);
-      console.log('[GroupAssignmentAPI] Fetched user profiles (fallback):', userProfiles);
-
-      // Combine programs with user info
-      return programsOnly.map((program: any) => {
-        const userInfo = userProfiles?.find(u => u.user_id === program.user_id);
-        return {
-          id: program.id,
-          userId: program.user_id,
-          month: program.month,
-          year: program.year,
-          trainingType: program.training_type,
-          groupRoomSize: program.group_room_size,
-          weeklyFrequency: program.weekly_frequency,
-          monthlyTotal: program.monthly_total,
-          status: program.status,
-          createdAt: program.created_at,
-          updatedAt: program.updated_at,
-          userInfo: userInfo ? {
-            first_name: userInfo.first_name,
-            last_name: userInfo.last_name,
-            email: userInfo.email
-          } : null
-        };
-      });
+      console.error('[GroupAssignmentAPI] Failed to fetch group programs:', programsError);
+      return [];
     }
 
-    console.log('[GroupAssignmentAPI] Fetched group programs (with join):', programs);
-
-    // If join succeeded, process the results
-    return programs.map((program: any) => ({
-      id: program.id,
-      userId: program.user_id,
-      month: program.month,
-      year: program.year,
-      trainingType: program.training_type,
-      groupRoomSize: program.group_room_size,
-      weeklyFrequency: program.weekly_frequency,
-      monthlyTotal: program.monthly_total,
-      status: program.status,
-      createdAt: program.created_at,
-      updatedAt: program.updated_at,
-      userInfo: program.user_profiles ? {
-        first_name: program.user_profiles.first_name,
-        last_name: program.user_profiles.last_name,
-        email: program.user_profiles.email
-      } : null
-    }));
+    console.log('[GroupAssignmentAPI] Fetched group programs:', programs?.length || 0);
+    
+    const result = programs || [];
+    // Αποθήκευση στο cache
+    programCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    
+    return result;
   } catch (error) {
     console.error('[GroupAssignmentAPI] Failed to fetch monthly group programs:', error);
     throw error;

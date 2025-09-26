@@ -1273,16 +1273,23 @@ const SecretaryDashboard: React.FC = () => {
       <div className="bg-gradient-to-r from-gray-800 to-gray-900 shadow-2xl border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Secretary Dashboard
-              </h1>
-              <p className="text-gray-300 mt-1">
-                {activeTab === 'scanner' ? '🔍 Σαρώστε QR codes για είσοδο/έξοδο' : 
-                 activeTab === 'membership-requests' ? '📋 Διαχείριση αιτημάτων συνδρομών' : 
-                 activeTab === 'ultimate-installments' ? '👑 Διαχείριση Ultimate συνδρομών και δόσεων' :
-                 '💳 Διαχείριση δόσεων για πακέτα Ultimate'}
-              </p>
+            <div className="flex items-center space-x-4">
+              <img 
+                src="/logo.png" 
+                alt="Get Fit Logo" 
+                className="h-32 w-32 rounded-lg object-contain"
+              />
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  Secretary Dashboard
+                </h1>
+                <p className="text-gray-300 mt-1">
+                  {activeTab === 'scanner' ? '🔍 Σαρώστε QR codes για είσοδο/έξοδο' : 
+                   activeTab === 'membership-requests' ? '📋 Διαχείριση αιτημάτων συνδρομών' : 
+                   activeTab === 'ultimate-installments' ? '👑 Διαχείριση Ultimate συνδρομών και δόσεων' :
+                   '💳 Διαχείριση δόσεων για πακέτα Ultimate'}
+                </p>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               <button

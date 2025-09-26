@@ -27,6 +27,7 @@ import {
   getUserActiveMemberships,
   checkUserHasActiveMembership,
   getDurationLabel,
+  getDurationDisplayText,
   formatPrice,
   getPilatesPackageDurations,
   createPilatesMembershipRequest,
@@ -979,12 +980,15 @@ const MembershipPage: React.FC = React.memo(() => {
                           {getDurationLabel(duration.duration_type)}
                         </h5>
                         <p className="text-sm text-gray-600">
-                          {duration.classes_count ? `${duration.classes_count} μαθήματα` : `${duration.duration_days} ημέρες`}
+                          {selectedPackage.name === 'Ultimate' && duration.duration_type === 'ultimate_1year' 
+                            ? 'Διαθέσιμα έως 3 μαθήματα την εβδομάδα'
+                            : (duration.classes_count ? `${duration.classes_count} μαθήματα` : getDurationDisplayText(duration.duration_type, duration.duration_days))
+                          }
                         </p>
                         {/* Special description for Ultimate package */}
                         {selectedPackage.name === 'Ultimate' && duration.duration_type === 'ultimate_1year' && (
                           <p className="text-xs text-blue-600 mt-1 font-medium">
-                            1 έτος Pilates με 3 μαθήματα την εβδομάδα + 1 έτος ελεύθερο γυμναστήριο
+                            1 έτος Pilates + 1 έτος ελεύθερο γυμναστήριο
                           </p>
                         )}
                       </div>

@@ -6,6 +6,7 @@ import {
   PilatesScheduleFormData,
   PilatesBookingFormData 
 } from '@/types';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 // Pilates Schedule Slots API
 export const getPilatesScheduleSlots = async (): Promise<PilatesScheduleSlot[]> => {
@@ -40,16 +41,21 @@ export const getActivePilatesScheduleSlots = async (): Promise<PilatesScheduleSl
   return data || [];
 };
 
-export const getPilatesAvailableSlots = async (): Promise<PilatesAvailableSlot[]> => {
+export const getPilatesAvailableSlots = async (startDate?: string, endDate?: string): Promise<PilatesAvailableSlot[]> => {
   try {
     console.log('Fetching available pilates slots...');
-    
-    // Get active slots directly from the table (avoiding the problematic view)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const start = startDate || todayStr;
+    // default end = start + 13 days (2 εβδομάδες Δευ-Παρ ~ 10 εργάσιμες)
+    const end = endDate || new Date(new Date(start).getTime() + 13 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Use occupancy view for fast counts
     const { data, error } = await supabase
-      .from('pilates_schedule_slots')
+      .from('pilates_slots_with_occupancy')
       .select('*')
       .eq('is_active', true)
-      .gte('date', new Date().toISOString().split('T')[0])
+      .gte('date', start)
+      .lte('date', end)
       .order('date', { ascending: true })
       .order('start_time', { ascending: true });
 
@@ -64,24 +70,16 @@ export const getPilatesAvailableSlots = async (): Promise<PilatesAvailableSlot[]
     // Transform the data to match PilatesAvailableSlot interface
     // DON'T filter weekend slots - show exactly what admin created
     const availableSlots: PilatesAvailableSlot[] = (data || [])
-      .map(slot => {
-        const slotDate = new Date(slot.date + 'T00:00:00'); // Force local time
-        const dayOfWeek = slotDate.getDay();
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        
-        console.log(`Slot ${slot.date} (day ${dayOfWeek}) - isWeekend: ${isWeekend} - KEPT (admin created it)`);
-        
-        return slot; // Keep ALL slots that admin created
-      })
-      .map(slot => ({
-        id: slot.id,
+      .map((slot: any) => ({
+        id: slot.slot_id,
         date: slot.date,
         start_time: slot.start_time,
         end_time: slot.end_time,
         max_capacity: slot.max_capacity,
-        available_capacity: slot.max_capacity, // For now, assume all slots are available
+        available_capacity: Math.max(0, (slot.max_capacity || 0) - (slot.booked_count || 0)),
         status: 'available' as const,
-        is_active: slot.is_active // Include the is_active status
+        is_active: slot.is_active,
+        booked_count: slot.booked_count || 0
       }));
 
     console.log('Transformed slots:', availableSlots.length);
@@ -91,6 +89,34 @@ export const getPilatesAvailableSlots = async (): Promise<PilatesAvailableSlot[]
     console.error('Error fetching available pilates slots:', error);
     throw error;
   }
+};
+
+// Active pilates deposit for a user
+export const getActivePilatesDeposit = async (userId: string): Promise<{ deposit_remaining: number, is_active: boolean } | null> => {
+  const { data, error } = await supabase
+    .from('pilates_deposits')
+    .select('deposit_remaining, is_active')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .order('credited_at', { ascending: false })
+    .limit(1);
+  if (error) {
+    console.error('Error fetching active pilates deposit:', error);
+    return null;
+  }
+  return data && data.length > 0 ? data[0] : null;
+};
+
+// Realtime subscriptions helpers
+export const subscribePilatesRealtime = (
+  onChange: () => void
+): RealtimeChannel => {
+  const channel = supabase
+    .channel('realtime:pila')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pilates_bookings' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pilates_schedule_slots' }, onChange)
+    .subscribe();
+  return channel;
 };
 
 export const createPilatesScheduleSlot = async (slotData: PilatesScheduleFormData): Promise<PilatesScheduleSlot> => {
@@ -175,47 +201,70 @@ export const getPilatesBookings = async (userId?: string): Promise<PilatesBookin
 };
 
 export const createPilatesBooking = async (bookingData: PilatesBookingFormData, userId: string): Promise<PilatesBooking> => {
+  // Use atomic RPC to decrement deposit and create booking
+  const { data: rpcData, error: rpcError } = await supabase
+    .rpc('book_pilates_class', { p_user_id: userId, p_slot_id: bookingData.slotId });
+
+  if (rpcError) {
+    console.error('Error booking pilates via RPC:', rpcError);
+    throw rpcError;
+  }
+
+  const bookingId = rpcData?.[0]?.booking_id || rpcData?.booking_id;
+  if (!bookingId) {
+    throw new Error('Booking failed: missing booking id');
+  }
+
   const { data, error } = await supabase
     .from('pilates_bookings')
-    .insert({
-      user_id: userId,
-      slot_id: bookingData.slotId,
-      notes: bookingData.notes,
-      status: 'confirmed'
-    })
     .select(`
       *,
       slot:pilates_schedule_slots(*),
       user:user_profiles(*)
     `)
+    .eq('id', bookingId)
     .single();
 
   if (error) {
-    console.error('Error creating pilates booking:', error);
+    console.error('Error fetching created booking:', error);
     throw error;
   }
 
-  return data;
+  return data as PilatesBooking;
 };
 
-export const cancelPilatesBooking = async (bookingId: string): Promise<PilatesBooking> => {
+export const cancelPilatesBooking = async (bookingId: string, userId?: string): Promise<PilatesBooking> => {
+  // Use RPC to cancel and restore deposit if needed
+  if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    userId = user?.id as string;
+  }
+
+  const { error: rpcError } = await supabase.rpc('cancel_pilates_booking', {
+    p_booking_id: bookingId,
+    p_user_id: userId
+  });
+  if (rpcError) {
+    console.error('Error cancelling pilates via RPC:', rpcError);
+    throw rpcError;
+  }
+
   const { data, error } = await supabase
     .from('pilates_bookings')
-    .update({ status: 'cancelled' })
-    .eq('id', bookingId)
     .select(`
       *,
       slot:pilates_schedule_slots(*),
       user:user_profiles(*)
     `)
+    .eq('id', bookingId)
     .single();
 
   if (error) {
-    console.error('Error cancelling pilates booking:', error);
+    console.error('Error fetching cancelled booking:', error);
     throw error;
   }
 
-  return data;
+  return data as PilatesBooking;
 };
 
 // Check if user has active pilates membership
@@ -276,6 +325,26 @@ export const getUserPilatesBookingsForDateRange = async (userId: string, startDa
 
   if (error) {
     console.error('Error fetching user pilates bookings for date range:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+// Get bookings for a specific slot
+export const getPilatesSlotBookings = async (slotId: string): Promise<PilatesBooking[]> => {
+  const { data, error } = await supabase
+    .from('pilates_bookings')
+    .select(`
+      *,
+      user:user_profiles(first_name, last_name, email)
+    `)
+    .eq('slot_id', slotId)
+    .eq('status', 'confirmed')
+    .order('booking_date', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching pilates slot bookings:', error);
     throw error;
   }
 

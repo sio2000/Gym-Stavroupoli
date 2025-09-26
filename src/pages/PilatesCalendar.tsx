@@ -6,6 +6,8 @@ import {
   getPilatesBookings,
   createPilatesBooking,
   cancelPilatesBooking,
+  getActivePilatesDeposit,
+  subscribePilatesRealtime,
 } from '@/utils/pilatesScheduleApi';
 import { PilatesAvailableSlot, PilatesBooking } from '@/types';
 import { Calendar, CheckCircle, XCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -15,6 +17,7 @@ const PilatesCalendar: React.FC = () => {
   const [availableSlots, setAvailableSlots] = useState<PilatesAvailableSlot[]>([]);
   const [userBookings, setUserBookings] = useState<PilatesBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deposit, setDeposit] = useState<number>(0);
   const [currentWeek, setCurrentWeek] = useState(() => {
     // Start with the same week as admin panel - 13 Sep (Saturday)
     const adminWeek = new Date('2025-09-13T00:00:00.000Z');
@@ -23,14 +26,14 @@ const PilatesCalendar: React.FC = () => {
   });
 
 
-  // Generate week dates (10 days like admin panel)
+  // Generate 2-week dates (current week + next week)
   const getWeekDates = (): Date[] => {
     const dates: Date[] = [];
     const startOfWeek = new Date(currentWeek);
     
     console.log('User: getWeekDates - currentWeek:', startOfWeek);
     
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 14; i++) {
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
       dates.push(date);
@@ -96,34 +99,29 @@ const PilatesCalendar: React.FC = () => {
     try {
       setLoading(true);
       console.log('=== LOADING PILATES CALENDAR DATA ===');
-      
-      const [slots, bookings] = await Promise.all([
-        getPilatesAvailableSlots(),
-        getPilatesBookings(user.id)
+      const startStr = new Date(currentWeek).toISOString().split('T')[0];
+      const end = new Date(currentWeek);
+      end.setDate(end.getDate() + 13);
+      const endStr = end.toISOString().split('T')[0];
+
+      const [slots, bookings, depositInfo] = await Promise.all([
+        getPilatesAvailableSlots(startStr, endStr),
+        getPilatesBookings(user.id),
+        getActivePilatesDeposit(user.id)
       ]);
       
       console.log('Fetched slots from DB:', slots.length);
       console.log('Fetched bookings from DB:', bookings.length);
       
-      // Calculate available capacity for each slot
-      const slotsWithCapacity = slots.map(slot => {
-        const slotBookings = bookings.filter(booking => 
-          booking.slot_id === slot.id && booking.status === 'confirmed'
-        );
-        const bookedCount = slotBookings.length;
-        const availableCapacity = Math.max(0, slot.max_capacity - bookedCount);
-        
-        console.log(`Slot ${slot.id} (${slot.date} ${slot.start_time}): max=${slot.max_capacity}, booked=${bookedCount}, available=${availableCapacity}`);
-        
-        return {
-          ...slot,
-          available_capacity: availableCapacity,
-          booked_count: bookedCount
-        };
-      });
+      // Slots already include booked_count from occupancy view; just compute available_capacity
+      const slotsWithCapacity = slots.map(slot => ({
+        ...slot,
+        available_capacity: Math.max(0, slot.max_capacity - (slot as any).booked_count)
+      }));
       
       setAvailableSlots(slotsWithCapacity);
       setUserBookings(bookings);
+      setDeposit(depositInfo?.deposit_remaining || 0);
       
     } catch (error) {
       console.error('Error loading data:', error);
@@ -137,9 +135,9 @@ const PilatesCalendar: React.FC = () => {
   const navigateWeek = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentWeek);
     if (direction === 'prev') {
-      newDate.setDate(newDate.getDate() - 7);
+      newDate.setDate(newDate.getDate() - 14); // βήμα 2 εβδομάδων προς τα πίσω
     } else {
-      newDate.setDate(newDate.getDate() + 7);
+      newDate.setDate(newDate.getDate() + 14); // βήμα 2 εβδομάδων προς τα εμπρός
     }
     setCurrentWeek(newDate);
     console.log('Navigated to week:', newDate);
@@ -162,7 +160,12 @@ const PilatesCalendar: React.FC = () => {
     try {
       console.log('Booking slot:', slot);
       
-      // Check if slot is available (simplified check)
+      if (deposit <= 0) {
+        toast.error('Τα μαθήματά σας τελείωσαν. Για ανανέωση, απευθυνθείτε στη ρεσεψιόν.');
+        return;
+      }
+
+      // πλήρες;
       if (slot.booked_count >= slot.max_capacity) {
         toast.error('Το μάθημα είναι πλήρες.');
         return;
@@ -200,6 +203,13 @@ const PilatesCalendar: React.FC = () => {
     // Force refresh to avoid caching issues
     console.log('User: useEffect triggered - currentWeek changed to:', currentWeek.toISOString());
     loadData();
+    // realtime occupancy updates
+    const ch = subscribePilatesRealtime(() => {
+      loadData();
+    });
+    return () => {
+      try { ch.unsubscribe(); } catch {}
+    };
   }, [user?.id, currentWeek]);
 
   const weekDates = getWeekDates();
@@ -263,7 +273,7 @@ const PilatesCalendar: React.FC = () => {
             
             <div className="text-center">
               <h2 className="text-xl font-semibold text-gray-800">
-                Εβδομάδα: {formatDate(weekDates[0])} - {formatDate(weekDates[9])}
+                2 εβδομάδες: {formatDate(weekDates[0])} - {formatDate(weekDates[13])}
               </h2>
             </div>
             
@@ -284,6 +294,13 @@ const PilatesCalendar: React.FC = () => {
               Τα μπλε μαθήματα είναι ήδη κρατημένα από εσάς.
             </p>
           </div>
+        {/* Deposit Info */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-4 border">
+          <p className="text-lg font-semibold">Pilates deposit: {deposit} μαθήματα απομένουν</p>
+          {deposit <= 0 && (
+            <p className="text-red-600 mt-1">Τα μαθήματά σας τελείωσαν. Για ανανέωση, απευθυνθείτε στη ρεσεψιόν.</p>
+          )}
+        </div>
         </div>
 
         {/* Schedule Grid */}

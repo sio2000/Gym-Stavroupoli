@@ -271,12 +271,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-dark-900">
           <div className="flex h-16 items-center justify-between px-4 border-b border-dark-700">
             <div className="flex items-center">
-              <div className="h-8 w-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <span className="ml-2 text-xl font-bold text-white">Get Fit</span>
+              <img 
+                src="/logo.png" 
+                alt="Get Fit Logo" 
+                className="h-24 w-24 rounded-lg object-contain"
+              />
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -311,12 +310,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               );
             })}
           </nav>
-          <div className="border-t border-gray-200 p-4">
+          <div className="border-t border-dark-700 p-4">
             <button
               onClick={handleLogout}
-              className="group flex w-full items-center px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors"
+              className="group flex w-full items-center px-2 py-2 text-sm font-medium text-gray-300 hover:bg-dark-700 hover:text-white rounded-md transition-colors"
             >
-              <LogOut className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
+              <LogOut className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-300" />
               Αποσύνδεση
             </button>
           </div>
@@ -328,12 +327,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="flex flex-col flex-grow bg-dark-900 border-r border-dark-700">
           <div className="flex h-16 items-center px-4 border-b border-dark-700">
             <div className="flex items-center">
-              <div className="h-8 w-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <span className="ml-2 text-xl font-bold text-white">Get Fit</span>
+              <img 
+                src="/logo.png" 
+                alt="Get Fit Logo" 
+                className="h-24 w-24 rounded-lg object-contain"
+              />
             </div>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
@@ -361,12 +359,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               );
             })}
           </nav>
-          <div className="border-t border-gray-200 p-4">
+          <div className="border-t border-dark-700 p-4">
             <button
               onClick={handleLogout}
-              className="group flex w-full items-center px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors"
+              className="group flex w-full items-center px-2 py-2 text-sm font-medium text-gray-300 hover:bg-dark-700 hover:text-white rounded-md transition-colors"
             >
-              <LogOut className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
+              <LogOut className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-300" />
               Αποσύνδεση
             </button>
           </div>
@@ -388,13 +386,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1"></div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
-              <button className="text-gray-400 hover:text-white">
-                <Bell className="h-6 w-6" />
-              </button>
-              <button className="text-gray-400 hover:text-white">
-                <Settings className="h-6 w-6" />
-              </button>
-              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-dark-700" />
               <div className="flex items-center gap-x-4">
                 <div className="text-sm">
                   <p className="font-medium text-white">{user?.firstName} {user?.lastName}</p>

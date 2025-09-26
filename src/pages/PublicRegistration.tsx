@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { supabaseAdmin } from '@/config/supabaseAdmin';
 import { MembershipPackage, MembershipPackageDuration } from '@/types';
+import { getDurationDisplayText } from '@/utils/membershipApi';
 import toast from 'react-hot-toast';
 
 interface RegistrationFormData {
@@ -615,7 +616,7 @@ const PublicRegistration: React.FC = () => {
                                 {duration.duration_type}
                               </h4>
                               <p className="text-sm text-gray-600">
-                                {duration.classes_count ? `${duration.classes_count} μαθήματα` : `${duration.duration_days} ημέρες`}
+                                {duration.classes_count ? `${duration.classes_count} μαθήματα` : getDurationDisplayText(duration.duration_type, duration.duration_days)}
                               </p>
                             </div>
                             <div className="text-right">
