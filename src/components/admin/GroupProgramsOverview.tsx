@@ -267,7 +267,7 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = React.memo((
       {/* ΑΠΛΟ ΜΗΝΙΑΙΟ CALENDAR */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">📅 Κλεισμένες Ομαδικές Σεσίες</h3>
+          <h3 className="text-lg font-semibold text-gray-800">📅 Κλεισμένες Σεσίες - Πρόγραμμα Personal</h3>
           <p className="text-sm text-gray-600 mt-1">Μηνιαία προβολή - 🟢 Ελεύθερα | 🟡 Μισά | 🔴 Γεμάτα</p>
         </div>
 

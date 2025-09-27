@@ -223,7 +223,7 @@ const GroupTrainingCalendar: React.FC<GroupTrainingCalendarProps> = ({
           <div>
             <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
               <span className="text-blue-600">📅</span>
-              <span>Κλεισμένες Ομαδικές Σεσίες</span>
+              <span>Κλεισμένες Σεσίες - Πρόγραμμα Personal</span>
             </h3>
             <div className="flex items-center space-x-4 mt-2 text-sm">
               <span className="text-gray-600">Μηνιαία προβολή -</span>
