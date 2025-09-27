@@ -1,0 +1,84 @@
+import{s as F}from"./index-BmeQlVRf.js";const L=async(P,I)=>{try{console.log("[GroupTrainingCalendarAPI] Fetching calendar events...",{startDate:P,endDate:I});const{data:c,error:T}=await F.from("group_sessions").select(`
+        id,
+        session_date,
+        start_time,
+        end_time,
+        trainer,
+        room,
+        group_type,
+        notes,
+        is_active,
+        created_at,
+        program_id,
+        user_profiles!group_sessions_user_id_fkey(
+          user_id,
+          first_name,
+          last_name,
+          email,
+          avatar_url
+        ),
+        personal_training_schedules!group_sessions_program_id_fkey(
+          training_type,
+          user_type,
+          group_room_size
+        )
+      `).eq("is_active",!0).gte("session_date",P).lte("session_date",I).order("session_date",{ascending:!0}).order("start_time",{ascending:!0});if(T)throw console.error("[GroupTrainingCalendarAPI] Error fetching sessions:",T),new Error(`Failed to fetch group sessions: ${T.message}`);console.log("[GroupTrainingCalendarAPI] Raw sessions data:",c);const{data:v,error:h}=await F.from("lesson_bookings").select(`
+        id,
+        session_id,
+        booking_date,
+        booking_time,
+        trainer_name,
+        room,
+        status,
+        user_id,
+        schedule_id,
+        user_profiles!lesson_bookings_user_id_fkey(
+          user_id,
+          first_name,
+          last_name,
+          email,
+          avatar_url
+        ),
+        personal_training_schedules!lesson_bookings_schedule_id_fkey(
+          training_type,
+          user_type,
+          group_room_size
+        )
+      `).eq("status","booked").gte("booking_date",P).lte("booking_date",I).order("booking_date",{ascending:!0}).order("booking_time",{ascending:!0});h&&console.error("[GroupTrainingCalendarAPI] Error fetching Individual/Paspartu bookings:",h),console.log("[GroupTrainingCalendarAPI] Individual/Paspartu bookings:",v);const{data:a,error:A}=await F.from("personal_training_schedules").select(`
+        id,
+        user_id,
+        month,
+        year,
+        schedule_data,
+        status,
+        created_by,
+        training_type,
+        user_type
+      `).eq("training_type","individual").eq("status","accepted");if(A&&console.error("[GroupTrainingCalendarAPI] Error fetching admin personal lessons:",A),console.log("[GroupTrainingCalendarAPI] Admin personal lessons found:",(a==null?void 0:a.length)||0),a&&a.length>0)console.log("[GroupTrainingCalendarAPI] Admin personal lessons details:",a);else{console.log("[GroupTrainingCalendarAPI] No admin personal lessons found in personal_training_schedules table"),console.log("[GroupTrainingCalendarAPI] Query filters: training_type=individual, status=accepted");const{data:r,error:t}=await F.from("personal_training_schedules").select("id, training_type, status, created_by, user_type").limit(10);console.log("[GroupTrainingCalendarAPI] Debug - All personal_training_schedules (first 10):",r),t&&console.error("[GroupTrainingCalendarAPI] Debug query error:",t)}const G=(c==null?void 0:c.map(r=>r.id))||[],{data:E,error:k}=await F.from("lesson_bookings").select(`
+        id,
+        session_id,
+        status,
+        user_id,
+        user_profiles!lesson_bookings_user_id_fkey(
+          user_id,
+          first_name,
+          last_name,
+          email,
+          avatar_url
+        )
+      `).in("session_id",G).eq("status","booked");k&&console.error("[GroupTrainingCalendarAPI] Error fetching bookings:",k);const $=new Map;E==null||E.forEach(r=>{$.has(r.session_id)||$.set(r.session_id,[]),$.get(r.session_id).push(r)});const b=new Map;v==null||v.forEach(r=>{var i,_,f,p;const t=((i=r.personal_training_schedules)==null?void 0:i.training_type)==="individual",e=((_=r.personal_training_schedules)==null?void 0:_.training_type)==="group"&&((f=r.personal_training_schedules)==null?void 0:f.user_type)==="paspartu",o=((p=r.personal_training_schedules)==null?void 0:p.training_type)==="combination";if(t||e||o){const d=`${r.booking_date}-${r.booking_time}-${r.trainer_name}-${r.room}`;b.has(d)||b.set(d,[]),b.get(d).push(r)}});const u=new Map;c==null||c.forEach((r,t)=>{var w,N,S,M,O,U,R,g,x;console.log(`[GroupTrainingCalendarAPI] Processing session ${t+1}:`,{id:r.id,date:r.session_date,time:`${r.start_time}-${r.end_time}`,trainer:r.trainer,room:r.room,group_type:r.group_type,user:(w=r.user_profiles)==null?void 0:w.first_name,training_type:(N=r.personal_training_schedules)==null?void 0:N.training_type,user_type:(S=r.personal_training_schedules)==null?void 0:S.user_type});const e=((M=r.personal_training_schedules)==null?void 0:M.training_type)==="group"&&((O=r.personal_training_schedules)==null?void 0:O.user_type)==="paspartu",o=((U=r.personal_training_schedules)==null?void 0:U.training_type)==="combination",i=o&&r.group_type===null,_=$.get(r.id)||[],f=_.length>0;if(e&&!f&&!i){console.log(`[GroupTrainingCalendarAPI] Skipping Group/Paspartu session ${r.id} - no bookings`);return}o&&console.log(`[GroupTrainingCalendarAPI] Processing Combination session ${r.id} - always displayed`,{group_type:r.group_type,isIndividual:i,user:(R=r.user_profiles)==null?void 0:R.first_name}),i&&console.log(`[GroupTrainingCalendarAPI] Processing Individual session in Combination ${r.id}`,{group_type:r.group_type,user:(g=r.user_profiles)==null?void 0:g.first_name}),i&&console.log(`[GroupTrainingCalendarAPI] FORCING Individual Combination session ${r.id} to be processed`,{group_type:r.group_type,user:(x=r.user_profiles)==null?void 0:x.first_name,willCreateEvent:!0});const p=r.session_date,d=r.start_time,B=r.end_time,m=r.trainer,C=r.room,l=o?`${p}-${d}-${B}-${m}-${C}-${i?"individual":"combination"}-${i?"1":r.group_type||"1"}`:`${p}-${d}-${B}-${m}-${C}-${r.group_type}`;if(console.log(`[GroupTrainingCalendarAPI] Event key: ${l}`,{isGroupPaspartu:e,isCombination:o,hasBookings:f,group_type:r.group_type,willProcess:!e||f}),i&&console.log(`[GroupTrainingCalendarAPI] INDIVIDUAL COMBINATION SESSION DETECTED: ${r.id}`,{eventKey:l,group_type:r.group_type,trainer:m,room:C,date:p,startTime:d,endTime:B,willCreateEvent:!0}),!u.has(l)){let s;i?s=1:s=r.group_type||3;const D=`${p}T${d}:00`,z=`${p}T${B}:00`,q={id:`group-${l}`,title:i?`Ατομική Σεσία - ${m}`:`Group Training - ${m}`,type:"group",start:D,end:z,room:C,capacity:s,participants_count:0,participants:[],status:r.is_active?"scheduled":"cancelled",trainer:m,group_type:i?1:r.group_type,notes:r.notes};u.set(l,q),i&&console.log(`[GroupTrainingCalendarAPI] CREATED EVENT for Individual Combination session: ${r.id}`,{eventKey:l,title:q.title,capacity:q.capacity,start:q.start,end:q.end,trainer:q.trainer,group_type:q.group_type})}const n=u.get(l);r.user_profiles&&!e&&(n.participants.find(D=>D.id===r.user_profiles.user_id)||n.participants.push({id:r.user_profiles.user_id,name:`${r.user_profiles.first_name} ${r.user_profiles.last_name}`,email:r.user_profiles.email,avatar_url:r.user_profiles.avatar_url})),i&&console.log(`[GroupTrainingCalendarAPI] Individual Combination session ${r.id} processed successfully`,{eventKey:l,capacity:n.capacity,participants:n.participants.length,willBeDisplayed:!0,title:n.title,start:n.start,end:n.end}),n.participants_count=n.participants.length,_.forEach(s=>{s.user_profiles&&(n.participants.find(z=>z.id===s.user_profiles.user_id)||n.participants.push({id:s.user_profiles.user_id,name:`${s.user_profiles.first_name} ${s.user_profiles.last_name}`,email:s.user_profiles.email,avatar_url:s.user_profiles.avatar_url}))}),i&&console.log(`[GroupTrainingCalendarAPI] FINAL CHECK: Individual Combination session ${r.id} will be displayed`,{eventKey:l,capacity:n.capacity,participants:n.participants.length,status:n.status,title:n.title,start:n.start,end:n.end,trainer:n.trainer,room:n.room}),n.participants_count=n.participants.length}),b.forEach((r,t)=>{var S,M,O,U,R;console.log(`[GroupTrainingCalendarAPI] Processing Individual/Paspartu bookings for key: ${t}`,{bookingsCount:r.length,firstBooking:r[0]});const e=r[0],o=e.booking_date,i=e.booking_time,_=e.booking_time,f=e.trainer_name,p=e.room,d=((S=e.personal_training_schedules)==null?void 0:S.training_type)==="individual",B=((M=e.personal_training_schedules)==null?void 0:M.training_type)==="group"&&((O=e.personal_training_schedules)==null?void 0:O.user_type)==="paspartu",m=((U=e.personal_training_schedules)==null?void 0:U.training_type)==="combination";let C,l,n,w;if(d)C=1,l=1,n=`Individual Training - ${f}`,w=`${o}-${i}-${_}-${f}-${p}-individual`;else if(B||m){let g=3;const x=c==null?void 0:c.find(s=>{var D,z,q;return s.session_date===o&&s.start_time===i&&s.trainer===f&&s.room===p&&(((D=s.personal_training_schedules)==null?void 0:D.training_type)==="group"&&((z=s.personal_training_schedules)==null?void 0:z.user_type)==="paspartu"||((q=s.personal_training_schedules)==null?void 0:q.training_type)==="combination")});x?(g=x.group_type||3,console.log(`[GroupTrainingCalendarAPI] Found corresponding session for booking, using capacity: ${g}`)):(g=((R=e.personal_training_schedules)==null?void 0:R.group_room_size)||3,console.log(`[GroupTrainingCalendarAPI] No corresponding session found, using group_room_size: ${g}`)),C=g,l=C,n=m?`Ατομική Σεσία - ${f}`:`Group Training - ${f}`,w=`${o}-${i}-${_}-${f}-${p}-${m?"individual":"group-paspartu"}-${l}`}else return;if(console.log(`[GroupTrainingCalendarAPI] Individual/Paspartu event key: ${w}`,{isIndividual:d,isGroupPaspartu:B,capacity:C,groupType:l}),!u.has(w)){const g=`${o}T${i}:00`,x=`${o}T${_}:00`,s={id:`booking-${w}`,title:n,type:"group",start:g,end:x,room:p,capacity:C,participants_count:0,participants:[],status:"scheduled",trainer:f,group_type:l,notes:`${d?"Individual":m?"Combination":"Group/Paspartu"} session - ${r.length} booking(s)`};u.set(w,s)}const N=u.get(w);r.forEach(g=>{g.user_profiles&&(N.participants.find(s=>s.id===g.user_profiles.user_id)||N.participants.push({id:g.user_profiles.user_id,name:`${g.user_profiles.first_name} ${g.user_profiles.last_name}`,email:g.user_profiles.email,avatar_url:g.user_profiles.avatar_url}))})}),a==null||a.forEach(r=>{console.log(`[GroupTrainingCalendarAPI] Processing admin personal lesson: ${r.id}`,{user_id:r.user_id,month:r.month,year:r.year,training_type:r.training_type,status:r.status}),r.schedule_data&&r.schedule_data.sessions&&r.schedule_data.sessions.forEach(t=>{const e=t.date,o=t.startTime,i=t.endTime,_=t.trainer,f=t.room||"Flexible Room",p=`admin-personal-${e}-${o}-${i}-${_}-${f}`;if(console.log(`[GroupTrainingCalendarAPI] Admin personal lesson event key: ${p}`),!u.has(p)){const m=`${e}T${o}:00`,C=`${e}T${i}:00`,l={id:`admin-personal-${p}`,title:`Ατομική Σεσία - ${_}`,type:"group",start:m,end:C,room:f,capacity:1,participants_count:0,participants:[],status:"scheduled",trainer:_,group_type:1,notes:`Admin-created personal lesson for user ${r.user_id}`};u.set(p,l),console.log(`[GroupTrainingCalendarAPI] Created admin personal lesson event: ${p}`,{title:l.title,capacity:l.capacity,start:l.start,end:l.end,trainer:l.trainer,room:l.room})}const d=u.get(p);d.participants.find(m=>m.id===r.user_id)||d.participants.push({id:r.user_id,name:`User ${r.user_id}`,email:"",avatar_url:null}),d.participants_count=d.participants.length,console.log(`[GroupTrainingCalendarAPI] Admin personal lesson processed: ${p}`,{participants:d.participants_count,capacity:d.capacity,willBeDisplayed:!0})})}),u.forEach(r=>{r.participants_count=r.participants.length});const y=Array.from(u.values());return console.log("[GroupTrainingCalendarAPI] Final events summary:"),y.forEach((r,t)=>{console.log(`Event ${t+1}:`,{id:r.id,date:r.start.split("T")[0],time:`${r.start.split("T")[1].substring(0,5)}-${r.end.split("T")[1].substring(0,5)}`,trainer:r.trainer,room:r.room,capacity:`${r.participants_count}/${r.capacity}`,group_type:r.group_type})}),console.log("[GroupTrainingCalendarAPI] Processed events:",y.length),{events:y,total_count:y.length}}catch(c){throw console.error("[GroupTrainingCalendarAPI] Unexpected error:",c),new Error("Failed to fetch group training calendar events")}},K=async(P,I,c,T,v,h)=>{var a;try{console.log("[GroupTrainingCalendarAPI] Checking session capacity...",{sessionDate:P,startTime:I,endTime:c,trainer:T,room:v,groupType:h});let A=F.from("group_sessions").select(`
+        id,
+        group_type,
+        personal_training_schedules!group_sessions_program_id_fkey(
+          group_room_size
+        )
+      `).eq("session_date",P).eq("start_time",I).eq("end_time",c).eq("trainer",T).eq("room",v).eq("is_active",!0);h&&(A=A.eq("group_type",h));const{data:G,error:E}=await A;if(E)return console.error("[GroupTrainingCalendarAPI] Error checking capacity:",E),{isFull:!1,currentCount:0,capacity:0,error:E.message};if(!G||G.length===0)return{isFull:!1,currentCount:0,capacity:6};const k=((a=G[0].personal_training_schedules)==null?void 0:a.group_room_size)||6,$=G.map(o=>o.id),{data:b,error:u}=await F.from("lesson_bookings").select("id").in("session_id",$).eq("status","booked");if(u)return console.error("[GroupTrainingCalendarAPI] Error checking bookings:",u),{isFull:!1,currentCount:0,capacity:k,error:u.message};const y=G.length,r=(b==null?void 0:b.length)||0,t=y+r,e=t>=k;return console.log("[GroupTrainingCalendarAPI] Detailed capacity check (SAME GROUP TYPE ONLY):",{groupType:h,sessions:G.length,directUsers:y,bookings:r,total:t,capacity:k,isFull:e}),console.log("[GroupTrainingCalendarAPI] Capacity check result:",{currentCount:t,capacity:k,isFull:e}),{isFull:e,currentCount:t,capacity:k}}catch(A){return console.error("[GroupTrainingCalendarAPI] Error checking capacity:",A),{isFull:!1,currentCount:0,capacity:0,error:"Failed to check capacity"}}},Q=async(P,I,c,T,v,h)=>{try{const a=await K(P,I,c,T,v,h);return a.error?{canCreate:!1,error:a.error}:a.isFull?{canCreate:!1,error:`Session is at full capacity (${a.currentCount}/${a.capacity}). Cannot create new session.`,currentCount:a.currentCount,capacity:a.capacity}:{canCreate:!0}}catch(a){return console.error("[GroupTrainingCalendarAPI] Error validating session creation:",a),{canCreate:!1,error:"Failed to validate session creation"}}},Y=async(P,I,c,T,v,h)=>{var a,A,G,E,k;try{console.log("[GroupTrainingCalendarAPI] Validating Individual/Paspartu booking...",{sessionDate:P,startTime:I,trainer:c,room:T,userId:v,scheduleId:h});const{data:$,error:b}=await F.from("lesson_bookings").select(`
+        id,
+        user_id,
+        schedule_id,
+        personal_training_schedules!lesson_bookings_schedule_id_fkey(
+          training_type,
+          user_type,
+          group_room_size
+        )
+      `).eq("booking_date",P).eq("booking_time",I).eq("trainer_name",c).eq("room",T).eq("status","booked");if(b)return console.error("[GroupTrainingCalendarAPI] Error checking existing Individual/Paspartu bookings:",b),{canBook:!1,error:"Failed to check existing bookings"};const u=($==null?void 0:$.filter(e=>{var o,i,_;return((o=e.personal_training_schedules)==null?void 0:o.training_type)==="individual"||((i=e.personal_training_schedules)==null?void 0:i.user_type)==="paspartu"||((_=e.personal_training_schedules)==null?void 0:_.training_type)==="combination"}))||[];let y=1;if(u.length>0){const e=u[0],o=((a=e.personal_training_schedules)==null?void 0:a.training_type)==="individual",i=((A=e.personal_training_schedules)==null?void 0:A.training_type)==="group"&&((G=e.personal_training_schedules)==null?void 0:G.user_type)==="paspartu",_=((E=e.personal_training_schedules)==null?void 0:E.training_type)==="combination";o?y=1:(i||_)&&(y=((k=e.personal_training_schedules)==null?void 0:k.group_room_size)||3)}else if(h){const{data:e,error:o}=await F.from("personal_training_schedules").select("training_type, user_type, group_room_size").eq("id",h).single();!o&&e&&(e.training_type==="individual"?y=1:(e.training_type==="group"&&e.user_type==="paspartu"||e.training_type==="combination")&&(y=e.group_room_size||3))}const r=u.length,t=r>=y;return console.log("[GroupTrainingCalendarAPI] Individual/Paspartu capacity check:",{currentCount:r,capacity:y,isFull:t,existingBookings:u.length,scheduleId:h}),t?{canBook:!1,error:"This session is already full. Please choose another available time slot.",currentCount:r,capacity:y}:{canBook:!0,currentCount:r,capacity:y}}catch($){return console.error("[GroupTrainingCalendarAPI] Error validating Individual/Paspartu booking:",$),{canBook:!1,error:"Failed to validate Individual/Paspartu booking"}}};export{K as checkSessionCapacity,L as getGroupTrainingCalendarEvents,Y as validateIndividualPaspartuBooking,Q as validateSessionCreation};

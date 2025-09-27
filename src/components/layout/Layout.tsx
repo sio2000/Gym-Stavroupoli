@@ -14,7 +14,8 @@ import {
   CreditCard,
   UserPlus,
   QrCode,
-  Target
+  Target,
+  Star
 } from 'lucide-react';
 import { cn } from '@/utils';
 import { supabase } from '@/config/supabase';
@@ -231,6 +232,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     ...(hasQRCodeAccess ? [{ name: 'QR Codes', href: '/qr-codes', icon: QrCode }] : []),
     { name: 'Παραπομπές', href: '/referral', icon: UserPlus },
     { name: 'Προφίλ', href: '/profile', icon: User },
+    { name: 'Πρόσθετα', href: '/extras', icon: Star },
   ];
 
   // Admin specific navigation

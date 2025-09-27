@@ -14,6 +14,7 @@ const Bookings = React.lazy(() => import('@/pages/Bookings'));
 const Membership = React.lazy(() => import('@/pages/Membership'));
 const QRCodes = React.lazy(() => import('@/pages/QRCodes'));
 const Referral = React.lazy(() => import('@/pages/Referral'));
+const Extras = React.lazy(() => import('@/pages/Extras'));
 
 // Lazy load other pages for better performance
 const AdminPanel = React.lazy(() => import('@/pages/AdminPanel'));
@@ -111,6 +112,20 @@ const App: React.FC = () => {
               <Layout>
                 <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <Referral />
+                </React.Suspense>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Extras - Protected route for all users */}
+        <Route
+          path="/extras"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
+                  <Extras />
                 </React.Suspense>
               </Layout>
             </ProtectedRoute>
