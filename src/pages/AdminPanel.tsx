@@ -145,10 +145,12 @@ const AdminPanel: React.FC = () => {
   
   // New panel state variables
   const [usedOldMembers, setUsedOldMembers] = useState<Set<string>>(new Set());
+  const [localUsedOldMembers, setLocalUsedOldMembers] = useState<Set<string>>(new Set());
   const [kettlebellPoints, setKettlebellPoints] = useState<string>('');
   const [selectedOptions, setSelectedOptions] = useState<{
     [userId: string]: {
       oldMembers: boolean;
+      first150Members: boolean;
       kettlebellPoints: string;
       cash: boolean;
       pos: boolean;
@@ -184,6 +186,13 @@ const AdminPanel: React.FC = () => {
   const [kettlebellCurrentPage, setKettlebellCurrentPage] = useState(1);
   const KETTLEBELL_USERS_PER_PAGE = 10;
 
+  // Open Gym section state
+  const [openGymSelectedUserId, setOpenGymSelectedUserId] = useState<string>('');
+  const [openGymKettlebellPoints, setOpenGymKettlebellPoints] = useState<string>('');
+  const [openGymStatus, setOpenGymStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [openGymUserSearchMode, setOpenGymUserSearchMode] = useState<'dropdown' | 'search'>('dropdown');
+  const [openGymUserSearchTerm, setOpenGymUserSearchTerm] = useState<string>('');
+
   // Cash Register state
   const [cashAmount, setCashAmount] = useState<string>('');
   const [posAmount, setPosAmount] = useState<string>('');
@@ -206,6 +215,7 @@ const AdminPanel: React.FC = () => {
   const [pendingUsers, setPendingUsers] = useState<Set<string>>(new Set());
   const [frozenOptions, setFrozenOptions] = useState<{[userId: string]: {
     oldMembers: boolean;
+    first150Members: boolean;
     kettlebellPoints: string;
     cash: boolean;
     pos: boolean;
@@ -215,6 +225,16 @@ const AdminPanel: React.FC = () => {
     groupRoomSize?: number | null;
     weeklyFrequency?: number | null;
     monthlyTotal?: number | null;
+    // Installment properties
+    installment1Amount?: number;
+    installment2Amount?: number;
+    installment3Amount?: number;
+    installment1PaymentMethod?: string;
+    installment2PaymentMethod?: string;
+    installment3PaymentMethod?: string;
+    installment1DueDate?: string;
+    installment2DueDate?: string;
+    installment3DueDate?: string;
   }}>({});
 
 
@@ -355,6 +375,18 @@ const AdminPanel: React.FC = () => {
   const filteredUsers = allUsers.filter(user => {
     if (!userSearchTerm) return true;
     const searchLower = userSearchTerm.toLowerCase();
+    return (
+      user.firstName.toLowerCase().includes(searchLower) ||
+      user.lastName.toLowerCase().includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower) ||
+      `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Filtered users for Open Gym search
+  const openGymFilteredUsers = allUsers.filter(user => {
+    if (!openGymUserSearchTerm) return true;
+    const searchLower = openGymUserSearchTerm.toLowerCase();
     return (
       user.firstName.toLowerCase().includes(searchLower) ||
       user.lastName.toLowerCase().includes(searchLower) ||
@@ -1048,6 +1080,7 @@ const AdminPanel: React.FC = () => {
           if (userOptions) {
             newFrozenOptions[userId] = {
               oldMembers: userOptions.oldMembers,
+              first150Members: userOptions.first150Members,
               kettlebellPoints: userOptions.kettlebellPoints,
               cash: userOptions.cash,
               pos: userOptions.pos,
@@ -1125,6 +1158,20 @@ const AdminPanel: React.FC = () => {
             console.log(`[APPROVED] Old Members marked as used for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
             // Update local state
             setUsedOldMembers(prev => new Set([...prev, userId]));
+            setLocalUsedOldMembers(prev => new Set([...prev, userId]));
+            // Reset all options when oldMembers is used
+            setSelectedOptions(prev => ({
+              ...prev,
+              [userId]: {
+                ...prev[userId],
+                oldMembers: false,
+                first150Members: false,
+                cash: false,
+                pos: false,
+                cashAmount: undefined,
+                posAmount: undefined
+              }
+            }));
           } else {
             console.warn(`[APPROVED] Failed to mark Old Members as used for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
           }
@@ -1394,7 +1441,7 @@ const AdminPanel: React.FC = () => {
             toast.error('Σφάλμα κατά τη δημιουργία των ατομικών σεσίων του συνδυασμού');
           } else {
             console.log('[ADMIN] Created group_sessions for combination individual sessions:', groupSessionsData);
-            console.log('[ADMIN] Number of individual sessions created:', groupSessionsData?.length || 0);
+            console.log('[ADMIN] Individual sessions created successfully');
           }
         } else {
           console.log('[ADMIN] Skipping individual sessions creation:', {
@@ -2232,6 +2279,7 @@ const AdminPanel: React.FC = () => {
 
         const usedOldMembersSet = new Set(data?.map(record => record.user_id) || []);
         setUsedOldMembers(usedOldMembersSet);
+        setLocalUsedOldMembers(usedOldMembersSet);
       } catch (error) {
         console.error('Exception loading old members usage:', error);
       }
@@ -2486,6 +2534,143 @@ const AdminPanel: React.FC = () => {
     }
   }, [newCode.selectedUserId]);
 
+  // ===== OPEN GYM FUNCTIONS =====
+
+  const handleOpenGymAction = async () => {
+    if (!openGymSelectedUserId || !openGymKettlebellPoints) {
+      setOpenGymStatus({
+        type: 'error',
+        message: 'Παρακαλώ επιλέξτε χρήστη και εισάγετε αριθμό points'
+      });
+      return;
+    }
+
+    const points = parseInt(openGymKettlebellPoints);
+    if (points <= 0) {
+      setOpenGymStatus({
+        type: 'error',
+        message: 'Ο αριθμός των points πρέπει να είναι μεγαλύτερος από 0'
+      });
+      return;
+    }
+
+    try {
+      setOpenGymStatus(null);
+      setLoading(true);
+
+      // Find the selected user
+      const selectedUser = allUsers.find(user => user.id === openGymSelectedUserId);
+      if (!selectedUser) {
+        setOpenGymStatus({
+          type: 'error',
+          message: 'Δεν βρέθηκε ο επιλεγμένος χρήστης'
+        });
+        return;
+      }
+
+      console.log('[OpenGym] Starting Open Gym action for user:', selectedUser.email, 'Extra Service:', points);
+
+      // 1. Save Kettlebell Points
+      const kettlebellSuccess = await saveKettlebellPoints(
+        openGymSelectedUserId,
+        points,
+        undefined, // No program_id for Open Gym
+        user?.id || ''
+      );
+
+      if (!kettlebellSuccess) {
+        setOpenGymStatus({
+          type: 'error',
+          message: 'Σφάλμα κατά την αποθήκευση των Kettlebell Points'
+        });
+        return;
+      }
+
+      console.log('[OpenGym] Kettlebell Points saved successfully');
+
+      // 2. Create Free Gym membership (1 month)
+      const freeGymMembershipSuccess = await createFreeGymMembership(openGymSelectedUserId);
+
+      if (!freeGymMembershipSuccess) {
+        setOpenGymStatus({
+          type: 'error',
+          message: 'Σφάλμα κατά τη δημιουργία της Free Gym συνδρομής'
+        });
+        return;
+      }
+
+      console.log('[OpenGym] Free Gym membership created successfully');
+
+      // Success
+      setOpenGymStatus({
+        type: 'success',
+        message: `Επιτυχής εφαρμογή Open Gym για ${selectedUser.firstName} ${selectedUser.lastName}! Ενεργοποιήθηκε η 1μηνη Free Gym συνδρομή.`
+      });
+
+      // Clear form
+      setOpenGymSelectedUserId('');
+      setOpenGymKettlebellPoints('');
+      setOpenGymUserSearchTerm('');
+
+      // Show success toast
+      toast.success(`Open Gym εφαρμογή επιτυχής για ${selectedUser.firstName} ${selectedUser.lastName}`);
+
+    } catch (error) {
+      console.error('[OpenGym] Error during Open Gym action:', error);
+      setOpenGymStatus({
+        type: 'error',
+        message: 'Σφάλμα κατά την εκτέλεση της ενέργειας Open Gym'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createFreeGymMembership = async (userId: string): Promise<boolean> => {
+    try {
+      // Get Free Gym package ID
+      const { data: freeGymPackage, error: packageError } = await supabase
+        .from('membership_packages')
+        .select('id')
+        .eq('name', 'Free Gym')
+        .eq('is_active', true)
+        .single();
+
+      if (packageError || !freeGymPackage) {
+        console.error('[OpenGym] Error finding Free Gym package:', packageError);
+        return false;
+      }
+
+      // Calculate dates (1 month from now)
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 1);
+
+      // Create membership
+      const { error: membershipError } = await supabase
+        .from('memberships')
+        .insert({
+          user_id: userId,
+          package_id: freeGymPackage.id,
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0],
+          is_active: true,
+          expires_at: endDate.toISOString(),
+          source_package_name: 'Open Gym'
+        });
+
+      if (membershipError) {
+        console.error('[OpenGym] Error creating Free Gym membership:', membershipError);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('[OpenGym] Exception creating Free Gym membership:', error);
+      return false;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Mobile-First Header */}
@@ -2736,6 +2921,168 @@ const AdminPanel: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Open Gym Section - Between Create Program and Calendar */}
+              <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl shadow-lg border-2 border-orange-200">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
+                    <div>
+                      <h3 className="text-lg sm:text-2xl font-bold text-orange-800 mb-2">🏋️‍♂️ Open Gym</h3>
+                      <p className="text-orange-600 text-sm sm:text-base">Διαχείριση εξτρα υπηρεσιών και Free Gym συνδρομών</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* User Selection */}
+                    <div className="bg-white rounded-lg p-4 border border-orange-200">
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        👤 Επιλογή Χρήστη
+                        <span className="ml-2 text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">
+                          Selected: {openGymSelectedUserId ? '✅' : '❌'}
+                        </span>
+                      </label>
+                      
+                      {/* Mode Selection */}
+                      <div className="flex space-x-3 mb-4">
+                        <button
+                          type="button"
+                          onClick={() => setOpenGymUserSearchMode('dropdown')}
+                          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                            openGymUserSearchMode === 'dropdown' 
+                              ? 'bg-orange-600 text-white shadow-lg' 
+                              : 'bg-white text-orange-600 border-2 border-orange-200 hover:border-orange-400'
+                          }`}
+                        >
+                          📋 Dropdown
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOpenGymUserSearchMode('search')}
+                          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                            openGymUserSearchMode === 'search' 
+                              ? 'bg-orange-600 text-white shadow-lg' 
+                              : 'bg-white text-orange-600 border-2 border-orange-200 hover:border-orange-400'
+                          }`}
+                        >
+                          🔍 Αναζήτηση
+                        </button>
+                      </div>
+
+                      {/* User Selection based on mode */}
+                      {openGymUserSearchMode === 'dropdown' ? (
+                        <select
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          value={openGymSelectedUserId}
+                          onChange={(e) => setOpenGymSelectedUserId(e.target.value)}
+                        >
+                          <option value="">-- Επιλέξτε χρήστη --</option>
+                          {allUsers.map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.firstName} {user.lastName} ({user.email})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400"
+                            placeholder="🔍 Αναζήτηση με όνομα ή email..."
+                            value={openGymUserSearchTerm}
+                            onChange={(e) => setOpenGymUserSearchTerm(e.target.value)}
+                          />
+                          {openGymUserSearchTerm && (
+                            <div className="max-h-48 overflow-y-auto border-2 border-orange-200 rounded-xl bg-white shadow-lg">
+                              {openGymFilteredUsers.length > 0 ? (
+                                openGymFilteredUsers.map((user) => (
+                                  <div
+                                    key={user.id}
+                                    className={`p-4 hover:bg-orange-50 cursor-pointer border-b border-orange-100 last:border-b-0 transition-all duration-200 ${
+                                      openGymSelectedUserId === user.id ? 'bg-orange-100 border-l-4 border-l-orange-500' : ''
+                                    }`}
+                                    onClick={() => {
+                                      setOpenGymSelectedUserId(user.id);
+                                      setOpenGymUserSearchTerm(''); // Clear search after selection
+                                    }}
+                                  >
+                                    <div className="font-semibold text-gray-900">{user.firstName} {user.lastName}</div>
+                                    <div className="text-sm text-gray-600">{user.email}</div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="p-4 text-gray-500 text-sm text-center">Δεν βρέθηκαν χρήστες</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Selected User Display */}
+                      {openGymSelectedUserId && (
+                        <div className="mt-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                              <span className="text-white text-sm font-bold">✓</span>
+                            </div>
+                            <div>
+                              <div className="font-semibold text-gray-900">
+                                {allUsers.find(u => u.id === openGymSelectedUserId)?.firstName} {allUsers.find(u => u.id === openGymSelectedUserId)?.lastName}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {allUsers.find(u => u.id === openGymSelectedUserId)?.email}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setOpenGymSelectedUserId('')}
+                              className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Value Input */}
+                    <div className="bg-white rounded-lg p-4 border border-orange-200">
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Εξτρά Υπηρεσία
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        placeholder="Εισάγετε αριθμό..."
+                        value={openGymKettlebellPoints}
+                        onChange={(e) => setOpenGymKettlebellPoints(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="flex justify-center">
+                      <button
+                        onClick={handleOpenGymAction}
+                        disabled={!openGymSelectedUserId || !openGymKettlebellPoints || parseInt(openGymKettlebellPoints) <= 0}
+                        className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl hover:from-orange-600 hover:to-red-600 transition-all duration-200 font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-orange-500 disabled:hover:to-red-500"
+                      >
+                        🏋️‍♂️ Εφαρμογή Open Gym
+                      </button>
+                    </div>
+
+                    {/* Status Display */}
+                    {openGymStatus && (
+                      <div className={`p-3 rounded-lg text-sm font-medium ${
+                        openGymStatus.type === 'success' 
+                          ? 'bg-green-100 text-green-800 border border-green-200' 
+                          : 'bg-red-100 text-red-800 border border-red-200'
+                      }`}>
+                        {openGymStatus.message}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
 
               {/* Group Training Calendar Section - ΜΟΝΟ στην καρτέλα Personal Training */}
               {groupCalendarEnabled && (
@@ -4273,9 +4620,17 @@ const AdminPanel: React.FC = () => {
                             setSelectedOptions(prev => {
                               const newOptions = { ...prev };
                               userIds.forEach(id => {
+                                const newOldMembers = !newOptions[id]?.oldMembers;
                                 newOptions[id] = {
                                   ...newOptions[id],
-                                  oldMembers: !newOptions[id]?.oldMembers
+                                  oldMembers: newOldMembers,
+                                  // Reset first150Members when oldMembers is deselected
+                                  first150Members: newOldMembers ? newOptions[id]?.first150Members : false,
+                                  // Reset cash and pos when oldMembers is deselected
+                                  cash: newOldMembers ? newOptions[id]?.cash : false,
+                                  pos: newOldMembers ? newOptions[id]?.pos : false,
+                                  cashAmount: newOldMembers ? newOptions[id]?.cashAmount : undefined,
+                                  posAmount: newOldMembers ? newOptions[id]?.posAmount : undefined
                                 };
                               });
                               return newOptions;
@@ -4303,6 +4658,89 @@ const AdminPanel: React.FC = () => {
                                   : selectedOptions[newCode.selectedUserId]?.oldMembers)
                               : selectedUserIds.some(id => selectedOptions[id]?.oldMembers)) && (
                               <span className="text-green-200">✓</span>
+                            )}
+                            {(trainingType === 'individual' 
+                              ? isUserPending(newCode.selectedUserId)
+                              : selectedUserIds.some(id => isUserPending(id))) && (
+                              <span className="text-yellow-600">🔒</span>
+                            )}
+                          </div>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Πρώτα 150 Μέλη - Only show when Παλαιά μέλη is selected AND not used */}
+                    {(() => {
+                      const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
+                      const hasOldMembersSelected = userIds.some(id => selectedOptions[id]?.oldMembers);
+                      const hasOldMembersUsed = userIds.some(id => usedOldMembers.has(id) || localUsedOldMembers.has(id));
+                      // Also check if oldMembers is explicitly false (meaning it was used and reset)
+                      const hasOldMembersReset = userIds.some(id => selectedOptions[id]?.oldMembers === false);
+                      return hasOldMembersSelected && !hasOldMembersUsed && !hasOldMembersReset;
+                    })() && (
+                      <div className={`rounded-lg p-4 border ${
+                        ((trainingType === 'individual' || trainingType === 'combination')
+                          ? isUserPending(newCode.selectedUserId)
+                          : selectedUserIds.some(id => isUserPending(id)))
+                          ? 'bg-yellow-100 border-yellow-300' 
+                          : 'bg-white border-gray-200'
+                      }`}>
+                        {/* Info text above the button */}
+                        <div className="mb-3 text-xs text-gray-600 bg-blue-50 p-2 rounded-lg border border-blue-200">
+                          <span className="font-medium">ℹ️ Πληροφορίες:</span> Ισχύει μόνο για τα πρώτα 150 παλιά μέλη του γυμναστηρίου με τιμή 45€ (προσφορά), τα οποία εμφανίζονται στην καρτέλα Ταμείο
+                        </div>
+                        
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
+                            
+                            // Check if any user is pending
+                            const hasPendingUser = userIds.some(id => isUserPending(id));
+                            if (hasPendingUser) {
+                              toast('Οι επιλογές είναι παγωμένες - αλλάξτε το status για να τις τροποποιήσετε', { icon: '🔒' });
+                              return;
+                            }
+                            
+                            setSelectedOptions(prev => {
+                              const newOptions = { ...prev };
+                              userIds.forEach(id => {
+                                const newFirst150 = !newOptions[id]?.first150Members;
+                                newOptions[id] = {
+                                  ...newOptions[id],
+                                  first150Members: newFirst150,
+                                  // When first150Members is selected, automatically set cash to 45 and lock POS
+                                  cash: newFirst150 ? true : newOptions[id]?.cash || false,
+                                  cashAmount: newFirst150 ? 45 : newOptions[id]?.cashAmount,
+                                  pos: newFirst150 ? false : newOptions[id]?.pos || false,
+                                  posAmount: newFirst150 ? 0 : newOptions[id]?.posAmount
+                                };
+                              });
+                              return newOptions;
+                            });
+                          }}
+                          className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 relative shadow-lg ${
+                            ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
+                              ? (isUserPending(newCode.selectedUserId) 
+                                  ? (getFrozenOptions(newCode.selectedUserId)?.first150Members 
+                                      ? 'bg-orange-500 text-white' 
+                                      : 'bg-blue-500 text-white')
+                                  : (selectedOptions[newCode.selectedUserId]?.first150Members
+                                      ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                                      : 'bg-blue-500 text-white hover:bg-blue-600'))
+                              : (selectedUserIds.some(id => selectedOptions[id]?.first150Members)
+                                  ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                                  : 'bg-blue-500 text-white hover:bg-blue-600')
+                          }`}
+                        >
+                          <div className="flex items-center justify-center space-x-2">
+                            <span>🏆 Πρώτα 150 Μέλη</span>
+                            {(((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
+                              ? (isUserPending(newCode.selectedUserId) 
+                                  ? getFrozenOptions(newCode.selectedUserId)?.first150Members
+                                  : selectedOptions[newCode.selectedUserId]?.first150Members)
+                              : selectedUserIds.some(id => selectedOptions[id]?.first150Members)) && (
+                              <span className="text-orange-200">✓</span>
                             )}
                             {(trainingType === 'individual' 
                               ? isUserPending(newCode.selectedUserId)
@@ -4402,6 +4840,13 @@ const AdminPanel: React.FC = () => {
                               return;
                             }
                             
+                            // Check if first150Members is selected for any user
+                            const hasFirst150 = userIds.some(id => selectedOptions[id]?.first150Members);
+                            if (hasFirst150) {
+                              toast('Το πεδίο Μετρητά είναι κλειδωμένο όταν είναι επιλεγμένο "Πρώτα 150 Μέλη"', { icon: '🔒' });
+                              return;
+                            }
+                            
                             setShowCashInput(true);
                           }}
                           className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg ${
@@ -4410,14 +4855,18 @@ const AdminPanel: React.FC = () => {
                                   ? (getFrozenOptions(newCode.selectedUserId)?.cash 
                                       ? 'bg-green-500 text-white cursor-not-allowed'
                                       : 'bg-yellow-500 text-white cursor-not-allowed')
-                                  : 'bg-green-500 text-white hover:bg-green-600')
+                                  : (selectedOptions[newCode.selectedUserId]?.first150Members
+                                      ? 'bg-orange-500 text-white cursor-not-allowed'
+                                      : 'bg-green-500 text-white hover:bg-green-600'))
                               : (selectedUserIds.some(id => isUserPending(id))
                                   ? 'bg-yellow-500 text-white cursor-not-allowed'
-                                  : 'bg-green-500 text-white hover:bg-green-600')
+                                  : (selectedUserIds.some(id => selectedOptions[id]?.first150Members)
+                                      ? 'bg-orange-500 text-white cursor-not-allowed'
+                                      : 'bg-green-500 text-white hover:bg-green-600'))
                           }`}
                           disabled={((trainingType === 'individual' || trainingType === 'combination') 
-                            ? isUserPending(newCode.selectedUserId)
-                            : selectedUserIds.some(id => isUserPending(id)))}
+                            ? (isUserPending(newCode.selectedUserId) || selectedOptions[newCode.selectedUserId]?.first150Members)
+                            : (selectedUserIds.some(id => isUserPending(id)) || selectedUserIds.some(id => selectedOptions[id]?.first150Members)))}
                         >
                           💰 Μετρητά
                         </button>
@@ -4430,8 +4879,8 @@ const AdminPanel: React.FC = () => {
                             value={((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                               ? (isUserPending(newCode.selectedUserId) 
                                   ? (getFrozenOptions(newCode.selectedUserId)?.cashAmount?.toString() || '')
-                                  : cashAmount)
-                              : cashAmount}
+                                  : (selectedOptions[newCode.selectedUserId]?.first150Members ? '45' : cashAmount))
+                              : (selectedUserIds.some(id => selectedOptions[id]?.first150Members) ? '45' : cashAmount)}
                             onChange={(e) => {
                               const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                               
@@ -4442,20 +4891,27 @@ const AdminPanel: React.FC = () => {
                                 return;
                               }
                               
+                              // Check if first150Members is selected for any user
+                              const hasFirst150 = userIds.some(id => selectedOptions[id]?.first150Members);
+                              if (hasFirst150) {
+                                toast('Το πεδίο Μετρητά είναι κλειδωμένο όταν είναι επιλεγμένο "Πρώτα 150 Μέλη"', { icon: '🔒' });
+                                return;
+                              }
+                              
                               setCashAmount(e.target.value);
                             }}
                             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
                               (trainingType === 'individual' 
-                                ? isUserPending(newCode.selectedUserId)
-                                : selectedUserIds.some(id => isUserPending(id)))
-                                ? 'border-yellow-300 bg-yellow-50 focus:ring-yellow-500'
+                                ? (isUserPending(newCode.selectedUserId) || selectedOptions[newCode.selectedUserId]?.first150Members)
+                                : (selectedUserIds.some(id => isUserPending(id)) || selectedUserIds.some(id => selectedOptions[id]?.first150Members)))
+                                ? 'border-orange-300 bg-orange-50 focus:ring-orange-500'
                                 : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
                             }`}
                             placeholder="Εισάγετε ποσό σε €..."
                             autoFocus
                             disabled={((trainingType === 'individual' || trainingType === 'combination') 
-                              ? isUserPending(newCode.selectedUserId)
-                              : selectedUserIds.some(id => isUserPending(id)))}
+                              ? (isUserPending(newCode.selectedUserId) || selectedOptions[newCode.selectedUserId]?.first150Members)
+                              : (selectedUserIds.some(id => isUserPending(id)) || selectedUserIds.some(id => selectedOptions[id]?.first150Members)))}
                           />
                           <div className="flex space-x-2">
                             <button
@@ -4553,6 +5009,13 @@ const AdminPanel: React.FC = () => {
                               return;
                             }
                             
+                            // Check if first150Members is selected for any user
+                            const hasFirst150 = userIds.some(id => selectedOptions[id]?.first150Members);
+                            if (hasFirst150) {
+                              toast('Το πεδίο POS είναι κλειδωμένο όταν είναι επιλεγμένο "Πρώτα 150 Μέλη"', { icon: '🔒' });
+                              return;
+                            }
+                            
                             setShowPosInput(true);
                           }}
                           className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg ${
@@ -4561,14 +5024,18 @@ const AdminPanel: React.FC = () => {
                                   ? (getFrozenOptions(newCode.selectedUserId)?.pos 
                                       ? 'bg-blue-500 text-white cursor-not-allowed'
                                       : 'bg-yellow-500 text-white cursor-not-allowed')
-                                  : 'bg-blue-500 text-white hover:bg-blue-600')
+                                  : (selectedOptions[newCode.selectedUserId]?.first150Members
+                                      ? 'bg-orange-500 text-white cursor-not-allowed'
+                                      : 'bg-blue-500 text-white hover:bg-blue-600'))
                               : (selectedUserIds.some(id => isUserPending(id))
                                   ? 'bg-yellow-500 text-white cursor-not-allowed'
-                                  : 'bg-blue-500 text-white hover:bg-blue-600')
+                                  : (selectedUserIds.some(id => selectedOptions[id]?.first150Members)
+                                      ? 'bg-orange-500 text-white cursor-not-allowed'
+                                      : 'bg-blue-500 text-white hover:bg-blue-600'))
                           }`}
                           disabled={((trainingType === 'individual' || trainingType === 'combination') 
-                            ? isUserPending(newCode.selectedUserId)
-                            : selectedUserIds.some(id => isUserPending(id)))}
+                            ? (isUserPending(newCode.selectedUserId) || selectedOptions[newCode.selectedUserId]?.first150Members)
+                            : (selectedUserIds.some(id => isUserPending(id)) || selectedUserIds.some(id => selectedOptions[id]?.first150Members)))}
                         >
                           💳 POS
                         </button>
@@ -4581,8 +5048,8 @@ const AdminPanel: React.FC = () => {
                             value={((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
                               ? (isUserPending(newCode.selectedUserId) 
                                   ? (getFrozenOptions(newCode.selectedUserId)?.posAmount?.toString() || '')
-                                  : posAmount)
-                              : posAmount}
+                                  : (selectedOptions[newCode.selectedUserId]?.first150Members ? '0' : posAmount))
+                              : (selectedUserIds.some(id => selectedOptions[id]?.first150Members) ? '0' : posAmount)}
                             onChange={(e) => {
                               const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                               
@@ -4593,20 +5060,27 @@ const AdminPanel: React.FC = () => {
                                 return;
                               }
                               
+                              // Check if first150Members is selected for any user
+                              const hasFirst150 = userIds.some(id => selectedOptions[id]?.first150Members);
+                              if (hasFirst150) {
+                                toast('Το πεδίο POS είναι κλειδωμένο όταν είναι επιλεγμένο "Πρώτα 150 Μέλη"', { icon: '🔒' });
+                                return;
+                              }
+                              
                               setPosAmount(e.target.value);
                             }}
                             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
                               (trainingType === 'individual' 
-                                ? isUserPending(newCode.selectedUserId)
-                                : selectedUserIds.some(id => isUserPending(id)))
-                                ? 'border-yellow-300 bg-yellow-50 focus:ring-yellow-500'
+                                ? (isUserPending(newCode.selectedUserId) || selectedOptions[newCode.selectedUserId]?.first150Members)
+                                : (selectedUserIds.some(id => isUserPending(id)) || selectedUserIds.some(id => selectedOptions[id]?.first150Members)))
+                                ? 'border-orange-300 bg-orange-50 focus:ring-orange-500'
                                 : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                             }`}
                             placeholder="Εισάγετε ποσό σε €..."
                             autoFocus
                             disabled={((trainingType === 'individual' || trainingType === 'combination') 
-                              ? isUserPending(newCode.selectedUserId)
-                              : selectedUserIds.some(id => isUserPending(id)))}
+                              ? (isUserPending(newCode.selectedUserId) || selectedOptions[newCode.selectedUserId]?.first150Members)
+                              : (selectedUserIds.some(id => isUserPending(id)) || selectedUserIds.some(id => selectedOptions[id]?.first150Members)))}
                           />
                           <div className="flex space-x-2">
                             <button
