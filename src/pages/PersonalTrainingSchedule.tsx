@@ -739,7 +739,7 @@ const PersonalTrainingSchedulePage: React.FC = () => {
                                 Ομαδική Σεσίες
                               </h4>
                               <span className="text-sm text-gray-500">
-                                {session.start_time.substring(0, 5)} - {session.end_time.substring(0, 5)}
+                                {session.start_time.substring(0, 5)}
                               </span>
                             </div>
                             <div className="mt-2 space-y-1">
@@ -961,7 +961,7 @@ const PersonalTrainingSchedulePage: React.FC = () => {
                                 Ομαδική Σεσίες
                               </h4>
                               <span className="text-sm text-gray-500">
-                                {session.start_time.substring(0, 5)} - {session.end_time.substring(0, 5)}
+                                {session.start_time.substring(0, 5)}
                               </span>
                             </div>
                             <div className="mt-2 space-y-1">

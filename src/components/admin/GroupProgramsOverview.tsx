@@ -417,7 +417,7 @@ const GroupProgramsOverview: React.FC<GroupProgramsOverviewProps> = React.memo((
                   <div className="text-lg font-bold text-gray-900">
                     📅 {new Date(selectedSession.assignmentDate).toLocaleDateString('el-GR')} 
                     <span className="mx-2 text-gray-400">•</span>
-                    ⏰ {selectedSession.startTime.substring(0, 5)} - {selectedSession.endTime.substring(0, 5)}
+                    ⏰ {selectedSession.startTime.substring(0, 5)}
                   </div>
                   
                   <div className={`px-4 py-2 rounded-full text-sm font-bold ${
