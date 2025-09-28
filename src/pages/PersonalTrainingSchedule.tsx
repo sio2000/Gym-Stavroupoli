@@ -668,7 +668,7 @@ const PersonalTrainingSchedulePage: React.FC = () => {
                         {getDayName(assignment.dayOfWeek)}
                       </h3>
                       <p className="text-sm text-blue-700">
-                        {formatTime(assignment.startTime)} - {formatTime(assignment.endTime)}
+                        {formatTime(assignment.startTime)}
                       </p>
                     </div>
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
@@ -795,7 +795,7 @@ const PersonalTrainingSchedulePage: React.FC = () => {
                                 {getSessionTypeName(session.type)}
                               </h4>
                               <span className="text-sm text-gray-500">
-                                {session.startTime} - {session.endTime}
+                                {session.startTime}
                               </span>
                             </div>
                             <div className="mt-2 space-y-1">
@@ -857,7 +857,7 @@ const PersonalTrainingSchedulePage: React.FC = () => {
                               <span className="ml-2 inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Πρόταση για κράτηση</span>
                             </h3>
                             <span className="text-sm text-gray-500">
-                              {session.startTime} - {session.endTime}
+                              {session.startTime}
                             </span>
                           </div>
                           <div className="mt-2 space-y-1">
@@ -1048,7 +1048,7 @@ const PersonalTrainingSchedulePage: React.FC = () => {
                           {getSessionTypeName(session.type)}
                         </h3>
                         <span className="text-sm text-gray-500">
-                          {session.startTime} - {session.endTime}
+                          {session.startTime}
                         </span>
                       </div>
                       <div className="mt-2 space-y-1">

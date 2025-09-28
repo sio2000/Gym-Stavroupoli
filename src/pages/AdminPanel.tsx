@@ -35,6 +35,7 @@ import GroupAssignmentManager from '@/components/admin/GroupAssignmentManager';
 import GroupAssignmentInterface from '@/components/admin/GroupAssignmentInterface';
 import GroupTrainingCalendar from '@/components/admin/GroupTrainingCalendar';
 import AdminUltimateInstallmentsTab from '@/components/admin/AdminUltimateInstallmentsTab';
+import UsersInformation from '@/components/admin/UsersInformation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 import { 
@@ -76,7 +77,7 @@ const ITEMS_PER_PAGE = 50;
 
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'ultimate-subscriptions' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register'>('personal-training');
+  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'ultimate-subscriptions' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register' | 'users-information'>('personal-training');
   const [allUsers, setAllUsers] = useState<UserWithPersonalTraining[]>([]);
   const [programStatuses, setProgramStatuses] = useState<Array<{
     user: UserWithPersonalTraining;
@@ -95,7 +96,8 @@ const AdminPanel: React.FC = () => {
     'ultimate-subscriptions': false,
     'pilates-schedule': false,
     'kettlebell-points': false,
-    'cash-register': false
+    'cash-register': false,
+    'users-information': false
   });
   
   // Memoized pagination logic
@@ -177,6 +179,10 @@ const AdminPanel: React.FC = () => {
   const [totalKettlebellPoints, setTotalKettlebellPoints] = useState<number>(0);
   const [kettlebellSearchTerm, setKettlebellSearchTerm] = useState<string>('');
   const [kettlebellSearchResults, setKettlebellSearchResults] = useState<UserKettlebellSummary[]>([]);
+  
+  // Kettlebell Points pagination state
+  const [kettlebellCurrentPage, setKettlebellCurrentPage] = useState(1);
+  const KETTLEBELL_USERS_PER_PAGE = 10;
 
   // Cash Register state
   const [cashAmount, setCashAmount] = useState<string>('');
@@ -280,7 +286,7 @@ const AdminPanel: React.FC = () => {
   const itemsPerPage = 10;
   // Προσωποποιημένο πρόγραμμα που θα σταλεί μαζί με τον κωδικό
   const [programSessions, setProgramSessions] = useState<PersonalTrainingSession[]>([
-    { id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', endTime: '19:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }
+    { id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }
   ]);
 
   // Membership Packages state
@@ -328,7 +334,8 @@ const AdminPanel: React.FC = () => {
     { id: 'ultimate-subscriptions', name: '👑 Ultimate Συνδρομές', icon: User },
     { id: 'pilates-schedule', name: 'Πρόγραμμα Pilates', icon: Clock },
     { id: 'kettlebell-points', name: 'Kettlebell Points', icon: Award },
-    { id: 'cash-register', name: 'Ταμείο', icon: DollarSign }
+    { id: 'cash-register', name: 'Ταμείο', icon: DollarSign },
+    { id: 'users-information', name: 'Χρήστες-Πληροφορίες', icon: Users }
   ];
 
   const days = ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'];
@@ -885,7 +892,6 @@ const AdminPanel: React.FC = () => {
       id: Date.now().toString(),
       date: new Date().toISOString().split('T')[0],
       startTime: '09:00',
-      endTime: '10:00',
       type: 'personal',
       trainer: 'Mike',
       room: 'Αίθουσα Mike',
@@ -1124,53 +1130,64 @@ const AdminPanel: React.FC = () => {
           }
         }
 
-        // 2. Save Kettlebell Points if provided
-        if (userOptions.kettlebellPoints && parseInt(userOptions.kettlebellPoints) > 0) {
+        // 2. Save Kettlebell Points (handle empty fields as 0)
+        const kettlebellPoints = userOptions.kettlebellPoints && userOptions.kettlebellPoints.trim() !== '' 
+          ? parseInt(userOptions.kettlebellPoints) || 0 
+          : 0;
+        if (kettlebellPoints > 0) {
           const kettlebellSuccess = await saveKettlebellPoints(
             userId, 
-            parseInt(userOptions.kettlebellPoints), 
+            kettlebellPoints, 
             undefined, // No program_id for now
             user?.id || ''
           );
           if (kettlebellSuccess) {
-            console.log(`[APPROVED] Kettlebell Points saved for user: ${userId}, Points: ${userOptions.kettlebellPoints}${isPending ? ' (from frozen state)' : ''}`);
+            console.log(`[APPROVED] Kettlebell Points saved for user: ${userId}, Points: ${kettlebellPoints}${isPending ? ' (from frozen state)' : ''}`);
           } else {
             console.warn(`[APPROVED] Failed to save Kettlebell Points for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
           }
+        } else {
+          console.log(`[APPROVED] Kettlebell Points set to 0 for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
         }
 
-        // 3. Save Cash transactions if provided
-        if (userOptions.cashAmount && userOptions.cashAmount > 0) {
+        // 3. Save Cash transactions (handle empty fields as 0)
+        const cashAmount = userOptions.cashAmount && userOptions.cashAmount > 0 ? userOptions.cashAmount : 0;
+        if (cashAmount > 0) {
           const cashSuccess = await saveCashTransaction(
             userId,
-            userOptions.cashAmount,
+            cashAmount,
             'cash',
             undefined,
             user?.id || '',
             'Cash transaction from approved program creation'
           );
           if (cashSuccess) {
-            console.log(`[APPROVED] Cash transaction saved for user: ${userId}, Amount: €${userOptions.cashAmount}${isPending ? ' (from frozen state)' : ''}`);
+            console.log(`[APPROVED] Cash transaction saved for user: ${userId}, Amount: €${cashAmount}${isPending ? ' (from frozen state)' : ''}`);
           } else {
             console.warn(`[APPROVED] Failed to save Cash transaction for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
           }
+        } else {
+          console.log(`[APPROVED] Cash amount set to 0 for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
         }
 
-        // 4. Save POS transactions if provided
-        if (userOptions.posAmount && userOptions.posAmount > 0) {
+        // 4. Save POS transactions (handle empty fields as 0)
+        const posAmount = userOptions.posAmount && userOptions.posAmount > 0 ? userOptions.posAmount : 0;
+        if (posAmount > 0) {
           const posSuccess = await saveCashTransaction(
             userId,
-            userOptions.posAmount,
+            posAmount,
             'pos',
             undefined,
             user?.id || '',
             'POS transaction from approved program creation'
           );
           if (posSuccess) {
-            console.log(`[APPROVED] POS transaction saved for user: ${userId}, Amount: €${userOptions.posAmount}${isPending ? ' (from frozen state)' : ''}`);
+            console.log(`[APPROVED] POS transaction saved for user: ${userId}, Amount: €${posAmount}${isPending ? ' (from frozen state)' : ''}`);
           } else {
             console.warn(`[APPROVED] Failed to save POS transaction for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
           }
+        } else {
+          console.log(`[APPROVED] POS amount set to 0 for user: ${userId}${isPending ? ' (from frozen state)' : ''}`);
         }
       }
 
@@ -1235,7 +1252,6 @@ const AdminPanel: React.FC = () => {
                 id: s.id,
                 date: s.date,
                 startTime: s.startTime,
-                endTime: s.endTime,
                 type: s.type,
                 trainer: s.trainer || 'Mike',
                 room: s.room,
@@ -1253,7 +1269,6 @@ const AdminPanel: React.FC = () => {
             id: s.id,
             date: s.date,
             startTime: s.startTime,
-            endTime: s.endTime,
             type: s.type,
             trainer: s.trainer || 'Mike',
             room: s.room,
@@ -1265,7 +1280,6 @@ const AdminPanel: React.FC = () => {
             id: s.id,
             date: s.date,
             startTime: s.startTime,
-            endTime: s.endTime,
             type: s.type,
             trainer: s.trainer || 'Mike',
             room: s.room,
@@ -1330,15 +1344,23 @@ const AdminPanel: React.FC = () => {
           console.log('[ADMIN] Creating group_sessions for combination individual sessions...', scheduleSessions);
           
           // Convert individual sessions to group_sessions format with group_type = null
-          const individualGroupSessions = scheduleSessions.map(session => ({
-            session_date: session.date,
-            start_time: session.startTime,
-            end_time: session.endTime,
-            trainer: session.trainer,
-            room: session.room,
-            group_type: null, // Individual sessions have no group_type (NULL in database)
-            notes: session.notes + ' (Individual - Combination Program)'
-          }));
+          const individualGroupSessions = scheduleSessions.map(session => {
+            // Calculate end_time by adding 1 hour to start_time
+            const startTime = session.startTime;
+            const [hours, minutes] = startTime.split(':').map(Number);
+            const endHours = (hours + 1) % 24;
+            const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            
+            return {
+              session_date: session.date,
+              start_time: session.startTime,
+              end_time: endTime,
+              trainer: session.trainer,
+              room: session.room,
+              group_type: null, // Individual sessions have no group_type (NULL in database)
+              notes: session.notes + ' (Individual - Combination Program)'
+            };
+          });
           
           console.log('[ADMIN] Individual group sessions to insert:', individualGroupSessions);
           
@@ -1657,7 +1679,7 @@ const AdminPanel: React.FC = () => {
       setMonthlyTotal(0);
       setUserSearchTerm('');
       setUserSearchMode('dropdown');
-      setProgramSessions([{ id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', endTime: '19:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }]);
+      setProgramSessions([{ id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }]);
       
       // Refresh the users list
       loadAllUsers();
@@ -2159,6 +2181,23 @@ const AdminPanel: React.FC = () => {
   const handleKettlebellSearchChange = (value: string) => {
     setKettlebellSearchTerm(value);
     searchKettlebellUsers(value);
+    // Reset to first page when searching
+    setKettlebellCurrentPage(1);
+  };
+
+  // Kettlebell Points pagination logic
+  const kettlebellTotalPages = Math.ceil(kettlebellSummary.length / KETTLEBELL_USERS_PER_PAGE);
+  const kettlebellStartIndex = (kettlebellCurrentPage - 1) * KETTLEBELL_USERS_PER_PAGE;
+  const kettlebellEndIndex = kettlebellStartIndex + KETTLEBELL_USERS_PER_PAGE;
+  const kettlebellPaginatedUsers = kettlebellSummary.slice(kettlebellStartIndex, kettlebellEndIndex);
+
+  // Kettlebell Points pagination handlers
+  const handleKettlebellPreviousPage = () => {
+    setKettlebellCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleKettlebellNextPage = () => {
+    setKettlebellCurrentPage(prev => Math.min(prev + 1, kettlebellTotalPages));
   };
 
   // Load data when membership-packages tab is selected
@@ -2569,7 +2608,7 @@ const AdminPanel: React.FC = () => {
                   <div className="space-y-3 sm:space-y-4">
                     {personalTrainingSchedule.scheduleData.sessions.map((session) => (
                       <div key={session.id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                           <div className="sm:col-span-2 lg:col-span-1">
                             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Ημέρα</label>
                             {editingSchedule ? (
@@ -2578,6 +2617,7 @@ const AdminPanel: React.FC = () => {
                                 value={session.date}
                                 onChange={(e) => updatePersonalTrainingSession(session.id, 'date', e.target.value)}
                                 className="w-full border border-gray-300 rounded px-2 py-2 text-sm"
+                                lang="el"
                               />
                             ) : (
                               <p className="text-xs sm:text-sm text-gray-900">
@@ -2604,22 +2644,6 @@ const AdminPanel: React.FC = () => {
                               </select>
                             ) : (
                               <p className="text-xs sm:text-sm text-gray-900">{session.startTime}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Ώρα Λήξης</label>
-                            {editingSchedule ? (
-                              <select
-                                value={session.endTime}
-                                onChange={(e) => updatePersonalTrainingSession(session.id, 'endTime', e.target.value)}
-                                className="w-full border border-gray-300 rounded px-2 py-2 text-sm"
-                              >
-                                {timeSlots.map((time) => (
-                                  <option key={time} value={time}>{time}</option>
-                                ))}
-                              </select>
-                            ) : (
-                              <p className="text-xs sm:text-sm text-gray-900">{session.endTime}</p>
                             )}
                           </div>
                           <div>
@@ -3642,6 +3666,11 @@ const AdminPanel: React.FC = () => {
             <CashRegister />
           )}
 
+          {/* Users Information Tab */}
+          {activeTab === 'users-information' && !loading && (
+            <UsersInformation />
+          )}
+
           {/* Kettlebell Points Tab */}
           {activeTab === 'kettlebell-points' && !loading && (
             <div className="space-y-6">
@@ -3718,8 +3747,8 @@ const AdminPanel: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {/* Show search results if searching, otherwise show top 10 */}
-                      {(kettlebellSearchTerm ? kettlebellSearchResults : kettlebellSummary.slice(0, 10)).map((user, index) => (
+                      {/* Show search results if searching, otherwise show paginated users */}
+                      {(kettlebellSearchTerm ? kettlebellSearchResults : kettlebellPaginatedUsers).map((user, index) => (
                         <div key={user.user_id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
@@ -3732,7 +3761,7 @@ const AdminPanel: React.FC = () => {
                               }`}>
                                 {kettlebellSearchTerm ? 
                                   kettlebellSummary.findIndex(u => u.user_id === user.user_id) + 1 : 
-                                  index + 1
+                                  kettlebellStartIndex + index + 1
                                 }
                               </div>
                               
@@ -3765,12 +3794,31 @@ const AdminPanel: React.FC = () => {
                         </div>
                       )}
                       
-                      {/* Show "Show more" if there are more than 10 users and not searching */}
-                      {!kettlebellSearchTerm && kettlebellSummary.length > 10 && (
-                        <div className="text-center py-4">
-                          <p className="text-sm text-gray-500">
-                            Εμφανίζονται οι πρώτοι 10 από {kettlebellSummary.length} χρήστες
-                          </p>
+                      {/* Pagination Controls - only show when not searching and there are multiple pages */}
+                      {!kettlebellSearchTerm && kettlebellTotalPages > 1 && (
+                        <div className="flex items-center justify-between py-4 border-t border-gray-200">
+                          <div className="text-sm text-gray-500">
+                            Εμφανίζονται {kettlebellStartIndex + 1}-{Math.min(kettlebellEndIndex, kettlebellSummary.length)} από {kettlebellSummary.length} χρήστες
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={handleKettlebellPreviousPage}
+                              disabled={kettlebellCurrentPage === 1}
+                              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              ← Προηγούμενη
+                            </button>
+                            <span className="px-3 py-2 text-sm text-gray-700">
+                              Σελίδα {kettlebellCurrentPage} από {kettlebellTotalPages}
+                            </span>
+                            <button
+                              onClick={handleKettlebellNextPage}
+                              disabled={kettlebellCurrentPage === kettlebellTotalPages}
+                              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Επόμενη →
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -4305,7 +4353,7 @@ const AdminPanel: React.FC = () => {
                             userIds.forEach(id => {
                               newOptions[id] = {
                                 ...newOptions[id],
-                                kettlebellPoints: e.target.value
+                                kettlebellPoints: e.target.value || '' // Explicitly handle empty string
                               };
                             });
                             return newOptions;
@@ -4422,21 +4470,24 @@ const AdminPanel: React.FC = () => {
                                   return;
                                 }
                                 
-                                if (cashAmount && parseFloat(cashAmount) > 0) {
-                                  // Update selected options only
-                                  setSelectedOptions(prev => {
-                                    const newOptions = { ...prev };
-                                    userIds.forEach(id => {
-                                      newOptions[id] = {
-                                        ...newOptions[id],
-                                        cash: true,
-                                        cashAmount: parseFloat(cashAmount)
-                                      };
-                                    });
-                                    return newOptions;
+                                // Always update selected options, even for empty values
+                                setSelectedOptions(prev => {
+                                  const newOptions = { ...prev };
+                                  userIds.forEach(id => {
+                                    const amount = cashAmount && parseFloat(cashAmount) > 0 ? parseFloat(cashAmount) : 0;
+                                    newOptions[id] = {
+                                      ...newOptions[id],
+                                      cash: amount > 0,
+                                      cashAmount: amount
+                                    };
                                   });
-                                  
+                                  return newOptions;
+                                });
+                                
+                                if (cashAmount && parseFloat(cashAmount) > 0) {
                                   toast.success(`Μετρητά €${cashAmount} προστέθηκαν! Θα αποθηκευτούν με το Save.`);
+                                } else {
+                                  toast.success('Μετρητά μηδενίστηκαν! Θα αποθηκευτεί με το Save.');
                                 }
                                 setShowCashInput(false);
                                 setCashAmount('');
@@ -4570,21 +4621,24 @@ const AdminPanel: React.FC = () => {
                                   return;
                                 }
                                 
-                                if (posAmount && parseFloat(posAmount) > 0) {
-                                  // Update selected options only
-                                  setSelectedOptions(prev => {
-                                    const newOptions = { ...prev };
-                                    userIds.forEach(id => {
-                                      newOptions[id] = {
-                                        ...newOptions[id],
-                                        pos: true,
-                                        posAmount: parseFloat(posAmount)
-                                      };
-                                    });
-                                    return newOptions;
+                                // Always update selected options, even for empty values
+                                setSelectedOptions(prev => {
+                                  const newOptions = { ...prev };
+                                  userIds.forEach(id => {
+                                    const amount = posAmount && parseFloat(posAmount) > 0 ? parseFloat(posAmount) : 0;
+                                    newOptions[id] = {
+                                      ...newOptions[id],
+                                      pos: amount > 0,
+                                      posAmount: amount
+                                    };
                                   });
-                                  
+                                  return newOptions;
+                                });
+                                
+                                if (posAmount && parseFloat(posAmount) > 0) {
                                   toast.success(`POS €${posAmount} προστέθηκε! Θα αποθηκευτεί με το Save.`);
+                                } else {
+                                  toast.success('POS μηδενίστηκε! Θα αποθηκευτεί με το Save.');
                                 }
                                 setShowPosInput(false);
                                 setPosAmount('');
@@ -4742,11 +4796,10 @@ const AdminPanel: React.FC = () => {
                  <div className="bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden">
                    {/* Table Header */}
                    <div className="bg-gradient-to-r from-gray-100 to-gray-200 border-b-2 border-gray-400">
-                     <div className={`grid gap-0 text-sm font-bold text-gray-800 ${trainingType === 'individual' ? 'grid-cols-7' : 'grid-cols-8'}`}>
+                     <div className={`grid gap-0 text-sm font-bold text-gray-800 ${trainingType === 'individual' ? 'grid-cols-6' : 'grid-cols-7'}`}>
                        <div className="col-span-1 text-center py-3 border-r border-gray-300 bg-gray-200">#</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">📅 Ημερομηνία</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">🕐 Έναρξη</div>
-                       <div className="col-span-1 py-3 px-2 border-r border-gray-300">🕕 Λήξη</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">💪 Τύπος</div>
                        <div className="col-span-1 py-3 px-2 border-r border-gray-300">🏠 Αίθουσα</div>
                        {trainingType !== 'individual' && (
@@ -4759,7 +4812,7 @@ const AdminPanel: React.FC = () => {
                    {/* Table Body */}
                    <div className="divide-y divide-gray-300">
                      {programSessions.map((session, idx) => (
-                       <div key={session.id} className={`grid gap-0 hover:bg-blue-50 transition-colors ${trainingType === 'individual' ? 'grid-cols-7' : 'grid-cols-8'}`}>
+                       <div key={session.id} className={`grid gap-0 hover:bg-blue-50 transition-colors ${trainingType === 'individual' ? 'grid-cols-6' : 'grid-cols-7'}`}>
                          {/* Row Number & Actions */}
                          <div className="col-span-1 flex items-center justify-center space-x-2 py-3 border-r border-gray-300 bg-gray-50">
                            <span className="text-sm font-bold text-gray-700">{idx + 1}</span>
@@ -4791,6 +4844,7 @@ const AdminPanel: React.FC = () => {
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.date}
                              onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, date: e.target.value } : ps))}
+                             lang="el"
                            />
                          </div>
 
@@ -4801,16 +4855,6 @@ const AdminPanel: React.FC = () => {
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.startTime}
                              onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, startTime: e.target.value } : ps))}
-                           />
-                         </div>
-
-                         {/* End Time */}
-                         <div className="col-span-1 p-2 border-r border-gray-300">
-                           <input 
-                             type="time" 
-                             className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                             value={session.endTime}
-                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, endTime: e.target.value } : ps))}
                            />
                          </div>
 

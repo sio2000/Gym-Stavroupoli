@@ -385,7 +385,6 @@ export interface PersonalTrainingSession {
   id: string;
   date: string; // YYYY-MM-DD format (πλήρη ημερομηνία)
   startTime: string; // HH:mm format
-  endTime: string; // HH:mm format
   type: 'personal' | 'kickboxing' | 'combo';
   trainer: TrainerName; // Now restricted to Mike or Jordan
   room?: string;

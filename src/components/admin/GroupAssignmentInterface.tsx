@@ -273,10 +273,9 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 {/* Table Header */}
                 <div className="bg-gray-50 border-b border-gray-200">
-                  <div className="grid grid-cols-7 gap-0 text-sm font-semibold text-gray-700">
+                  <div className="grid grid-cols-6 gap-0 text-sm font-semibold text-gray-700">
                     <div className="p-3 border-r border-gray-200">📅 Ημερομηνία</div>
                     <div className="p-3 border-r border-gray-200">🕐 Έναρξη</div>
-                    <div className="p-3 border-r border-gray-200">🕕 Λήξη</div>
                     <div className="p-3 border-r border-gray-200">👤 Προπονητής</div>
                     <div className="p-3 border-r border-gray-200">🏠 Αίθουσα</div>
                     <div className="p-3 border-r border-gray-200">👥 Group Size</div>
@@ -287,7 +286,7 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
                 {/* Table Rows */}
                 <div className="divide-y divide-gray-200">
                   {sessions.map((session, index) => (
-                    <div key={session.id} className="grid grid-cols-7 gap-0 hover:bg-gray-50 transition-colors">
+                    <div key={session.id} className="grid grid-cols-6 gap-0 hover:bg-gray-50 transition-colors">
                       {/* Date */}
                       <div className="p-2 border-r border-gray-200">
                         <input
@@ -295,6 +294,7 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
                           value={session.date}
                           onChange={(e) => updateUserSession(userId, session.id, 'date', e.target.value)}
                           className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
+                          lang="el"
                         />
                       </div>
 
@@ -304,16 +304,6 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
                           type="time"
                           value={session.startTime}
                           onChange={(e) => updateUserSession(userId, session.id, 'startTime', e.target.value)}
-                          className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
-                        />
-                      </div>
-
-                      {/* End Time */}
-                      <div className="p-2 border-r border-gray-200">
-                        <input
-                          type="time"
-                          value={session.endTime}
-                          onChange={(e) => updateUserSession(userId, session.id, 'endTime', e.target.value)}
                           className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
                         />
                       </div>

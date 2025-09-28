@@ -145,7 +145,11 @@ const getIndividualPersonalTrainingSessions = async (
         // Check if session date is within the requested range
         if (sessionDate >= startDate && sessionDate <= endDate) {
           const startDateTime = `${sessionDate}T${session.startTime}:00`;
-          const endDateTime = `${sessionDate}T${session.endTime}:00`;
+          // Calculate end_time by adding 1 hour to start_time
+          const [hours, minutes] = session.startTime.split(':').map(Number);
+          const endHours = (hours + 1) % 24;
+          const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+          const endDateTime = `${sessionDate}T${endTime}:00`;
           
           events.push({
             id: `individual-${schedule.id}-${session.date}-${session.startTime}`,

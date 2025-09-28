@@ -370,7 +370,7 @@ const MonthlyScheduleSpreadsheetView: React.FC<MonthlyScheduleSpreadsheetViewPro
                               {session.userName}
                             </div>
                             <div className="text-xs opacity-75 truncate">
-                              {session.startTime}-{session.endTime}
+                              {session.startTime}
                             </div>
                             <div className={`text-xs font-medium ${
                               session.status === 'accepted' 

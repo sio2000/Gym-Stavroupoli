@@ -43,6 +43,7 @@ import {
 } from '@/utils/programApprovalApi';
 import { MembershipRequest } from '@/types';
 import UltimateInstallmentsTab from '@/components/secretary/UltimateInstallmentsTab';
+import SecretaryUsersInformation from '@/components/secretary/SecretaryUsersInformation';
 import Webcam from 'react-webcam';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { BrowserQRCodeReader } from '@zxing/browser';
@@ -70,7 +71,7 @@ const SecretaryDashboard: React.FC = () => {
   const [showResult, setShowResult] = useState(false);
   const [recentScans, setRecentScans] = useState<any[]>([]);
   const [membershipRequests, setMembershipRequests] = useState<MembershipRequest[]>([]);
-  const [activeTab, setActiveTab] = useState<'scanner' | 'membership-requests' | 'ultimate-installments'>('scanner');
+  const [activeTab, setActiveTab] = useState<'scanner' | 'membership-requests' | 'ultimate-installments' | 'users-information'>('scanner');
   const [loading, setLoading] = useState(false);
   
   // Program Options state for membership requests
@@ -131,6 +132,7 @@ const SecretaryDashboard: React.FC = () => {
     } else if (activeTab === 'ultimate-installments') {
       loadUltimateRequests();
     }
+    // Note: users-information tab loads its own data
   }, [activeTab]);
 
   // Debug video container rendering
@@ -402,9 +404,11 @@ const SecretaryDashboard: React.FC = () => {
         status as 'approved' | 'rejected' | 'pending',
         {
           oldMembersUsed: requestOptions.oldMembers || false,
-          kettlebellPoints: requestOptions.kettlebellPoints ? parseInt(requestOptions.kettlebellPoints) : 0,
-          cashAmount: requestOptions.cashAmount || 0,
-          posAmount: requestOptions.posAmount || 0,
+          kettlebellPoints: requestOptions.kettlebellPoints && requestOptions.kettlebellPoints.trim() !== '' 
+            ? parseInt(requestOptions.kettlebellPoints) || 0 
+            : 0,
+          cashAmount: requestOptions.cashAmount && requestOptions.cashAmount > 0 ? requestOptions.cashAmount : 0,
+          posAmount: requestOptions.posAmount && requestOptions.posAmount > 0 ? requestOptions.posAmount : 0,
           createdBy: user.id,
           notes: `Program options saved for membership request ${requestId} with ${status} status`
         }
@@ -485,62 +489,69 @@ const SecretaryDashboard: React.FC = () => {
         }
       }
 
-      // 2. Save Kettlebell Points if provided
-      if (userOptions.kettlebellPoints && parseInt(userOptions.kettlebellPoints) > 0) {
+      // 2. Save Kettlebell Points (handle empty fields as 0)
+      const kettlebellPoints = userOptions.kettlebellPoints && userOptions.kettlebellPoints.trim() !== '' 
+        ? parseInt(userOptions.kettlebellPoints) || 0 
+        : 0;
+      if (kettlebellPoints > 0) {
         const kettlebellSuccess = await saveSecretaryKettlebellPoints(
           userId, 
-          parseInt(userOptions.kettlebellPoints), 
+          kettlebellPoints, 
           undefined, // No program_id for now
           user?.id || ''
         );
         
         if (kettlebellSuccess) {
-          console.log(`[APPROVED] Kettlebell Points saved for membership request: ${requestId}, Points: ${userOptions.kettlebellPoints}`);
+          console.log(`[APPROVED] Kettlebell Points saved for membership request: ${requestId}, Points: ${kettlebellPoints}`);
         } else {
           console.warn(`[APPROVED] Failed to save Kettlebell Points for membership request: ${requestId}`);
         }
+      } else {
+        console.log(`[APPROVED] Kettlebell Points set to 0 for membership request: ${requestId}`);
       }
 
-      // 3. Save Cash transactions if provided
-      console.log('Checking cash amount:', userOptions.cashAmount, 'Type:', typeof userOptions.cashAmount);
-      if (userOptions.cashAmount && userOptions.cashAmount > 0) {
+      // 3. Save Cash transactions (handle empty fields as 0)
+      const cashAmount = userOptions.cashAmount && userOptions.cashAmount > 0 ? userOptions.cashAmount : 0;
+      console.log('Checking cash amount:', cashAmount, 'Type:', typeof cashAmount);
+      if (cashAmount > 0) {
         console.log('Attempting to save cash transaction...');
         const cashSuccess = await saveSecretaryCashTransaction(
           userId,
-          userOptions.cashAmount,
+          cashAmount,
           'cash',
           undefined,
           user?.id || '',
           'Cash transaction from approved membership request'
         );
         if (cashSuccess) {
-          console.log(`[APPROVED] Cash transaction saved for membership request: ${requestId}, Amount: €${userOptions.cashAmount}`);
+          console.log(`[APPROVED] Cash transaction saved for membership request: ${requestId}, Amount: €${cashAmount}`);
         } else {
           console.warn(`[APPROVED] Failed to save Cash transaction for membership request: ${requestId}`);
         }
       } else {
-        console.log('No cash amount to save or amount is 0');
+        console.log(`[APPROVED] Cash amount set to 0 for membership request: ${requestId}`);
       }
 
-      // 4. Save POS transactions if provided
-      console.log('Checking POS amount:', userOptions.posAmount, 'Type:', typeof userOptions.posAmount);
-      if (userOptions.posAmount && userOptions.posAmount > 0) {
+      // 4. Save POS transactions (handle empty fields as 0)
+      const posAmount = userOptions.posAmount && userOptions.posAmount > 0 ? userOptions.posAmount : 0;
+      console.log('Checking POS amount:', posAmount, 'Type:', typeof posAmount);
+      if (posAmount > 0) {
         console.log('Attempting to save POS transaction...');
         const posSuccess = await saveSecretaryCashTransaction(
           userId,
-          userOptions.posAmount,
+          posAmount,
           'pos',
           undefined,
           user?.id || '',
           'POS transaction from approved membership request'
         );
         if (posSuccess) {
-          console.log(`[APPROVED] POS transaction saved for membership request: ${requestId}, Amount: €${userOptions.posAmount}`);
+          console.log(`[APPROVED] POS transaction saved for membership request: ${requestId}, Amount: €${posAmount}`);
         } else {
           console.warn(`[APPROVED] Failed to save POS transaction for membership request: ${requestId}`);
         }
       } else {
-        console.log('No POS amount to save or amount is 0');
+        console.log(`[APPROVED] POS amount set to 0 for membership request: ${requestId}`);
       }
 
       toast.success('Έγιναν όλες οι απαραίτητες ενέργειες για το εγκεκριμένο αίτημα!');
@@ -1287,6 +1298,7 @@ const SecretaryDashboard: React.FC = () => {
                   {activeTab === 'scanner' ? '🔍 Σαρώστε QR codes για είσοδο/έξοδο' : 
                    activeTab === 'membership-requests' ? '📋 Διαχείριση αιτημάτων συνδρομών' : 
                    activeTab === 'ultimate-installments' ? '👑 Διαχείριση Ultimate συνδρομών και δόσεων' :
+                   activeTab === 'users-information' ? '👥 Πληροφορίες χρηστών' :
                    '💳 Διαχείριση δόσεων για πακέτα Ultimate'}
                 </p>
               </div>
@@ -1295,7 +1307,8 @@ const SecretaryDashboard: React.FC = () => {
               <button
                 onClick={activeTab === 'scanner' ? loadRecentScans : 
                          activeTab === 'membership-requests' ? loadMembershipRequests : 
-                         loadUltimateRequests}
+                         activeTab === 'ultimate-installments' ? loadUltimateRequests :
+                         () => {}} // users-information tab handles its own refresh
                 className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <RefreshCw className="h-4 w-4" />
@@ -1351,6 +1364,19 @@ const SecretaryDashboard: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-orange-400 text-lg">👑</span>
                   <span>Ultimate Συνδρομές</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('users-information')}
+                className={`py-4 px-6 rounded-xl font-medium text-sm transition-all duration-200 transform hover:scale-105 ${
+                  activeTab === 'users-information'
+                    ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg border-2 border-purple-400'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-2 border-transparent'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <span className="text-purple-400 text-lg">👥</span>
+                  <span>Χρήστες</span>
                 </div>
               </button>
             </nav>
@@ -1919,6 +1945,8 @@ const SecretaryDashboard: React.FC = () => {
             requestPendingUsers={requestPendingUsers}
             requestFrozenOptions={requestFrozenOptions}
           />
+        ) : activeTab === 'users-information' ? (
+          <SecretaryUsersInformation />
         ) : null}
       </div>
 

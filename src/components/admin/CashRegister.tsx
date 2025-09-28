@@ -26,6 +26,10 @@ const CashRegister: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [searchResults, setSearchResults] = useState<UserCashSummary[]>([]);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const USERS_PER_PAGE = 10;
 
   const loadCashRegisterData = async () => {
     try {
@@ -68,9 +72,26 @@ const CashRegister: React.FC = () => {
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
     searchUsers(value);
+    // Reset to first page when searching
+    setCurrentPage(1);
   };
 
-  const displayUsers = searchTerm ? searchResults : userSummaries;
+  // Pagination logic
+  const totalPages = Math.ceil(userSummaries.length / USERS_PER_PAGE);
+  const startIndex = (currentPage - 1) * USERS_PER_PAGE;
+  const endIndex = startIndex + USERS_PER_PAGE;
+  const paginatedUsers = userSummaries.slice(startIndex, endIndex);
+
+  // Pagination handlers
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const displayUsers = searchTerm ? searchResults : paginatedUsers;
 
   return (
     <div className="space-y-6">
@@ -233,6 +254,34 @@ const CashRegister: React.FC = () => {
                   <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                   <p>Δεν βρέθηκαν χρήστες με αυτό το όνομα</p>
                   <p className="text-sm mt-2">Δοκιμάστε ένα διαφορετικό όρο αναζήτησης</p>
+                </div>
+              )}
+              
+              {/* Pagination Controls - only show when not searching and there are multiple pages */}
+              {!searchTerm && totalPages > 1 && (
+                <div className="flex items-center justify-between py-4 border-t border-gray-200">
+                  <div className="text-sm text-gray-500">
+                    Εμφανίζονται {startIndex + 1}-{Math.min(endIndex, userSummaries.length)} από {userSummaries.length} χρήστες
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handlePreviousPage}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      ← Προηγούμενη
+                    </button>
+                    <span className="px-3 py-2 text-sm text-gray-700">
+                      Σελίδα {currentPage} από {totalPages}
+                    </span>
+                    <button
+                      onClick={handleNextPage}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Επόμενη →
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
