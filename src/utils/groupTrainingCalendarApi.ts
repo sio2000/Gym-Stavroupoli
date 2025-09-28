@@ -27,6 +27,164 @@ export interface GroupTrainingCalendarResponse {
 }
 
 /**
+ * Fetch individual personal training sessions from personal_training_schedules
+ * These are the sessions created directly by admin for personal users
+ */
+const getIndividualPersonalTrainingSessions = async (
+  startDate: string,
+  endDate: string
+): Promise<GroupTrainingCalendarEvent[]> => {
+  try {
+    console.log('[GroupTrainingCalendarAPI] Fetching individual personal training sessions...', { startDate, endDate });
+
+    // First, let's try a simpler query to see what we have
+    const { data: allSchedules, error: allError } = await supabase
+      .from('personal_training_schedules')
+      .select('id, user_id, training_type, user_type, status')
+      .eq('status', 'accepted');
+
+    console.log('[GroupTrainingCalendarAPI] All accepted schedules:', allSchedules);
+
+    if (allError) {
+      console.error('[GroupTrainingCalendarAPI] Error fetching all schedules:', allError);
+      return [];
+    }
+
+    // Filter for individual personal training
+    const schedules = allSchedules?.filter(schedule => 
+      schedule.training_type === 'individual' && 
+      schedule.user_type === 'personal'
+    );
+
+    console.log('[GroupTrainingCalendarAPI] Filtered individual personal schedules:', schedules);
+
+    // Now fetch the full data for these schedules
+    if (schedules && schedules.length > 0) {
+      const scheduleIds = schedules.map(s => s.id);
+      const { data: fullSchedules, error } = await supabase
+        .from('personal_training_schedules')
+        .select(`
+          id,
+          user_id,
+          schedule_data,
+          training_type,
+          user_type
+        `)
+        .in('id', scheduleIds);
+
+      if (error) {
+        console.error('[GroupTrainingCalendarAPI] Error fetching individual schedules:', error);
+        return [];
+      }
+
+      console.log('[GroupTrainingCalendarAPI] Found individual schedules:', fullSchedules?.length || 0);
+      console.log('[GroupTrainingCalendarAPI] Individual schedules data:', fullSchedules);
+
+      if (!fullSchedules || fullSchedules.length === 0) {
+        console.log('[GroupTrainingCalendarAPI] No individual schedules found');
+        return [];
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(fullSchedules.map(schedule => schedule.user_id))];
+      console.log('[GroupTrainingCalendarAPI] Fetching user profiles for IDs:', userIds);
+
+      // Fetch user profiles separately
+      const { data: userProfiles, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('user_id, first_name, last_name, email')
+        .in('user_id', userIds);
+
+      if (profilesError) {
+        console.error('[GroupTrainingCalendarAPI] Error fetching user profiles:', profilesError);
+        return [];
+      }
+
+      console.log('[GroupTrainingCalendarAPI] Found user profiles:', userProfiles?.length || 0);
+
+      // Create a map for quick lookup
+      const userProfileMap = new Map();
+      userProfiles?.forEach(profile => {
+        userProfileMap.set(profile.user_id, profile);
+      });
+
+      const events: GroupTrainingCalendarEvent[] = [];
+
+      fullSchedules?.forEach(schedule => {
+      console.log('[GroupTrainingCalendarAPI] Processing schedule:', schedule.id, 'for user:', schedule.user_id);
+      console.log('[GroupTrainingCalendarAPI] Schedule data:', schedule.schedule_data);
+      
+      if (!schedule.schedule_data) {
+        console.log('[GroupTrainingCalendarAPI] No schedule_data for schedule:', schedule.id);
+        return;
+      }
+
+      const scheduleData = schedule.schedule_data;
+      
+      // Handle both array format and object format with sessions property
+      let sessions;
+      if (Array.isArray(scheduleData)) {
+        sessions = scheduleData;
+      } else if (scheduleData && typeof scheduleData === 'object' && scheduleData.sessions) {
+        sessions = scheduleData.sessions;
+      } else {
+        console.log('[GroupTrainingCalendarAPI] Schedule data is not in expected format for schedule:', schedule.id, scheduleData);
+        return;
+      }
+
+      if (!Array.isArray(sessions)) {
+        console.log('[GroupTrainingCalendarAPI] Sessions is not an array for schedule:', schedule.id);
+        return;
+      }
+
+      const userProfile = userProfileMap.get(schedule.user_id);
+
+      sessions.forEach((session: any) => {
+        const sessionDate = session.date;
+        
+        // Check if session date is within the requested range
+        if (sessionDate >= startDate && sessionDate <= endDate) {
+          const startDateTime = `${sessionDate}T${session.startTime}:00`;
+          const endDateTime = `${sessionDate}T${session.endTime}:00`;
+          
+          events.push({
+            id: `individual-${schedule.id}-${session.date}-${session.startTime}`,
+            title: `Personal Training - ${userProfile?.first_name || 'Unknown'} ${userProfile?.last_name || 'User'}`,
+            type: 'group', // Using 'group' type for consistency with calendar
+            start: startDateTime,
+            end: endDateTime,
+            room: session.room || 'Personal Training Room',
+            capacity: 1,
+            participants_count: 1,
+            participants: [{
+              id: schedule.user_id,
+              name: `${userProfile?.first_name || 'Unknown'} ${userProfile?.last_name || 'User'}`,
+              email: userProfile?.email || '',
+              avatar_url: undefined
+            }],
+            status: 'scheduled',
+            trainer: session.trainer || 'Personal Trainer',
+            group_type: 1,
+            notes: session.notes || ''
+          });
+        }
+      });
+    });
+
+      console.log('[GroupTrainingCalendarAPI] Found individual personal training sessions:', events.length);
+      return events;
+    } else {
+      console.log('[GroupTrainingCalendarAPI] No individual personal schedules found');
+      return [];
+    }
+
+  } catch (error) {
+    console.error('[GroupTrainingCalendarAPI] Error fetching individual personal training sessions:', error);
+    return [];
+  }
+};
+
+/**
  * Fetch group training sessions for calendar display
  * Includes both regular group sessions and Group/Paspartu sessions with bookings
  * Admin-only access with proper date filtering
@@ -525,6 +683,15 @@ export const getGroupTrainingCalendarEvents = async (
     });
 
     console.log('[GroupTrainingCalendarAPI] Processed events:', events.length);
+
+    // Step 3: Fetch individual personal training sessions
+    console.log('[GroupTrainingCalendarAPI] Fetching individual personal training sessions...');
+    const individualSessions = await getIndividualPersonalTrainingSessions(startDate, endDate);
+    
+    // Add individual sessions to events
+    events.push(...individualSessions);
+    
+    console.log('[GroupTrainingCalendarAPI] Total events including individual sessions:', events.length);
 
     return {
       events,
