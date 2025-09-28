@@ -303,11 +303,24 @@ const AdminPanel: React.FC = () => {
       }
     }
   }, [newCode.selectedUserId, trainingType]);
+
   const itemsPerPage = 10;
   // Προσωποποιημένο πρόγραμμα που θα σταλεί μαζί με τον κωδικό
   const [programSessions, setProgramSessions] = useState<PersonalTrainingSession[]>([
     { id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }
   ]);
+
+  // Session filter state for Personal Training modal
+  const [sessionFilter, setSessionFilter] = useState<'new' | 'existing'>('new');
+  const [existingSessions, setExistingSessions] = useState<PersonalTrainingSession[]>([]);
+  const [loadingExistingSessions, setLoadingExistingSessions] = useState(false);
+
+  // Load existing sessions when user changes and filter is set to 'existing'
+  useEffect(() => {
+    if ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId && sessionFilter === 'existing') {
+      loadExistingSessions(newCode.selectedUserId);
+    }
+  }, [newCode.selectedUserId, sessionFilter, trainingType]);
 
   // Membership Packages state
   const [membershipPackages, setMembershipPackages] = useState<MembershipPackage[]>([]);
@@ -1245,6 +1258,64 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  // Function to get current sessions based on filter selection
+  const getCurrentSessions = (): PersonalTrainingSession[] => {
+    if (sessionFilter === 'existing') {
+      return existingSessions;
+    }
+    return programSessions;
+  };
+
+  // Function to update sessions based on filter selection
+  const updateCurrentSessions = (sessions: PersonalTrainingSession[]) => {
+    if (sessionFilter === 'existing') {
+      setExistingSessions(sessions);
+    } else {
+      setProgramSessions(sessions);
+    }
+  };
+
+  // Function to load existing sessions for a user
+  const loadExistingSessions = async (userId: string) => {
+    if (!userId) return;
+    
+    setLoadingExistingSessions(true);
+    try {
+      console.log('[AdminPanel] Loading existing sessions for user:', userId);
+      
+      // Query the most recent personal training schedule for this user
+      const { data, error } = await supabase
+        .from('personal_training_schedules')
+        .select('schedule_data, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('[AdminPanel] Error loading existing sessions:', error);
+        toast.error('Σφάλμα κατά τη φόρτωση των υπαρχόντων σεσιών');
+        setExistingSessions([]);
+        return;
+      }
+
+      if (data && data.length > 0 && data[0].schedule_data?.sessions) {
+        console.log('[AdminPanel] Found existing sessions:', data[0].schedule_data.sessions);
+        setExistingSessions(data[0].schedule_data.sessions);
+        toast.success(`Φορτώθηκαν ${data[0].schedule_data.sessions.length} υπάρχουσες σεσίες`);
+      } else {
+        console.log('[AdminPanel] No existing sessions found for user');
+        setExistingSessions([]);
+        toast('Δεν βρέθηκαν υπάρχουσες σεσίες για αυτόν τον χρήστη', { icon: 'ℹ️' });
+      }
+    } catch (error) {
+      console.error('[AdminPanel] Exception loading existing sessions:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση των υπαρχόντων σεσιών');
+      setExistingSessions([]);
+    } finally {
+      setLoadingExistingSessions(false);
+    }
+  };
+
   const createPersonalTrainingProgram = async () => {
     const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
     
@@ -1293,9 +1364,10 @@ const AdminPanel: React.FC = () => {
                 notes: `Group Paspartu Session ${index + 1} - ${slot.notes || ''}`
               }));
             } else {
-              // ✅ FIXED: Use programSessions for Group Paspartu (same as Individual)
+              // ✅ FIXED: Use current sessions for Group Paspartu (same as Individual)
               // This ensures that admin-created sessions are used for Group Paspartu
-              scheduleSessions = programSessions.map((s) => ({
+              const currentSessions = getCurrentSessions();
+              scheduleSessions = currentSessions.map((s) => ({
                 id: s.id,
                 date: s.date,
                 startTime: s.startTime,
@@ -1305,14 +1377,15 @@ const AdminPanel: React.FC = () => {
                 notes: s.notes + ' (Group Paspartu)'
               }));
               
-              console.log(`[ADMIN] Using ${scheduleSessions.length} program sessions for Group Paspartu user: ${selectedUser.email}`);
+              console.log(`[ADMIN] Using ${scheduleSessions.length} current sessions for Group Paspartu user: ${selectedUser.email}`);
             }
           } else {
             scheduleSessions = []; // Άδεια σεσίες για κανονικά group programs
           }
         } else if (trainingType === 'combination') {
           // Για combination, παίρνουμε μόνο τις πρώτες N σεσίες για personal training
-          scheduleSessions = programSessions.slice(0, combinationPersonalSessions).map((s) => ({
+          const currentSessions = getCurrentSessions();
+          scheduleSessions = currentSessions.slice(0, combinationPersonalSessions).map((s) => ({
             id: s.id,
             date: s.date,
             startTime: s.startTime,
@@ -1323,7 +1396,8 @@ const AdminPanel: React.FC = () => {
           }));
         } else {
           // Individual training - όλες οι σεσίες
-          scheduleSessions = programSessions.map((s) => ({
+          const currentSessions = getCurrentSessions();
+          scheduleSessions = currentSessions.map((s) => ({
             id: s.id,
             date: s.date,
             startTime: s.startTime,
@@ -1727,6 +1801,8 @@ const AdminPanel: React.FC = () => {
       setUserSearchTerm('');
       setUserSearchMode('dropdown');
       setProgramSessions([{ id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }]);
+      setSessionFilter('new'); // Reset session filter
+      setExistingSessions([]); // Reset existing sessions
       
       // Refresh the users list
       loadAllUsers();
@@ -5248,20 +5324,86 @@ const AdminPanel: React.FC = () => {
                    )}
                  </h4>
                    <div className={`text-sm px-3 py-2 rounded-lg ${
-                     trainingType === 'combination' && programSessions.length > combinationPersonalSessions
+                     trainingType === 'combination' && getCurrentSessions().length > combinationPersonalSessions
                        ? 'bg-red-100 text-red-700 border border-red-300'
                        : 'text-gray-600 bg-gray-100'
                    }`}>
-                     📊 Σύνολο: {programSessions.length} σεσίας
+                     📊 Σύνολο: {getCurrentSessions().length} σεσίας
                      {trainingType === 'combination' && (
                        <span className={`ml-2 ${
-                         programSessions.length > combinationPersonalSessions ? 'text-red-600' : 'text-purple-600'
+                         getCurrentSessions().length > combinationPersonalSessions ? 'text-red-600' : 'text-purple-600'
                        }`}>
                          ({combinationPersonalSessions} θα χρησιμοποιηθούν)
-                         {programSessions.length > combinationPersonalSessions && (
+                         {getCurrentSessions().length > combinationPersonalSessions && (
                            <span className="ml-1 font-bold">⚠️ Περισσότερες από όσες θα χρησιμοποιηθούν!</span>
                          )}
                        </span>
+                     )}
+                   </div>
+                 </div>
+
+                 {/* Session Filter Toggle Buttons */}
+                 <div className="mb-4 sm:mb-6">
+                   <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                     <div className="flex items-center space-x-2">
+                       <span className="text-sm font-medium text-gray-700">Φίλτρο Σεσιών:</span>
+                     </div>
+                     <div className="flex space-x-2">
+                       <button
+                         onClick={() => {
+                           setSessionFilter('new');
+                           // Reset to default new session when switching to new
+                           if (programSessions.length === 0) {
+                             setProgramSessions([{ 
+                               id: 'tmp-1', 
+                               date: new Date().toISOString().split('T')[0], 
+                               startTime: '18:00', 
+                               type: 'personal', 
+                               trainer: 'Mike', 
+                               room: 'Αίθουσα Mike', 
+                               group: '2ΑτομαGroup', 
+                               notes: '' 
+                             }]);
+                           }
+                         }}
+                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                           sessionFilter === 'new'
+                             ? 'bg-blue-500 text-white shadow-lg'
+                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                         }`}
+                       >
+                         🆕 Νέες Σεσίες
+                       </button>
+                       <button
+                         onClick={() => {
+                           setSessionFilter('existing');
+                           // Load existing sessions when switching to existing
+                           if ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) {
+                             loadExistingSessions(newCode.selectedUserId);
+                           }
+                         }}
+                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                           sessionFilter === 'existing'
+                             ? 'bg-green-500 text-white shadow-lg'
+                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                         }`}
+                         disabled={!newCode.selectedUserId}
+                       >
+                         📚 Υπάρχουσες Σεσίες
+                         {loadingExistingSessions && (
+                           <span className="ml-2">⏳</span>
+                         )}
+                       </button>
+                     </div>
+                     {sessionFilter === 'existing' && existingSessions.length > 0 && (
+                       <div className="text-sm text-green-600 bg-green-100 px-3 py-1 rounded-lg">
+                         ✅ {existingSessions.length} υπάρχουσες σεσίες φορτώθηκαν
+                       </div>
+                     )}
+                     {sessionFilter === 'existing' && existingSessions.length === 0 && !loadingExistingSessions && (
+                       <div className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
+                         ℹ️ Δεν βρέθηκαν υπάρχουσες σεσίες
+                       </div>
                      )}
                    </div>
                  </div>
@@ -5285,24 +5427,25 @@ const AdminPanel: React.FC = () => {
 
                    {/* Table Body */}
                    <div className="divide-y divide-gray-300">
-                     {programSessions.map((session, idx) => (
+                     {getCurrentSessions().map((session, idx) => (
                        <div key={session.id} className={`grid gap-0 hover:bg-blue-50 transition-colors ${trainingType === 'individual' ? 'grid-cols-6' : 'grid-cols-7'}`}>
                          {/* Row Number & Actions */}
                          <div className="col-span-1 flex items-center justify-center space-x-2 py-3 border-r border-gray-300 bg-gray-50">
                            <span className="text-sm font-bold text-gray-700">{idx + 1}</span>
                            <div className="flex flex-col space-y-1">
                            <button
-                             onClick={() => setProgramSessions(prev => prev.filter((_, i) => i !== idx))}
+                             onClick={() => updateCurrentSessions(getCurrentSessions().filter((_, i) => i !== idx))}
                                className="text-red-600 hover:text-red-800 p-1 text-xs bg-red-100 rounded hover:bg-red-200"
                                title="Διαγραφή Σέσιας"
                            >
                                <Trash2 className="h-3 w-3" />
                            </button>
                              <button
-                               onClick={() => setProgramSessions(prev => {
+                               onClick={() => {
+                                 const currentSessions = getCurrentSessions();
                                  const newSession = { ...session, id: `tmp-${Date.now()}` };
-                                 return [...prev.slice(0, idx + 1), newSession, ...prev.slice(idx + 1)];
-                               })}
+                                 updateCurrentSessions([...currentSessions.slice(0, idx + 1), newSession, ...currentSessions.slice(idx + 1)]);
+                               }}
                                className="text-blue-600 hover:text-blue-800 p-1 text-xs bg-blue-100 rounded hover:bg-blue-200"
                                title="Αντιγραφή Σέσιας"
                              >
@@ -5317,7 +5460,10 @@ const AdminPanel: React.FC = () => {
                              type="date" 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.date}
-                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, date: e.target.value } : ps))}
+                             onChange={(e) => {
+                               const currentSessions = getCurrentSessions();
+                               updateCurrentSessions(currentSessions.map((ps, i) => i === idx ? { ...ps, date: e.target.value } : ps));
+                             }}
                              lang="el"
                            />
                          </div>
@@ -5328,7 +5474,10 @@ const AdminPanel: React.FC = () => {
                              type="time" 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.startTime}
-                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, startTime: e.target.value } : ps))}
+                             onChange={(e) => {
+                               const currentSessions = getCurrentSessions();
+                               updateCurrentSessions(currentSessions.map((ps, i) => i === idx ? { ...ps, startTime: e.target.value } : ps));
+                             }}
                            />
                          </div>
 
@@ -5337,7 +5486,10 @@ const AdminPanel: React.FC = () => {
                            <select 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.type}
-                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, type: e.target.value as any } : ps))}
+                             onChange={(e) => {
+                               const currentSessions = getCurrentSessions();
+                               updateCurrentSessions(currentSessions.map((ps, i) => i === idx ? { ...ps, type: e.target.value as any } : ps));
+                             }}
                            >
                              <option value="personal">Προσωπική</option>
                              <option value="kickboxing">Kick Boxing</option>
@@ -5350,7 +5502,10 @@ const AdminPanel: React.FC = () => {
                            <select 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.room}
-                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, room: e.target.value } : ps))}
+                             onChange={(e) => {
+                               const currentSessions = getCurrentSessions();
+                               updateCurrentSessions(currentSessions.map((ps, i) => i === idx ? { ...ps, room: e.target.value } : ps));
+                             }}
                            >
                              <option value="Αίθουσα Mike">Αίθουσα Mike</option>
                              <option value="Αίθουσα Jordan">Αίθουσα Jordan</option>
@@ -5370,7 +5525,10 @@ const AdminPanel: React.FC = () => {
                               <select 
                                 className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                                 value={session.group || ''}
-                                onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, group: e.target.value as '2ΑτομαGroup' | '3ΑτομαGroup' | '6ΑτομαGroup' | undefined } : ps))}
+                                onChange={(e) => {
+                                  const currentSessions = getCurrentSessions();
+                                  updateCurrentSessions(currentSessions.map((ps, i) => i === idx ? { ...ps, group: e.target.value as '2ΑτομαGroup' | '3ΑτομαGroup' | '6ΑτομαGroup' | undefined } : ps));
+                                }}
                               >
                                 <option value="">Επιλέξτε Group</option>
                                 <option value="2ΑτομαGroup">2ΑτομαGroup</option>
@@ -5386,7 +5544,10 @@ const AdminPanel: React.FC = () => {
                            <select 
                              className="w-full px-2 py-2 text-sm border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                              value={session.trainer}
-                             onChange={(e) => setProgramSessions(prev => prev.map((ps, i) => i === idx ? { ...ps, trainer: e.target.value as TrainerName } : ps))}
+                             onChange={(e) => {
+                               const currentSessions = getCurrentSessions();
+                               updateCurrentSessions(currentSessions.map((ps, i) => i === idx ? { ...ps, trainer: e.target.value as TrainerName } : ps));
+                             }}
                            >
                              {AVAILABLE_TRAINERS.map(trainer => (
                                <option key={trainer} value={trainer}>{trainer}</option>
@@ -5407,21 +5568,21 @@ const AdminPanel: React.FC = () => {
                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium flex items-center justify-center"
                        onClick={() => {
                          // Validation για combination training
-                         if (trainingType === 'combination' && programSessions.length >= combinationPersonalSessions) {
+                         const currentSessions = getCurrentSessions();
+                         if (trainingType === 'combination' && currentSessions.length >= combinationPersonalSessions) {
                            toast.error(`Για συνδυασμένο πρόγραμμα μπορείτε να έχετε μέγιστο ${combinationPersonalSessions} ατομικές σεσίες`);
                            return;
                          }
                          
-                        setProgramSessions(prev => [...prev, {
+                        updateCurrentSessions([...currentSessions, {
                           id: `tmp-${Date.now()}`,
                           date: new Date().toISOString().split('T')[0], 
                           startTime: '19:00', 
-                          endTime: '20:00', 
                           type: 'personal', 
                           trainer: 'Mike', 
                           room: 'Αίθουσα Mike', 
                           group: trainingType === 'combination' ? undefined : '2ΑτομαGroup', // For combination, no group (individual sessions)
-                          notes: prev[0]?.notes || ''
+                          notes: currentSessions[0]?.notes || ''
                         }]);
                        }}
                      >
@@ -5432,7 +5593,8 @@ const AdminPanel: React.FC = () => {
                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center justify-center"
                        onClick={() => {
                          // Validation για combination training
-                         if (trainingType === 'combination' && programSessions.length >= combinationPersonalSessions) {
+                         const currentSessions = getCurrentSessions();
+                         if (trainingType === 'combination' && currentSessions.length >= combinationPersonalSessions) {
                            toast.error(`Για συνδυασμένο πρόγραμμα μπορείτε να έχετε μέγιστο ${combinationPersonalSessions} ατομικές σεσίες`);
                            return;
                          }
@@ -5441,23 +5603,25 @@ const AdminPanel: React.FC = () => {
                            id: `tmp-${Date.now()}`,
                            date: new Date().toISOString().split('T')[0],
                            startTime: '19:00',
-                           endTime: '20:00',
                            type: 'personal' as const,
                            trainer: 'Mike' as TrainerName,
                            room: 'Αίθουσα Mike',
                            group: '2ΑτομαGroup' as const,
-                           notes: programSessions[0]?.notes || ''
+                           notes: currentSessions[0]?.notes || ''
                          };
-                         setProgramSessions(prev => [...prev, newSession]);
+                         updateCurrentSessions([...currentSessions, newSession]);
                        }}
                      >
                        📋 Αντιγραφή Τελευταίας
                      </button>
-                     {programSessions.length > 1 && (
+                     {getCurrentSessions().length > 1 && (
                        <button 
                          type="button" 
                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium flex items-center justify-center"
-                         onClick={() => setProgramSessions(prev => prev.slice(0, -1))}
+                         onClick={() => {
+                           const currentSessions = getCurrentSessions();
+                           updateCurrentSessions(currentSessions.slice(0, -1));
+                         }}
                        >
                          ➖ Διαγραφή Τελευταίας
                        </button>
