@@ -44,10 +44,23 @@ export const getActivePilatesScheduleSlots = async (): Promise<PilatesScheduleSl
 export const getPilatesAvailableSlots = async (startDate?: string, endDate?: string): Promise<PilatesAvailableSlot[]> => {
   try {
     console.log('Fetching available pilates slots...');
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = (() => {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    })();
     const start = startDate || todayStr;
     // default end = start + 13 days (2 εβδομάδες Δευ-Παρ ~ 10 εργάσιμες)
-    const end = endDate || new Date(new Date(start).getTime() + 13 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = endDate || (() => {
+      const base = new Date(start + 'T12:00:00');
+      base.setDate(base.getDate() + 13);
+      const y = base.getFullYear();
+      const m = String(base.getMonth() + 1).padStart(2, '0');
+      const day = String(base.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    })();
 
     // Use occupancy view for fast counts
     const { data, error } = await supabase

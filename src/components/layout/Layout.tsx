@@ -109,7 +109,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           `)
           .eq('user_id', user.id)
           .eq('is_active', true)
-          .gte('end_date', new Date().toISOString().split('T')[0]); // Not expired
+          .gte('end_date', `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`); // Not expired
 
         if (!error && data && data.length > 0) {
           setHasApprovedMembership(true);
@@ -129,7 +129,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           `)
           .eq('user_id', user.id)
           .eq('is_active', true)
-          .gte('end_date', new Date().toISOString().split('T')[0]);
+          .gte('end_date', `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`);
 
         // Check if any of the active memberships is specifically for pilates
         const hasPilatesPackage = pilatesData && pilatesData.some(membership => {

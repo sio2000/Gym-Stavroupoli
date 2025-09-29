@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { toLocalDateKey } from '@/utils/date';
 import { ChevronLeft, ChevronRight, Users, Clock, MapPin, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { getGroupTrainingCalendarEvents, GroupTrainingCalendarEvent } from '@/utils/groupTrainingCalendarApi';
 import toast from 'react-hot-toast';
@@ -28,7 +29,7 @@ const GroupTrainingCalendar: React.FC<GroupTrainingCalendarProps> = ({
     setLoading(true);
     try {
       const startDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
-      const endDate = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0];
+      const endDate = toLocalDateKey(new Date(currentYear, currentMonth, 0));
       
       console.log('[GroupTrainingCalendar] Loading events for:', { startDate, endDate });
       
@@ -63,7 +64,7 @@ const GroupTrainingCalendar: React.FC<GroupTrainingCalendarProps> = ({
 
   // Get events for a specific date
   const getEventsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toLocalDateKey(date);
     return events.filter(event => event.start.startsWith(dateStr));
   };
 

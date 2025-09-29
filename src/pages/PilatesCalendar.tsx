@@ -11,6 +11,7 @@ import {
 } from '@/utils/pilatesScheduleApi';
 import { PilatesAvailableSlot, PilatesBooking } from '@/types';
 import { Calendar, CheckCircle, XCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { toLocalDateKey, addDaysLocal } from '@/utils/date';
 
 const PilatesCalendar: React.FC = () => {
   const { user } = useAuth();
@@ -34,10 +35,9 @@ const PilatesCalendar: React.FC = () => {
     console.log('User: getWeekDates - currentWeek:', startOfWeek);
     
     for (let i = 0; i < 14; i++) {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + i);
+      const date = addDaysLocal(startOfWeek, i);
       dates.push(date);
-      console.log(`User: Day ${i}: ${date.toISOString().split('T')[0]}`);
+      console.log(`User: Day ${i}: ${toLocalDateKey(date)}`);
     }
     
     return dates;
@@ -99,10 +99,8 @@ const PilatesCalendar: React.FC = () => {
     try {
       setLoading(true);
       console.log('=== LOADING PILATES CALENDAR DATA ===');
-      const startStr = new Date(currentWeek).toISOString().split('T')[0];
-      const end = new Date(currentWeek);
-      end.setDate(end.getDate() + 13);
-      const endStr = end.toISOString().split('T')[0];
+      const startStr = toLocalDateKey(new Date(currentWeek));
+      const endStr = toLocalDateKey(addDaysLocal(new Date(currentWeek), 13));
 
       const [slots, bookings, depositInfo] = await Promise.all([
         getPilatesAvailableSlots(startStr, endStr),
@@ -313,7 +311,7 @@ const PilatesCalendar: React.FC = () => {
                     Ώρα
                   </th>
                   {weekDates.map((date) => (
-                    <th key={date.toISOString()} className="px-4 py-3 text-center text-sm font-medium text-gray-700 min-w-32">
+                    <th key={toLocalDateKey(date)} className="px-4 py-3 text-center text-sm font-medium text-gray-700 min-w-32">
                       {formatDate(date)}
                     </th>
                   ))}
@@ -326,7 +324,7 @@ const PilatesCalendar: React.FC = () => {
                       {time}
                     </td>
                     {weekDates.map((date) => {
-                      const dateStr = date.toISOString().split('T')[0];
+                      const dateStr = toLocalDateKey(date);
                       const slots = getSlotsForDateTime(dateStr, time);
                       const isWeekendDay = isWeekend(date);
                       const hasSlots = hasSlotsForDateTime(dateStr, time);

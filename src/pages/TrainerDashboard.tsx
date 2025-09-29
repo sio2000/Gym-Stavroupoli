@@ -230,7 +230,7 @@ const TrainerDashboard: React.FC = () => {
         }
         
         // Get the date in YYYY-MM-DD format
-        const sessionDateStr = sessionDate.toISOString().split('T')[0];
+        const sessionDateStr = `${sessionDate.getFullYear()}-${String(sessionDate.getMonth()+1).padStart(2,'0')}-${String(sessionDate.getDate()).padStart(2,'0')}`;
         
         // Also try to get the date in local format
         const localDateStr = sessionDate.getFullYear() + '-' + 

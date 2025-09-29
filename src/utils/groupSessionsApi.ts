@@ -132,8 +132,8 @@ export const getBookedGroupSessionsForMonth = async (
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 
-    const start = startDate.toISOString().slice(0, 10); // YYYY-MM-DD
-    const end = endDate.toISOString().slice(0, 10);
+    const start = `${startDate.getFullYear()}-${String(startDate.getMonth()+1).padStart(2,'0')}-${String(startDate.getDate()).padStart(2,'0')}`;
+    const end = `${endDate.getFullYear()}-${String(endDate.getMonth()+1).padStart(2,'0')}-${String(endDate.getDate()).padStart(2,'0')}`;
 
     console.log('[GroupSessionsAPI] Fetching booked group sessions for month...', { year, month, start, end });
 

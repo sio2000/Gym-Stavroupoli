@@ -53,7 +53,7 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
     selectedUserIds.forEach(userId => {
       initialSessions[userId] = Array.from({ length: monthlySessions }, (_, index) => ({
         id: `session-${userId}-${index}`,
-        date: new Date().toISOString().split('T')[0],
+        date: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`,
         startTime: '18:00',
         endTime: '19:00',
         trainer: 'Mike',
@@ -146,7 +146,7 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
 
     const newSession: GroupSession = {
       id: `session-${userId}-${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
+      date: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`,
       startTime: '18:00',
       endTime: '19:00',
       trainer: 'Mike',

@@ -17,6 +17,7 @@ import {
 } from '@/utils/pilatesScheduleApi';
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
+import { toLocalDateKey, addDaysLocal } from '@/utils/date';
 
 const PilatesScheduleManagement: React.FC = () => {
   const [slots, setSlots] = useState<PilatesScheduleSlot[]>([]);
@@ -133,10 +134,10 @@ const PilatesScheduleManagement: React.FC = () => {
     
     // Generate 14 days (2 εβδομάδες)
     for (let i = 0; i < 14; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      dates.push(date.toISOString().split('T')[0]);
-      console.log(`Admin: Day ${i}: ${date.toISOString().split('T')[0]}`);
+      const date = addDaysLocal(startDate, i);
+      const key = toLocalDateKey(date);
+      dates.push(key);
+      console.log(`Admin: Day ${i}: ${key}`);
     }
     
     return dates;

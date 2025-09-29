@@ -307,7 +307,7 @@ const AdminPanel: React.FC = () => {
   const itemsPerPage = 10;
   // Προσωποποιημένο πρόγραμμα που θα σταλεί μαζί με τον κωδικό
   const [programSessions, setProgramSessions] = useState<PersonalTrainingSession[]>([
-    { id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }
+    { id: 'tmp-1', date: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`, startTime: '18:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }
   ]);
 
   // Session filter state for Personal Training modal
@@ -525,7 +525,7 @@ const AdminPanel: React.FC = () => {
           sessions: [
             {
               id: 'test-1',
-              date: new Date().toISOString().split('T')[0],
+              date: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`,
               startTime: '18:00',
               endTime: '19:00',
               type: 'personal',
@@ -935,7 +935,7 @@ const AdminPanel: React.FC = () => {
     
     const newSession: PersonalTrainingSession = {
       id: Date.now().toString(),
-      date: new Date().toISOString().split('T')[0],
+      date: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`,
       startTime: '09:00',
       type: 'personal',
       trainer: 'Mike',
@@ -1684,8 +1684,8 @@ const AdminPanel: React.FC = () => {
           user_id: selectedUser.id,
           package_id: personalPackage.id,
           duration_type: 'lesson', // Default duration type
-          start_date: new Date().toISOString().split('T')[0],
-          end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 month from now
+          start_date: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`,
+          end_date: (() => { const d=new Date(); d.setDate(d.getDate()+30); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(),
           is_active: true,
           approved_by: user?.id,
           approved_at: new Date().toISOString()
@@ -5356,7 +5356,7 @@ const AdminPanel: React.FC = () => {
                            if (programSessions.length === 0) {
                              setProgramSessions([{ 
                                id: 'tmp-1', 
-                               date: new Date().toISOString().split('T')[0], 
+                               date: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`, 
                                startTime: '18:00', 
                                type: 'personal', 
                                trainer: 'Mike', 
@@ -5576,7 +5576,7 @@ const AdminPanel: React.FC = () => {
                          
                         updateCurrentSessions([...currentSessions, {
                           id: `tmp-${Date.now()}`,
-                          date: new Date().toISOString().split('T')[0], 
+                          date: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`, 
                           startTime: '19:00', 
                           type: 'personal', 
                           trainer: 'Mike', 
@@ -5601,7 +5601,7 @@ const AdminPanel: React.FC = () => {
                          
                          const newSession = {
                            id: `tmp-${Date.now()}`,
-                           date: new Date().toISOString().split('T')[0],
+                           date: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`,
                            startTime: '19:00',
                            type: 'personal' as const,
                            trainer: 'Mike' as TrainerName,
