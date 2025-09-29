@@ -70,13 +70,27 @@ export const saveCashTransaction = async (
 };
 
 // Get total cash amounts
-export const getCashRegisterTotals = async (): Promise<CashRegisterTotals> => {
+export const getCashRegisterTotals = async (
+  fromDate?: string,
+  toDate?: string
+): Promise<CashRegisterTotals> => {
   try {
     console.log('[getCashRegisterTotals] Fetching totals...');
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('user_cash_transactions')
-      .select('amount, transaction_type');
+      .select('amount, transaction_type, created_at');
+
+    if (fromDate) {
+      query = query.gte('created_at', fromDate);
+    }
+    if (toDate) {
+      // Include entire day for toDate by appending end of day if only date provided
+      const to = toDate.length === 10 ? `${toDate}T23:59:59.999Z` : toDate;
+      query = query.lte('created_at', to);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[getCashRegisterTotals] Error fetching totals:', error);
@@ -102,11 +116,14 @@ export const getCashRegisterTotals = async (): Promise<CashRegisterTotals> => {
 };
 
 // Get cash summary per user
-export const getCashSummaryPerUser = async (): Promise<UserCashSummary[]> => {
+export const getCashSummaryPerUser = async (
+  fromDate?: string,
+  toDate?: string
+): Promise<UserCashSummary[]> => {
   try {
     console.log('[getCashSummaryPerUser] Fetching user summaries...');
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('user_cash_transactions')
       .select(`
         user_id,
@@ -120,6 +137,16 @@ export const getCashSummaryPerUser = async (): Promise<UserCashSummary[]> => {
         )
       `)
       .order('created_at', { ascending: false });
+
+    if (fromDate) {
+      query = query.gte('created_at', fromDate);
+    }
+    if (toDate) {
+      const to = toDate.length === 10 ? `${toDate}T23:59:59.999Z` : toDate;
+      query = query.lte('created_at', to);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[getCashSummaryPerUser] Error fetching user summaries:', error);

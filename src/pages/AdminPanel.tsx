@@ -43,6 +43,7 @@ import {
   getMembershipPackageDurations, 
   updateMembershipPackageDuration,
   getMembershipRequests,
+  getMembershipRequestsWithLockedInstallments,
   approveMembershipRequest,
   approveUltimateMembershipRequest,
   rejectMembershipRequest,
@@ -181,6 +182,8 @@ const AdminPanel: React.FC = () => {
   const [totalKettlebellPoints, setTotalKettlebellPoints] = useState<number>(0);
   const [kettlebellSearchTerm, setKettlebellSearchTerm] = useState<string>('');
   const [kettlebellSearchResults, setKettlebellSearchResults] = useState<UserKettlebellSummary[]>([]);
+  const [kettlebellFromDate, setKettlebellFromDate] = useState<string>('');
+  const [kettlebellToDate, setKettlebellToDate] = useState<string>('');
   
   // Kettlebell Points pagination state
   const [kettlebellCurrentPage, setKettlebellCurrentPage] = useState(1);
@@ -352,6 +355,10 @@ const AdminPanel: React.FC = () => {
     installment1DueDate?: string;
     installment2DueDate?: string;
     installment3DueDate?: string;
+    installment1Locked?: boolean;
+    installment2Locked?: boolean;
+    installment3Locked?: boolean;
+    deleteThirdInstallment?: boolean;
   }}>({});
   const [requestProgramApprovalStatus, setRequestProgramApprovalStatus] = useState<{[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'}>({});
   const [requestPendingUsers, setRequestPendingUsers] = useState<Set<string>>(new Set());
@@ -2259,8 +2266,8 @@ const AdminPanel: React.FC = () => {
     try {
       setLoading(true);
       const [totalPoints, summary] = await Promise.all([
-        getTotalKettlebellPoints(),
-        getKettlebellPointsSummary()
+        getTotalKettlebellPoints(kettlebellFromDate || undefined, kettlebellToDate || undefined),
+        getKettlebellPointsSummary(kettlebellFromDate || undefined, kettlebellToDate || undefined)
       ]);
       
       setTotalKettlebellPoints(totalPoints);
@@ -2272,7 +2279,7 @@ const AdminPanel: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [kettlebellFromDate, kettlebellToDate]);
 
   const loadUserKettlebellPoints = async (userId: string) => {
     try {
@@ -2371,7 +2378,7 @@ const AdminPanel: React.FC = () => {
       setUltimateLoading(true);
       
       const requests = await withDatabaseRetry(
-        () => getMembershipRequests(),
+        () => getMembershipRequestsWithLockedInstallments(),
         'φόρτωση Ultimate αιτημάτων'
       );
       
@@ -2487,6 +2494,65 @@ const AdminPanel: React.FC = () => {
       if (installment1DueDate) updateData.installment_1_due_date = installment1DueDate;
       if (installment2DueDate) updateData.installment_2_due_date = installment2DueDate;
       if (installment3DueDate) updateData.installment_3_due_date = installment3DueDate;
+
+      // Handle installment locking using the new database table
+      const requestOptions = selectedRequestOptions[requestId];
+      if (requestOptions) {
+        // Lock installments that were just locked
+        // Helper function to validate user ID
+        const getValidUserId = (userId: string | undefined) => {
+          if (!userId || userId === "00000000-0000-0000-0000-000000000001" || userId === "undefined") {
+            return null;
+          }
+          return userId;
+        };
+
+        if (requestOptions.installment1Locked) {
+          const { error: lockError } = await supabase
+            .rpc('lock_installment', { 
+              request_id: requestId, 
+              installment_num: 1, 
+              locked_by_user_id: getValidUserId(user?.id) 
+            });
+          if (lockError) {
+            console.error('Error locking installment 1:', lockError);
+          }
+        }
+        if (requestOptions.installment2Locked) {
+          const { error: lockError } = await supabase
+            .rpc('lock_installment', { 
+              request_id: requestId, 
+              installment_num: 2, 
+              locked_by_user_id: getValidUserId(user?.id) 
+            });
+          if (lockError) {
+            console.error('Error locking installment 2:', lockError);
+          }
+        }
+        if (requestOptions.installment3Locked) {
+          const { error: lockError } = await supabase
+            .rpc('lock_installment', { 
+              request_id: requestId, 
+              installment_num: 3, 
+              locked_by_user_id: getValidUserId(user?.id) 
+            });
+          if (lockError) {
+            console.error('Error locking installment 3:', lockError);
+          }
+        }
+
+        // Handle third installment deletion
+        if (requestOptions.deleteThirdInstallment) {
+          const { error: deleteError } = await supabase
+            .rpc('delete_third_installment_permanently', { 
+              request_id: requestId, 
+              deleted_by_user_id: getValidUserId(user?.id) 
+            });
+          if (deleteError) {
+            console.error('Error deleting third installment:', deleteError);
+          }
+        }
+      }
 
       await withDatabaseRetry(
         async () => {
@@ -4137,7 +4203,7 @@ const AdminPanel: React.FC = () => {
                       <p className="text-gray-600 mt-1">Βαθμοί Kettlebell ανά χρήστη</p>
                     </div>
                     
-                    {/* Search Input */}
+                    {/* Search + Date Range */}
                     <div className="flex items-center space-x-2">
                       <div className="relative">
                         <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -4157,6 +4223,33 @@ const AdminPanel: React.FC = () => {
                           <X className="h-4 w-4" />
                         </button>
                       )}
+                      <div className="hidden sm:flex items-center space-x-2 ml-2">
+                        <div className="relative">
+                          <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="date"
+                            value={kettlebellFromDate}
+                            onChange={(e) => setKettlebellFromDate(e.target.value)}
+                            className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                          />
+                        </div>
+                        <span className="text-gray-500 text-sm">—</span>
+                        <div className="relative">
+                          <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="date"
+                            value={kettlebellToDate}
+                            onChange={(e) => setKettlebellToDate(e.target.value)}
+                            className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                          />
+                        </div>
+                        <button
+                          onClick={() => { setKettlebellCurrentPage(1); loadKettlebellPointsData(); }}
+                          className="px-3 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700"
+                        >
+                          Φίλτρο
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4763,7 +4856,7 @@ const AdminPanel: React.FC = () => {
                       }`}>
                         {/* Info text above the button */}
                         <div className="mb-3 text-xs text-gray-600 bg-blue-50 p-2 rounded-lg border border-blue-200">
-                          <span className="font-medium">ℹ️ Πληροφορίες:</span> Ισχύει μόνο για τα πρώτα 150 παλιά μέλη του γυμναστηρίου με τιμή 45€ (προσφορά), τα οποία εμφανίζονται στην καρτέλα Ταμείο
+                          <span className="font-medium">ℹ️ Πληροφορίες:</span> Ισχύει μόνο για τα πρώτα 150 παλιά μέλη του γυμναστηρίου με τιμή 45€ ετήσιος (προσφορά), τα οποία εμφανίζονται στην καρτέλα Ταμείο
                         </div>
                         
                         <button

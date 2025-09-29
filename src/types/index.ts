@@ -168,6 +168,13 @@ export interface MembershipRequest {
   installment_1_due_date?: string;
   installment_2_due_date?: string;
   installment_3_due_date?: string;
+  installment_1_locked?: boolean;
+  installment_2_locked?: boolean;
+  installment_3_locked?: boolean;
+  // Third installment deletion
+  third_installment_deleted?: boolean;
+  third_installment_deleted_at?: string;
+  third_installment_deleted_by?: string;
   // Joined data - database format
   user?: DatabaseUser;
   package?: MembershipPackage;

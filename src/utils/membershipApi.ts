@@ -117,6 +117,93 @@ export const getMembershipRequests = async (): Promise<MembershipRequest[]> => {
   }
 };
 
+// New function to get membership requests with locked installments data
+export const getMembershipRequestsWithLockedInstallments = async (): Promise<MembershipRequest[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('membership_requests')
+      .select(`
+        *,
+        user:user_profiles!membership_requests_user_id_fkey(
+          user_id,
+          first_name,
+          last_name,
+          email,
+          profile_photo
+        ),
+        package:membership_packages!membership_requests_package_id_fkey(
+          id,
+          name,
+          description
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Load locked installments for each request
+    const requestsWithLockedInstallments = await Promise.all(
+      (data || []).map(async (request) => {
+        try {
+          const { data: lockedData, error: lockedError } = await supabase
+            .rpc('get_locked_installments_for_request', { request_id: request.id });
+          
+          if (lockedError) {
+            console.error('Error loading locked installments for request:', request.id, lockedError);
+            return request;
+          }
+
+          // Add locked installment information to the request
+          const lockedInstallments = lockedData || [];
+          
+          // Check if third installment is deleted
+          const { data: deletedData, error: deletedError } = await supabase
+            .rpc('is_third_installment_deleted', { request_id: request.id });
+          
+          let thirdInstallmentDeleted = false;
+          let thirdInstallmentDeletedAt = undefined;
+          let thirdInstallmentDeletedBy = undefined;
+          
+          if (!deletedError && deletedData) {
+            thirdInstallmentDeleted = deletedData;
+            
+            if (deletedData) {
+              // Get deletion info
+              const { data: deletionInfo, error: infoError } = await supabase
+                .rpc('get_deleted_third_installment_info', { request_id: request.id });
+              
+              if (!infoError && deletionInfo && deletionInfo.length > 0) {
+                thirdInstallmentDeletedAt = deletionInfo[0].deleted_at;
+                thirdInstallmentDeletedBy = deletionInfo[0].deleted_by_name;
+              }
+            }
+          }
+          
+          return {
+            ...request,
+            locked_installments: lockedInstallments,
+            installment_1_locked: lockedInstallments.some((li: any) => li.installment_number === 1),
+            installment_2_locked: lockedInstallments.some((li: any) => li.installment_number === 2),
+            installment_3_locked: lockedInstallments.some((li: any) => li.installment_number === 3),
+            third_installment_deleted: thirdInstallmentDeleted,
+            third_installment_deleted_at: thirdInstallmentDeletedAt,
+            third_installment_deleted_by: thirdInstallmentDeletedBy,
+          };
+        } catch (error) {
+          console.error('Error processing locked installments for request:', request.id, error);
+          return request;
+        }
+      })
+    );
+
+    return requestsWithLockedInstallments;
+  } catch (error) {
+    console.error('Error fetching membership requests with locked installments:', error);
+    toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων');
+    return [];
+  }
+};
+
 export const getUserMembershipRequests = async (userId: string): Promise<MembershipRequest[]> => {
   try {
     const { data, error } = await supabase

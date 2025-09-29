@@ -6,7 +6,8 @@ import {
   TrendingUp, 
   Search,
   X,
-  RefreshCw
+  RefreshCw,
+  Calendar
 } from 'lucide-react';
 import { 
   getCashRegisterTotals, 
@@ -26,6 +27,8 @@ const CashRegister: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [searchResults, setSearchResults] = useState<UserCashSummary[]>([]);
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,8 +38,8 @@ const CashRegister: React.FC = () => {
     try {
       setLoading(true);
       const [totalsData, summariesData] = await Promise.all([
-        getCashRegisterTotals(),
-        getCashSummaryPerUser()
+        getCashRegisterTotals(fromDate || undefined, toDate || undefined),
+        getCashSummaryPerUser(fromDate || undefined, toDate || undefined)
       ]);
       
       setTotals(totalsData);
@@ -53,6 +56,12 @@ const CashRegister: React.FC = () => {
   useEffect(() => {
     loadCashRegisterData();
   }, []);
+
+  const handleApplyDateFilter = () => {
+    // Reset pagination when applying new filter
+    setCurrentPage(1);
+    loadCashRegisterData();
+  };
 
   // Search functionality
   const searchUsers = (searchTerm: string) => {
@@ -167,7 +176,7 @@ const CashRegister: React.FC = () => {
               <p className="text-gray-600 mt-1">Μετρητά και POS ανά χρήστη</p>
             </div>
             
-            {/* Search Input */}
+            {/* Search + Date Range */}
             <div className="flex items-center space-x-2">
               <div className="relative">
                 <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -187,6 +196,33 @@ const CashRegister: React.FC = () => {
                   <X className="h-4 w-4" />
                 </button>
               )}
+              <div className="hidden sm:flex items-center space-x-2 ml-2">
+                <div className="relative">
+                  <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                  />
+                </div>
+                <span className="text-gray-500 text-sm">—</span>
+                <div className="relative">
+                  <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                  />
+                </div>
+                <button
+                  onClick={handleApplyDateFilter}
+                  className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
+                >
+                  Φίλτρο
+                </button>
+              </div>
             </div>
           </div>
         </div>

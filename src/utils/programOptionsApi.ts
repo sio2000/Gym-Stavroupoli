@@ -103,13 +103,26 @@ export const saveKettlebellPoints = async (
 };
 
 // Get total Kettlebell Points across all users
-export const getTotalKettlebellPoints = async (): Promise<number> => {
+export const getTotalKettlebellPoints = async (
+  fromDate?: string,
+  toDate?: string
+): Promise<number> => {
   try {
     console.log('[getTotalKettlebellPoints] Starting to fetch total points...');
-    
-    const { data, error } = await supabase
+
+    let query = supabase
       .from('user_kettlebell_points')
-      .select('points');
+      .select('points, created_at');
+
+    if (fromDate) {
+      query = query.gte('created_at', fromDate);
+    }
+    if (toDate) {
+      const to = toDate.length === 10 ? `${toDate}T23:59:59.999Z` : toDate;
+      query = query.lte('created_at', to);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[getTotalKettlebellPoints] Error getting total kettlebell points:', error);
@@ -126,11 +139,14 @@ export const getTotalKettlebellPoints = async (): Promise<number> => {
 };
 
 // Get Kettlebell Points summary per user
-export const getKettlebellPointsSummary = async (): Promise<UserKettlebellSummary[]> => {
+export const getKettlebellPointsSummary = async (
+  fromDate?: string,
+  toDate?: string
+): Promise<UserKettlebellSummary[]> => {
   try {
     console.log('[getKettlebellPointsSummary] Starting to fetch kettlebell points...');
-    
-    const { data, error } = await supabase
+
+    let query = supabase
       .from('user_kettlebell_points')
       .select(`
         user_id,
@@ -143,6 +159,16 @@ export const getKettlebellPointsSummary = async (): Promise<UserKettlebellSummar
         )
       `)
       .order('created_at', { ascending: false });
+
+    if (fromDate) {
+      query = query.gte('created_at', fromDate);
+    }
+    if (toDate) {
+      const to = toDate.length === 10 ? `${toDate}T23:59:59.999Z` : toDate;
+      query = query.lte('created_at', to);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[getKettlebellPointsSummary] Error getting kettlebell points summary:', error);

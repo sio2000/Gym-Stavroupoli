@@ -21,6 +21,7 @@ import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
 import { 
   getMembershipRequests,
+  getMembershipRequestsWithLockedInstallments,
   approveMembershipRequest,
   rejectMembershipRequest,
   formatPrice,
@@ -82,6 +83,19 @@ const SecretaryDashboard: React.FC = () => {
     pos?: boolean;
     cashAmount?: number;
     posAmount?: number;
+    installment1Amount?: number;
+    installment2Amount?: number;
+    installment3Amount?: number;
+    installment1PaymentMethod?: string;
+    installment2PaymentMethod?: string;
+    installment3PaymentMethod?: string;
+    installment1DueDate?: string;
+    installment2DueDate?: string;
+    installment3DueDate?: string;
+    installment1Locked?: boolean;
+    installment2Locked?: boolean;
+    installment3Locked?: boolean;
+    deleteThirdInstallment?: boolean;
   }}>({});
   const [requestProgramApprovalStatus, setRequestProgramApprovalStatus] = useState<{[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'}>({});
   const [requestPendingUsers, setRequestPendingUsers] = useState<Set<string>>(new Set());
@@ -225,6 +239,65 @@ const SecretaryDashboard: React.FC = () => {
       if (installment2DueDate) updateData.installment_2_due_date = installment2DueDate;
       if (installment3DueDate) updateData.installment_3_due_date = installment3DueDate;
 
+      // Handle installment locking using the new database table
+      const requestOptions = selectedRequestOptions[requestId];
+      if (requestOptions) {
+        // Lock installments that were just locked
+        // Helper function to validate user ID
+        const getValidUserId = (userId: string | undefined) => {
+          if (!userId || userId === "00000000-0000-0000-0000-000000000001" || userId === "undefined") {
+            return null;
+          }
+          return userId;
+        };
+
+        if (requestOptions.installment1Locked) {
+          const { error: lockError } = await supabase
+            .rpc('lock_installment', { 
+              request_id: requestId, 
+              installment_num: 1, 
+              locked_by_user_id: getValidUserId(user?.id) 
+            });
+          if (lockError) {
+            console.error('Error locking installment 1:', lockError);
+          }
+        }
+        if (requestOptions.installment2Locked) {
+          const { error: lockError } = await supabase
+            .rpc('lock_installment', { 
+              request_id: requestId, 
+              installment_num: 2, 
+              locked_by_user_id: getValidUserId(user?.id) 
+            });
+          if (lockError) {
+            console.error('Error locking installment 2:', lockError);
+          }
+        }
+        if (requestOptions.installment3Locked) {
+          const { error: lockError } = await supabase
+            .rpc('lock_installment', { 
+              request_id: requestId, 
+              installment_num: 3, 
+              locked_by_user_id: getValidUserId(user?.id) 
+            });
+          if (lockError) {
+            console.error('Error locking installment 3:', lockError);
+          }
+        }
+
+        // Handle third installment deletion
+        if (requestOptions.deleteThirdInstallment) {
+          const { error: deleteError } = await supabase
+            .rpc('delete_third_installment_permanently', { 
+              request_id: requestId, 
+              deleted_by_user_id: getValidUserId(user?.id) 
+            });
+          if (deleteError) {
+            console.error('Error deleting third installment:', deleteError);
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('membership_requests')
         .update(updateData)
@@ -264,11 +337,12 @@ const SecretaryDashboard: React.FC = () => {
   const loadUltimateRequests = async () => {
     try {
       setUltimateLoading(true);
-      const requests = await getMembershipRequests();
+      const requests = await getMembershipRequestsWithLockedInstallments();
       // Filter all Ultimate requests (with and without installments)
       const ultimateRequests = requests.filter(request => 
         request.package?.name === 'Ultimate'
       );
+      
       setUltimateRequests(ultimateRequests);
     } catch (error) {
       console.error('Error loading ultimate requests:', error);
