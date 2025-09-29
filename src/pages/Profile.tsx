@@ -12,9 +12,7 @@ import {
   Camera,
   Key,
   Shield,
-  Trash2,
   Check,
-  AlertCircle,
   Eye,
   EyeOff,
   Upload,
@@ -31,7 +29,6 @@ const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCameraPreview, setShowCameraPreview] = useState(false);
   const [showPassword, setShowPassword] = useState({
     current: false,
@@ -39,7 +36,6 @@ const Profile: React.FC = () => {
     confirm: false
   });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
@@ -520,62 +516,6 @@ const Profile: React.FC = () => {
     }
   };
 
-  // Handle account deletion
-  const handleDeleteAccount = async () => {
-    if (!user?.id) {
-      toast.error('Δεν βρέθηκε ο χρήστης');
-      return;
-    }
-
-    setIsDeletingAccount(true);
-
-    try {
-      // First, delete user profile from database
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (profileError) {
-        console.error('Error deleting user profile:', profileError);
-        toast.error('Σφάλμα κατά τη διαγραφή του προφίλ');
-        return;
-      }
-
-      // Call the SQL function to delete user data
-      const { data: deleteResult, error: deleteError } = await supabase
-        .rpc('delete_user_account', { user_id_to_delete: user.id });
-
-      if (deleteError) {
-        console.error('Error calling delete_user_account function:', deleteError);
-        toast.error('Σφάλμα κατά τη διαγραφή των δεδομένων');
-        return;
-      }
-
-      if (!deleteResult?.success) {
-        console.error('Delete function returned error:', deleteResult);
-        toast.error('Σφάλμα κατά τη διαγραφή του λογαριασμού');
-        return;
-      }
-
-      // Show success message
-      toast.success('Ο λογαριασμός διαγράφηκε επιτυχώς!');
-      
-      // Close modal
-      setShowDeleteModal(false);
-      
-      // Logout and redirect to login
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
-
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      toast.error('Σφάλμα κατά τη διαγραφή του λογαριασμού');
-    } finally {
-      setIsDeletingAccount(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-black">
@@ -595,35 +535,6 @@ const Profile: React.FC = () => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
-              {!isEditing ? (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-2xl font-medium hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  <Edit3 className="h-5 w-5" />
-                  <span className="hidden sm:inline">Επεξεργασία</span>
-                </button>
-              ) : (
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="flex items-center space-x-2 px-4 py-3 text-gray-300 bg-dark-700/80 border border-dark-600 rounded-2xl font-medium hover:bg-dark-600 transition-all duration-200"
-                  >
-                    <X className="h-5 w-5" />
-                    <span className="hidden sm:inline">Ακύρωση</span>
-                  </button>
-                  
-                  <button
-                    onClick={handleSubmit}
-                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl font-medium hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                  >
-                    <Save className="h-5 w-5" />
-                    <span className="hidden sm:inline">Αποθήκευση</span>
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>
@@ -715,10 +626,42 @@ const Profile: React.FC = () => {
 
             {/* Personal Information Form */}
             <div className="bg-dark-800/70 backdrop-blur-sm rounded-3xl p-8 shadow-lg border border-dark-600/20">
-              <h3 className="text-xl font-bold text-white mb-6 flex items-center">
-                <UserCheck className="h-6 w-6 mr-3 text-blue-600" />
-                Πληροφορίες Προφίλ
-              </h3>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center">
+                  <UserCheck className="h-6 w-6 mr-3 text-blue-600" />
+                  Πληροφορίες Προφίλ
+                </h3>
+                
+                <div className="flex items-center space-x-3">
+                  {!isEditing ? (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-2xl font-medium hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      <Edit3 className="h-5 w-5" />
+                      <span className="hidden sm:inline">Επεξεργασία</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="flex items-center space-x-2 px-4 py-3 text-gray-300 bg-dark-700/80 border border-dark-600 rounded-2xl font-medium hover:bg-dark-600 transition-all duration-200"
+                      >
+                        <X className="h-5 w-5" />
+                        <span className="hidden sm:inline">Ακύρωση</span>
+                      </button>
+                      
+                      <button
+                        onClick={handleSubmit}
+                        className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl font-medium hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      >
+                        <Save className="h-5 w-5" />
+                        <span className="hidden sm:inline">Αποθήκευση</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
               
               <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Basic Information */}
@@ -847,7 +790,7 @@ const Profile: React.FC = () => {
                 {/* Emergency Contact */}
                 <div className="space-y-4">
                   <h4 className="text-lg font-semibold text-white flex items-center">
-                    <AlertCircle className="h-5 w-5 mr-2 text-orange-500" />
+                    <User className="h-5 w-5 mr-2 text-orange-500" />
                     Επείγουσα Επικοινωνία
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -963,23 +906,6 @@ const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* Account Actions Card */}
-            <div className="bg-dark-800/70 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-dark-600/20">
-              <h3 className="text-xl font-bold text-white mb-6 flex items-center">
-                <AlertCircle className="h-6 w-6 mr-3 text-red-600" />
-                Ενέργειες Λογαριασμού
-              </h3>
-              
-              <div className="space-y-4">
-                <button
-                  onClick={() => setShowDeleteModal(true)}
-                  className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-2xl font-medium hover:from-red-700 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  <Trash2 className="h-5 w-5" />
-                  <span>Διαγραφή Λογαριασμού</span>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -1089,58 +1015,6 @@ const Profile: React.FC = () => {
         </div>
       )}
 
-      {/* Modern Delete Account Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-dark-600/20">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-pink-600 rounded-2xl flex items-center justify-center">
-                  <Trash2 className="h-5 w-5 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-white">Διαγραφή Λογαριασμού</h3>
-              </div>
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-xl transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="p-4 bg-red-600/20 border border-red-600/30 rounded-2xl">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                  <div>
-                    <h4 className="font-semibold text-red-400 mb-2">Προσοχή!</h4>
-                    <p className="text-sm text-red-300">
-                      Η διαγραφή του λογαριασμού είναι μη αναστρέψιμη. Όλα τα δεδομένα σας θα διαγραφούν οριστικά.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex space-x-4">
-                 <button
-                   onClick={() => setShowDeleteModal(false)}
-                   className="flex-1 px-6 py-3 text-gray-300 border border-dark-600 rounded-2xl hover:bg-dark-700 transition-all duration-200 font-medium"
-                 >
-                  Ακύρωση
-                </button>
-                <button
-                  onClick={handleDeleteAccount}
-                  disabled={isDeletingAccount}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-2xl hover:from-red-700 hover:to-pink-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isDeletingAccount && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {isDeletingAccount ? 'Διαγραφή...' : 'Διαγραφή'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
        {/* Camera Stream Modal (Desktop) */}
        {showCameraStream && (

@@ -232,7 +232,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     ...(hasQRCodeAccess ? [{ name: 'QR Codes', href: '/qr-codes', icon: QrCode }] : []),
     { name: 'Παραπομπές', href: '/referral', icon: UserPlus },
     { name: 'Προφίλ', href: '/profile', icon: User },
-    { name: 'Πρόσθετα', href: '/extras', icon: Star },
+    { name: 'Είσαι Γονέας?', href: '/extras', icon: Star },
   ];
 
   // Admin specific navigation

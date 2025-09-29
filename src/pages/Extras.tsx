@@ -146,7 +146,7 @@ const Extras: React.FC = () => {
                     <Baby className="h-12 w-12 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-3xl sm:text-4xl font-bold">Επιπλέον Υπηρεσίες</h1>
+                    <h1 className="text-3xl sm:text-4xl font-bold">Είσαι Γονέας?</h1>
                     <div className="flex items-center space-x-2 mt-2">
                       <Sparkles className="h-5 w-5 text-yellow-300" />
                       <span className="text-purple-200">Για εσάς και την οικογένειά σας</span>
@@ -172,10 +172,17 @@ const Extras: React.FC = () => {
               
               <div className="flex-shrink-0">
                 <div className="relative">
-                  <div className="w-48 h-48 sm:w-64 sm:h-64 bg-gradient-to-br from-pink-400 to-purple-600 rounded-full flex items-center justify-center shadow-2xl animate-float">
+                  <div className="w-48 h-48 sm:w-64 sm:h-64 bg-gradient-to-br from-pink-400 to-purple-600 rounded-full flex items-center justify-center shadow-2xl animate-float relative">
                     <div className="text-center text-white">
                       <div className="text-4xl sm:text-6xl mb-2 sm:mb-4">🏠</div>
                       <div className="text-xs sm:text-sm font-semibold">Μόλις 1 λεπτό<br/>μακριά!</div>
+                    </div>
+                    {/* Children and Parents Icons - right next to the house at different heights */}
+                    <div className="absolute top-1/3 -left-2 sm:-left-3 transform -translate-y-1/2 text-4xl sm:text-5xl animate-bounce" style={{ animationDelay: '0.5s' }}>
+                      👶
+                    </div>
+                    <div className="absolute top-2/3 -right-2 sm:-right-3 transform -translate-y-1/2 text-4xl sm:text-5xl animate-bounce" style={{ animationDelay: '1s' }}>
+                      👨‍👩‍👧‍👦
                     </div>
                   </div>
                   <div className="absolute -top-2 -right-2 sm:-top-4 sm:-right-4 w-12 h-12 sm:w-16 sm:h-16 bg-yellow-400 rounded-full flex items-center justify-center animate-bounce">

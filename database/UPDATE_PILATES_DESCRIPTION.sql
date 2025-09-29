@@ -10,7 +10,7 @@ SELECT 'PHASE 1: Updating Pilates package description to Greek...' as phase;
 -- Update the Pilates package description
 UPDATE membership_packages 
 SET 
-    description = 'Μαθήματα Pilates με Ευέλικτες Επιλογές',
+    description = 'Συνδρομή Γυμναστηρίου Pilates με Ευέλικτες Επιλογές',
     updated_at = NOW()
 WHERE name = 'Pilates';
 
@@ -27,7 +27,7 @@ SELECT id, name, description, updated_at FROM membership_packages WHERE name = '
 -- Check if description contains Greek text
 SELECT 
   CASE 
-    WHEN description LIKE '%Μαθήματα%' AND description LIKE '%Pilates%' AND description LIKE '%Ευέλικτες%'
+    WHEN description LIKE '%Συνδρομή%' AND description LIKE '%Pilates%' AND description LIKE '%Ευέλικτες%'
     THEN '✅ Pilates description is in Greek and complete!'
     ELSE '❌ Pilates description is not in Greek or incomplete'
   END as description_status

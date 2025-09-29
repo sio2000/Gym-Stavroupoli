@@ -197,7 +197,7 @@ export const mockMembershipPackages: MembershipPackage[] = [
   {
     id: '3',
     name: 'Personal Training',
-    description: 'Personal Training μαθήματα',
+    description: 'Συνδρομή Γυμναστηρίου Personal Training',
     credits: 15,
     price: 99.99,
     validityDays: 30,
