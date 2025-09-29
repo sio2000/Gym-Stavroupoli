@@ -126,7 +126,7 @@ export interface MembershipPackage {
 export interface MembershipPackageDuration {
   id: string;
   package_id: string;
-  duration_type: 'year' | 'semester' | 'month' | 'lesson' | 'pilates_trial' | 'pilates_1month' | 'pilates_2months' | 'pilates_3months' | 'pilates_6months' | 'pilates_1year';
+  duration_type: 'year' | 'semester' | '3 Μήνες' | 'month' | 'lesson' | 'pilates_trial' | 'pilates_1month' | 'pilates_2months' | 'pilates_3months' | 'pilates_6months' | 'pilates_1year';
   duration_days: number;
   price: number;
   classes_count?: number; // For Pilates packages
@@ -148,7 +148,7 @@ export interface MembershipRequest {
   id: string;
   user_id: string;
   package_id: string;
-  duration_type: 'year' | 'semester' | 'month' | 'lesson' | 'pilates_trial' | 'pilates_1month' | 'pilates_2months' | 'pilates_3months' | 'pilates_6months' | 'pilates_1year';
+  duration_type: 'year' | 'semester' | '3 Μήνες' | 'month' | 'lesson' | 'pilates_trial' | 'pilates_1month' | 'pilates_2months' | 'pilates_3months' | 'pilates_6months' | 'pilates_1year';
   requested_price: number;
   classes_count?: number; // For Pilates packages
   status: 'pending' | 'approved' | 'rejected';
@@ -185,7 +185,7 @@ export interface Membership {
   id: string;
   user_id: string;
   package_id: string;
-  duration_type: 'year' | 'semester' | 'month' | 'lesson' | 'pilates_trial' | 'pilates_1month' | 'pilates_2months' | 'pilates_3months' | 'pilates_6months' | 'pilates_1year';
+  duration_type: 'year' | 'semester' | '3 Μήνες' | 'month' | 'lesson' | 'pilates_trial' | 'pilates_1month' | 'pilates_2months' | 'pilates_3months' | 'pilates_6months' | 'pilates_1year';
   start_date: string;
   end_date: string;
   status: MembershipStatus;

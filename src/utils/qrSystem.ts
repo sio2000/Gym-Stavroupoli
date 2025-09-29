@@ -150,7 +150,7 @@ export async function generateQRCode(
           id,
           is_active,
           end_date,
-          membership_packages(package_type)
+          membership_packages(package_type, name)
         `)
         .eq('user_id', userId)
         .eq('is_active', true)
@@ -161,14 +161,17 @@ export async function generateQRCode(
         throw new Error(`Σφάλμα κατά τη φόρτωση των συνδρομών.`);
       }
 
-      // Check if any membership has the required package type
+      // Check if any membership has the required package type or name
       const membership = memberships?.find(m => {
         // Handle membership_packages as either array or single object
         const packages = Array.isArray(m.membership_packages) 
           ? m.membership_packages 
           : m.membership_packages ? [m.membership_packages] : [];
         
-        return packages.some(pkg => packageTypes.includes(pkg.package_type));
+        return packages.some(pkg => 
+          packageTypes.includes(pkg.package_type) || 
+          (category === 'free_gym' && pkg.name === 'Free Gym')
+        );
       });
 
       if (!membership) {

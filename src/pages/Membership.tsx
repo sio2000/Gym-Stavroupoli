@@ -959,7 +959,7 @@ const MembershipPage: React.FC = React.memo(() => {
                     }
                     
                     // For other packages, use custom sorting by duration_type
-                    const order = { 'lesson': 1, 'month': 30, 'semester': 180, 'year': 365 };
+                    const order = { 'lesson': 1, 'month': 30, '3 Μήνες': 90, 'semester': 180, 'year': 365 };
                     const aOrder = order[a.duration_type as keyof typeof order] || a.duration_days;
                     const bOrder = order[b.duration_type as keyof typeof order] || b.duration_days;
                     return aOrder - bOrder;

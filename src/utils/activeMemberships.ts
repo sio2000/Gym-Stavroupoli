@@ -29,8 +29,8 @@ const PACKAGE_TYPE_TO_QR_CATEGORY: Record<string, QRCodeCategory> = {
     icon: '🏋️',
     packageType: 'free_gym'
   },
-  // Note: 'standard' package type is used for Personal Training memberships, not Free Gym
-  // We should NOT map 'standard' to Free Gym QR category
+  // Note: 'standard' package type can be used for both Free Gym and Personal Training
+  // We need to check the package name to determine the correct QR category
   'pilates': {
     key: 'pilates',
     label: 'Pilates',
@@ -43,11 +43,11 @@ const PACKAGE_TYPE_TO_QR_CATEGORY: Record<string, QRCodeCategory> = {
     icon: '🥊',
     packageType: 'personal_training'
   },
-  // Map 'standard' package type to Personal Training (not Free Gym)
+  // Map 'standard' package type to Free Gym (based on package name)
   'standard': {
-    key: 'personal',
-    label: 'Personal Training',
-    icon: '🥊',
+    key: 'free_gym',
+    label: 'Ελεύθερο Gym',
+    icon: '🏋️',
     packageType: 'standard'
   },
   // Add support for 'personal' package type as well (if it exists in some databases)

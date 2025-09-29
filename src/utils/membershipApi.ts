@@ -501,6 +501,7 @@ export const getDurationDays = (durationType: string): number => {
   const days = {
     'year': 365,
     'semester': 180,
+    '3 Μήνες': 90, // New 3-month option for Free Gym (Greek)
     'month': 30,
     'lesson': 7, // Changed from 1 to 7 days for Free Gym lesson option
     'pilates_trial': 7, // Changed from 1 to 7 days for Pilates trial option
@@ -528,6 +529,9 @@ export const getDurationDisplayText = (durationType: string, durationDays: numbe
   if (durationType === 'pilates_trial' && durationDays === 7) {
     return '1 εβδομάδα';
   }
+  if (durationType === '3 Μήνες' && durationDays === 90) {
+    return 'Τρίμηνο';
+  }
   
   // Default display for other cases
   if (durationDays === 1) {
@@ -536,6 +540,10 @@ export const getDurationDisplayText = (durationType: string, durationDays: numbe
     return '1 εβδομάδα';
   } else if (durationDays === 30) {
     return '1 μήνας';
+  } else if (durationDays === 90) {
+    return '3 μήνες';
+  } else if (durationDays === 180) {
+    return '6 μήνες';
   } else if (durationDays === 365) {
     return '1 έτος';
   } else {
