@@ -925,43 +925,6 @@ const UltimateInstallmentsTab: React.FC<UltimateInstallmentsTabProps> = ({
           </div>
         </div>
       )}
-
-      {/* Delete Third Installment Confirmation Popup */}
-      {showDeleteConfirmation && pendingDeleteRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 max-w-md mx-4 border border-gray-600 shadow-2xl">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <Trash2 className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">
-                🗑️ Διαγραφή 3ης Δόσης
-              </h3>
-              <p className="text-gray-300 mb-6 text-lg">
-                Do you confirm deleting the 3rd installment permanently?
-              </p>
-              <p className="text-gray-400 mb-8 text-sm">
-                Μόλις διαγράψετε την 3η δόση, δεν θα μπορείτε πλέον να επεξεργαστείτε τα στοιχεία της και θα αποκλειστεί από τον υπολογισμό του συνολικού ποσού.
-              </p>
-              <div className="flex space-x-4">
-                <button
-                  onClick={cancelDeleteThirdInstallment}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
-                >
-                  ❌ Cancel
-                </button>
-                <button
-                  onClick={confirmDeleteThirdInstallment}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>✅ Yes, Delete</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
