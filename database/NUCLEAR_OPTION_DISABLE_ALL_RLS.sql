@@ -1,20 +1,17 @@
 -- =============================================
--- FINAL RLS FIX - RUN THIS IN SUPABASE DASHBOARD
+-- NUCLEAR OPTION - DISABLE ALL RLS
 -- =============================================
--- 
--- Οδηγίες:
--- 1. Πήγαινε στο Supabase Dashboard
--- 2. Πήγαινε στο SQL Editor
--- 3. Αντιγράψε και τρέξε αυτό το script
--- 4. Ελέγξε αν η εφαρμογή λειτουργεί
+-- Αυτό το script θα απενεργοποιήσει ΟΛΟ το RLS προσωρινά
+-- για να επαναφέρει τη λειτουργικότητα της βάσης
 
 BEGIN;
 
 -- =============================================
 -- STEP 1: ΔΙΑΓΡΑΦΗ ΟΛΩΝ ΤΩΝ POLICIES
 -- =============================================
-SELECT 'Dropping all policies...' as step;
+SELECT 'Διαγραφή όλων των policies...' as step;
 
+-- Διαγραφή όλων των policies από όλους τους πίνακες
 DO $$
 DECLARE
     policy_record RECORD;
@@ -32,14 +29,14 @@ BEGIN
             EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 
                 policy_record.policyname, 
                 policy_record.tablename);
-            RAISE NOTICE 'Dropped policy: % on %', 
+            RAISE NOTICE 'Διαγράφηκε policy: % στο %', 
                 policy_record.policyname, 
                 policy_record.tablename;
         EXCEPTION
             WHEN OTHERS THEN
-            RAISE NOTICE 'Could not drop: % - %', 
-                policy_record.policyname, 
-                SQLERRM;
+                RAISE NOTICE 'Δεν μπόρεσε να διαγραφεί: % - %', 
+                    policy_record.policyname, 
+                    SQLERRM;
         END;
     END LOOP;
 END $$;
@@ -47,21 +44,21 @@ END $$;
 -- =============================================
 -- STEP 2: ΔΙΑΓΡΑΦΗ ΟΛΩΝ ΤΩΝ FUNCTIONS
 -- =============================================
-SELECT 'Dropping all functions...' as step;
+SELECT 'Διαγραφή όλων των functions...' as step;
 
+-- Διαγραφή όλων των functions που δημιουργήσαμε
 DROP FUNCTION IF EXISTS public.is_user_secretary() CASCADE;
 DROP FUNCTION IF EXISTS public.is_secretary_simple() CASCADE;
 DROP FUNCTION IF EXISTS public.is_secretary_ultra_simple() CASCADE;
 DROP FUNCTION IF EXISTS public.is_user_secretary_safe() CASCADE;
-DROP FUNCTION IF EXISTS public.is_secretary() CASCADE;
-DROP FUNCTION IF EXISTS public.is_admin() CASCADE;
-DROP FUNCTION IF EXISTS public.is_user_admin() CASCADE;
+DROP FUNCTION IF EXISTS public.is_secretary_ultra_simple() CASCADE;
 
 -- =============================================
--- STEP 3: ΑΠΕΝΕΡΓΟΠΟΙΗΣΗ RLS
+-- STEP 3: ΑΠΕΝΕΡΓΟΠΟΙΗΣΗ RLS ΑΠΟ ΟΛΟΥΣ ΤΟΥΣ ΠΙΝΑΚΕΣ
 -- =============================================
-SELECT 'Disabling RLS on all tables...' as step;
+SELECT 'Απενεργοποίηση RLS από όλους τους πίνακες...' as step;
 
+-- Απενεργοποίηση RLS από όλους τους πίνακες
 ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE personal_training_schedules DISABLE ROW LEVEL SECURITY;
 ALTER TABLE personal_training_codes DISABLE ROW LEVEL SECURITY;
@@ -73,8 +70,9 @@ ALTER TABLE membership_requests DISABLE ROW LEVEL SECURITY;
 -- =============================================
 -- STEP 4: ΠΡΟΣΘΗΚΗ MISSING COLUMN
 -- =============================================
-SELECT 'Adding missing column...' as step;
+SELECT 'Προσθήκη missing column...' as step;
 
+-- Προσθήκη personal_training_code column αν δεν υπάρχει
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -85,53 +83,56 @@ BEGIN
     ) THEN
         ALTER TABLE user_profiles 
         ADD COLUMN personal_training_code TEXT DEFAULT NULL;
-        RAISE NOTICE 'Added personal_training_code column to user_profiles';
+        
+        RAISE NOTICE '✅ Προστέθηκε η στήλη personal_training_code στο user_profiles';
     ELSE
-        RAISE NOTICE 'personal_training_code column already exists';
+        RAISE NOTICE 'ℹ️ Η στήλη personal_training_code υπάρχει ήδη';
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
-        RAISE NOTICE 'Error adding column: %', SQLERRM;
+        RAISE NOTICE '⚠️ Σφάλμα κατά την προσθήκη column: %', SQLERRM;
 END $$;
 
 -- =============================================
 -- STEP 5: ΕΛΕΓΧΟΣ ΑΠΟΤΕΛΕΣΜΑΤΩΝ
 -- =============================================
-SELECT 'Testing database access...' as step;
+SELECT 'Έλεγχος αποτελεσμάτων...' as step;
 
--- Test user_profiles
+-- Έλεγχος αν μπορούμε να κάνουμε query στο user_profiles
 SELECT 
-    'user_profiles test:' as test_name,
-    COUNT(*) as record_count 
+    'Test user_profiles query:' as test,
+    COUNT(*) as user_count 
 FROM user_profiles;
 
--- Test membership_packages
+-- Έλεγχος αν μπορούμε να κάνουμε query στο memberships
 SELECT 
-    'membership_packages test:' as test_name,
-    COUNT(*) as record_count 
-FROM membership_packages;
-
--- Test memberships
-SELECT 
-    'memberships test:' as test_name,
-    COUNT(*) as record_count 
+    'Test memberships query:' as test,
+    COUNT(*) as membership_count 
 FROM memberships;
 
--- Test membership_requests
+-- Έλεγχος αν μπορούμε να κάνουμε query στο personal_training_schedules
 SELECT 
-    'membership_requests test:' as test_name,
-    COUNT(*) as record_count 
-FROM membership_requests;
+    'Test personal_training_schedules query:' as test,
+    COUNT(*) as schedule_count 
+FROM personal_training_schedules;
+
+-- Έλεγχος αν μπορούμε να κάνουμε query στο membership_packages
+SELECT 
+    'Test membership_packages query:' as test,
+    COUNT(*) as package_count 
+FROM membership_packages;
 
 -- =============================================
 -- STEP 6: ΕΛΕΓΧΟΣ RLS STATUS
 -- =============================================
-SELECT 'Checking RLS status...' as step;
+SELECT 'Έλεγχος RLS status...' as step;
 
+-- Έλεγχος RLS status όλων των πινάκων
 SELECT 
     schemaname,
     tablename,
-    rowsecurity as rls_enabled
+    rowsecurity as rls_enabled,
+    hasrls
 FROM pg_tables 
 WHERE tablename IN (
     'user_profiles', 'personal_training_schedules', 
@@ -143,33 +144,12 @@ ORDER BY tablename;
 -- =============================================
 -- STEP 7: ΕΠΙΒΕΒΑΙΩΣΗ
 -- =============================================
-SELECT '🎉 RLS FIX COMPLETED SUCCESSFULLY!' as message;
-SELECT '✅ All policies dropped' as message;
-SELECT '✅ All functions dropped' as message;
-SELECT '✅ RLS disabled on all tables' as message;
-SELECT '✅ Missing column added' as message;
-SELECT '✅ Database should work now' as message;
-SELECT '⚠️ RLS is disabled - security review needed' as message;
+SELECT '🎉 NUCLEAR OPTION ΟΛΟΚΛΗΡΩΘΗΚΕ!' as message;
+SELECT '✅ Όλες οι policies διαγράφηκαν' as message;
+SELECT '✅ Όλες οι functions διαγράφηκαν' as message;
+SELECT '✅ RLS απενεργοποιήθηκε από όλους τους πίνακες' as message;
+SELECT '✅ Missing column προστέθηκε' as message;
+SELECT '✅ Η βάση θα πρέπει να λειτουργεί τώρα' as message;
+SELECT '⚠️ RLS είναι απενεργοποιημένο - χρειάζεται security review' as message;
 
 COMMIT;
-
--- =============================================
--- ΟΔΗΓΙΕΣ ΜΕΤΑ ΤΗΝ ΕΚΤΕΛΕΣΗ
--- =============================================
-/*
-ΜΕΤΑ ΤΗΝ ΕΚΤΕΛΕΣΗ ΑΥΤΟΥ ΤΟΥ SCRIPT:
-
-1. ✅ Ελέγξε αν η εφαρμογή λειτουργεί τώρα
-2. ✅ Δοκίμασε login και navigation
-3. ✅ Ελέγξε αν φορτώνονται τα membership packages
-4. ✅ Ελέγξε αν φορτώνονται οι user profiles
-
-ΑΝ Η ΕΦΑΡΜΟΓΗ ΛΕΙΤΟΥΡΓΕΙ:
-- ✅ Το πρόβλημα διορθώθηκε!
-- ⚠️ Χρειάζεται security review για RLS policies
-
-ΑΝ Η ΕΦΑΡΜΟΓΗ ΑΚΟΜΑ ΔΕΝ ΛΕΙΤΟΥΡΓΕΙ:
-- 🔍 Ελέγξε τα browser console logs
-- 🔍 Ελέγξε τα network requests
-- 📞 Επικοινώνησε για περαιτέρω βοήθεια
-*/

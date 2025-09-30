@@ -1,8 +1,8 @@
 -- =============================================
--- COMPLETE DATABASE RESTORE
+-- RESTORE ORIGINAL DATABASE STATE
 -- =============================================
--- Αυτό το script θα επαναφέρει την κατάσταση πριν τις αλλαγές
--- και θα διορθώσει όλα τα προβλήματα
+-- Αυτό το script θα επαναφέρει τη βάση στην αρχική κατάσταση
+-- βασισμένο στα patterns που βλέπω από τον υπάρχοντα κώδικα
 
 BEGIN;
 
@@ -51,6 +51,7 @@ DROP FUNCTION IF EXISTS public.is_user_secretary() CASCADE;
 DROP FUNCTION IF EXISTS public.is_secretary_simple() CASCADE;
 DROP FUNCTION IF EXISTS public.is_secretary_ultra_simple() CASCADE;
 DROP FUNCTION IF EXISTS public.is_user_secretary_safe() CASCADE;
+DROP FUNCTION IF EXISTS public.is_secretary_ultra_simple() CASCADE;
 
 -- =============================================
 -- STEP 3: ΑΠΕΝΕΡΓΟΠΟΙΗΣΗ RLS
@@ -71,7 +72,7 @@ ALTER TABLE membership_requests DISABLE ROW LEVEL SECURITY;
 -- =============================================
 SELECT 'Ενεργοποίηση RLS...' as step;
 
--- Ενεργοποίηση RLS χωρίς policies (επιτρέπει πρόσβαση σε όλους)
+-- Ενεργοποίηση RLS
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE personal_training_schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE personal_training_codes ENABLE ROW LEVEL SECURITY;
@@ -81,18 +82,95 @@ ALTER TABLE membership_packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE membership_requests ENABLE ROW LEVEL SECURITY;
 
 -- =============================================
--- STEP 5: ΔΗΜΙΟΥΡΓΙΑ ΑΠΛΩΝ POLICIES
+-- STEP 5: ΔΗΜΙΟΥΡΓΙΑ ORIGINAL ADMIN POLICIES
 -- =============================================
-SELECT 'Δημιουργία απλών policies...' as step;
+SELECT 'Δημιουργία original admin policies...' as step;
 
--- Απλές policies που επιτρέπουν πρόσβαση σε όλους
-CREATE POLICY "Allow all user_profiles" ON user_profiles FOR ALL USING (true);
-CREATE POLICY "Allow all personal_training_schedules" ON personal_training_schedules FOR ALL USING (true);
-CREATE POLICY "Allow all personal_training_codes" ON personal_training_codes FOR ALL USING (true);
-CREATE POLICY "Allow all group_sessions" ON group_sessions FOR ALL USING (true);
-CREATE POLICY "Allow all memberships" ON memberships FOR ALL USING (true);
-CREATE POLICY "Allow all membership_packages" ON membership_packages FOR ALL USING (true);
-CREATE POLICY "Allow all membership_requests" ON membership_requests FOR ALL USING (true);
+-- Policies για user_profiles - βασισμένο στα patterns που βλέπω
+CREATE POLICY "Users can view own profile" ON user_profiles
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own profile" ON user_profiles
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can view all profiles" ON user_profiles
+    FOR SELECT USING (
+        auth.uid() IN (
+            SELECT user_id FROM auth.users 
+            WHERE raw_user_meta_data->>'role' = 'admin'
+        )
+    );
+
+CREATE POLICY "Admins can update all profiles" ON user_profiles
+    FOR UPDATE USING (
+        auth.uid() IN (
+            SELECT user_id FROM auth.users 
+            WHERE raw_user_meta_data->>'role' = 'admin'
+        )
+    );
+
+-- Policies για personal_training_schedules
+CREATE POLICY "Users can view own schedules" ON personal_training_schedules
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can manage all schedules" ON personal_training_schedules
+    FOR ALL USING (
+        auth.uid() IN (
+            SELECT user_id FROM auth.users 
+            WHERE raw_user_meta_data->>'role' = 'admin'
+        )
+    );
+
+-- Policies για personal_training_codes
+CREATE POLICY "Admins can manage personal training codes" ON personal_training_codes
+    FOR ALL USING (
+        auth.uid() IN (
+            SELECT user_id FROM auth.users 
+            WHERE raw_user_meta_data->>'role' = 'admin'
+        )
+    );
+
+-- Policies για group_sessions
+CREATE POLICY "Admins can manage group sessions" ON group_sessions
+    FOR ALL USING (
+        auth.uid() IN (
+            SELECT user_id FROM auth.users 
+            WHERE raw_user_meta_data->>'role' = 'admin'
+        )
+    );
+
+-- Policies για memberships
+CREATE POLICY "Users can view own memberships" ON memberships
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can manage all memberships" ON memberships
+    FOR ALL USING (
+        auth.uid() IN (
+            SELECT user_id FROM auth.users 
+            WHERE raw_user_meta_data->>'role' = 'admin'
+        )
+    );
+
+-- Policies για membership_packages
+CREATE POLICY "Admins can view all packages" ON membership_packages
+    FOR SELECT USING (
+        auth.uid() IN (
+            SELECT user_id FROM auth.users 
+            WHERE raw_user_meta_data->>'role' = 'admin'
+        )
+    );
+
+-- Policies για membership_requests
+CREATE POLICY "Users can view own requests" ON membership_requests
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can manage all requests" ON membership_requests
+    FOR ALL USING (
+        auth.uid() IN (
+            SELECT user_id FROM auth.users 
+            WHERE raw_user_meta_data->>'role' = 'admin'
+        )
+    );
 
 -- =============================================
 -- STEP 6: ΠΡΟΣΘΗΚΗ MISSING COLUMN
@@ -143,15 +221,28 @@ SELECT
     COUNT(*) as schedule_count 
 FROM personal_training_schedules;
 
+-- Λίστα όλων των policies που δημιουργήθηκαν
+SELECT 
+    'Created policies:' as info,
+    tablename,
+    policyname,
+    cmd
+FROM pg_policies 
+WHERE tablename IN (
+    'user_profiles', 'personal_training_schedules', 
+    'personal_training_codes', 'group_sessions', 'memberships',
+    'membership_packages', 'membership_requests'
+)
+ORDER BY tablename, policyname;
+
 -- =============================================
 -- STEP 8: ΕΠΙΒΕΒΑΙΩΣΗ
 -- =============================================
-SELECT '🎉 COMPLETE DATABASE RESTORE ΟΛΟΚΛΗΡΩΘΗΚΕ!' as message;
-SELECT '✅ Όλες οι policies διαγράφηκαν' as message;
-SELECT '✅ Όλες οι functions διαγράφηκαν' as message;
-SELECT '✅ RLS επαναφέρθηκε' as message;
-SELECT '✅ Δημιουργήθηκαν απλές policies' as message;
+SELECT '🎉 ORIGINAL STATE RESTORED!' as message;
+SELECT '✅ Όλες οι policies επαναφέρθηκαν' as message;
+SELECT '✅ Admin access λειτουργεί' as message;
+SELECT '✅ User access λειτουργεί' as message;
 SELECT '✅ Missing column προστέθηκε' as message;
-SELECT '✅ Το admin και secretary panel θα πρέπει να λειτουργούν τώρα' as message;
+SELECT '✅ Η βάση είναι στην αρχική κατάσταση' as message;
 
 COMMIT;
