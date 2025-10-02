@@ -1622,10 +1622,12 @@ const AdminPanel: React.FC = () => {
     try {
       setInstallmentLoading(true);
       const requests = await getMembershipRequests();
-      // Filter only Ultimate requests with installments
-      const installmentRequests = requests.filter(request => 
-        request.package?.name === 'Ultimate' && request.has_installments
-      );
+      const installmentRequests = requests.filter(request => {
+        if (!request.has_installments) return false;
+        return request.package?.name ?
+          require('@/utils/installmentsEligibility').isInstallmentsEligible(request.package.name, request.duration_type as any)
+          : false;
+      });
       setInstallmentRequests(installmentRequests);
       setDataLoaded(prev => ({ ...prev, 'installments': true }));
     } catch (error) {

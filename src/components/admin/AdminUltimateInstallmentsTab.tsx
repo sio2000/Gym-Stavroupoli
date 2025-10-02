@@ -13,6 +13,18 @@ import {
 } from 'lucide-react';
 import { MembershipRequest } from '@/types';
 import { formatPrice, getDurationLabel } from '@/utils/membershipApi';
+import { supabase } from '@/config/supabase';
+import toast from 'react-hot-toast';
+import { useAuth } from '@/contexts/AuthContext';
+
+// Helper to validate user id for RPC calls
+const getValidUserId = (userId: string | undefined) => {
+  if (!userId || userId === 'undefined') {
+    return null;
+  }
+  // Allow the admin user ID for RPC calls
+  return userId;
+};
 
 interface AdminUltimateInstallmentsTabProps {
   ultimateRequests: MembershipRequest[];
@@ -64,6 +76,8 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
   requestPendingUsers,
   requestFrozenOptions
 }) => {
+  const { user } = useAuth();
+  
   // Pagination state for large datasets
   const [currentPage, setCurrentPage] = React.useState(1);
   const ITEMS_PER_PAGE = 50;
@@ -134,13 +148,79 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
     setShowLockConfirmation(true);
   };
 
-  const confirmInstallmentLock = () => {
+  const confirmInstallmentLock = async () => {
     if (pendingLockRequest) {
       const { requestId, installmentNumber } = pendingLockRequest;
-      const lockField = `installment${installmentNumber}Locked` as keyof MembershipRequest;
-      
-      // Update the selected request options to mark the installment as locked
-      handleRequestOptionChange(requestId, lockField, true);
+      try {
+        console.log(`[AdminUltimateInstallmentsTab] Locking installment ${installmentNumber} for request ${requestId}`);
+        
+        // First, save current values to database before locking
+        const request = ultimateRequests.find(r => r.id === requestId);
+        if (request) {
+          const requestOptions = selectedRequestOptions[requestId] || {};
+          
+          // Prepare update data with current values
+          const updateData: any = {};
+          
+          // Save installment amounts (use current values from form or database)
+          if (installmentNumber === 1) {
+            updateData.installment_1_amount = parseFloat(requestOptions.installment1Amount || request.installment_1_amount || 0);
+            updateData.installment_1_payment_method = requestOptions.installment1PaymentMethod || request.installment_1_payment_method || 'cash';
+            updateData.installment_1_due_date = requestOptions.installment1DueDate || request.installment_1_due_date;
+          } else if (installmentNumber === 2) {
+            updateData.installment_2_amount = parseFloat(requestOptions.installment2Amount || request.installment_2_amount || 0);
+            updateData.installment_2_payment_method = requestOptions.installment2PaymentMethod || request.installment_2_payment_method || 'cash';
+            updateData.installment_2_due_date = requestOptions.installment2DueDate || request.installment_2_due_date;
+          } else if (installmentNumber === 3) {
+            updateData.installment_3_amount = parseFloat(requestOptions.installment3Amount || request.installment_3_amount || 0);
+            updateData.installment_3_payment_method = requestOptions.installment3PaymentMethod || request.installment_3_payment_method || 'cash';
+            updateData.installment_3_due_date = requestOptions.installment3DueDate || request.installment_3_due_date;
+          }
+          
+          // Save values to database first
+          const { error: saveError } = await supabase
+            .from('membership_requests')
+            .update(updateData)
+            .eq('id', requestId);
+          
+          if (saveError) {
+            console.error(`[AdminUltimateInstallmentsTab] Error saving values before lock:`, saveError);
+            toast.error('Σφάλμα κατά την αποθήκευση των τιμών');
+            return;
+          }
+          
+          console.log(`[AdminUltimateInstallmentsTab] Saved values before locking:`, updateData);
+        }
+        
+        // Then lock the installment
+        const { error: lockError } = await supabase
+          .rpc('update_lock_installment', {
+            request_id: requestId,
+            installment_num: installmentNumber,
+            locked_by_user_id: getValidUserId(user?.id),
+            lock_status: true
+          });
+        
+        if (lockError) {
+          console.error(`[AdminUltimateInstallmentsTab] Error locking installment ${installmentNumber}:`, lockError);
+          toast.error(`Σφάλμα κατά το κλείδωμα της ${installmentNumber}ης δόσης`);
+          return;
+        }
+        
+        console.log(`[AdminUltimateInstallmentsTab] Successfully locked installment ${installmentNumber}`);
+        
+        // Update local state
+        const lockField = `installment${installmentNumber}Locked` as keyof MembershipRequest;
+        handleRequestOptionChange(requestId, lockField, true);
+        
+        toast.success(`${installmentNumber}η δόση κλειδώθηκε επιτυχώς με τις τρέχουσες τιμές`);
+        
+        // Reload ultimate requests to get updated data
+        await loadUltimateRequests();
+      } catch (error) {
+        console.error('[AdminUltimateInstallmentsTab] Exception locking installment:', error);
+        toast.error('Σφάλμα κατά το κλείδωμα της δόσης');
+      }
       
       setShowLockConfirmation(false);
       setPendingLockRequest(null);
@@ -158,9 +238,38 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
     setShowDeleteConfirmation(true);
   };
 
-  const confirmDeleteThirdInstallment = () => {
+  const confirmDeleteThirdInstallment = async () => {
     if (pendingDeleteRequest) {
-      handleRequestOptionChange(pendingDeleteRequest, 'deleteThirdInstallment', true);
+      try {
+        console.log(`[AdminUltimateInstallmentsTab] Deleting third installment for request ${pendingDeleteRequest}`);
+        
+        // Call RPC to permanently delete the third installment in the database
+        const { error: deleteError } = await supabase
+          .rpc('delete_third_installment_permanently', {
+            request_id: pendingDeleteRequest,
+            deleted_by_user_id: getValidUserId(user?.id)
+          });
+        
+        if (deleteError) {
+          console.error('[AdminUltimateInstallmentsTab] Error deleting third installment:', deleteError);
+          toast.error('Σφάλμα κατά τη διαγραφή της 3ης δόσης');
+          return;
+        }
+        
+        console.log('[AdminUltimateInstallmentsTab] Successfully deleted third installment');
+        
+        // Update local state
+        handleRequestOptionChange(pendingDeleteRequest, 'deleteThirdInstallment', true);
+        
+        toast.success('3η δόση διαγράφηκε επιτυχώς και μόνιμα');
+        
+        // Reload ultimate requests to get updated data
+        await loadUltimateRequests();
+      } catch (error) {
+        console.error('[AdminUltimateInstallmentsTab] Exception deleting third installment:', error);
+        toast.error('Σφάλμα κατά τη διαγραφή της 3ης δόσης');
+      }
+      
       setShowDeleteConfirmation(false);
       setPendingDeleteRequest(null);
     }
@@ -171,17 +280,32 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
     setPendingDeleteRequest(null);
   };
 
-  // Check if an installment is locked (from database or local state)
+  // Check if an installment is locked (from database only - permanent locking)
   const isInstallmentLocked = (request: MembershipRequest, installmentNumber: number) => {
-    // First check if it's locked in the database
+    // Check if it's locked in the database (permanent locking)
     const dbLockField = `installment_${installmentNumber}_locked` as keyof MembershipRequest;
     const isDbLocked = request[dbLockField] === true;
     
-    // Then check if it's locked in local state (pending lock)
-    const localLockField = `installment${installmentNumber}Locked` as keyof typeof selectedRequestOptions[string];
-    const isLocalLocked = selectedRequestOptions[request.id]?.[localLockField] === true;
+    console.log(`[AdminUltimateInstallmentsTab] isInstallmentLocked check for request ${request.id}, installment ${installmentNumber}:`, {
+      dbLockField,
+      rawValue: request[dbLockField],
+      isDbLocked,
+      requestData: {
+        installment_1_locked: request.installment_1_locked,
+        installment_2_locked: request.installment_2_locked,
+        installment_3_locked: request.installment_3_locked,
+        has_installments: request.has_installments,
+        package_name: request.package?.name
+      }
+    });
     
-    return isDbLocked || isLocalLocked;
+    // Check if the field exists and is properly set
+    if (request[dbLockField] !== undefined && request[dbLockField] !== null) {
+      return isDbLocked;
+    }
+    
+    // Default to false if no locking information is found
+    return false;
   };
 
   // Reset to first page when search term changes
@@ -514,6 +638,21 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                             </span>
                           </label>
                         </div>
+                        
+                        {/* Locked Values Display */}
+                        {isInstallmentLocked(request, 1) && (
+                          <div className="mt-3 p-3 bg-orange-500/20 border border-orange-500/50 rounded-xl">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Lock className="h-4 w-4 text-orange-400" />
+                              <span className="text-sm font-bold text-orange-300">Κλειδωμένες Τιμές</span>
+                            </div>
+                            <div className="space-y-1 text-xs text-orange-200">
+                              <div><span className="font-medium">💰 Ποσό:</span> {formatPrice(request.installment_1_amount || 0)}</div>
+                              <div><span className="font-medium">💳 Τρόπος Πληρωμής:</span> {request.installment_1_payment_method === 'cash' ? '💰 Μετρητά' : '💳 POS'}</div>
+                              <div><span className="font-medium">📅 Ημερομηνία:</span> {request.installment_1_due_date || 'Δεν ορίστηκε'}</div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -582,6 +721,21 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                             </span>
                           </label>
                         </div>
+                        
+                        {/* Locked Values Display */}
+                        {isInstallmentLocked(request, 2) && (
+                          <div className="mt-3 p-3 bg-orange-500/20 border border-orange-500/50 rounded-xl">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Lock className="h-4 w-4 text-orange-400" />
+                              <span className="text-sm font-bold text-orange-300">Κλειδωμένες Τιμές</span>
+                            </div>
+                            <div className="space-y-1 text-xs text-orange-200">
+                              <div><span className="font-medium">💰 Ποσό:</span> {formatPrice(request.installment_2_amount || 0)}</div>
+                              <div><span className="font-medium">💳 Τρόπος Πληρωμής:</span> {request.installment_2_payment_method === 'cash' ? '💰 Μετρητά' : '💳 POS'}</div>
+                              <div><span className="font-medium">📅 Ημερομηνία:</span> {request.installment_2_due_date || 'Δεν ορίστηκε'}</div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -674,6 +828,21 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                             </span>
                           </label>
                         </div>
+                        
+                        {/* Locked Values Display */}
+                        {isInstallmentLocked(request, 3) && (
+                          <div className="mt-3 p-3 bg-orange-500/20 border border-orange-500/50 rounded-xl">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Lock className="h-4 w-4 text-orange-400" />
+                              <span className="text-sm font-bold text-orange-300">Κλειδωμένες Τιμές</span>
+                            </div>
+                            <div className="space-y-1 text-xs text-orange-200">
+                              <div><span className="font-medium">💰 Ποσό:</span> {formatPrice(request.installment_3_amount || 0)}</div>
+                              <div><span className="font-medium">💳 Τρόπος Πληρωμής:</span> {request.installment_3_payment_method === 'cash' ? '💰 Μετρητά' : '💳 POS'}</div>
+                              <div><span className="font-medium">📅 Ημερομηνία:</span> {request.installment_3_due_date || 'Δεν ορίστηκε'}</div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

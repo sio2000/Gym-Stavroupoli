@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:installments": "vitest run src/__tests__/installments.*"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.56.1",

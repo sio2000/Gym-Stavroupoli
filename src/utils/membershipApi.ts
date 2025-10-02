@@ -60,23 +60,36 @@ export const getMembershipPackageDurations = async (packageId: string): Promise<
 // ===== MEMBERSHIP REQUESTS API =====
 
 export const createMembershipRequest = async (
-  packageId: string, 
-  durationType: string, 
-  requestedPrice: number
+  packageId: string,
+  durationType: string,
+  requestedPrice: number,
+  hasInstallments: boolean = false
 ): Promise<boolean> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
+    const insertData: any = {
+      user_id: user.id,
+      package_id: packageId,
+      duration_type: durationType,
+      requested_price: requestedPrice,
+      status: 'pending'
+    };
+
+    if (hasInstallments) {
+      insertData.has_installments = true;
+      insertData.installment_1_amount = 0;
+      insertData.installment_2_amount = 0;
+      insertData.installment_3_amount = 0;
+      insertData.installment_1_payment_method = 'cash';
+      insertData.installment_2_payment_method = 'cash';
+      insertData.installment_3_payment_method = 'cash';
+    }
+
     const { error } = await supabase
       .from('membership_requests')
-      .insert({
-        user_id: user.id,
-        package_id: packageId,
-        duration_type: durationType,
-        requested_price: requestedPrice,
-        status: 'pending'
-      });
+      .insert(insertData);
 
     if (error) throw error;
     return true;
@@ -109,7 +122,39 @@ export const getMembershipRequests = async (): Promise<MembershipRequest[]> => {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    
+    // Ensure the locked installment fields are properly set (with fallback)
+    const requestsWithLockedFields = (data || []).map((request) => {
+      // Check if new fields exist
+      const hasNewFields = request.installment_1_locked !== undefined || 
+                          request.installment_2_locked !== undefined || 
+                          request.installment_3_locked !== undefined;
+      
+      if (hasNewFields) {
+        return {
+          ...request,
+          installment_1_locked: request.installment_1_locked || false,
+          installment_2_locked: request.installment_2_locked || false,
+          installment_3_locked: request.installment_3_locked || false,
+          third_installment_deleted: request.third_installment_deleted || false,
+          third_installment_deleted_at: request.third_installment_deleted_at,
+          third_installment_deleted_by: request.third_installment_deleted_by,
+        };
+      }
+      
+      // Fallback to default values if fields don't exist
+      return {
+        ...request,
+        installment_1_locked: false,
+        installment_2_locked: false,
+        installment_3_locked: false,
+        third_installment_deleted: false,
+        third_installment_deleted_at: undefined,
+        third_installment_deleted_by: undefined,
+      };
+    });
+    
+    return requestsWithLockedFields;
   } catch (error) {
     console.error('Error fetching membership requests:', error);
     toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων');
@@ -141,10 +186,33 @@ export const getMembershipRequestsWithLockedInstallments = async (): Promise<Mem
 
     if (error) throw error;
 
-    // Load locked installments for each request
+    // Load locked installments for each request (fallback to old system if new fields don't exist)
+    console.log('[MembershipAPI] Processing requests with locked installments...');
+    
     const requestsWithLockedInstallments = await Promise.all(
       (data || []).map(async (request) => {
         try {
+          // First check if the new fields exist
+          const hasNewFields = request.installment_1_locked !== undefined || 
+                              request.installment_2_locked !== undefined || 
+                              request.installment_3_locked !== undefined;
+          
+          if (hasNewFields) {
+            console.log(`[MembershipAPI] Request ${request.id} - Using new fields`);
+            return {
+              ...request,
+              installment_1_locked: request.installment_1_locked || false,
+              installment_2_locked: request.installment_2_locked || false,
+              installment_3_locked: request.installment_3_locked || false,
+              third_installment_deleted: request.third_installment_deleted || false,
+              third_installment_deleted_at: request.third_installment_deleted_at,
+              third_installment_deleted_by: request.third_installment_deleted_by,
+            };
+          }
+          
+          // Fallback to old system
+          console.log(`[MembershipAPI] Request ${request.id} - Using old system (fields not found)`);
+          
           const { data: lockedData, error: lockedError } = await supabase
             .rpc('get_locked_installments_for_request', { request_id: request.id });
           
@@ -625,7 +693,8 @@ export const createPilatesMembershipRequest = async (
   durationType: string,
   classesCount: number,
   requestedPrice: number,
-  userId?: string
+  userId?: string,
+  hasInstallments: boolean = false
 ): Promise<boolean> => {
   try {
     let actualUserId = userId;
@@ -675,7 +744,7 @@ export const createPilatesMembershipRequest = async (
     }
 
     // Create the membership request with classes_count
-    const insertData = {
+    const insertData: any = {
       user_id: actualUserId,
       package_id: actualPackageId,
       duration_type: durationType,
@@ -683,6 +752,16 @@ export const createPilatesMembershipRequest = async (
       classes_count: classesCount,
       status: 'pending'
     };
+
+    if (hasInstallments) {
+      insertData.has_installments = true;
+      insertData.installment_1_amount = 0;
+      insertData.installment_2_amount = 0;
+      insertData.installment_3_amount = 0;
+      insertData.installment_1_payment_method = 'cash';
+      insertData.installment_2_payment_method = 'cash';
+      insertData.installment_3_payment_method = 'cash';
+    }
     
     console.log('[MembershipAPI] Inserting membership request with data:', insertData);
     

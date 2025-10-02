@@ -7,7 +7,8 @@ import {
   Loader2,
   Trash2,
   User,
-  Calendar
+  Calendar,
+  Lock
 } from 'lucide-react';
 import { MembershipRequest } from '@/types';
 import { formatPrice, getDurationLabel } from '@/utils/membershipApi';
@@ -36,6 +37,17 @@ interface InstallmentsTabProps {
   handleApproveRequest: (requestId: string) => Promise<void>;
   handleRejectRequest: (requestId: string) => Promise<void>;
   loading: boolean;
+  handleInstallmentLockClick: (requestId: string, installmentNumber: number) => void;
+  handleDeleteThirdInstallmentClick: (requestId: string) => void;
+  isInstallmentLocked: (request: MembershipRequest, installmentNumber: number) => boolean;
+  showLockConfirmation: boolean;
+  pendingLockRequest: { requestId: string; installmentNumber: number } | null;
+  confirmInstallmentLock: () => Promise<void>;
+  cancelInstallmentLock: () => void;
+  showDeleteConfirmation: boolean;
+  pendingDeleteRequest: string | null;
+  confirmDeleteThirdInstallment: () => Promise<void>;
+  cancelDeleteThirdInstallment: () => void;
 }
 
 const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
@@ -50,13 +62,24 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
   loadInstallmentRequests,
   handleApproveRequest,
   handleRejectRequest,
-  loading
+  loading,
+  handleInstallmentLockClick,
+  handleDeleteThirdInstallmentClick,
+  isInstallmentLocked,
+  showLockConfirmation,
+  pendingLockRequest,
+  confirmInstallmentLock,
+  cancelInstallmentLock,
+  showDeleteConfirmation,
+  pendingDeleteRequest,
+  confirmDeleteThirdInstallment,
+  cancelDeleteThirdInstallment
 }) => {
   // Filter installment requests by search term
   const getFilteredInstallmentRequests = () => {
     return installmentRequests.filter(request => {
       const searchMatch = installmentSearchTerm === '' || 
-        `${request.user?.firstName || ''} ${request.user?.lastName || ''}`.toLowerCase()
+        `${request.user?.first_name || ''} ${request.user?.last_name || ''}`.toLowerCase()
           .includes(installmentSearchTerm.toLowerCase());
       
       return searchMatch;
@@ -277,12 +300,22 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
                         value={selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || ''}
                         onChange={(e) => handleRequestOptionChange(request.id, 'installment1Amount', e.target.value)}
                         placeholder="Ποσό"
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        disabled={isInstallmentLocked(request, 1)}
+                        className={`w-full p-2 border rounded-lg focus:ring-2 ${
+                          isInstallmentLocked(request, 1)
+                            ? 'border-orange-500 bg-orange-50 focus:ring-orange-500 cursor-not-allowed text-orange-600'
+                            : 'border-gray-300 focus:ring-orange-500 focus:border-orange-500'
+                        }`}
                       />
                       <select
                         value={selectedRequestOptions[request.id]?.installment1PaymentMethod || request.installment_1_payment_method || 'cash'}
                         onChange={(e) => handleRequestOptionChange(request.id, 'installment1PaymentMethod', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        disabled={isInstallmentLocked(request, 1)}
+                        className={`w-full p-2 border rounded-lg focus:ring-2 ${
+                          isInstallmentLocked(request, 1)
+                            ? 'border-orange-500 bg-orange-50 focus:ring-orange-500 cursor-not-allowed text-orange-600'
+                            : 'border-gray-300 focus:ring-orange-500 focus:border-orange-500'
+                        }`}
                       >
                         <option value="cash">💰 Μετρητά</option>
                         <option value="pos">💳 POS</option>
@@ -295,9 +328,45 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
                           type="date"
                           value={selectedRequestOptions[request.id]?.installment1DueDate || request.installment_1_due_date || ''}
                           onChange={(e) => handleRequestOptionChange(request.id, 'installment1DueDate', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                          disabled={isInstallmentLocked(request, 1)}
+                          className={`w-full p-2 border rounded-lg focus:ring-2 text-sm ${
+                            isInstallmentLocked(request, 1)
+                              ? 'border-orange-500 bg-orange-50 focus:ring-orange-500 cursor-not-allowed text-orange-600'
+                              : 'border-gray-300 focus:ring-orange-500 focus:border-orange-500'
+                          }`}
                         />
                       </div>
+                      
+                      {/* Lock Checkbox */}
+                      <div className="flex items-center space-x-2 pt-2">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isInstallmentLocked(request, 1)}
+                            onChange={() => handleInstallmentLockClick(request.id, 1)}
+                            className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+                          />
+                          <span className="text-xs text-gray-600 flex items-center space-x-1">
+                            <Lock className="h-3 w-3" />
+                            <span>Κλείδωμα Δόσης</span>
+                          </span>
+                        </label>
+                      </div>
+                      
+                      {/* Locked Values Display */}
+                      {isInstallmentLocked(request, 1) && (
+                        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Lock className="h-3 w-3 text-orange-500" />
+                            <span className="text-xs font-bold text-orange-700">Κλειδωμένες Τιμές</span>
+                          </div>
+                          <div className="space-y-1 text-xs text-orange-600">
+                            <div><span className="font-medium">💰 Ποσό:</span> {formatPrice(request.installment_1_amount || 0)}</div>
+                            <div><span className="font-medium">💳 Τρόπος:</span> {request.installment_1_payment_method === 'cash' ? '💰 Μετρητά' : '💳 POS'}</div>
+                            <div><span className="font-medium">📅 Ημερομηνία:</span> {request.installment_1_due_date || 'Δεν ορίστηκε'}</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -312,12 +381,22 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
                         value={selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || ''}
                         onChange={(e) => handleRequestOptionChange(request.id, 'installment2Amount', e.target.value)}
                         placeholder="Ποσό"
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        disabled={isInstallmentLocked(request, 2)}
+                        className={`w-full p-2 border rounded-lg focus:ring-2 ${
+                          isInstallmentLocked(request, 2)
+                            ? 'border-orange-500 bg-orange-50 focus:ring-orange-500 cursor-not-allowed text-orange-600'
+                            : 'border-gray-300 focus:ring-orange-500 focus:border-orange-500'
+                        }`}
                       />
                       <select
                         value={selectedRequestOptions[request.id]?.installment2PaymentMethod || request.installment_2_payment_method || 'cash'}
                         onChange={(e) => handleRequestOptionChange(request.id, 'installment2PaymentMethod', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        disabled={isInstallmentLocked(request, 2)}
+                        className={`w-full p-2 border rounded-lg focus:ring-2 ${
+                          isInstallmentLocked(request, 2)
+                            ? 'border-orange-500 bg-orange-50 focus:ring-orange-500 cursor-not-allowed text-orange-600'
+                            : 'border-gray-300 focus:ring-orange-500 focus:border-orange-500'
+                        }`}
                       >
                         <option value="cash">💰 Μετρητά</option>
                         <option value="pos">💳 POS</option>
@@ -330,16 +409,67 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
                           type="date"
                           value={selectedRequestOptions[request.id]?.installment2DueDate || request.installment_2_due_date || ''}
                           onChange={(e) => handleRequestOptionChange(request.id, 'installment2DueDate', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                          disabled={isInstallmentLocked(request, 2)}
+                          className={`w-full p-2 border rounded-lg focus:ring-2 text-sm ${
+                            isInstallmentLocked(request, 2)
+                              ? 'border-orange-500 bg-orange-50 focus:ring-orange-500 cursor-not-allowed text-orange-600'
+                              : 'border-gray-300 focus:ring-orange-500 focus:border-orange-500'
+                          }`}
                         />
                       </div>
+                      
+                      {/* Lock Checkbox */}
+                      <div className="flex items-center space-x-2 pt-2">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isInstallmentLocked(request, 2)}
+                            onChange={() => handleInstallmentLockClick(request.id, 2)}
+                            className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+                          />
+                          <span className="text-xs text-gray-600 flex items-center space-x-1">
+                            <Lock className="h-3 w-3" />
+                            <span>Κλείδωμα Δόσης</span>
+                          </span>
+                        </label>
+                      </div>
+                      
+                      {/* Locked Values Display */}
+                      {isInstallmentLocked(request, 2) && (
+                        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Lock className="h-3 w-3 text-orange-500" />
+                            <span className="text-xs font-bold text-orange-700">Κλειδωμένες Τιμές</span>
+                          </div>
+                          <div className="space-y-1 text-xs text-orange-600">
+                            <div><span className="font-medium">💰 Ποσό:</span> {formatPrice(request.installment_2_amount || 0)}</div>
+                            <div><span className="font-medium">💳 Τρόπος:</span> {request.installment_2_payment_method === 'cash' ? '💰 Μετρητά' : '💳 POS'}</div>
+                            <div><span className="font-medium">📅 Ημερομηνία:</span> {request.installment_2_due_date || 'Δεν ορίστηκε'}</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* 3η Δόση */}
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      3η Δόση
+                    <label className="block text-sm font-medium text-gray-700 flex items-center justify-between">
+                      <span>3η Δόση</span>
+                      {/* Delete Third Installment Checkbox */}
+                      <div className="flex items-center space-x-2">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted || false}
+                            onChange={() => handleDeleteThirdInstallmentClick(request.id)}
+                            className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 focus:ring-2"
+                          />
+                          <span className="text-xs text-red-600 flex items-center space-x-1">
+                            <Trash2 className="h-3 w-3" />
+                            <span>Διαγραφή 3ης Δόσης</span>
+                          </span>
+                        </label>
+                      </div>
                     </label>
                     <div className="space-y-2">
                       <input
@@ -347,12 +477,26 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
                         value={selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || ''}
                         onChange={(e) => handleRequestOptionChange(request.id, 'installment3Amount', e.target.value)}
                         placeholder="Ποσό"
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
+                        className={`w-full p-2 border rounded-lg focus:ring-2 ${
+                          isInstallmentLocked(request, 3)
+                            ? 'border-orange-500 bg-orange-50 focus:ring-orange-500 cursor-not-allowed text-orange-600'
+                            : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                            ? 'border-red-500 bg-red-50 focus:ring-red-500 cursor-not-allowed text-red-600'
+                            : 'border-gray-300 focus:ring-orange-500 focus:border-orange-500'
+                        }`}
                       />
                       <select
                         value={selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash'}
                         onChange={(e) => handleRequestOptionChange(request.id, 'installment3PaymentMethod', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
+                        className={`w-full p-2 border rounded-lg focus:ring-2 ${
+                          isInstallmentLocked(request, 3)
+                            ? 'border-orange-500 bg-orange-50 focus:ring-orange-500 cursor-not-allowed text-orange-600'
+                            : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                            ? 'border-red-500 bg-red-50 focus:ring-red-500 cursor-not-allowed text-red-600'
+                            : 'border-gray-300 focus:ring-orange-500 focus:border-orange-500'
+                        }`}
                       >
                         <option value="cash">💰 Μετρητά</option>
                         <option value="pos">💳 POS</option>
@@ -365,9 +509,48 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
                           type="date"
                           value={selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date || ''}
                           onChange={(e) => handleRequestOptionChange(request.id, 'installment3DueDate', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                          disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
+                          className={`w-full p-2 border rounded-lg focus:ring-2 text-sm ${
+                            isInstallmentLocked(request, 3)
+                              ? 'border-orange-500 bg-orange-50 focus:ring-orange-500 cursor-not-allowed text-orange-600'
+                              : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                              ? 'border-red-500 bg-red-50 focus:ring-red-500 cursor-not-allowed text-red-600'
+                              : 'border-gray-300 focus:ring-orange-500 focus:border-orange-500'
+                          }`}
                         />
                       </div>
+                      
+                      {/* Lock Checkbox */}
+                      <div className="flex items-center space-x-2 pt-2">
+                        <label className={`flex items-center space-x-2 ${(selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                          <input
+                            type="checkbox"
+                            checked={isInstallmentLocked(request, 3)}
+                            onChange={() => handleInstallmentLockClick(request.id, 3)}
+                            disabled={selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted}
+                            className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+                          />
+                          <span className="text-xs text-gray-600 flex items-center space-x-1">
+                            <Lock className="h-3 w-3" />
+                            <span>Κλείδωμα Δόσης</span>
+                          </span>
+                        </label>
+                      </div>
+                      
+                      {/* Locked Values Display */}
+                      {isInstallmentLocked(request, 3) && (
+                        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Lock className="h-3 w-3 text-orange-500" />
+                            <span className="text-xs font-bold text-orange-700">Κλειδωμένες Τιμές</span>
+                          </div>
+                          <div className="space-y-1 text-xs text-orange-600">
+                            <div><span className="font-medium">💰 Ποσό:</span> {formatPrice(request.installment_3_amount || 0)}</div>
+                            <div><span className="font-medium">💳 Τρόπος:</span> {request.installment_3_payment_method === 'cash' ? '💰 Μετρητά' : '💳 POS'}</div>
+                            <div><span className="font-medium">📅 Ημερομηνία:</span> {request.installment_3_due_date || 'Δεν ορίστηκε'}</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -408,6 +591,74 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Lock Confirmation Popup */}
+      {showLockConfirmation && pendingLockRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md mx-4 border border-gray-200 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <Lock className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                Κλείδωμα Δόσης
+              </h3>
+              <p className="text-gray-600 mb-8 text-lg">
+                Είστε σίγουροι ότι θέλετε να κλειδώσετε την {pendingLockRequest.installmentNumber}η δόση; 
+                Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={cancelInstallmentLock}
+                  className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors font-medium"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  onClick={confirmInstallmentLock}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all font-medium"
+                >
+                  Κλείδωμα
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Third Installment Confirmation Popup */}
+      {showDeleteConfirmation && pendingDeleteRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md mx-4 border border-gray-200 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <Trash2 className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                Διαγραφή 3ης Δόσης
+              </h3>
+              <p className="text-gray-600 mb-8 text-lg">
+                Είστε σίγουροι ότι θέλετε να διαγράψετε την 3η δόση; 
+                Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={cancelDeleteThirdInstallment}
+                  className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors font-medium"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  onClick={confirmDeleteThirdInstallment}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all font-medium"
+                >
+                  Διαγραφή
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

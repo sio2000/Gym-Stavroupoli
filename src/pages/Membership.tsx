@@ -34,6 +34,7 @@ import {
   getUltimatePackageDurations,
   createUltimateMembershipRequest
 } from '@/utils/membershipApi';
+import { isInstallmentsEligible } from '@/utils/installmentsEligibility';
 import { MembershipPackage, MembershipPackageDuration, MembershipRequest, Membership as MembershipType } from '@/types';
 import toast from 'react-hot-toast';
 import SuccessPopup from '@/components/SuccessPopup';
@@ -344,7 +345,8 @@ const MembershipPage: React.FC = React.memo(() => {
           selectedDuration.duration_type,
           selectedDuration.classes_count || 0,
           selectedDuration.price,
-          user.id
+          user.id,
+          hasInstallments
         );
       } else if (selectedPackage.name === 'Ultimate') {
         await createUltimateMembershipRequest(
@@ -358,7 +360,8 @@ const MembershipPage: React.FC = React.memo(() => {
         await createMembershipRequest(
           selectedPackage.id,
           selectedDuration.duration_type,
-          selectedDuration.price
+          selectedDuration.price,
+          hasInstallments
         );
       }
       
@@ -1001,8 +1004,11 @@ const MembershipPage: React.FC = React.memo(() => {
                   </div>
                 ))}
                 
-                {/* Installments Option for Ultimate Package */}
-                {selectedPackage.name === 'Ultimate' && selectedDuration && (
+                {/* Επιλογή Δόσεων για συγκεκριμένα πακέτα */}
+                {selectedDuration && (
+                  (() => {
+                    if (!isInstallmentsEligible(selectedPackage.name, selectedDuration.duration_type)) return null;
+                    return (
                   <div className="space-y-4 pt-4 border-t border-gray-200">
                     <div className="flex items-center space-x-2">
                       <input
@@ -1030,7 +1036,7 @@ const MembershipPage: React.FC = React.memo(() => {
                               Πληρωμή με Δόσεις
                             </h4>
                             <p className="text-sm text-blue-700">
-                              Με την ενεργοποίηση αυτής της επιλογής, μπορείτε να πληρώσετε το πακέτο Ultimate με έως 3 δόσεις στο γυμναστήριο. 
+                              Με την ενεργοποίηση αυτής της επιλογής, μπορείτε να πληρώσετε το πακέτο με έως 3 δόσεις στο γυμναστήριο.
                               Ο διαχειριστής θα καθορίσει τα ακριβή ποσά και τις ημερομηνίες πληρωμής.
                             </p>
                           </div>
@@ -1038,6 +1044,8 @@ const MembershipPage: React.FC = React.memo(() => {
                       </div>
                     )}
                   </div>
+                    );
+                  })()
                 )}
                 
                 <div className="flex space-x-3 pt-4">

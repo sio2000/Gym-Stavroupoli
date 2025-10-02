@@ -16,7 +16,8 @@ import {
   Award,
   DollarSign,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
@@ -37,6 +38,7 @@ import GroupTrainingCalendar from '@/components/admin/GroupTrainingCalendar';
 import AdminUltimateInstallmentsTab from '@/components/admin/AdminUltimateInstallmentsTab';
 import UsersInformation from '@/components/admin/UsersInformation';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { isInstallmentsEligible } from '@/utils/installmentsEligibility';
 
 import { 
   getMembershipPackages, 
@@ -75,6 +77,15 @@ const AVAILABLE_TRAINERS: TrainerName[] = ['Mike', 'Jordan'];
 // Large dataset handling constants
 const LARGE_DATASET_THRESHOLD = 100;
 const ITEMS_PER_PAGE = 50;
+
+// Helper to validate user id for RPC calls (defined early to avoid hoisting issues)
+const getValidUserId = (userId: string | undefined) => {
+  if (!userId || userId === 'undefined') {
+    return null;
+  }
+  // Allow the admin user ID for RPC calls
+  return userId;
+};
 
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
@@ -341,6 +352,7 @@ const AdminPanel: React.FC = () => {
   // Program Options state for membership requests
   const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
     oldMembers?: boolean;
+    first150Members?: boolean;
     kettlebellPoints?: string;
     cash?: boolean;
     pos?: boolean;
@@ -363,6 +375,16 @@ const AdminPanel: React.FC = () => {
   const [requestProgramApprovalStatus, setRequestProgramApprovalStatus] = useState<{[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'}>({});
   const [requestPendingUsers, setRequestPendingUsers] = useState<Set<string>>(new Set());
   const [requestFrozenOptions, setRequestFrozenOptions] = useState<{[requestId: string]: any}>({});
+  // Installment locking state
+  const [showLockConfirmation, setShowLockConfirmation] = useState(false);
+  const [pendingLockRequest, setPendingLockRequest] = useState<{
+    requestId: string;
+    installmentNumber: number;
+  } | null>(null);
+  
+  // Delete third installment state
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [pendingDeleteRequest, setPendingDeleteRequest] = useState<string | null>(null);
   
   // Pilates package state
   const [pilatesDurations, setPilatesDurations] = useState<MembershipPackageDuration[]>([]);
@@ -1057,7 +1079,7 @@ const AdminPanel: React.FC = () => {
 
         const success = await saveProgramApprovalState(
           userId,
-          programApprovalStatus as 'approved' | 'rejected' | 'pending',
+          (programApprovalStatus || 'pending') as 'approved' | 'rejected' | 'pending',
           {
             oldMembersUsed: userOptions.oldMembers || false,
             kettlebellPoints: userOptions.kettlebellPoints ? parseInt(userOptions.kettlebellPoints) : 0,
@@ -1899,7 +1921,7 @@ const AdminPanel: React.FC = () => {
 
   const loadMembershipRequests = async () => {
     try {
-      const requests = await getMembershipRequests();
+      const requests = await getMembershipRequestsWithLockedInstallments();
       setMembershipRequests(requests);
       // Reset to first page when loading new data
       setMembershipRequestsPage(1);
@@ -2117,7 +2139,7 @@ const AdminPanel: React.FC = () => {
       // Save approval state for the request
       const success = await saveProgramApprovalState(
         request.user_id,
-        status as 'approved' | 'rejected' | 'pending',
+        (status || 'pending') as 'approved' | 'rejected' | 'pending',
         {
           oldMembersUsed: requestOptions.oldMembers || false,
           kettlebellPoints: requestOptions.kettlebellPoints ? parseInt(requestOptions.kettlebellPoints) : 0,
@@ -2201,7 +2223,21 @@ const AdminPanel: React.FC = () => {
         }
       }
 
-      // 2. Save Kettlebell Points if provided
+      // 2. Handle First 150 Members if selected
+      if (userOptions.first150Members) {
+        // Mark old members as used (same as above but for first150Members)
+        const oldMembersSuccess = await markOldMembersUsed(userId, user?.id || '');
+        if (oldMembersSuccess) {
+          console.log(`[APPROVED] First 150 Members - Old Members marked as used for membership request: ${requestId}`);
+        } else {
+          console.warn(`[APPROVED] First 150 Members - Failed to mark Old Members as used for membership request: ${requestId}`);
+        }
+        
+        // Automatically set cash to 45€ and lock POS (this is handled in the UI state)
+        console.log(`[APPROVED] First 150 Members selected - Cash set to 45€ and POS locked for membership request: ${requestId}`);
+      }
+
+      // 3. Save Kettlebell Points if provided
       if (userOptions.kettlebellPoints && parseInt(userOptions.kettlebellPoints) > 0) {
         const kettlebellSuccess = await saveKettlebellPoints(
           userId, 
@@ -2479,6 +2515,181 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  // Handle installment locking
+  const handleInstallmentLockClick = (requestId: string, installmentNumber: number) => {
+    setPendingLockRequest({ requestId, installmentNumber });
+    setShowLockConfirmation(true);
+  };
+
+  const confirmInstallmentLock = async () => {
+    if (pendingLockRequest) {
+      const { requestId, installmentNumber } = pendingLockRequest;
+      
+      try {
+        // First, save current values to database before locking
+        const request = membershipRequests.find(r => r.id === requestId);
+        if (request) {
+          const requestOptions = selectedRequestOptions[requestId] || {};
+          
+          // Prepare update data with current values
+          const updateData: any = {};
+          
+          // Save installment amounts (use current values from form or database)
+          if (installmentNumber === 1) {
+            updateData.installment_1_amount = parseFloat(requestOptions.installment1Amount || request.installment_1_amount || 0);
+            updateData.installment_1_payment_method = requestOptions.installment1PaymentMethod || request.installment_1_payment_method || 'cash';
+            updateData.installment_1_due_date = requestOptions.installment1DueDate || request.installment_1_due_date;
+          } else if (installmentNumber === 2) {
+            updateData.installment_2_amount = parseFloat(requestOptions.installment2Amount || request.installment_2_amount || 0);
+            updateData.installment_2_payment_method = requestOptions.installment2PaymentMethod || request.installment_2_payment_method || 'cash';
+            updateData.installment_2_due_date = requestOptions.installment2DueDate || request.installment_2_due_date;
+          } else if (installmentNumber === 3) {
+            updateData.installment_3_amount = parseFloat(requestOptions.installment3Amount || request.installment_3_amount || 0);
+            updateData.installment_3_payment_method = requestOptions.installment3PaymentMethod || request.installment_3_payment_method || 'cash';
+            updateData.installment_3_due_date = requestOptions.installment3DueDate || request.installment_3_due_date;
+          }
+          
+          // Save values to database first
+          const { error: saveError } = await supabase
+            .from('membership_requests')
+            .update(updateData)
+            .eq('id', requestId);
+          
+          if (saveError) {
+            console.error(`[AdminPanel] Error saving values before lock:`, saveError);
+            toast.error('Σφάλμα κατά την αποθήκευση των τιμών');
+            return;
+          }
+          
+          console.log(`[AdminPanel] Saved values before locking:`, updateData);
+        }
+        
+        // Then lock the installment
+        const { error: lockError } = await supabase
+          .rpc('lock_installment', { 
+            p_request_id: requestId, 
+            p_installment_number: installmentNumber, 
+            p_locked_by: getValidUserId(user?.id) 
+          });
+        
+        if (lockError) {
+          console.error(`Error locking installment ${installmentNumber}:`, lockError);
+          toast.error(`Σφάλμα κατά το κλείδωμα της ${installmentNumber}ης δόσης`);
+          return;
+        }
+        
+        // Update local state - lock the installment
+        const lockField = `installment${installmentNumber}Locked` as keyof MembershipRequest;
+        handleRequestOptionChange(requestId, lockField, true);
+        
+        toast.success(`${installmentNumber}η δόση κλειδώθηκε επιτυχώς με τις τρέχουσες τιμές`);
+        
+        // Reload the requests to get updated data
+        await loadMembershipRequests();
+        
+      } catch (error) {
+        console.error('Exception locking installment:', error);
+        toast.error('Σφάλμα κατά το κλείδωμα της δόσης');
+      }
+      
+      setShowLockConfirmation(false);
+      setPendingLockRequest(null);
+    }
+  };
+
+  const cancelInstallmentLock = () => {
+    setShowLockConfirmation(false);
+    setPendingLockRequest(null);
+  };
+
+  // Delete third installment confirmation handlers
+  const handleDeleteThirdInstallmentClick = (requestId: string) => {
+    setPendingDeleteRequest(requestId);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDeleteThirdInstallment = async () => {
+    if (pendingDeleteRequest) {
+      try {
+        // Get valid user ID for the deletion
+        const deletedBy = getValidUserId(user?.id);
+        if (!deletedBy) {
+          console.error('No valid user ID for deletion');
+          toast.error('Σφάλμα: Δεν βρέθηκε έγκυρο ID χρήστη');
+          return;
+        }
+
+        console.log('Deleting third installment for request:', pendingDeleteRequest, 'by user:', deletedBy);
+        
+        // Call RPC to delete third installment permanently
+        // Use NULL for deleted_by_user_id if it's the problematic ID
+        const { error: deleteError } = await supabase
+          .rpc('delete_third_installment_permanently', { 
+            request_id: pendingDeleteRequest, 
+            deleted_by_user_id: deletedBy === '00000000-0000-0000-0000-000000000001' ? null : deletedBy 
+          });
+        
+        if (deleteError) {
+          console.error('Error deleting third installment:', deleteError);
+          toast.error('Σφάλμα κατά τη διαγραφή της 3ης δόσης');
+          return;
+        }
+        
+        // Update local state
+        handleRequestOptionChange(pendingDeleteRequest, 'deleteThirdInstallment', true);
+        
+        toast.success('3η δόση διαγράφηκε επιτυχώς');
+        
+        // Reload the requests to get updated data
+        await loadMembershipRequests();
+        
+      } catch (error) {
+        console.error('Exception deleting third installment:', error);
+        toast.error('Σφάλμα κατά τη διαγραφή της 3ης δόσης');
+      }
+      
+      setShowDeleteConfirmation(false);
+      setPendingDeleteRequest(null);
+    }
+  };
+
+  const cancelDeleteThirdInstallment = () => {
+    setShowDeleteConfirmation(false);
+    setPendingDeleteRequest(null);
+  };
+
+  // Check if an installment is locked (from database only - permanent locking)
+    const isInstallmentLocked = (request: MembershipRequest, installmentNumber: number) => {
+      // Check if it's locked in the database (permanent locking)
+      const dbLockField = `installment_${installmentNumber}_locked` as keyof MembershipRequest;
+      const isDbLocked = request[dbLockField] === true;
+      
+      console.log(`[AdminPanel] isInstallmentLocked check for request ${request.id}, installment ${installmentNumber}:`, {
+        dbLockField,
+        rawValue: request[dbLockField],
+        isDbLocked,
+        requestData: {
+          installment_1_locked: request.installment_1_locked,
+          installment_2_locked: request.installment_2_locked,
+          installment_3_locked: request.installment_3_locked,
+          has_installments: request.has_installments,
+          package_name: request.package?.name
+        }
+      });
+      
+      // Check if the field exists and is properly set
+      if (request[dbLockField] !== undefined && request[dbLockField] !== null) {
+        return isDbLocked;
+      }
+      
+      // Fallback: Check if it's locked in the old locked_installments table
+      console.log(`[AdminPanel] Field ${dbLockField} is undefined/null, checking old locked_installments table...`);
+      
+      // Legacy method removed - using individual locked fields now
+      // Default to false if no locking information is found
+      return false;
+    };
+
   const updateInstallmentAmounts = async (requestId: string, installment1Amount: number, installment2Amount: number, installment3Amount: number, installment1PaymentMethod: string, installment2PaymentMethod: string, installment3PaymentMethod: string, installment1DueDate?: string, installment2DueDate?: string, installment3DueDate?: string) => {
     try {
       const updateData: any = {
@@ -2501,18 +2712,19 @@ const AdminPanel: React.FC = () => {
         // Lock installments that were just locked
         // Helper function to validate user ID
         const getValidUserId = (userId: string | undefined) => {
-          if (!userId || userId === "00000000-0000-0000-0000-000000000001" || userId === "undefined") {
+          if (!userId || userId === "undefined") {
             return null;
           }
+          // Allow the admin user ID for RPC calls
           return userId;
         };
 
         if (requestOptions.installment1Locked) {
           const { error: lockError } = await supabase
             .rpc('lock_installment', { 
-              request_id: requestId, 
-              installment_num: 1, 
-              locked_by_user_id: getValidUserId(user?.id) 
+              p_request_id: requestId, 
+              p_installment_number: 1, 
+              p_locked_by: getValidUserId(user?.id) 
             });
           if (lockError) {
             console.error('Error locking installment 1:', lockError);
@@ -2521,9 +2733,9 @@ const AdminPanel: React.FC = () => {
         if (requestOptions.installment2Locked) {
           const { error: lockError } = await supabase
             .rpc('lock_installment', { 
-              request_id: requestId, 
-              installment_num: 2, 
-              locked_by_user_id: getValidUserId(user?.id) 
+              p_request_id: requestId, 
+              p_installment_number: 2, 
+              p_locked_by: getValidUserId(user?.id) 
             });
           if (lockError) {
             console.error('Error locking installment 2:', lockError);
@@ -2532,9 +2744,9 @@ const AdminPanel: React.FC = () => {
         if (requestOptions.installment3Locked) {
           const { error: lockError } = await supabase
             .rpc('lock_installment', { 
-              request_id: requestId, 
-              installment_num: 3, 
-              locked_by_user_id: getValidUserId(user?.id) 
+              p_request_id: requestId, 
+              p_installment_number: 3, 
+              p_locked_by: getValidUserId(user?.id) 
             });
           if (lockError) {
             console.error('Error locking installment 3:', lockError);
@@ -2543,13 +2755,18 @@ const AdminPanel: React.FC = () => {
 
         // Handle third installment deletion
         if (requestOptions.deleteThirdInstallment) {
-          const { error: deleteError } = await supabase
-            .rpc('delete_third_installment_permanently', { 
-              request_id: requestId, 
-              deleted_by_user_id: getValidUserId(user?.id) 
-            });
-          if (deleteError) {
-            console.error('Error deleting third installment:', deleteError);
+          const deletedBy = getValidUserId(user?.id);
+          if (deletedBy) {
+            const { error: deleteError } = await supabase
+              .rpc('delete_third_installment_permanently', { 
+                request_id: requestId, 
+                deleted_by_user_id: deletedBy === '00000000-0000-0000-0000-000000000001' ? null : deletedBy 
+              });
+            if (deleteError) {
+              console.error('Error deleting third installment:', deleteError);
+            }
+          } else {
+            console.error('No valid user ID for third installment deletion');
           }
         }
       }
@@ -3679,7 +3896,7 @@ const AdminPanel: React.FC = () => {
                             
                             {/* Program Options Section */}
                             <div className="space-y-4">
-                              {/* Old Members and Kettlebell Points */}
+                              {/* Old Members, First 150 Members, and Kettlebell Points */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Old Members - Hide for Pilates package */}
                                 {request.package?.name !== 'Pilates' && (
@@ -3710,6 +3927,61 @@ const AdminPanel: React.FC = () => {
                                     </div>
                                   </button>
                                 </div>
+                                )}
+
+                                {/* First 150 Members - Only show when Old Members is selected AND not used - Hide for Pilates package */}
+                                {request.package?.name !== 'Pilates' && (
+                                  (() => {
+                                    const hasOldMembersSelected = selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers;
+                                    const hasFirst150Used = selectedRequestOptions[request.id]?.first150Members === false || getRequestFrozenOptions(request.id)?.first150Members === false;
+                                    return hasOldMembersSelected && !hasFirst150Used;
+                                  })() && (
+                                  <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                    {/* Info text above the button */}
+                                    <div className="mb-3 text-xs text-gray-600 bg-blue-50 p-2 rounded-lg border border-blue-200">
+                                      <span className="font-medium">ℹ️ Πληροφορίες:</span> Ισχύει μόνο για τα πρώτα 150 παλιά μέλη του γυμναστηρίου με τιμή 45€ ετήσιος (προσφορά), τα οποία εμφανίζονται στην καρτέλα Ταμείο
+                                    </div>
+                                    
+                                    <button
+                                      onClick={() => {
+                                        if (isRequestPending(request.id)) {
+                                          toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                          return;
+                                        }
+                                        
+                                        setSelectedRequestOptions(prev => {
+                                          const newOptions = { ...prev };
+                                          const newFirst150 = !newOptions[request.id]?.first150Members;
+                                          newOptions[request.id] = {
+                                            ...newOptions[request.id],
+                                            first150Members: newFirst150,
+                                            // When first150Members is selected, automatically set cash to 45 and lock POS
+                                            cash: newFirst150 ? true : newOptions[request.id]?.cash || false,
+                                            cashAmount: newFirst150 ? 45 : newOptions[request.id]?.cashAmount,
+                                            pos: newFirst150 ? false : newOptions[request.id]?.pos || false,
+                                            posAmount: newFirst150 ? 0 : newOptions[request.id]?.posAmount
+                                          };
+                                          return newOptions;
+                                        });
+                                      }}
+                                      className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 relative shadow-lg ${
+                                        selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members
+                                          ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-center space-x-2">
+                                        <span>🏆 Πρώτα 150 Μέλη</span>
+                                        {(selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) && (
+                                          <span className="text-orange-200">✓</span>
+                                        )}
+                                        {isRequestPending(request.id) && (
+                                          <span className="text-yellow-600">🔒</span>
+                                        )}
+                                      </div>
+                                    </button>
+                                  </div>
+                                  )
                                 )}
 
                                 {/* Kettlebell Points - Hide for Pilates package */}
@@ -3755,27 +4027,39 @@ const AdminPanel: React.FC = () => {
                                           toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
                                           return;
                                         }
+                                        // Block changes if First 150 Members is selected
+                                        if (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) {
+                                          toast('Το Μετρητά είναι κλειδωμένο όταν είναι επιλεγμένο το "Πρώτα 150 Μέλη"', { icon: '🔒' });
+                                          return;
+                                        }
                                         handleRequestOptionChange(request.id, 'cash', !selectedRequestOptions[request.id]?.cash);
                                       }}
                                       className={`w-full p-3 rounded-lg text-left transition-colors ${
-                                        selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash
+                                        (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)
+                                          ? 'bg-gray-100 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
+                                          : selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash
                                           ? 'bg-green-100 text-green-800 border-2 border-green-300'
                                           : isRequestPending(request.id)
                                           ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
                                           : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
                                       }`}
+                                      disabled={isRequestPending(request.id) || (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)}
                                     >
                                       <div className="flex items-center justify-between">
                                         <span className="font-medium">
-                                          {isRequestPending(request.id) && '🔒 '}💰 Μετρητά
+                                          {isRequestPending(request.id) && '🔒 '}
+                                          {(selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) && '🔒 '}
+                                          💰 Μετρητά
                                         </span>
-                                        {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
+                                        {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && 
+                                         !(selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) && (
                                           <span className="text-green-600">✓</span>
                                         )}
                                       </div>
                                     </button>
                                     
-                                    {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
+                                    {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && 
+                                     !(selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) && (
                                       <div className="mt-2">
                                         <input
                                           type="number"
@@ -3818,6 +4102,11 @@ const AdminPanel: React.FC = () => {
                                           toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
                                           return;
                                         }
+                                        // Block changes if First 150 Members is selected
+                                        if (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) {
+                                          toast('Το POS είναι κλειδωμένο όταν είναι επιλεγμένο το "Πρώτα 150 Μέλη"', { icon: '🔒' });
+                                          return;
+                                        }
                                         handleRequestOptionChange(request.id, 'pos', !selectedRequestOptions[request.id]?.pos);
                                       }}
                                       className={`w-full p-3 rounded-lg text-left transition-colors ${
@@ -3825,12 +4114,17 @@ const AdminPanel: React.FC = () => {
                                           ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
                                           : isRequestPending(request.id)
                                           ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                          : (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)
+                                          ? 'bg-gray-100 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
                                           : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
                                       }`}
+                                      disabled={isRequestPending(request.id) || (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)}
                                     >
                                       <div className="flex items-center justify-between">
                                         <span className="font-medium">
-                                          {isRequestPending(request.id) && '🔒 '}💳 POS
+                                          {isRequestPending(request.id) && '🔒 '}
+                                          {(selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) && '🔒 '}
+                                          💳 POS
                                         </span>
                                         {(selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos) && (
                                           <span className="text-blue-600">✓</span>
@@ -3875,13 +4169,13 @@ const AdminPanel: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* Installments Management - Only for Ultimate package with installments */}
-                              {request.package?.name === 'Ultimate' && request.has_installments && (
+                              {/* Installments Management - Eligible packages with installments */}
+                              {request.has_installments && isInstallmentsEligible(request.package?.name || '', request.duration_type as any) && (
                               <div className={`col-span-2 p-4 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-orange-50 border-orange-200'}`}>
                                 <div className="flex items-center space-x-2 mb-4">
                                   <span className="text-2xl">💳</span>
                                   <h4 className="text-lg font-semibold text-orange-800">
-                                    {isRequestPending(request.id) && '🔒 '}Διαχείριση Δόσεων Ultimate
+                                    {isRequestPending(request.id) && '🔒 '}Διαχείριση Δόσεων
                                   </h4>
                                 </div>
                                 
@@ -3894,31 +4188,35 @@ const AdminPanel: React.FC = () => {
                                     <div className="space-y-2">
                                       <input
                                         type="number"
-                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment1Amount || '' : selectedRequestOptions[request.id]?.installment1Amount || ''}
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment1Amount || '' : selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || ''}
                                         onChange={(e) => {
                                           if (isRequestPending(request.id)) return;
                                           handleRequestOptionChange(request.id, 'installment1Amount', e.target.value);
                                         }}
                                         placeholder="Ποσό"
+                                        disabled={isRequestPending(request.id) || isInstallmentLocked(request, 1)}
                                         className={`w-full p-2 border rounded-lg ${
                                           isRequestPending(request.id)
                                             ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : isInstallmentLocked(request, 1)
+                                            ? 'bg-orange-50 border-orange-300 cursor-not-allowed text-orange-600'
                                             : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
                                         }`}
-                                        disabled={isRequestPending(request.id)}
                                       />
                                       <select
-                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment1PaymentMethod || 'cash' : selectedRequestOptions[request.id]?.installment1PaymentMethod || 'cash'}
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment1PaymentMethod || 'cash' : selectedRequestOptions[request.id]?.installment1PaymentMethod || request.installment_1_payment_method || 'cash'}
                                         onChange={(e) => {
                                           if (isRequestPending(request.id)) return;
                                           handleRequestOptionChange(request.id, 'installment1PaymentMethod', e.target.value);
                                         }}
+                                        disabled={isRequestPending(request.id) || isInstallmentLocked(request, 1)}
                                         className={`w-full p-2 border rounded-lg ${
                                           isRequestPending(request.id)
                                             ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : isInstallmentLocked(request, 1)
+                                            ? 'bg-orange-50 border-orange-300 cursor-not-allowed text-orange-600'
                                             : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
                                         }`}
-                                        disabled={isRequestPending(request.id)}
                                       >
                                         <option value="cash">💰 Μετρητά</option>
                                         <option value="pos">💳 POS</option>
@@ -3929,18 +4227,30 @@ const AdminPanel: React.FC = () => {
                                         </label>
                                         <input
                                           type="date"
-                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment1DueDate || '' : selectedRequestOptions[request.id]?.installment1DueDate || ''}
+                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment1DueDate || '' : selectedRequestOptions[request.id]?.installment1DueDate || request.installment_1_due_date || ''}
                                           onChange={(e) => {
                                             if (isRequestPending(request.id)) return;
                                             handleRequestOptionChange(request.id, 'installment1DueDate', e.target.value);
                                           }}
+                                          disabled={isRequestPending(request.id) || isInstallmentLocked(request, 1)}
                                           className={`w-full p-2 border rounded-lg text-sm ${
                                             isRequestPending(request.id)
                                               ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                              : isInstallmentLocked(request, 1)
+                                              ? 'bg-orange-50 border-orange-300 cursor-not-allowed text-orange-600'
                                               : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
                                           }`}
-                                          disabled={isRequestPending(request.id)}
                                         />
+                                        <div className="mt-2 flex items-center space-x-2">
+                                          <input
+                                            type="checkbox"
+                                            checked={isInstallmentLocked(request, 1)}
+                                            onChange={() => handleInstallmentLockClick(request.id, 1)}
+                                            className="h-4 w-4 text-orange-600 border-gray-300 rounded"
+                                            disabled={isRequestPending(request.id)}
+                                          />
+                                          <span className="text-xs text-gray-600">Κλείδωμα Δόσης</span>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -3953,31 +4263,35 @@ const AdminPanel: React.FC = () => {
                                     <div className="space-y-2">
                                       <input
                                         type="number"
-                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment2Amount || '' : selectedRequestOptions[request.id]?.installment2Amount || ''}
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment2Amount || '' : selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || ''}
                                         onChange={(e) => {
                                           if (isRequestPending(request.id)) return;
                                           handleRequestOptionChange(request.id, 'installment2Amount', e.target.value);
                                         }}
                                         placeholder="Ποσό"
+                                        disabled={isRequestPending(request.id) || isInstallmentLocked(request, 2)}
                                         className={`w-full p-2 border rounded-lg ${
                                           isRequestPending(request.id)
                                             ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : isInstallmentLocked(request, 2)
+                                            ? 'bg-orange-50 border-orange-300 cursor-not-allowed text-orange-600'
                                             : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
                                         }`}
-                                        disabled={isRequestPending(request.id)}
                                       />
                                       <select
-                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment2PaymentMethod || 'cash' : selectedRequestOptions[request.id]?.installment2PaymentMethod || 'cash'}
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment2PaymentMethod || 'cash' : selectedRequestOptions[request.id]?.installment2PaymentMethod || request.installment_2_payment_method || 'cash'}
                                         onChange={(e) => {
                                           if (isRequestPending(request.id)) return;
                                           handleRequestOptionChange(request.id, 'installment2PaymentMethod', e.target.value);
                                         }}
+                                        disabled={isRequestPending(request.id) || isInstallmentLocked(request, 2)}
                                         className={`w-full p-2 border rounded-lg ${
                                           isRequestPending(request.id)
                                             ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : isInstallmentLocked(request, 2)
+                                            ? 'bg-orange-50 border-orange-300 cursor-not-allowed text-orange-600'
                                             : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
                                         }`}
-                                        disabled={isRequestPending(request.id)}
                                       >
                                         <option value="cash">💰 Μετρητά</option>
                                         <option value="pos">💳 POS</option>
@@ -3988,18 +4302,30 @@ const AdminPanel: React.FC = () => {
                                         </label>
                                         <input
                                           type="date"
-                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment2DueDate || '' : selectedRequestOptions[request.id]?.installment2DueDate || ''}
+                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment2DueDate || '' : selectedRequestOptions[request.id]?.installment2DueDate || request.installment_2_due_date || ''}
                                           onChange={(e) => {
                                             if (isRequestPending(request.id)) return;
                                             handleRequestOptionChange(request.id, 'installment2DueDate', e.target.value);
                                           }}
+                                          disabled={isRequestPending(request.id) || isInstallmentLocked(request, 2)}
                                           className={`w-full p-2 border rounded-lg text-sm ${
                                             isRequestPending(request.id)
                                               ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                              : isInstallmentLocked(request, 2)
+                                              ? 'bg-orange-50 border-orange-300 cursor-not-allowed text-orange-600'
                                               : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
                                           }`}
-                                          disabled={isRequestPending(request.id)}
                                         />
+                                        <div className="mt-2 flex items-center space-x-2">
+                                          <input
+                                            type="checkbox"
+                                            checked={isInstallmentLocked(request, 2)}
+                                            onChange={() => handleInstallmentLockClick(request.id, 2)}
+                                            className="h-4 w-4 text-orange-600 border-gray-300 rounded"
+                                            disabled={isRequestPending(request.id)}
+                                          />
+                                          <span className="text-xs text-gray-600">Κλείδωμα Δόσης</span>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -4012,31 +4338,39 @@ const AdminPanel: React.FC = () => {
                                     <div className="space-y-2">
                                       <input
                                         type="number"
-                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment3Amount || '' : selectedRequestOptions[request.id]?.installment3Amount || ''}
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment3Amount || '' : selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || ''}
                                         onChange={(e) => {
                                           if (isRequestPending(request.id)) return;
                                           handleRequestOptionChange(request.id, 'installment3Amount', e.target.value);
                                         }}
                                         placeholder="Ποσό"
+                                        disabled={isRequestPending(request.id) || isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
                                         className={`w-full p-2 border rounded-lg ${
                                           isRequestPending(request.id)
                                             ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : isInstallmentLocked(request, 3)
+                                            ? 'bg-orange-50 border-orange-300 cursor-not-allowed text-orange-600'
+                                            : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                                            ? 'bg-red-50 border-red-300 cursor-not-allowed text-red-600'
                                             : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
                                         }`}
-                                        disabled={isRequestPending(request.id)}
                                       />
                                       <select
-                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment3PaymentMethod || 'cash' : selectedRequestOptions[request.id]?.installment3PaymentMethod || 'cash'}
+                                        value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment3PaymentMethod || 'cash' : selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash'}
                                         onChange={(e) => {
                                           if (isRequestPending(request.id)) return;
                                           handleRequestOptionChange(request.id, 'installment3PaymentMethod', e.target.value);
                                         }}
+                                        disabled={isRequestPending(request.id) || isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
                                         className={`w-full p-2 border rounded-lg ${
                                           isRequestPending(request.id)
                                             ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                            : isInstallmentLocked(request, 3)
+                                            ? 'bg-orange-50 border-orange-300 cursor-not-allowed text-orange-600'
+                                            : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                                            ? 'bg-red-50 border-red-300 cursor-not-allowed text-red-600'
                                             : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
                                         }`}
-                                        disabled={isRequestPending(request.id)}
                                       >
                                         <option value="cash">💰 Μετρητά</option>
                                         <option value="pos">💳 POS</option>
@@ -4047,18 +4381,42 @@ const AdminPanel: React.FC = () => {
                                         </label>
                                         <input
                                           type="date"
-                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment3DueDate || '' : selectedRequestOptions[request.id]?.installment3DueDate || ''}
+                                          value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.installment3DueDate || '' : selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date || ''}
                                           onChange={(e) => {
                                             if (isRequestPending(request.id)) return;
                                             handleRequestOptionChange(request.id, 'installment3DueDate', e.target.value);
                                           }}
+                                          disabled={isRequestPending(request.id) || isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
                                           className={`w-full p-2 border rounded-lg text-sm ${
                                             isRequestPending(request.id)
                                               ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                              : isInstallmentLocked(request, 3)
+                                              ? 'bg-orange-50 border-orange-300 cursor-not-allowed text-orange-600'
+                                              : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                                              ? 'bg-red-50 border-red-300 cursor-not-allowed text-red-600'
                                               : 'border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500'
                                           }`}
-                                          disabled={isRequestPending(request.id)}
                                         />
+                                        <div className="mt-2 flex items-center justify-between">
+                                          <div className="flex items-center space-x-2">
+                                            <input
+                                              type="checkbox"
+                                              checked={isInstallmentLocked(request, 3)}
+                                              onChange={() => handleInstallmentLockClick(request.id, 3)}
+                                              disabled={selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted || isRequestPending(request.id)}
+                                              className="h-4 w-4 text-orange-600 border-gray-300 rounded"
+                                            />
+                                            <span className="text-xs text-gray-600">Κλείδωμα Δόσης</span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteThirdInstallmentClick(request.id)}
+                                            disabled={isRequestPending(request.id)}
+                                            className={`text-xs px-2 py-1 rounded-md ${isRequestPending(request.id) ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                                          >
+                                            Διαγραφή 3ης Δόσης
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -5756,6 +6114,74 @@ const AdminPanel: React.FC = () => {
                   <span className="ml-2 text-xs opacity-75">(Επιλέξτε χρήστη)</span>
                 )}
               </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lock Confirmation Popup */}
+      {showLockConfirmation && pendingLockRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 max-w-md mx-4 border border-gray-600 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <Lock className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">
+                Κλείδωμα Δόσης
+              </h3>
+              <p className="text-gray-300 mb-8 text-lg">
+                Είστε σίγουροι ότι θέλετε να κλειδώσετε την {pendingLockRequest.installmentNumber}η δόση; 
+                Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={cancelInstallmentLock}
+                  className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors font-medium"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  onClick={confirmInstallmentLock}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all font-medium"
+                >
+                  Κλείδωμα
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Third Installment Confirmation Popup */}
+      {showDeleteConfirmation && pendingDeleteRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 max-w-md mx-4 border border-gray-600 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <Trash2 className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">
+                Διαγραφή 3ης Δόσης
+              </h3>
+              <p className="text-gray-300 mb-8 text-lg">
+                Είστε σίγουροι ότι θέλετε να διαγράψετε την 3η δόση; 
+                Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={cancelDeleteThirdInstallment}
+                  className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors font-medium"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  onClick={confirmDeleteThirdInstallment}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all font-medium"
+                >
+                  Διαγραφή
+                </button>
               </div>
             </div>
           </div>

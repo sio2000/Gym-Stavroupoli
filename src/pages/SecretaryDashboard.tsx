@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { isInstallmentsEligible } from '@/utils/installmentsEligibility';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   QrCode, 
@@ -44,7 +45,7 @@ import {
   saveProgramApprovalState
 } from '@/utils/programApprovalApi';
 import { MembershipRequest } from '@/types';
-import UltimateInstallmentsTab from '@/components/secretary/UltimateInstallmentsTab';
+import InstallmentsTab from '@/components/secretary/InstallmentsTab';
 import SecretaryUsersInformation from '@/components/secretary/SecretaryUsersInformation';
 import GroupTrainingCalendar from '@/components/admin/GroupTrainingCalendar';
 import GroupAssignmentInterface from '@/components/admin/GroupAssignmentInterface';
@@ -55,6 +56,15 @@ import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 import type { Result, Exception } from '@zxing/library';
+
+// Helper to validate user id for RPC calls
+const getValidUserId = (userId: string | undefined) => {
+  if (!userId || userId === 'undefined') {
+    return null;
+  }
+  // Allow the admin user ID for RPC calls
+  return userId;
+};
 
 interface ScanResult {
   success: boolean;
@@ -129,6 +139,7 @@ const SecretaryDashboard: React.FC = () => {
   // Program Options state for membership requests
   const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
     oldMembers?: boolean;
+    first150Members?: boolean;
     kettlebellPoints?: string;
     cash?: boolean;
     pos?: boolean;
@@ -206,6 +217,16 @@ const SecretaryDashboard: React.FC = () => {
   const [usersPerPage] = useState(10);
   const [requestPendingUsers, setRequestPendingUsers] = useState<Set<string>>(new Set());
   const [requestFrozenOptions, setRequestFrozenOptions] = useState<{[requestId: string]: any}>({});
+  // Installment locking state
+  const [showLockConfirmation, setShowLockConfirmation] = useState(false);
+  const [pendingLockRequest, setPendingLockRequest] = useState<{
+    requestId: string;
+    installmentNumber: number;
+  } | null>(null);
+  
+  // Delete third installment state
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [pendingDeleteRequest, setPendingDeleteRequest] = useState<string | null>(null);
   
   // Installment state variables
   const [installmentLoading, setInstallmentLoading] = useState(false);
@@ -216,7 +237,7 @@ const SecretaryDashboard: React.FC = () => {
   // Ultimate Installments state
   const [ultimateRequests, setUltimateRequests] = useState<MembershipRequest[]>([]);
   const [ultimateLoading, setUltimateLoading] = useState(false);
-  const [ultimateSearchTerm, setUltimateSearchTerm] = useState('');
+  const [installmentSearchTerm, setInstallmentSearchTerm] = useState('');
 
   const webcamRef = useRef<Webcam>(null);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -264,7 +285,7 @@ const SecretaryDashboard: React.FC = () => {
     if (activeTab === 'membership-requests') {
       loadMembershipRequests();
     } else if (activeTab === 'ultimate-installments') {
-      loadUltimateRequests();
+      loadInstallmentRequests();
     } else if (activeTab === 'personal-training') {
       // Clear existing users first to force reload
       setAllUsers([]);
@@ -333,14 +354,198 @@ const SecretaryDashboard: React.FC = () => {
 
   // ===== INSTALLMENTS FUNCTIONS =====
 
+  // Handle installment locking
+  const handleInstallmentLockClick = (requestId: string, installmentNumber: number) => {
+    setPendingLockRequest({ requestId, installmentNumber });
+    setShowLockConfirmation(true);
+  };
+
+  const confirmInstallmentLock = async () => {
+    if (pendingLockRequest) {
+      const { requestId, installmentNumber } = pendingLockRequest;
+      
+      try {
+        // First, save current values to database before locking
+        const request = installmentRequests.find(r => r.id === requestId);
+        if (request) {
+          const requestOptions = selectedRequestOptions[requestId] || {};
+          
+          // Prepare update data with current values
+          const updateData: any = {};
+          
+          // Save installment amounts (use current values from form or database)
+          if (installmentNumber === 1) {
+            updateData.installment_1_amount = parseFloat(requestOptions.installment1Amount || request.installment_1_amount || 0);
+            updateData.installment_1_payment_method = requestOptions.installment1PaymentMethod || request.installment_1_payment_method || 'cash';
+            updateData.installment_1_due_date = requestOptions.installment1DueDate || request.installment_1_due_date;
+          } else if (installmentNumber === 2) {
+            updateData.installment_2_amount = parseFloat(requestOptions.installment2Amount || request.installment_2_amount || 0);
+            updateData.installment_2_payment_method = requestOptions.installment2PaymentMethod || request.installment_2_payment_method || 'cash';
+            updateData.installment_2_due_date = requestOptions.installment2DueDate || request.installment_2_due_date;
+          } else if (installmentNumber === 3) {
+            updateData.installment_3_amount = parseFloat(requestOptions.installment3Amount || request.installment_3_amount || 0);
+            updateData.installment_3_payment_method = requestOptions.installment3PaymentMethod || request.installment_3_payment_method || 'cash';
+            updateData.installment_3_due_date = requestOptions.installment3DueDate || request.installment_3_due_date;
+          }
+          
+          // Save values to database first
+          const { error: saveError } = await supabase
+            .from('membership_requests')
+            .update(updateData)
+            .eq('id', requestId);
+          
+          if (saveError) {
+            console.error(`[SecretaryDashboard] Error saving values before lock:`, saveError);
+            toast.error('Σφάλμα κατά την αποθήκευση των τιμών');
+            return;
+          }
+          
+          console.log(`[SecretaryDashboard] Saved values before locking:`, updateData);
+        }
+        
+        // Then lock the installment
+        const { error: lockError } = await supabase
+          .rpc('lock_installment', { 
+            p_request_id: requestId, 
+            p_installment_number: installmentNumber, 
+            p_locked_by: getValidUserId(user?.id) 
+          });
+        
+        if (lockError) {
+          console.error(`Error locking installment ${installmentNumber}:`, lockError);
+          toast.error(`Σφάλμα κατά το κλείδωμα της ${installmentNumber}ης δόσης`);
+          return;
+        }
+        
+        // Update local state - lock the installment
+        const lockField = `installment${installmentNumber}Locked` as keyof MembershipRequest;
+        handleRequestOptionChange(requestId, lockField, true);
+        
+        toast.success(`${installmentNumber}η δόση κλειδώθηκε επιτυχώς με τις τρέχουσες τιμές`);
+        
+        // Reload the requests to get updated data
+        await loadInstallmentRequests();
+        
+      } catch (error) {
+        console.error('Exception locking installment:', error);
+        toast.error('Σφάλμα κατά το κλείδωμα της δόσης');
+      }
+      
+      setShowLockConfirmation(false);
+      setPendingLockRequest(null);
+    }
+  };
+
+  const cancelInstallmentLock = () => {
+    setShowLockConfirmation(false);
+    setPendingLockRequest(null);
+  };
+
+  // Delete third installment confirmation handlers
+  const handleDeleteThirdInstallmentClick = (requestId: string) => {
+    setPendingDeleteRequest(requestId);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDeleteThirdInstallment = async () => {
+    if (pendingDeleteRequest) {
+      try {
+        // Get valid user ID for the deletion
+        const deletedBy = getValidUserId(user?.id);
+        if (!deletedBy) {
+          console.error('No valid user ID for deletion');
+          toast.error('Σφάλμα: Δεν βρέθηκε έγκυρο ID χρήστη');
+          return;
+        }
+
+        console.log('Deleting third installment for request:', pendingDeleteRequest, 'by user:', deletedBy);
+        
+        // Call RPC to delete third installment permanently
+        // Use NULL for deleted_by_user_id if it's the problematic ID
+        const { error: deleteError } = await supabase
+          .rpc('delete_third_installment_permanently', { 
+            request_id: pendingDeleteRequest, 
+            deleted_by_user_id: deletedBy === '00000000-0000-0000-0000-000000000001' ? null : deletedBy 
+          });
+        
+        if (deleteError) {
+          console.error('Error deleting third installment:', deleteError);
+          toast.error('Σφάλμα κατά τη διαγραφή της 3ης δόσης');
+          return;
+        }
+        
+        // Update local state
+        handleRequestOptionChange(pendingDeleteRequest, 'deleteThirdInstallment', true);
+        
+        toast.success('3η δόση διαγράφηκε επιτυχώς');
+        
+        // Reload the requests to get updated data
+        await loadInstallmentRequests();
+        
+      } catch (error) {
+        console.error('Exception deleting third installment:', error);
+        toast.error('Σφάλμα κατά τη διαγραφή της 3ης δόσης');
+      }
+      
+      setShowDeleteConfirmation(false);
+      setPendingDeleteRequest(null);
+    }
+  };
+
+  const cancelDeleteThirdInstallment = () => {
+    setShowDeleteConfirmation(false);
+    setPendingDeleteRequest(null);
+  };
+
+  // Check if an installment is locked (from database only - permanent locking)
+  const isInstallmentLocked = (request: MembershipRequest, installmentNumber: number) => {
+    // Check if it's locked in the database (permanent locking)
+    const dbLockField = `installment_${installmentNumber}_locked` as keyof MembershipRequest;
+    const isDbLocked = request[dbLockField] === true;
+    
+    console.log(`[SecretaryDashboard] isInstallmentLocked check for request ${request.id}, installment ${installmentNumber}:`, {
+      dbLockField,
+      rawValue: request[dbLockField],
+      isDbLocked,
+      requestData: {
+        installment_1_locked: request.installment_1_locked,
+        installment_2_locked: request.installment_2_locked,
+        installment_3_locked: request.installment_3_locked,
+        has_installments: request.has_installments,
+        package_name: request.package?.name,
+        locked_installments: request.locked_installments
+      }
+    });
+    
+    // Check if the field exists and is properly set
+    if (request[dbLockField] !== undefined && request[dbLockField] !== null) {
+      return isDbLocked;
+    }
+    
+    // Fallback: Check if it's locked in the old locked_installments table
+    console.log(`[SecretaryDashboard] Field ${dbLockField} is undefined/null, checking old locked_installments table...`);
+    
+    if (request.locked_installments && Array.isArray(request.locked_installments)) {
+      const isLockedInOldTable = request.locked_installments.some((li: any) => li.installment_number === installmentNumber);
+      console.log(`[SecretaryDashboard] Found in old table:`, isLockedInOldTable);
+      return isLockedInOldTable;
+    }
+    
+    // Default to false if no locking information is found
+    return false;
+  };
+
   const loadInstallmentRequests = async () => {
     try {
       setInstallmentLoading(true);
       const requests = await getMembershipRequests();
-      // Filter only Ultimate requests with installments
-      const installmentRequests = requests.filter(request => 
-        request.package?.name === 'Ultimate' && request.has_installments
-      );
+      // Φιλτράρουμε αιτήματα δόσεων για Ultimate + Free Gym (6m,1y) + Pilates (25,50)
+      const installmentRequests = requests.filter(request => {
+        if (!request.has_installments) return false;
+        return request.package?.name ?
+          isInstallmentsEligible(request.package.name, request.duration_type as any)
+          : false;
+      });
       setInstallmentRequests(installmentRequests);
     } catch (error) {
       console.error('Error loading installment requests:', error);
@@ -372,18 +577,19 @@ const SecretaryDashboard: React.FC = () => {
         // Lock installments that were just locked
         // Helper function to validate user ID
         const getValidUserId = (userId: string | undefined) => {
-          if (!userId || userId === "00000000-0000-0000-0000-000000000001" || userId === "undefined") {
+          if (!userId || userId === "undefined") {
             return null;
           }
+          // Allow the admin user ID for RPC calls
           return userId;
         };
 
         if (requestOptions.installment1Locked) {
           const { error: lockError } = await supabase
             .rpc('lock_installment', { 
-              request_id: requestId, 
-              installment_num: 1, 
-              locked_by_user_id: getValidUserId(user?.id) 
+              p_request_id: requestId, 
+              p_installment_number: 1, 
+              p_locked_by: getValidUserId(user?.id) 
             });
           if (lockError) {
             console.error('Error locking installment 1:', lockError);
@@ -392,9 +598,9 @@ const SecretaryDashboard: React.FC = () => {
         if (requestOptions.installment2Locked) {
           const { error: lockError } = await supabase
             .rpc('lock_installment', { 
-              request_id: requestId, 
-              installment_num: 2, 
-              locked_by_user_id: getValidUserId(user?.id) 
+              p_request_id: requestId, 
+              p_installment_number: 2, 
+              p_locked_by: getValidUserId(user?.id) 
             });
           if (lockError) {
             console.error('Error locking installment 2:', lockError);
@@ -403,9 +609,9 @@ const SecretaryDashboard: React.FC = () => {
         if (requestOptions.installment3Locked) {
           const { error: lockError } = await supabase
             .rpc('lock_installment', { 
-              request_id: requestId, 
-              installment_num: 3, 
-              locked_by_user_id: getValidUserId(user?.id) 
+              p_request_id: requestId, 
+              p_installment_number: 3, 
+              p_locked_by: getValidUserId(user?.id) 
             });
           if (lockError) {
             console.error('Error locking installment 3:', lockError);
@@ -414,13 +620,18 @@ const SecretaryDashboard: React.FC = () => {
 
         // Handle third installment deletion
         if (requestOptions.deleteThirdInstallment) {
-          const { error: deleteError } = await supabase
-            .rpc('delete_third_installment_permanently', { 
-              request_id: requestId, 
-              deleted_by_user_id: getValidUserId(user?.id) 
-            });
-          if (deleteError) {
-            console.error('Error deleting third installment:', deleteError);
+          const deletedBy = getValidUserId(user?.id);
+          if (deletedBy) {
+            const { error: deleteError } = await supabase
+              .rpc('delete_third_installment_permanently', { 
+                request_id: requestId, 
+                deleted_by_user_id: deletedBy === '00000000-0000-0000-0000-000000000001' ? null : deletedBy 
+              });
+            if (deleteError) {
+              console.error('Error deleting third installment:', deleteError);
+            }
+          } else {
+            console.error('No valid user ID for third installment deletion');
           }
         }
       }
@@ -441,23 +652,7 @@ const SecretaryDashboard: React.FC = () => {
     }
   };
 
-  const deleteInstallmentRequest = async (requestId: string) => {
-    try {
-      const { error } = await supabase
-        .from('membership_requests')
-        .delete()
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      toast.success('Το αίτημα δόσεων διαγράφηκε επιτυχώς');
-      // Reload installment requests
-      await loadInstallmentRequests();
-    } catch (error) {
-      console.error('Error deleting installment request:', error);
-      toast.error('Σφάλμα κατά τη διαγραφή του αιτήματος');
-    }
-  };
+  
 
   // ===== ULTIMATE INSTALLMENTS FUNCTIONS =====
 
@@ -650,7 +845,7 @@ const SecretaryDashboard: React.FC = () => {
     return byEmail || byCode;
   };
 
-  const deleteUltimateRequest = async (requestId: string) => {
+  const deleteInstallmentRequest = async (requestId: string) => {
     try {
       const { error } = await supabase
         .from('membership_requests')
@@ -659,11 +854,12 @@ const SecretaryDashboard: React.FC = () => {
 
       if (error) throw error;
 
-      toast.success('Το Ultimate αίτημα διαγράφηκε επιτυχώς');
-      await loadUltimateRequests();
+      toast.success('Το αίτημα δόσεων διαγράφηκε επιτυχώς');
+      // Reload installment requests
+      await loadInstallmentRequests();
     } catch (error) {
-      console.error('Error deleting ultimate request:', error);
-      toast.error('Σφάλμα κατά τη διαγραφή του Ultimate αιτήματος');
+      console.error('Error deleting installment request:', error);
+      toast.error('Σφάλμα κατά τη διαγραφή του αιτήματος');
     }
   };
 
@@ -684,7 +880,7 @@ const SecretaryDashboard: React.FC = () => {
         if (success) {
           toast.success('Το Ultimate αίτημα εγκρίθηκε επιτυχώς! Δημιουργήθηκαν 2 συνδρομές: Pilates + Open Gym');
           if (activeTab === 'ultimate-installments') {
-            loadUltimateRequests();
+            loadInstallmentRequests();
           } else {
             loadMembershipRequests();
           }
@@ -715,7 +911,7 @@ const SecretaryDashboard: React.FC = () => {
       if (success) {
         toast.success('Το αίτημα απορρίφθηκε επιτυχώς!');
         if (activeTab === 'ultimate-installments') {
-          loadUltimateRequests();
+          loadInstallmentRequests();
         } else {
           loadMembershipRequests();
         }
@@ -861,7 +1057,21 @@ const SecretaryDashboard: React.FC = () => {
         }
       }
 
-      // 2. Save Kettlebell Points (handle empty fields as 0)
+      // 2. Handle First 150 Members if selected
+      if (userOptions.first150Members) {
+        // Mark old members as used (same as above but for first150Members)
+        const oldMembersSuccess = await saveSecretaryOldMembersUsage(userId, user?.id || '');
+        if (oldMembersSuccess) {
+          console.log(`[APPROVED] First 150 Members - Old Members marked as used for membership request: ${requestId}`);
+        } else {
+          console.warn(`[APPROVED] First 150 Members - Failed to mark Old Members as used for membership request: ${requestId}`);
+        }
+        
+        // Automatically set cash to 45€ and lock POS (this is handled in the UI state)
+        console.log(`[APPROVED] First 150 Members selected - Cash set to 45€ and POS locked for membership request: ${requestId}`);
+      }
+
+      // 3. Save Kettlebell Points (handle empty fields as 0)
       const kettlebellPoints = userOptions.kettlebellPoints && userOptions.kettlebellPoints.trim() !== '' 
         ? parseInt(userOptions.kettlebellPoints) || 0 
         : 0;
@@ -2345,7 +2555,7 @@ const SecretaryDashboard: React.FC = () => {
               <button
                 onClick={activeTab === 'scanner' ? loadRecentScans : 
                          activeTab === 'membership-requests' ? loadMembershipRequests : 
-                         activeTab === 'ultimate-installments' ? loadUltimateRequests :
+                         activeTab === 'ultimate-installments' ? loadInstallmentRequests :
                          activeTab === 'personal-training' ? () => {} : // personal-training tab handles its own refresh
                          () => {}} // users-information tab handles its own refresh
                 className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -2778,6 +2988,61 @@ const SecretaryDashboard: React.FC = () => {
                         </div>
                         )}
 
+                        {/* First 150 Members - Only show when Old Members is selected AND not used - Hide for Pilates package */}
+                        {request.package?.name !== 'Pilates' && (
+                          (() => {
+                            const hasOldMembersSelected = selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers;
+                            const hasFirst150Used = selectedRequestOptions[request.id]?.first150Members === false || getRequestFrozenOptions(request.id)?.first150Members === false;
+                            return hasOldMembersSelected && !hasFirst150Used;
+                          })() && (
+                          <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                            {/* Info text above the button */}
+                            <div className="mb-3 text-xs text-gray-600 bg-blue-50 p-2 rounded-lg border border-blue-200">
+                              <span className="font-medium">ℹ️ Πληροφορίες:</span> Ισχύει μόνο για τα πρώτα 150 παλιά μέλη του γυμναστηρίου με τιμή 45€ ετήσιος (προσφορά), τα οποία εμφανίζονται στην καρτέλα Ταμείο
+                            </div>
+                            
+                            <button
+                              onClick={() => {
+                                if (isRequestPending(request.id)) {
+                                  toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
+                                  return;
+                                }
+                                
+                                setSelectedRequestOptions(prev => {
+                                  const newOptions = { ...prev };
+                                  const newFirst150 = !newOptions[request.id]?.first150Members;
+                                  newOptions[request.id] = {
+                                    ...newOptions[request.id],
+                                    first150Members: newFirst150,
+                                    // When first150Members is selected, automatically set cash to 45 and lock POS
+                                    cash: newFirst150 ? true : newOptions[request.id]?.cash || false,
+                                    cashAmount: newFirst150 ? 45 : newOptions[request.id]?.cashAmount,
+                                    pos: newFirst150 ? false : newOptions[request.id]?.pos || false,
+                                    posAmount: newFirst150 ? 0 : newOptions[request.id]?.posAmount
+                                  };
+                                  return newOptions;
+                                });
+                              }}
+                              className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 relative shadow-lg ${
+                                selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members
+                                  ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                                  : 'bg-blue-500 text-white hover:bg-blue-600'
+                              }`}
+                            >
+                              <div className="flex items-center justify-center space-x-2">
+                                <span>🏆 Πρώτα 150 Μέλη</span>
+                                {(selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) && (
+                                  <span className="text-orange-200">✓</span>
+                                )}
+                                {isRequestPending(request.id) && (
+                                  <span className="text-yellow-600">🔒</span>
+                                )}
+                              </div>
+                            </button>
+                          </div>
+                          )
+                        )}
+
                         {/* Kettlebell Points - Hide for Pilates package */}
                         {request.package?.name !== 'Pilates' && (
                         <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
@@ -2810,27 +3075,39 @@ const SecretaryDashboard: React.FC = () => {
                                 toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
                                 return;
                               }
+                              // Block changes if First 150 Members is selected
+                              if (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) {
+                                toast('Το Μετρητά είναι κλειδωμένο όταν είναι επιλεγμένο το "Πρώτα 150 Μέλη"', { icon: '🔒' });
+                                return;
+                              }
                               handleRequestOptionChange(request.id, 'cash', !selectedRequestOptions[request.id]?.cash);
                             }}
                             className={`w-full p-3 rounded-lg text-left transition-colors ${
-                              selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash
+                              (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)
+                                ? 'bg-gray-100 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
+                                : selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash
                                 ? 'bg-green-100 text-green-800 border-2 border-green-300'
                                 : isRequestPending(request.id)
                                 ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
                                 : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
                             }`}
+                            disabled={isRequestPending(request.id) || (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)}
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-medium">
-                                {isRequestPending(request.id) && '🔒 '}💰 Μετρητά
+                                {isRequestPending(request.id) && '🔒 '}
+                                {(selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) && '🔒 '}
+                                💰 Μετρητά
                               </span>
-                              {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
+                              {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && 
+                               !(selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) && (
                                 <span className="text-green-600">✓</span>
                               )}
                             </div>
                           </button>
                           
-                          {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && (
+                          {(selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash) && 
+                           !(selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) && (
                             <div className="mt-2">
                               <input
                                 type="number"
@@ -2873,6 +3150,11 @@ const SecretaryDashboard: React.FC = () => {
                                 toast('Οι επιλογές είναι παγωμένες - αλλάξτε status για να τις τροποποιήσετε', { icon: '🔒' });
                                 return;
                               }
+                              // Block changes if First 150 Members is selected
+                              if (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) {
+                                toast('Το POS είναι κλειδωμένο όταν είναι επιλεγμένο το "Πρώτα 150 Μέλη"', { icon: '🔒' });
+                                return;
+                              }
                               handleRequestOptionChange(request.id, 'pos', !selectedRequestOptions[request.id]?.pos);
                             }}
                             className={`w-full p-3 rounded-lg text-left transition-colors ${
@@ -2880,12 +3162,17 @@ const SecretaryDashboard: React.FC = () => {
                                 ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
                                 : isRequestPending(request.id)
                                 ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                                : (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)
+                                ? 'bg-gray-100 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
                                 : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
                             }`}
+                            disabled={isRequestPending(request.id) || (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)}
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-medium">
-                                {isRequestPending(request.id) && '🔒 '}💳 POS
+                                {isRequestPending(request.id) && '🔒 '}
+                                {(selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members) && '🔒 '}
+                                💳 POS
                               </span>
                               {(selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos) && (
                                 <span className="text-blue-600">✓</span>
@@ -2978,24 +3265,30 @@ const SecretaryDashboard: React.FC = () => {
             )}
           </div>
         ) : activeTab === 'ultimate-installments' ? (
-          <UltimateInstallmentsTab
-            ultimateRequests={ultimateRequests}
-            ultimateLoading={ultimateLoading}
-            ultimateSearchTerm={ultimateSearchTerm}
-            setUltimateSearchTerm={setUltimateSearchTerm}
+          <InstallmentsTab
+            installmentRequests={installmentRequests}
+            installmentLoading={installmentLoading}
+            installmentSearchTerm={installmentSearchTerm}
+            setInstallmentSearchTerm={setInstallmentSearchTerm}
             selectedRequestOptions={selectedRequestOptions}
             handleRequestOptionChange={handleRequestOptionChange}
             updateInstallmentAmounts={updateInstallmentAmounts}
-            deleteUltimateRequest={deleteUltimateRequest}
-            loadUltimateRequests={loadUltimateRequests}
+            deleteInstallmentRequest={deleteInstallmentRequest}
+            loadInstallmentRequests={loadInstallmentRequests}
             handleApproveRequest={handleApproveRequest}
             handleRejectRequest={handleRejectRequest}
             loading={loading}
-            requestProgramApprovalStatus={requestProgramApprovalStatus}
-            handleRequestProgramApprovalChange={handleRequestProgramApprovalChange}
-            handleSaveRequestProgramOptions={handleSaveRequestProgramOptions}
-            requestPendingUsers={requestPendingUsers}
-            requestFrozenOptions={requestFrozenOptions}
+            handleInstallmentLockClick={handleInstallmentLockClick}
+            handleDeleteThirdInstallmentClick={handleDeleteThirdInstallmentClick}
+            isInstallmentLocked={isInstallmentLocked}
+            showLockConfirmation={showLockConfirmation}
+            pendingLockRequest={pendingLockRequest}
+            confirmInstallmentLock={confirmInstallmentLock}
+            cancelInstallmentLock={cancelInstallmentLock}
+            showDeleteConfirmation={showDeleteConfirmation}
+            pendingDeleteRequest={pendingDeleteRequest}
+            confirmDeleteThirdInstallment={confirmDeleteThirdInstallment}
+            cancelDeleteThirdInstallment={cancelDeleteThirdInstallment}
           />
         ) : activeTab === 'users-information' ? (
           <SecretaryUsersInformation />
