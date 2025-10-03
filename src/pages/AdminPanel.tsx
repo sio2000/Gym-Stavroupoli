@@ -46,6 +46,7 @@ import {
   updateMembershipPackageDuration,
   getMembershipRequests,
   getMembershipRequestsWithLockedInstallments,
+  getUltimateMembershipRequests,
   approveMembershipRequest,
   approveUltimateMembershipRequest,
   rejectMembershipRequest,
@@ -79,11 +80,29 @@ const LARGE_DATASET_THRESHOLD = 100;
 const ITEMS_PER_PAGE = 50;
 
 // Helper to validate user id for RPC calls (defined early to avoid hoisting issues)
-const getValidUserId = (userId: string | undefined) => {
-  if (!userId || userId === 'undefined') {
-    return null;
+const getValidUserId = async (userId: string | undefined) => {
+  if (!userId || userId === 'undefined' || userId === '00000000-0000-0000-0000-000000000001') {
+    // If no valid user ID, get the first admin user from user_profiles
+    try {
+      const { data: adminUser, error } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('role', 'admin')
+        .limit(1)
+        .single();
+      
+      if (error || !adminUser) {
+        console.error('No admin user found:', error);
+        return null;
+      }
+      
+      return adminUser.id;
+    } catch (error) {
+      console.error('Error getting admin user:', error);
+      return null;
+    }
   }
-  // Allow the admin user ID for RPC calls
+  // Allow valid user IDs for RPC calls
   return userId;
 };
 
@@ -351,6 +370,30 @@ const AdminPanel: React.FC = () => {
   
   // Program Options state for membership requests
   const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
+    oldMembers?: boolean;
+    first150Members?: boolean;
+    kettlebellPoints?: string;
+    cash?: boolean;
+    pos?: boolean;
+    cashAmount?: number;
+    posAmount?: number;
+    installment1Amount?: number;
+    installment2Amount?: number;
+    installment3Amount?: number;
+    installment1PaymentMethod?: string;
+    installment2PaymentMethod?: string;
+    installment3PaymentMethod?: string;
+    installment1DueDate?: string;
+    installment2DueDate?: string;
+    installment3DueDate?: string;
+    installment1Locked?: boolean;
+    installment2Locked?: boolean;
+    installment3Locked?: boolean;
+    deleteThirdInstallment?: boolean;
+  }}>({});
+  
+  // Separate state for Ultimate tab to avoid conflicts
+  const [selectedUltimateRequestOptions, setSelectedUltimateRequestOptions] = useState<{[requestId: string]: {
     oldMembers?: boolean;
     first150Members?: boolean;
     kettlebellPoints?: string;
@@ -1935,8 +1978,8 @@ const AdminPanel: React.FC = () => {
   // Filter and paginate membership requests
   const getFilteredMembershipRequests = () => {
     const filtered = membershipRequests.filter(request => {
-      // Filter by package type
-      const packageMatch = request.package?.name === 'Free Gym' || request.package?.name === 'Pilates' || request.package?.name === 'Ultimate';
+      // Filter by package type (EXCLUDE Ultimate - αυτά έχουν ξεχωριστή καρτέλα)
+      const packageMatch = request.package?.name === 'Free Gym' || request.package?.name === 'Pilates';
       
       // Filter by search term (user name)
       const searchMatch = membershipRequestsSearchTerm === '' || 
@@ -2098,6 +2141,17 @@ const AdminPanel: React.FC = () => {
 
   const handleRequestOptionChange = (requestId: string, option: string, value: any) => {
     setSelectedRequestOptions(prev => ({
+      ...prev,
+      [requestId]: {
+        ...prev[requestId],
+        [option]: value
+      }
+    }));
+  };
+
+  // Separate handler for Ultimate tab to avoid conflicts
+  const handleUltimateRequestOptionChange = (requestId: string, option: string, value: any) => {
+    setSelectedUltimateRequestOptions(prev => ({
       ...prev,
       [requestId]: {
         ...prev[requestId],
@@ -2413,14 +2467,10 @@ const AdminPanel: React.FC = () => {
     try {
       setUltimateLoading(true);
       
-      const requests = await withDatabaseRetry(
-        () => getMembershipRequestsWithLockedInstallments(),
+      // Load Ultimate requests from the new dedicated table
+      const ultimateRequests = await withDatabaseRetry(
+        () => getUltimateMembershipRequests(),
         'φόρτωση Ultimate αιτημάτων'
-      );
-      
-      // Filter all Ultimate requests (with and without installments)
-      const ultimateRequests = requests.filter((request: MembershipRequest) => 
-        request.package?.name === 'Ultimate'
       );
       
       // Handle large datasets
@@ -2549,7 +2599,7 @@ const AdminPanel: React.FC = () => {
             updateData.installment_3_due_date = requestOptions.installment3DueDate || request.installment_3_due_date;
           }
           
-          // Save values to database first
+          // Save values to database first (using ultimate_membership_requests table)
           const { error: saveError } = await supabase
             .from('membership_requests')
             .update(updateData)
@@ -2565,11 +2615,12 @@ const AdminPanel: React.FC = () => {
         }
         
         // Then lock the installment
+        const lockedBy = await getValidUserId(user?.id);
         const { error: lockError } = await supabase
           .rpc('lock_installment', { 
             p_request_id: requestId, 
             p_installment_number: installmentNumber, 
-            p_locked_by: getValidUserId(user?.id) 
+            p_locked_by: lockedBy 
           });
         
         if (lockError) {
@@ -2612,21 +2663,16 @@ const AdminPanel: React.FC = () => {
     if (pendingDeleteRequest) {
       try {
         // Get valid user ID for the deletion
-        const deletedBy = getValidUserId(user?.id);
-        if (!deletedBy) {
-          console.error('No valid user ID for deletion');
-          toast.error('Σφάλμα: Δεν βρέθηκε έγκυρο ID χρήστη');
-          return;
-        }
-
+        const deletedBy = await getValidUserId(user?.id);
+        
         console.log('Deleting third installment for request:', pendingDeleteRequest, 'by user:', deletedBy);
         
         // Call RPC to delete third installment permanently
-        // Use NULL for deleted_by_user_id if it's the problematic ID
+        // Use NULL for p_deleted_by if no valid user ID
         const { error: deleteError } = await supabase
           .rpc('delete_third_installment_permanently', { 
-            request_id: pendingDeleteRequest, 
-            deleted_by_user_id: deletedBy === '00000000-0000-0000-0000-000000000001' ? null : deletedBy 
+            p_request_id: pendingDeleteRequest, 
+            p_deleted_by: deletedBy 
           });
         
         if (deleteError) {
@@ -2664,18 +2710,7 @@ const AdminPanel: React.FC = () => {
       const dbLockField = `installment_${installmentNumber}_locked` as keyof MembershipRequest;
       const isDbLocked = request[dbLockField] === true;
       
-      console.log(`[AdminPanel] isInstallmentLocked check for request ${request.id}, installment ${installmentNumber}:`, {
-        dbLockField,
-        rawValue: request[dbLockField],
-        isDbLocked,
-        requestData: {
-          installment_1_locked: request.installment_1_locked,
-          installment_2_locked: request.installment_2_locked,
-          installment_3_locked: request.installment_3_locked,
-          has_installments: request.has_installments,
-          package_name: request.package?.name
-        }
-      });
+      console.log(`[AdminPanel] isInstallmentLocked check for request ${request.id}, installment ${installmentNumber}: locked = ${isDbLocked}, field = ${dbLockField}, value = ${request[dbLockField]}`);
       
       // Check if the field exists and is properly set
       if (request[dbLockField] !== undefined && request[dbLockField] !== null) {
@@ -6282,8 +6317,8 @@ const AdminPanel: React.FC = () => {
               ultimateLoading={ultimateLoading}
               ultimateSearchTerm={ultimateSearchTerm}
               setUltimateSearchTerm={setUltimateSearchTerm}
-              selectedRequestOptions={selectedRequestOptions}
-              handleRequestOptionChange={handleRequestOptionChange}
+              selectedRequestOptions={selectedUltimateRequestOptions}
+              handleRequestOptionChange={handleUltimateRequestOptionChange}
               updateInstallmentAmounts={updateInstallmentAmounts}
               deleteUltimateRequest={deleteUltimateRequest}
               loadUltimateRequests={loadUltimateRequests}

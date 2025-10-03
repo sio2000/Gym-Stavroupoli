@@ -18,11 +18,29 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Helper to validate user id for RPC calls
-const getValidUserId = (userId: string | undefined) => {
-  if (!userId || userId === 'undefined') {
-    return null;
+const getValidUserId = async (userId: string | undefined) => {
+  if (!userId || userId === 'undefined' || userId === '00000000-0000-0000-0000-000000000001') {
+    // If no valid user ID, get the first admin user from user_profiles
+    try {
+      const { data: adminUser, error } = await supabase
+        .from('user_profiles')
+        .select('user_id')
+        .eq('role', 'admin')
+        .limit(1)
+        .single();
+      
+      if (error || !adminUser) {
+        console.error('No admin user found:', error);
+        return null;
+      }
+      
+      return adminUser.user_id;
+    } catch (error) {
+      console.error('Error getting admin user:', error);
+      return null;
+    }
   }
-  // Allow the admin user ID for RPC calls
+  // Allow valid user IDs for RPC calls
   return userId;
 };
 
@@ -177,7 +195,7 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
             updateData.installment_3_due_date = requestOptions.installment3DueDate || request.installment_3_due_date;
           }
           
-          // Save values to database first
+          // Save values to database first (using membership_requests table)
           const { error: saveError } = await supabase
             .from('membership_requests')
             .update(updateData)
@@ -192,13 +210,21 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
           console.log(`[AdminUltimateInstallmentsTab] Saved values before locking:`, updateData);
         }
         
-        // Then lock the installment
+        // Then lock the installment using Ultimate-specific function
+        const lockedBy = await getValidUserId(user?.id);
+        
+        // Ensure we have a valid user ID for locking
+        if (!lockedBy) {
+          console.error(`[AdminUltimateInstallmentsTab] No valid user ID found for locking`);
+          toast.error('Σφάλμα: Δεν βρέθηκε έγκυρο ID χρήστη για το κλείδωμα');
+          return;
+        }
+        
         const { error: lockError } = await supabase
-          .rpc('update_lock_installment', {
-            request_id: requestId,
-            installment_num: installmentNumber,
-            locked_by_user_id: getValidUserId(user?.id),
-            lock_status: true
+          .rpc('lock_ultimate_installment', {
+            p_request_id: requestId,
+            p_installment_number: installmentNumber,
+            p_locked_by: lockedBy
           });
         
         if (lockError) {
@@ -241,13 +267,14 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
   const confirmDeleteThirdInstallment = async () => {
     if (pendingDeleteRequest) {
       try {
-        console.log(`[AdminUltimateInstallmentsTab] Deleting third installment for request ${pendingDeleteRequest}`);
+        const deletedBy = await getValidUserId(user?.id);
+        console.log(`[AdminUltimateInstallmentsTab] Deleting third installment for request ${pendingDeleteRequest}, by user: ${deletedBy}`);
         
-        // Call RPC to permanently delete the third installment in the database
+        // Call RPC to permanently delete the third installment in the database (using Ultimate-specific function)
         const { error: deleteError } = await supabase
-          .rpc('delete_third_installment_permanently', {
-            request_id: pendingDeleteRequest,
-            deleted_by_user_id: getValidUserId(user?.id)
+          .rpc('delete_ultimate_third_installment', {
+            p_request_id: pendingDeleteRequest,
+            p_deleted_by: deletedBy || null
           });
         
         if (deleteError) {
@@ -280,32 +307,19 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
     setPendingDeleteRequest(null);
   };
 
-  // Check if an installment is locked (from database only - permanent locking)
+  // Check if an installment is locked (Ultimate uses separate locking system)
   const isInstallmentLocked = (request: MembershipRequest, installmentNumber: number) => {
-    // Check if it's locked in the database (permanent locking)
-    const dbLockField = `installment_${installmentNumber}_locked` as keyof MembershipRequest;
-    const isDbLocked = request[dbLockField] === true;
+    // Για Ultimate requests, χρησιμοποιούμε το νέο σύστημα ultimate_installment_locks
+    // Το getUltimateMembershipRequests function φορτώνει τα locked installments από τον πίνακα ultimate_installment_locks
+    // και τα προσθέτει ως πεδία στο request object
     
-    console.log(`[AdminUltimateInstallmentsTab] isInstallmentLocked check for request ${request.id}, installment ${installmentNumber}:`, {
-      dbLockField,
-      rawValue: request[dbLockField],
-      isDbLocked,
-      requestData: {
-        installment_1_locked: request.installment_1_locked,
-        installment_2_locked: request.installment_2_locked,
-        installment_3_locked: request.installment_3_locked,
-        has_installments: request.has_installments,
-        package_name: request.package?.name
-      }
-    });
+    // Έλεγχος αν το request έχει το πεδίο για το συγκεκριμένο installment
+    const lockFieldName = `ultimate_installment_${installmentNumber}_locked` as keyof MembershipRequest;
+    const isLocked = request[lockFieldName] === true;
     
-    // Check if the field exists and is properly set
-    if (request[dbLockField] !== undefined && request[dbLockField] !== null) {
-      return isDbLocked;
-    }
+    console.log(`[AdminUltimateInstallmentsTab] isInstallmentLocked check for request ${request.id}, installment ${installmentNumber}: locked = ${isLocked}, field = ${lockFieldName}, value = ${request[lockFieldName]}`);
     
-    // Default to false if no locking information is found
-    return false;
+    return isLocked;
   };
 
   // Reset to first page when search term changes
@@ -751,7 +765,7 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                           <label className="flex items-center space-x-2 cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted || false}
+                              checked={selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted || false}
                               onChange={() => handleDeleteThirdInstallmentClick(request.id)}
                               className="w-4 h-4 text-red-600 bg-gray-800 border-gray-600 rounded focus:ring-red-500 focus:ring-2"
                             />
@@ -768,11 +782,11 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                           value={selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || ''}
                           onChange={(e) => handleRequestOptionChange(request.id, 'installment3Amount', e.target.value)}
                           placeholder="Ποσό"
-                          disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
+                          disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted)}
                           className={`w-full p-4 border rounded-xl focus:ring-2 text-white placeholder-gray-400 text-lg font-medium ${
                             isInstallmentLocked(request, 3)
                               ? 'border-orange-500 bg-orange-500/20 focus:ring-orange-500 cursor-not-allowed text-orange-200 placeholder-orange-300'
-                              : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                              : (selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted)
                               ? 'border-red-500 bg-red-500/20 focus:ring-red-500 cursor-not-allowed text-red-200 placeholder-red-300'
                               : 'border-gray-600 bg-gray-800 focus:ring-blue-500 focus:border-blue-500'
                           }`}
@@ -780,11 +794,11 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                         <select
                           value={selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash'}
                           onChange={(e) => handleRequestOptionChange(request.id, 'installment3PaymentMethod', e.target.value)}
-                          disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
+                          disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted)}
                           className={`w-full p-4 border rounded-xl focus:ring-2 text-white text-lg font-medium ${
                             isInstallmentLocked(request, 3)
                               ? 'border-orange-500 bg-orange-500/20 focus:ring-orange-500 cursor-not-allowed text-orange-200'
-                              : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                              : (selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted)
                               ? 'border-red-500 bg-red-500/20 focus:ring-red-500 cursor-not-allowed text-red-200'
                               : 'border-gray-600 bg-gray-800 focus:ring-blue-500 focus:border-blue-500'
                           }`}
@@ -801,11 +815,11 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                             type="date"
                             value={selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date || ''}
                             onChange={(e) => handleRequestOptionChange(request.id, 'installment3DueDate', e.target.value)}
-                            disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
+                            disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted)}
                             className={`w-full p-3 border rounded-xl focus:ring-2 focus:border-blue-500 text-white ${
                               isInstallmentLocked(request, 3)
                                 ? 'border-orange-500 bg-orange-500/20 focus:ring-orange-500 cursor-not-allowed text-orange-200'
-                                : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                                : (selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted)
                                 ? 'border-red-500 bg-red-500/20 focus:ring-red-500 cursor-not-allowed text-red-200'
                                 : 'border-gray-600 bg-gray-800 focus:ring-blue-500'
                             }`}
@@ -814,12 +828,12 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                         
                         {/* Lock Checkbox */}
                         <div className="flex items-center space-x-3 pt-2">
-                          <label className={`flex items-center space-x-2 ${(selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                          <label className={`flex items-center space-x-2 ${(selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                             <input
                               type="checkbox"
                               checked={isInstallmentLocked(request, 3)}
                               onChange={() => handleInstallmentLockClick(request.id, 3)}
-                              disabled={selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted}
+                              disabled={selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted}
                               className="w-4 h-4 text-orange-600 bg-gray-800 border-gray-600 rounded focus:ring-orange-500 focus:ring-2"
                             />
                             <span className="text-sm text-gray-300 flex items-center space-x-1">
@@ -855,13 +869,13 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                         {formatPrice(
                           (Number(selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || 0)) +
                           (Number(selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || 0)) +
-                          ((selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted) ? 0 : (Number(selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || 0)))
+                          ((selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted) ? 0 : (Number(selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || 0)))
                         )}
                       </span>
                     </div>
                     <div className="text-blue-200 mt-2 font-medium">
                       📊 Από {formatPrice(request.requested_price)} (Πακέτο Ultimate)
-                      {(selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted) && (
+                      {(selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted) && (
                         <span className="text-red-300 ml-2">- 3η Δόση Διαγραμμένη</span>
                       )}
                     </div>
@@ -873,13 +887,13 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                       onClick={() => {
                         const installment1Amount = parseFloat(selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || '0');
                         const installment2Amount = parseFloat(selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || '0');
-                        const installment3Amount = (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted) ? 0 : parseFloat(selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || '0');
+                        const installment3Amount = (selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted) ? 0 : parseFloat(selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || '0');
                         const installment1PaymentMethod = selectedRequestOptions[request.id]?.installment1PaymentMethod || request.installment_1_payment_method || 'cash';
                         const installment2PaymentMethod = selectedRequestOptions[request.id]?.installment2PaymentMethod || request.installment_2_payment_method || 'cash';
                         const installment3PaymentMethod = selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash';
                         const installment1DueDate = selectedRequestOptions[request.id]?.installment1DueDate || request.installment_1_due_date;
                         const installment2DueDate = selectedRequestOptions[request.id]?.installment2DueDate || request.installment_2_due_date;
-                        const installment3DueDate = (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted) ? undefined : (selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date);
+                        const installment3DueDate = (selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted) ? undefined : (selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date);
 
                         updateInstallmentAmounts(
                           request.id,

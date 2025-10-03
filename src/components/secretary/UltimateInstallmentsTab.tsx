@@ -13,6 +13,9 @@ import {
 } from 'lucide-react';
 import { MembershipRequest } from '@/types';
 import { formatPrice, getDurationLabel } from '@/utils/membershipApi';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'react-hot-toast';
 
 interface UltimateInstallmentsTabProps {
   ultimateRequests: MembershipRequest[];
@@ -64,6 +67,7 @@ const UltimateInstallmentsTab: React.FC<UltimateInstallmentsTabProps> = ({
   requestPendingUsers,
   requestFrozenOptions
 }) => {
+  const { user } = useAuth();
   // Installment locking state
   const [showLockConfirmation, setShowLockConfirmation] = React.useState(false);
   const [pendingLockRequest, setPendingLockRequest] = React.useState<{
@@ -101,13 +105,70 @@ const UltimateInstallmentsTab: React.FC<UltimateInstallmentsTabProps> = ({
     setShowLockConfirmation(true);
   };
 
-  const confirmInstallmentLock = () => {
+  const confirmInstallmentLock = async () => {
     if (pendingLockRequest) {
       const { requestId, installmentNumber } = pendingLockRequest;
-      const lockField = `installment${installmentNumber}Locked` as keyof MembershipRequest;
       
-      // Update the selected request options to mark the installment as locked
-      handleRequestOptionChange(requestId, lockField, true);
+      try {
+        // Get valid user ID for the lock operation
+        const getValidUserId = async (userId: string | undefined) => {
+          if (!userId || userId === 'undefined' || userId === '00000000-0000-0000-0000-000000000001') {
+            // If no valid user ID, get the first admin user from user_profiles
+            try {
+              const { data: adminUser, error } = await supabase
+                .from('user_profiles')
+                .select('id')
+                .eq('role', 'admin')
+                .limit(1)
+                .single();
+
+              if (error || !adminUser) {
+                console.error('No admin user found:', error);
+                return null;
+              }
+
+              return adminUser.id;
+            } catch (error) {
+              console.error('Error getting admin user:', error);
+              return null;
+            }
+          }
+          // Allow valid user IDs for RPC calls
+          return userId;
+        };
+
+        const lockedBy = await getValidUserId(user?.id);
+        
+        // Lock the installment in the database
+        const { error: lockError } = await supabase
+          .rpc('update_lock_installment', {
+            request_id: requestId,
+            installment_num: installmentNumber,
+            locked_by_user_id: lockedBy,
+            lock_status: true
+          });
+        
+        if (lockError) {
+          console.error(`[UltimateInstallmentsTab] Error locking installment ${installmentNumber}:`, lockError);
+          toast.error(`Σφάλμα κατά το κλείδωμα της ${installmentNumber}ης δόσης`);
+          return;
+        }
+        
+        console.log(`[UltimateInstallmentsTab] Successfully locked installment ${installmentNumber}`);
+        
+        // Update local state
+        const lockField = `installment${installmentNumber}Locked` as keyof MembershipRequest;
+        handleRequestOptionChange(requestId, lockField, true);
+        
+        toast.success(`${installmentNumber}η δόση κλειδώθηκε επιτυχώς`);
+        
+        // Reload ultimate requests to get updated data
+        await loadUltimateRequests();
+        
+      } catch (error) {
+        console.error('Exception locking installment:', error);
+        toast.error('Σφάλμα κατά το κλείδωμα της δόσης');
+      }
       
       setShowLockConfirmation(false);
       setPendingLockRequest(null);
@@ -125,9 +186,67 @@ const UltimateInstallmentsTab: React.FC<UltimateInstallmentsTabProps> = ({
     setShowDeleteConfirmation(true);
   };
 
-  const confirmDeleteThirdInstallment = () => {
+  const confirmDeleteThirdInstallment = async () => {
     if (pendingDeleteRequest) {
-      handleRequestOptionChange(pendingDeleteRequest, 'deleteThirdInstallment', true);
+      try {
+        // Get valid user ID for the deletion operation
+        const getValidUserId = async (userId: string | undefined) => {
+          if (!userId || userId === 'undefined' || userId === '00000000-0000-0000-0000-000000000001') {
+            // If no valid user ID, get the first admin user from user_profiles
+            try {
+              const { data: adminUser, error } = await supabase
+                .from('user_profiles')
+                .select('id')
+                .eq('role', 'admin')
+                .limit(1)
+                .single();
+
+              if (error || !adminUser) {
+                console.error('No admin user found:', error);
+                return null;
+              }
+
+              return adminUser.id;
+            } catch (error) {
+              console.error('Error getting admin user:', error);
+              return null;
+            }
+          }
+          // Allow valid user IDs for RPC calls
+          return userId;
+        };
+
+        const deletedBy = await getValidUserId(user?.id);
+        console.log(`[UltimateInstallmentsTab] Deleting third installment for request ${pendingDeleteRequest}, by user: ${deletedBy}`);
+
+        // Delete the third installment in the database
+        const { error: deleteError } = await supabase
+          .rpc('delete_third_installment_permanently', {
+            p_request_id: pendingDeleteRequest,
+            p_deleted_by: deletedBy
+          });
+        
+        if (deleteError) {
+          console.error(`[UltimateInstallmentsTab] Error deleting third installment:`, deleteError);
+          toast.error('Σφάλμα κατά τη διαγραφή της 3ης δόσης');
+          return;
+        }
+        
+        console.log(`[UltimateInstallmentsTab] Successfully deleted third installment`);
+        
+        // Update local state
+        handleRequestOptionChange(pendingDeleteRequest, 'deleteThirdInstallment', true);
+        
+        toast.success('3η δόση διαγράφηκε επιτυχώς');
+        
+        // Reload ultimate requests to get updated data
+        await loadUltimateRequests();
+        
+      } catch (error) {
+        console.error('Exception deleting third installment:', error);
+        toast.error('Σφάλμα κατά τη διαγραφή της 3ης δόσης');
+      }
+      
       setShowDeleteConfirmation(false);
       setPendingDeleteRequest(null);
     }

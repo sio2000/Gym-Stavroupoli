@@ -26,6 +26,7 @@ import toast from 'react-hot-toast';
 import { 
   getMembershipRequests,
   getMembershipRequestsWithLockedInstallments,
+  getUltimateMembershipRequests,
   approveMembershipRequest,
   rejectMembershipRequest,
   formatPrice,
@@ -58,11 +59,29 @@ import type { IScannerControls } from '@zxing/browser';
 import type { Result, Exception } from '@zxing/library';
 
 // Helper to validate user id for RPC calls
-const getValidUserId = (userId: string | undefined) => {
-  if (!userId || userId === 'undefined') {
-    return null;
+const getValidUserId = async (userId: string | undefined) => {
+  if (!userId || userId === 'undefined' || userId === '00000000-0000-0000-0000-000000000001') {
+    // If no valid user ID, get the first admin user from user_profiles
+    try {
+      const { data: adminUser, error } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('role', 'admin')
+        .limit(1)
+        .single();
+      
+      if (error || !adminUser) {
+        console.error('No admin user found:', error);
+        return null;
+      }
+      
+      return adminUser.id;
+    } catch (error) {
+      console.error('Error getting admin user:', error);
+      return null;
+    }
   }
-  // Allow the admin user ID for RPC calls
+  // Allow valid user IDs for RPC calls
   return userId;
 };
 
@@ -138,6 +157,30 @@ const SecretaryDashboard: React.FC = () => {
   
   // Program Options state for membership requests
   const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
+    oldMembers?: boolean;
+    first150Members?: boolean;
+    kettlebellPoints?: string;
+    cash?: boolean;
+    pos?: boolean;
+    cashAmount?: number;
+    posAmount?: number;
+    installment1Amount?: number;
+    installment2Amount?: number;
+    installment3Amount?: number;
+    installment1PaymentMethod?: string;
+    installment2PaymentMethod?: string;
+    installment3PaymentMethod?: string;
+    installment1DueDate?: string;
+    installment2DueDate?: string;
+    installment3DueDate?: string;
+    installment1Locked?: boolean;
+    installment2Locked?: boolean;
+    installment3Locked?: boolean;
+    deleteThirdInstallment?: boolean;
+  }}>({});
+  
+  // Separate state for Ultimate tab to avoid conflicts
+  const [selectedUltimateRequestOptions, setSelectedUltimateRequestOptions] = useState<{[requestId: string]: {
     oldMembers?: boolean;
     first150Members?: boolean;
     kettlebellPoints?: string;
@@ -342,7 +385,7 @@ const SecretaryDashboard: React.FC = () => {
   const loadMembershipRequests = async () => {
     try {
       setLoading(true);
-      const requests = await getMembershipRequests();
+      const requests = await getMembershipRequests(); // Αυτό τώρα εξαιρεί τα Ultimate requests
       setMembershipRequests(requests);
     } catch (error) {
       console.error('Error loading membership requests:', error);
@@ -388,9 +431,15 @@ const SecretaryDashboard: React.FC = () => {
             updateData.installment_3_due_date = requestOptions.installment3DueDate || request.installment_3_due_date;
           }
           
-          // Save values to database first
-          const { error: saveError } = await supabase
+          // Save values to database first (check if Ultimate request)
+          const { data: ultimateRequest } = await supabase
             .from('membership_requests')
+            .select('id')
+            .eq('id', requestId)
+            .single();
+            
+          const { error: saveError } = await supabase
+            .from(ultimateRequest ? 'ultimate_membership_requests' : 'membership_requests')
             .update(updateData)
             .eq('id', requestId);
           
@@ -403,12 +452,13 @@ const SecretaryDashboard: React.FC = () => {
           console.log(`[SecretaryDashboard] Saved values before locking:`, updateData);
         }
         
-        // Then lock the installment
+        // Then lock the installment using Ultimate-specific function
+        const lockedBy = await getValidUserId(user?.id);
         const { error: lockError } = await supabase
-          .rpc('lock_installment', { 
+          .rpc('lock_ultimate_installment', { 
             p_request_id: requestId, 
             p_installment_number: installmentNumber, 
-            p_locked_by: getValidUserId(user?.id) 
+            p_locked_by: lockedBy || null 
           });
         
         if (lockError) {
@@ -451,21 +501,16 @@ const SecretaryDashboard: React.FC = () => {
     if (pendingDeleteRequest) {
       try {
         // Get valid user ID for the deletion
-        const deletedBy = getValidUserId(user?.id);
-        if (!deletedBy) {
-          console.error('No valid user ID for deletion');
-          toast.error('Σφάλμα: Δεν βρέθηκε έγκυρο ID χρήστη');
-          return;
-        }
-
+        const deletedBy = await getValidUserId(user?.id);
+        
         console.log('Deleting third installment for request:', pendingDeleteRequest, 'by user:', deletedBy);
         
-        // Call RPC to delete third installment permanently
-        // Use NULL for deleted_by_user_id if it's the problematic ID
+        // Call RPC to delete third installment permanently (using Ultimate-specific function)
+        // Use NULL for p_deleted_by if no valid user ID
         const { error: deleteError } = await supabase
-          .rpc('delete_third_installment_permanently', { 
-            request_id: pendingDeleteRequest, 
-            deleted_by_user_id: deletedBy === '00000000-0000-0000-0000-000000000001' ? null : deletedBy 
+          .rpc('delete_ultimate_third_installment', { 
+            p_request_id: pendingDeleteRequest, 
+            p_deleted_by: deletedBy || null 
           });
         
         if (deleteError) {
@@ -503,19 +548,7 @@ const SecretaryDashboard: React.FC = () => {
     const dbLockField = `installment_${installmentNumber}_locked` as keyof MembershipRequest;
     const isDbLocked = request[dbLockField] === true;
     
-    console.log(`[SecretaryDashboard] isInstallmentLocked check for request ${request.id}, installment ${installmentNumber}:`, {
-      dbLockField,
-      rawValue: request[dbLockField],
-      isDbLocked,
-      requestData: {
-        installment_1_locked: request.installment_1_locked,
-        installment_2_locked: request.installment_2_locked,
-        installment_3_locked: request.installment_3_locked,
-        has_installments: request.has_installments,
-        package_name: request.package?.name,
-        locked_installments: request.locked_installments
-      }
-    });
+    console.log(`[SecretaryDashboard] isInstallmentLocked check for request ${request.id}, installment ${installmentNumber}: locked = ${isDbLocked}, field = ${dbLockField}, value = ${request[dbLockField]}`);
     
     // Check if the field exists and is properly set
     if (request[dbLockField] !== undefined && request[dbLockField] !== null) {
@@ -585,33 +618,36 @@ const SecretaryDashboard: React.FC = () => {
         };
 
         if (requestOptions.installment1Locked) {
+          const lockedBy = await getValidUserId(user?.id);
           const { error: lockError } = await supabase
-            .rpc('lock_installment', { 
+            .rpc('lock_ultimate_installment', { 
               p_request_id: requestId, 
               p_installment_number: 1, 
-              p_locked_by: getValidUserId(user?.id) 
+              p_locked_by: lockedBy || null 
             });
           if (lockError) {
             console.error('Error locking installment 1:', lockError);
           }
         }
         if (requestOptions.installment2Locked) {
+          const lockedBy = await getValidUserId(user?.id);
           const { error: lockError } = await supabase
-            .rpc('lock_installment', { 
+            .rpc('lock_ultimate_installment', { 
               p_request_id: requestId, 
               p_installment_number: 2, 
-              p_locked_by: getValidUserId(user?.id) 
+              p_locked_by: lockedBy || null 
             });
           if (lockError) {
             console.error('Error locking installment 2:', lockError);
           }
         }
         if (requestOptions.installment3Locked) {
+          const lockedBy = await getValidUserId(user?.id);
           const { error: lockError } = await supabase
-            .rpc('lock_installment', { 
+            .rpc('lock_ultimate_installment', { 
               p_request_id: requestId, 
               p_installment_number: 3, 
-              p_locked_by: getValidUserId(user?.id) 
+              p_locked_by: lockedBy || null 
             });
           if (lockError) {
             console.error('Error locking installment 3:', lockError);
@@ -623,9 +659,9 @@ const SecretaryDashboard: React.FC = () => {
           const deletedBy = getValidUserId(user?.id);
           if (deletedBy) {
             const { error: deleteError } = await supabase
-              .rpc('delete_third_installment_permanently', { 
-                request_id: requestId, 
-                deleted_by_user_id: deletedBy === '00000000-0000-0000-0000-000000000001' ? null : deletedBy 
+              .rpc('delete_ultimate_third_installment', { 
+                p_request_id: requestId, 
+                p_deleted_by: deletedBy || null === '00000000-0000-0000-0000-000000000001' ? null : deletedBy 
               });
             if (deleteError) {
               console.error('Error deleting third installment:', deleteError);
@@ -636,16 +672,28 @@ const SecretaryDashboard: React.FC = () => {
         }
       }
 
-      const { error } = await supabase
+      // Check if it's an Ultimate request
+      const { data: ultimateRequest } = await supabase
         .from('membership_requests')
+        .select('id')
+        .eq('id', requestId)
+        .single();
+
+      const { error } = await supabase
+        .from(ultimateRequest ? 'ultimate_membership_requests' : 'membership_requests')
         .update(updateData)
         .eq('id', requestId);
 
       if (error) throw error;
 
       toast.success('Οι δόσεις και ημερομηνίες ενημερώθηκαν επιτυχώς');
-      // Reload installment requests
-      await loadInstallmentRequests();
+      
+      // Reload appropriate requests
+      if (ultimateRequest) {
+        await loadUltimateRequests();
+      } else {
+        await loadInstallmentRequests();
+      }
     } catch (error) {
       console.error('Error updating installment amounts:', error);
       toast.error('Σφάλμα κατά την ενημέρωση των δόσεων');
@@ -659,11 +707,8 @@ const SecretaryDashboard: React.FC = () => {
   const loadUltimateRequests = async () => {
     try {
       setUltimateLoading(true);
-      const requests = await getMembershipRequestsWithLockedInstallments();
-      // Filter all Ultimate requests (with and without installments)
-      const ultimateRequests = requests.filter(request => 
-        request.package?.name === 'Ultimate'
-      );
+      // Load Ultimate requests from the new dedicated table
+      const ultimateRequests = await getUltimateMembershipRequests();
       
       setUltimateRequests(ultimateRequests);
     } catch (error) {
@@ -847,16 +892,36 @@ const SecretaryDashboard: React.FC = () => {
 
   const deleteInstallmentRequest = async (requestId: string) => {
     try {
-      const { error } = await supabase
+      // Check if it's an Ultimate request by looking in both tables
+      const { data: ultimateRequest } = await supabase
         .from('membership_requests')
-        .delete()
-        .eq('id', requestId);
+        .select('id')
+        .eq('id', requestId)
+        .single();
 
-      if (error) throw error;
-
-      toast.success('Το αίτημα δόσεων διαγράφηκε επιτυχώς');
-      // Reload installment requests
-      await loadInstallmentRequests();
+      if (ultimateRequest) {
+        // Delete from Ultimate table
+        const { error } = await supabase
+          .from('membership_requests')
+          .delete()
+          .eq('id', requestId);
+        
+        if (error) throw error;
+        
+        toast.success('Το Ultimate αίτημα δόσεων διαγράφηκε επιτυχώς');
+        await loadUltimateRequests();
+      } else {
+        // Delete from regular table
+        const { error } = await supabase
+          .from('membership_requests')
+          .delete()
+          .eq('id', requestId);
+        
+        if (error) throw error;
+        
+        toast.success('Το αίτημα δόσεων διαγράφηκε επιτυχώς');
+        await loadInstallmentRequests();
+      }
     } catch (error) {
       console.error('Error deleting installment request:', error);
       toast.error('Σφάλμα κατά τη διαγραφή του αιτήματος');
@@ -928,6 +993,17 @@ const SecretaryDashboard: React.FC = () => {
 
   const handleRequestOptionChange = (requestId: string, option: string, value: any) => {
     setSelectedRequestOptions(prev => ({
+      ...prev,
+      [requestId]: {
+        ...prev[requestId],
+        [option]: value
+      }
+    }));
+  };
+
+  // Separate handler for Ultimate tab to avoid conflicts
+  const handleUltimateRequestOptionChange = (requestId: string, option: string, value: any) => {
+    setSelectedUltimateRequestOptions(prev => ({
       ...prev,
       [requestId]: {
         ...prev[requestId],

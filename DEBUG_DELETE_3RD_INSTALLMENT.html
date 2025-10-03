@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Delete 3rd Installment</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: white; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-section { background: #2a2a2a; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .warning { color: #ff9800; }
+        .info { color: #2196F3; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .log { background: #000; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Debug Delete 3rd Installment Functionality</h1>
+        
+        <div class="test-section">
+            <h2>1. Frontend Component Check</h2>
+            <button onclick="checkFrontendComponent()">Check Frontend</button>
+            <div id="frontend-results" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. Supabase Connection Test</h2>
+            <button onclick="testSupabaseConnection()">Test Supabase</button>
+            <div id="supabase-results" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. Database Functions Test</h2>
+            <button onclick="testDatabaseFunctions()">Test Database Functions</button>
+            <div id="database-results" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. Delete Button Test</h2>
+            <button onclick="testDeleteButton()">Test Delete Button</button>
+            <div id="delete-results" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>5. Complete Test</h2>
+            <button onclick="runCompleteTest()">Run All Tests</button>
+            <div id="complete-results" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let logContainer = null;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}\n`;
+            
+            if (logContainer) {
+                logContainer.textContent += logMessage;
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+            
+            console.log(logMessage);
+        }
+
+        function checkFrontendComponent() {
+            logContainer = document.getElementById('frontend-results');
+            logContainer.textContent = '';
+            
+            log('🔍 Checking frontend components...', 'info');
+            
+            // Check if we're in the admin panel
+            const adminPanel = document.querySelector('[class*="admin"]') || document.querySelector('body');
+            log(`Admin panel found: ${!!adminPanel}`, adminPanel ? 'success' : 'error');
+            
+            // Check for installment sections
+            const installmentSections = document.querySelectorAll('[class*="installment"]');
+            log(`Installment sections found: ${installmentSections.length}`, 'info');
+            
+            // Check for delete checkboxes
+            const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+            const deleteCheckboxes = Array.from(allCheckboxes).filter(checkbox => 
+                checkbox.nextElementSibling?.textContent?.includes('Διαγραφή 3ης Δόσης')
+            );
+            log(`Delete third installment checkboxes found: ${deleteCheckboxes.length}`, deleteCheckboxes.length > 0 ? 'success' : 'warning');
+            
+            // Check for confirmation dialogs
+            const confirmationDialogs = document.querySelectorAll('[class*="confirmation"], [class*="popup"], [class*="modal"]');
+            log(`Confirmation dialogs found: ${confirmationDialogs.length}`, 'info');
+            
+            // Check for JavaScript errors
+            let errorCount = 0;
+            const originalError = window.onerror;
+            window.onerror = (message, source, lineno, colno, error) => {
+                errorCount++;
+                log(`JavaScript Error: ${message} at ${source}:${lineno}`, 'error');
+                return true;
+            };
+            
+            setTimeout(() => {
+                window.onerror = originalError;
+                log(`JavaScript errors found: ${errorCount}`, errorCount > 0 ? 'error' : 'success');
+            }, 2000);
+        }
+
+        async function testSupabaseConnection() {
+            logContainer = document.getElementById('supabase-results');
+            logContainer.textContent = '';
+            
+            log('🔗 Testing Supabase connection...', 'info');
+            
+            try {
+                if (typeof window.supabase === 'undefined') {
+                    log('❌ Supabase not available globally', 'error');
+                    return;
+                }
+                
+                log('✅ Supabase client found', 'success');
+                
+                // Test a simple query
+                const { data, error } = await window.supabase
+                    .from('membership_requests')
+                    .select('id, has_installments')
+                    .limit(1);
+                
+                if (error) {
+                    log(`❌ Supabase query error: ${error.message}`, 'error');
+                    return;
+                }
+                
+                log('✅ Supabase connection successful', 'success');
+                log(`Sample data: ${JSON.stringify(data)}`, 'info');
+                
+            } catch (err) {
+                log(`❌ Supabase connection failed: ${err.message}`, 'error');
+            }
+        }
+
+        async function testDatabaseFunctions() {
+            logContainer = document.getElementById('database-results');
+            logContainer.textContent = '';
+            
+            log('🗄️ Testing database functions...', 'info');
+            
+            try {
+                if (typeof window.supabase === 'undefined') {
+                    log('❌ Cannot test database functions - Supabase not available', 'error');
+                    return;
+                }
+                
+                // Test the is_installment_locked function
+                const { data, error } = await window.supabase
+                    .rpc('is_installment_locked', {
+                        p_request_id: '00000000-0000-0000-0000-000000000000',
+                        p_installment_number: 1
+                    });
+                
+                if (error) {
+                    log(`❌ Database function test error: ${error.message}`, 'error');
+                    return;
+                }
+                
+                log('✅ Database function test successful', 'success');
+                log(`Function result: ${JSON.stringify(data)}`, 'info');
+                
+            } catch (err) {
+                log(`❌ Database function test failed: ${err.message}`, 'error');
+            }
+        }
+
+        function testDeleteButton() {
+            logContainer = document.getElementById('delete-results');
+            logContainer.textContent = '';
+            
+            log('🔘 Testing delete button functionality...', 'info');
+            
+            const deleteCheckboxes = Array.from(document.querySelectorAll('input[type="checkbox"]'))
+                .filter(checkbox => 
+                    checkbox.nextElementSibling?.textContent?.includes('Διαγραφή 3ης Δόσης')
+                );
+            
+            if (deleteCheckboxes.length === 0) {
+                log('❌ No delete checkboxes found', 'error');
+                return;
+            }
+            
+            log(`✅ Found ${deleteCheckboxes.length} delete checkboxes`, 'success');
+            
+            // Add event listeners to test functionality
+            deleteCheckboxes.forEach((checkbox, index) => {
+                checkbox.addEventListener('change', (e) => {
+                    log(`Delete checkbox ${index + 1} changed: checked=${e.target.checked}`, 'info');
+                });
+                
+                log(`Event listener added to delete checkbox ${index + 1}`, 'success');
+            });
+        }
+
+        async function runCompleteTest() {
+            logContainer = document.getElementById('complete-results');
+            logContainer.textContent = '';
+            
+            log('🚀 Running complete test suite...', 'info');
+            log('=====================================', 'info');
+            
+            // Run all tests
+            checkFrontendComponent();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testSupabaseConnection();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testDatabaseFunctions();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            testDeleteButton();
+            
+            log('=====================================', 'info');
+            log('✅ Complete test suite finished', 'success');
+        }
+
+        // Auto-run basic checks when page loads
+        window.addEventListener('load', () => {
+            log('🔧 Debug tool loaded. Click buttons to run tests.', 'info');
+        });
+    </script>
+</body>
+</html>

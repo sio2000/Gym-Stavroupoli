@@ -119,6 +119,7 @@ export const getMembershipRequests = async (): Promise<MembershipRequest[]> => {
           description
         )
       `)
+      .not('package.name', 'eq', 'Ultimate') // ΕΞΑΙΡΕΣΗ Ultimate requests - αυτά χρησιμοποιούν ξεχωριστό σύστημα
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -182,6 +183,7 @@ export const getMembershipRequestsWithLockedInstallments = async (): Promise<Mem
           description
         )
       `)
+      .not('package.name', 'eq', 'Ultimate') // ΕΞΑΙΡΕΣΗ Ultimate requests - αυτά χρησιμοποιούν ξεχωριστό σύστημα
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -285,6 +287,7 @@ export const getUserMembershipRequests = async (userId: string): Promise<Members
         )
       `)
       .eq('user_id', userId)
+      .not('package.name', 'eq', 'Ultimate') // ΕΞΑΙΡΕΣΗ Ultimate requests - αυτά χρησιμοποιούν ξεχωριστό σύστημα
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -866,6 +869,115 @@ export const updatePilatesPackagePricing = async (
 };
 
 // ===== INSTALLMENTS API =====
+
+// Function to get Ultimate membership requests with separate locking system
+export const getUltimateMembershipRequests = async (): Promise<MembershipRequest[]> => {
+  try {
+    console.log('[MembershipAPI] Fetching Ultimate membership requests with separate locking...');
+    
+    // Get Ultimate requests from the original membership_requests table
+    // First, get the Ultimate package ID
+    const { data: ultimatePackage, error: packageError } = await supabase
+      .from('membership_packages')
+      .select('id')
+      .eq('name', 'Ultimate')
+      .single();
+
+    if (packageError || !ultimatePackage) {
+      console.log('[MembershipAPI] No Ultimate package found or error:', packageError);
+      return [];
+    }
+
+    console.log('[MembershipAPI] Found Ultimate package ID:', ultimatePackage.id);
+
+    // Now get requests with this package ID
+    const { data: ultimateRequests, error: ultimateError } = await supabase
+      .from('membership_requests')
+      .select(`
+        *,
+        user:user_profiles!membership_requests_user_id_fkey(
+          user_id,
+          first_name,
+          last_name,
+          email,
+          profile_photo
+        ),
+        package:membership_packages!membership_requests_package_id_fkey(
+          id,
+          name,
+          description
+        )
+      `)
+      .eq('package_id', ultimatePackage.id)
+      .order('created_at', { ascending: false });
+
+    if (ultimateError) {
+      console.error('[MembershipAPI] Error fetching Ultimate requests:', ultimateError);
+      throw ultimateError;
+    }
+    
+    console.log('[MembershipAPI] Found Ultimate requests:', ultimateRequests?.length || 0);
+    
+    if (!ultimateRequests || ultimateRequests.length === 0) {
+      return [];
+    }
+
+    // Get Ultimate locks for all requests
+    const requestIds = ultimateRequests.map(req => req.id);
+    const { data: ultimateLocks, error: locksError } = await supabase
+      .from('ultimate_installment_locks')
+      .select('*')
+      .in('membership_request_id', requestIds);
+
+    if (locksError) {
+      console.error('[MembershipAPI] Error fetching Ultimate locks:', locksError);
+      // Continue without locks if there's an error
+    }
+
+    // Create a map of locks by request ID and installment number
+    const locksMap = new Map();
+    if (ultimateLocks) {
+      ultimateLocks.forEach(lock => {
+        const key = `${lock.membership_request_id}_${lock.installment_number}`;
+        locksMap.set(key, lock);
+      });
+    }
+
+    // Map the data with Ultimate-specific locking
+    const requestsWithUltimateLocks = ultimateRequests.map((request) => {
+      const lock1 = locksMap.get(`${request.id}_1`);
+      const lock2 = locksMap.get(`${request.id}_2`);
+      const lock3 = locksMap.get(`${request.id}_3`);
+
+      return {
+        ...request,
+        // Use Ultimate-specific lock field names to distinguish from regular requests
+        ultimate_installment_1_locked: lock1 ? lock1.deleted_at === null : false,
+        ultimate_installment_2_locked: lock2 ? lock2.deleted_at === null : false,
+        ultimate_installment_3_locked: lock3 ? lock3.deleted_at === null : false,
+        ultimate_third_installment_deleted: lock3 ? lock3.deleted_at !== null : false,
+        ultimate_third_installment_deleted_at: lock3?.deleted_at || null,
+        ultimate_third_installment_deleted_by: lock3?.deleted_by || null,
+        // Keep original fields for backward compatibility (but these should not be used for Ultimate)
+        installment_1_locked: lock1 ? lock1.deleted_at === null : false,
+        installment_2_locked: lock2 ? lock2.deleted_at === null : false,
+        installment_3_locked: lock3 ? lock3.deleted_at === null : false,
+        third_installment_deleted: lock3 ? lock3.deleted_at !== null : false,
+        third_installment_deleted_at: lock3?.deleted_at || null,
+        third_installment_deleted_by: lock3?.deleted_by || null,
+        installment_1_locked_by: lock1?.locked_by || null,
+        installment_2_locked_by: lock2?.locked_by || null,
+        installment_3_locked_by: lock3?.locked_by || null,
+      };
+    });
+    
+    console.log('[MembershipAPI] Returning Ultimate requests with separate locks:', requestsWithUltimateLocks.length);
+    return requestsWithUltimateLocks;
+  } catch (error) {
+    console.error('[MembershipAPI] Error fetching Ultimate membership requests:', error);
+    return [];
+  }
+};
 
 export const createUltimateMembershipRequest = async (
   packageId: string,
