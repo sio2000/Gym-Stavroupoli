@@ -118,3 +118,5 @@ BEGIN
 END $$;
 
 SELECT 'User profiles issue fixed successfully!' as status;
+
+

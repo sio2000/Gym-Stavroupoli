@@ -47,3 +47,5 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
     AND tc.table_name = 'ultimate_installment_locks';
 
 SELECT 'Foreign key constraints fixed!' as status;
+
+

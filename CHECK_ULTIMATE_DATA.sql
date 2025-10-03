@@ -74,3 +74,5 @@ SELECT
     'Ready to migrate Ultimate requests from old table to new table' as message;
 
 SELECT 'Check completed!' as status;
+
+

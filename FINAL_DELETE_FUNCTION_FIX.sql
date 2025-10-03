@@ -31,3 +31,5 @@ GRANT EXECUTE ON FUNCTION delete_third_installment_permanently(UUID, UUID) TO au
 
 -- Test the function
 SELECT 'Function updated successfully - now allows NULL values' as status;
+
+

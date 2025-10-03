@@ -96,3 +96,5 @@ JOIN membership_packages mp ON mr.package_id = mp.id
 WHERE mp.name = 'Ultimate';
 
 SELECT 'Simple Ultimate fix applied successfully!' as status;
+
+

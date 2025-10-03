@@ -130,3 +130,5 @@ SELECT
 FROM ultimate_membership_requests
 ORDER BY created_at DESC
 LIMIT 10;
+
+

@@ -272,3 +272,5 @@ ORDER BY created_at DESC
 LIMIT 5;
 
 SELECT 'Ultimate locking system created successfully!' as status;
+
+

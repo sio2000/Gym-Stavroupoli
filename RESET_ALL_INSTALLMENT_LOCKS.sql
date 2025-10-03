@@ -30,3 +30,5 @@ FROM membership_requests
 WHERE has_installments = TRUE
 ORDER BY created_at DESC
 LIMIT 10;
+
+

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { isInstallmentsEligible } from '@/utils/installmentsEligibility';
+// import { isInstallmentsEligible } from '@/utils/installmentsEligibility';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   QrCode, 
@@ -20,12 +20,13 @@ import {
   Edit3,
   Plus,
   Trash2,
+  Lock,
 } from 'lucide-react';
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
 import { 
   getMembershipRequests,
-  getMembershipRequestsWithLockedInstallments,
+  // getMembershipRequestsWithLockedInstallments,
   getUltimateMembershipRequests,
   approveMembershipRequest,
   rejectMembershipRequest,
@@ -385,8 +386,15 @@ const SecretaryDashboard: React.FC = () => {
   const loadMembershipRequests = async () => {
     try {
       setLoading(true);
-      const requests = await getMembershipRequests(); // Αυτό τώρα εξαιρεί τα Ultimate requests
-      setMembershipRequests(requests);
+      // Φορτώνουμε και τα κανονικά αιτήματα και τα Ultimate αιτήματα
+      const [regularRequests, ultimateRequests] = await Promise.all([
+        getMembershipRequests(), // Free Gym, Pilates
+        getUltimateMembershipRequests() // Ultimate
+      ]);
+      
+      // Συνδυάζουμε όλα τα αιτήματα
+      const allRequests = [...regularRequests, ...ultimateRequests];
+      setMembershipRequests(allRequests);
     } catch (error) {
       console.error('Error loading membership requests:', error);
       toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων');
@@ -418,28 +426,24 @@ const SecretaryDashboard: React.FC = () => {
           
           // Save installment amounts (use current values from form or database)
           if (installmentNumber === 1) {
-            updateData.installment_1_amount = parseFloat(requestOptions.installment1Amount || request.installment_1_amount || 0);
+            updateData.installment_1_amount = parseFloat(String(requestOptions.installment1Amount || request.installment_1_amount || 0)).toString();
             updateData.installment_1_payment_method = requestOptions.installment1PaymentMethod || request.installment_1_payment_method || 'cash';
             updateData.installment_1_due_date = requestOptions.installment1DueDate || request.installment_1_due_date;
           } else if (installmentNumber === 2) {
-            updateData.installment_2_amount = parseFloat(requestOptions.installment2Amount || request.installment_2_amount || 0);
+            updateData.installment_2_amount = parseFloat(String(requestOptions.installment2Amount || request.installment_2_amount || 0)).toString();
             updateData.installment_2_payment_method = requestOptions.installment2PaymentMethod || request.installment_2_payment_method || 'cash';
             updateData.installment_2_due_date = requestOptions.installment2DueDate || request.installment_2_due_date;
           } else if (installmentNumber === 3) {
-            updateData.installment_3_amount = parseFloat(requestOptions.installment3Amount || request.installment_3_amount || 0);
+            updateData.installment_3_amount = parseFloat(String(requestOptions.installment3Amount || request.installment_3_amount || 0)).toString();
             updateData.installment_3_payment_method = requestOptions.installment3PaymentMethod || request.installment_3_payment_method || 'cash';
             updateData.installment_3_due_date = requestOptions.installment3DueDate || request.installment_3_due_date;
           }
           
           // Save values to database first (check if Ultimate request)
-          const { data: ultimateRequest } = await supabase
-            .from('membership_requests')
-            .select('id')
-            .eq('id', requestId)
-            .single();
-            
+          const isUltimateRequest = request.package?.name === 'Ultimate';
+          
           const { error: saveError } = await supabase
-            .from(ultimateRequest ? 'ultimate_membership_requests' : 'membership_requests')
+            .from(isUltimateRequest ? 'ultimate_membership_requests' : 'membership_requests')
             .update(updateData)
             .eq('id', requestId);
           
@@ -452,10 +456,14 @@ const SecretaryDashboard: React.FC = () => {
           console.log(`[SecretaryDashboard] Saved values before locking:`, updateData);
         }
         
-        // Then lock the installment using Ultimate-specific function
+        // Then lock the installment using the correct RPC function
         const lockedBy = await getValidUserId(user?.id);
+        
+        // Check if this is an Ultimate request or regular request
+        const isUltimateRequest = request?.package?.name === 'Ultimate';
+        
         const { error: lockError } = await supabase
-          .rpc('lock_ultimate_installment', { 
+          .rpc(isUltimateRequest ? 'lock_ultimate_installment' : 'lock_installment', { 
             p_request_id: requestId, 
             p_installment_number: installmentNumber, 
             p_locked_by: lockedBy || null 
@@ -492,6 +500,7 @@ const SecretaryDashboard: React.FC = () => {
   };
 
   // Delete third installment confirmation handlers
+  // Handle third installment deletion
   const handleDeleteThirdInstallmentClick = (requestId: string) => {
     setPendingDeleteRequest(requestId);
     setShowDeleteConfirmation(true);
@@ -505,10 +514,13 @@ const SecretaryDashboard: React.FC = () => {
         
         console.log('Deleting third installment for request:', pendingDeleteRequest, 'by user:', deletedBy);
         
-        // Call RPC to delete third installment permanently (using Ultimate-specific function)
-        // Use NULL for p_deleted_by if no valid user ID
+        // Check if this is an Ultimate request or regular request
+        const request = membershipRequests.find(r => r.id === pendingDeleteRequest);
+        const isUltimateRequest = request?.package?.name === 'Ultimate';
+        
+        // Call RPC to delete third installment permanently
         const { error: deleteError } = await supabase
-          .rpc('delete_ultimate_third_installment', { 
+          .rpc(isUltimateRequest ? 'delete_ultimate_third_installment' : 'delete_third_installment_permanently', { 
             p_request_id: pendingDeleteRequest, 
             p_deleted_by: deletedBy || null 
           });
@@ -549,6 +561,15 @@ const SecretaryDashboard: React.FC = () => {
     const isDbLocked = request[dbLockField] === true;
     
     console.log(`[SecretaryDashboard] isInstallmentLocked check for request ${request.id}, installment ${installmentNumber}: locked = ${isDbLocked}, field = ${dbLockField}, value = ${request[dbLockField]}`);
+    console.log(`[SecretaryDashboard] Request data for debugging:`, {
+      id: request.id,
+      installment_1_locked: request.installment_1_locked,
+      installment_2_locked: request.installment_2_locked,
+      installment_3_locked: request.installment_3_locked,
+      ultimate_installment_1_locked: (request as any).ultimate_installment_1_locked,
+      ultimate_installment_2_locked: (request as any).ultimate_installment_2_locked,
+      ultimate_installment_3_locked: (request as any).ultimate_installment_3_locked,
+    });
     
     // Check if the field exists and is properly set
     if (request[dbLockField] !== undefined && request[dbLockField] !== null) {
@@ -558,8 +579,8 @@ const SecretaryDashboard: React.FC = () => {
     // Fallback: Check if it's locked in the old locked_installments table
     console.log(`[SecretaryDashboard] Field ${dbLockField} is undefined/null, checking old locked_installments table...`);
     
-    if (request.locked_installments && Array.isArray(request.locked_installments)) {
-      const isLockedInOldTable = request.locked_installments.some((li: any) => li.installment_number === installmentNumber);
+    if ((request as any).locked_installments && Array.isArray((request as any).locked_installments)) {
+      const isLockedInOldTable = (request as any).locked_installments.some((li: any) => li.installment_number === installmentNumber);
       console.log(`[SecretaryDashboard] Found in old table:`, isLockedInOldTable);
       return isLockedInOldTable;
     }
@@ -571,15 +592,9 @@ const SecretaryDashboard: React.FC = () => {
   const loadInstallmentRequests = async () => {
     try {
       setInstallmentLoading(true);
-      const requests = await getMembershipRequests();
-      // Φιλτράρουμε αιτήματα δόσεων για Ultimate + Free Gym (6m,1y) + Pilates (25,50)
-      const installmentRequests = requests.filter(request => {
-        if (!request.has_installments) return false;
-        return request.package?.name ?
-          isInstallmentsEligible(request.package.name, request.duration_type as any)
-          : false;
-      });
-      setInstallmentRequests(installmentRequests);
+      // Φορτώνουμε ΜΟΝΟ τα Ultimate αιτήματα για την καρτέλα Ultimate Συνδρομές
+      const ultimateRequests = await getUltimateMembershipRequests();
+      setInstallmentRequests(ultimateRequests);
     } catch (error) {
       console.error('Error loading installment requests:', error);
       toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων δόσεων');
@@ -588,117 +603,6 @@ const SecretaryDashboard: React.FC = () => {
     }
   };
 
-  const updateInstallmentAmounts = async (requestId: string, installment1Amount: number, installment2Amount: number, installment3Amount: number, installment1PaymentMethod: string, installment2PaymentMethod: string, installment3PaymentMethod: string, installment1DueDate?: string, installment2DueDate?: string, installment3DueDate?: string) => {
-    try {
-      const updateData: any = {
-        installment_1_amount: installment1Amount,
-        installment_2_amount: installment2Amount,
-        installment_3_amount: installment3Amount,
-        installment_1_payment_method: installment1PaymentMethod,
-        installment_2_payment_method: installment2PaymentMethod,
-        installment_3_payment_method: installment3PaymentMethod
-      };
-
-      // Add due dates if provided
-      if (installment1DueDate) updateData.installment_1_due_date = installment1DueDate;
-      if (installment2DueDate) updateData.installment_2_due_date = installment2DueDate;
-      if (installment3DueDate) updateData.installment_3_due_date = installment3DueDate;
-
-      // Handle installment locking using the new database table
-      const requestOptions = selectedRequestOptions[requestId];
-      if (requestOptions) {
-        // Lock installments that were just locked
-        // Helper function to validate user ID
-        const getValidUserId = (userId: string | undefined) => {
-          if (!userId || userId === "undefined") {
-            return null;
-          }
-          // Allow the admin user ID for RPC calls
-          return userId;
-        };
-
-        if (requestOptions.installment1Locked) {
-          const lockedBy = await getValidUserId(user?.id);
-          const { error: lockError } = await supabase
-            .rpc('lock_ultimate_installment', { 
-              p_request_id: requestId, 
-              p_installment_number: 1, 
-              p_locked_by: lockedBy || null 
-            });
-          if (lockError) {
-            console.error('Error locking installment 1:', lockError);
-          }
-        }
-        if (requestOptions.installment2Locked) {
-          const lockedBy = await getValidUserId(user?.id);
-          const { error: lockError } = await supabase
-            .rpc('lock_ultimate_installment', { 
-              p_request_id: requestId, 
-              p_installment_number: 2, 
-              p_locked_by: lockedBy || null 
-            });
-          if (lockError) {
-            console.error('Error locking installment 2:', lockError);
-          }
-        }
-        if (requestOptions.installment3Locked) {
-          const lockedBy = await getValidUserId(user?.id);
-          const { error: lockError } = await supabase
-            .rpc('lock_ultimate_installment', { 
-              p_request_id: requestId, 
-              p_installment_number: 3, 
-              p_locked_by: lockedBy || null 
-            });
-          if (lockError) {
-            console.error('Error locking installment 3:', lockError);
-          }
-        }
-
-        // Handle third installment deletion
-        if (requestOptions.deleteThirdInstallment) {
-          const deletedBy = getValidUserId(user?.id);
-          if (deletedBy) {
-            const { error: deleteError } = await supabase
-              .rpc('delete_ultimate_third_installment', { 
-                p_request_id: requestId, 
-                p_deleted_by: deletedBy || null === '00000000-0000-0000-0000-000000000001' ? null : deletedBy 
-              });
-            if (deleteError) {
-              console.error('Error deleting third installment:', deleteError);
-            }
-          } else {
-            console.error('No valid user ID for third installment deletion');
-          }
-        }
-      }
-
-      // Check if it's an Ultimate request
-      const { data: ultimateRequest } = await supabase
-        .from('membership_requests')
-        .select('id')
-        .eq('id', requestId)
-        .single();
-
-      const { error } = await supabase
-        .from(ultimateRequest ? 'ultimate_membership_requests' : 'membership_requests')
-        .update(updateData)
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      toast.success('Οι δόσεις και ημερομηνίες ενημερώθηκαν επιτυχώς');
-      
-      // Reload appropriate requests
-      if (ultimateRequest) {
-        await loadUltimateRequests();
-      } else {
-        await loadInstallmentRequests();
-      }
-    } catch (error) {
-      console.error('Error updating installment amounts:', error);
-      toast.error('Σφάλμα κατά την ενημέρωση των δόσεων');
-    }
-  };
 
   
 
@@ -2918,7 +2822,7 @@ const SecretaryDashboard: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 {membershipRequests
-                  .filter(request => request.package?.name === 'Free Gym' || request.package?.name === 'Pilates')
+                  .filter(request => request.package?.name === 'Free Gym' || request.package?.name === 'Pilates' || request.package?.name === 'Ultimate')
                   .filter(request => 
                     request.status === 'pending' || 
                     (request.status === 'approved' && isRequestPending(request.id)) || 
@@ -2989,6 +2893,301 @@ const SecretaryDashboard: React.FC = () => {
                               <span className="text-sm font-medium text-pink-300">
                                 Μαθήματα Pilates: {request.classes_count}
                               </span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Show installments for all requests that have installments */}
+                        {request.has_installments && (
+                          <div className="mt-6 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-orange-200 rounded-2xl shadow-xl overflow-hidden">
+                            {/* Header */}
+                            <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-4">
+                              <h4 className="text-xl font-bold text-white flex items-center">
+                                <CreditCard className="h-6 w-6 mr-3" />
+                                Διαχείριση Δόσεων - {request.package?.name || 'Συνδρομής'}
+                              </h4>
+                            </div>
+                            
+                            {/* Installments Grid */}
+                            <div className="p-6">
+                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* 1η Δόση */}
+                                <div className="bg-white rounded-xl shadow-lg border border-orange-100 p-5 hover:shadow-xl transition-all duration-200">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <h5 className="text-lg font-bold text-orange-800 flex items-center">
+                                      <span className="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">1</span>
+                                      1η Δόση
+                                    </h5>
+                                    {isInstallmentLocked(request, 1) && (
+                                      <div className="flex items-center text-orange-600 text-sm font-medium">
+                                        <Lock className="h-4 w-4 mr-1" />
+                                        Κλειδωμένη
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="space-y-4">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">💰 Ποσό (€)</label>
+                                      <input
+                                        type="number"
+                                        value={selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || ''}
+                                        onChange={(e) => handleRequestOptionChange(request.id, 'installment1Amount', e.target.value)}
+                                        placeholder="0.00"
+                                        disabled={isInstallmentLocked(request, 1)}
+                                        className={`w-full p-3 border-2 rounded-xl focus:ring-2 transition-all ${
+                                          isInstallmentLocked(request, 1)
+                                            ? 'border-orange-300 bg-orange-50 text-orange-600 cursor-not-allowed'
+                                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-200 hover:border-orange-300'
+                                        }`}
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">💳 Τρόπος Πληρωμής</label>
+                                      <select
+                                        value={selectedRequestOptions[request.id]?.installment1PaymentMethod || request.installment_1_payment_method || 'cash'}
+                                        onChange={(e) => handleRequestOptionChange(request.id, 'installment1PaymentMethod', e.target.value)}
+                                        disabled={isInstallmentLocked(request, 1)}
+                                        className={`w-full p-3 border-2 rounded-xl focus:ring-2 transition-all ${
+                                          isInstallmentLocked(request, 1)
+                                            ? 'border-orange-300 bg-orange-50 text-orange-600 cursor-not-allowed'
+                                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-200 hover:border-orange-300'
+                                        }`}
+                                      >
+                                        <option value="cash">💰 Μετρητά</option>
+                                        <option value="pos">💳 POS</option>
+                                      </select>
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">📅 Ημερομηνία Πληρωμής</label>
+                                      <input
+                                        type="date"
+                                        value={selectedRequestOptions[request.id]?.installment1DueDate || request.installment_1_due_date || ''}
+                                        onChange={(e) => handleRequestOptionChange(request.id, 'installment1DueDate', e.target.value)}
+                                        disabled={isInstallmentLocked(request, 1)}
+                                        className={`w-full p-3 border-2 rounded-xl focus:ring-2 transition-all ${
+                                          isInstallmentLocked(request, 1)
+                                            ? 'border-orange-300 bg-orange-50 text-orange-600 cursor-not-allowed'
+                                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-200 hover:border-orange-300'
+                                        }`}
+                                      />
+                                    </div>
+                                    
+                                    {/* Lock Checkbox */}
+                                    <div className="pt-3 border-t border-gray-100">
+                                      <label className="flex items-center space-x-3 cursor-pointer group">
+                                        <input
+                                          type="checkbox"
+                                          checked={isInstallmentLocked(request, 1)}
+                                          onChange={() => handleInstallmentLockClick(request.id, 1)}
+                                          className="w-5 h-5 text-orange-600 border-2 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 transition-all group-hover:border-orange-400"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700 flex items-center group-hover:text-orange-600 transition-colors">
+                                          <Lock className="h-4 w-4 mr-2" />
+                                          Κλείδωμα Δόσης
+                                        </span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* 2η Δόση */}
+                                <div className="bg-white rounded-xl shadow-lg border border-orange-100 p-5 hover:shadow-xl transition-all duration-200">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <h5 className="text-lg font-bold text-orange-800 flex items-center">
+                                      <span className="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">2</span>
+                                      2η Δόση
+                                    </h5>
+                                    {isInstallmentLocked(request, 2) && (
+                                      <div className="flex items-center text-orange-600 text-sm font-medium">
+                                        <Lock className="h-4 w-4 mr-1" />
+                                        Κλειδωμένη
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="space-y-4">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">💰 Ποσό (€)</label>
+                                      <input
+                                        type="number"
+                                        value={selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || ''}
+                                        onChange={(e) => handleRequestOptionChange(request.id, 'installment2Amount', e.target.value)}
+                                        placeholder="0.00"
+                                        disabled={isInstallmentLocked(request, 2)}
+                                        className={`w-full p-3 border-2 rounded-xl focus:ring-2 transition-all ${
+                                          isInstallmentLocked(request, 2)
+                                            ? 'border-orange-300 bg-orange-50 text-orange-600 cursor-not-allowed'
+                                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-200 hover:border-orange-300'
+                                        }`}
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">💳 Τρόπος Πληρωμής</label>
+                                      <select
+                                        value={selectedRequestOptions[request.id]?.installment2PaymentMethod || request.installment_2_payment_method || 'cash'}
+                                        onChange={(e) => handleRequestOptionChange(request.id, 'installment2PaymentMethod', e.target.value)}
+                                        disabled={isInstallmentLocked(request, 2)}
+                                        className={`w-full p-3 border-2 rounded-xl focus:ring-2 transition-all ${
+                                          isInstallmentLocked(request, 2)
+                                            ? 'border-orange-300 bg-orange-50 text-orange-600 cursor-not-allowed'
+                                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-200 hover:border-orange-300'
+                                        }`}
+                                      >
+                                        <option value="cash">💰 Μετρητά</option>
+                                        <option value="pos">💳 POS</option>
+                                      </select>
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">📅 Ημερομηνία Πληρωμής</label>
+                                      <input
+                                        type="date"
+                                        value={selectedRequestOptions[request.id]?.installment2DueDate || request.installment_2_due_date || ''}
+                                        onChange={(e) => handleRequestOptionChange(request.id, 'installment2DueDate', e.target.value)}
+                                        disabled={isInstallmentLocked(request, 2)}
+                                        className={`w-full p-3 border-2 rounded-xl focus:ring-2 transition-all ${
+                                          isInstallmentLocked(request, 2)
+                                            ? 'border-orange-300 bg-orange-50 text-orange-600 cursor-not-allowed'
+                                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-200 hover:border-orange-300'
+                                        }`}
+                                      />
+                                    </div>
+                                    
+                                    {/* Lock Checkbox */}
+                                    <div className="pt-3 border-t border-gray-100">
+                                      <label className="flex items-center space-x-3 cursor-pointer group">
+                                        <input
+                                          type="checkbox"
+                                          checked={isInstallmentLocked(request, 2)}
+                                          onChange={() => handleInstallmentLockClick(request.id, 2)}
+                                          className="w-5 h-5 text-orange-600 border-2 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 transition-all group-hover:border-orange-400"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700 flex items-center group-hover:text-orange-600 transition-colors">
+                                          <Lock className="h-4 w-4 mr-2" />
+                                          Κλείδωμα Δόσης
+                                        </span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* 3η Δόση */}
+                                <div className="bg-white rounded-xl shadow-lg border border-orange-100 p-5 hover:shadow-xl transition-all duration-200">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <h5 className="text-lg font-bold text-orange-800 flex items-center">
+                                      <span className="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">3</span>
+                                      3η Δόση
+                                    </h5>
+                                    <div className="flex items-center space-x-2">
+                                      {isInstallmentLocked(request, 3) && (
+                                        <div className="flex items-center text-orange-600 text-sm font-medium">
+                                          <Lock className="h-4 w-4 mr-1" />
+                                          Κλειδωμένη
+                                        </div>
+                                      )}
+                                      {(selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted) && (
+                                        <div className="flex items-center text-red-600 text-sm font-medium">
+                                          <Trash2 className="h-4 w-4 mr-1" />
+                                          Διαγραμμένη
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="space-y-4">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">💰 Ποσό (€)</label>
+                                      <input
+                                        type="number"
+                                        value={selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || ''}
+                                        onChange={(e) => handleRequestOptionChange(request.id, 'installment3Amount', e.target.value)}
+                                        placeholder="0.00"
+                                        disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
+                                        className={`w-full p-3 border-2 rounded-xl focus:ring-2 transition-all ${
+                                          isInstallmentLocked(request, 3)
+                                            ? 'border-orange-300 bg-orange-50 text-orange-600 cursor-not-allowed'
+                                            : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                                            ? 'border-red-300 bg-red-50 text-red-600 cursor-not-allowed'
+                                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-200 hover:border-orange-300'
+                                        }`}
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">💳 Τρόπος Πληρωμής</label>
+                                      <select
+                                        value={selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash'}
+                                        onChange={(e) => handleRequestOptionChange(request.id, 'installment3PaymentMethod', e.target.value)}
+                                        disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
+                                        className={`w-full p-3 border-2 rounded-xl focus:ring-2 transition-all ${
+                                          isInstallmentLocked(request, 3)
+                                            ? 'border-orange-300 bg-orange-50 text-orange-600 cursor-not-allowed'
+                                            : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                                            ? 'border-red-300 bg-red-50 text-red-600 cursor-not-allowed'
+                                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-200 hover:border-orange-300'
+                                        }`}
+                                      >
+                                        <option value="cash">💰 Μετρητά</option>
+                                        <option value="pos">💳 POS</option>
+                                      </select>
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">📅 Ημερομηνία Πληρωμής</label>
+                                      <input
+                                        type="date"
+                                        value={selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date || ''}
+                                        onChange={(e) => handleRequestOptionChange(request.id, 'installment3DueDate', e.target.value)}
+                                        disabled={isInstallmentLocked(request, 3) || (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)}
+                                        className={`w-full p-3 border-2 rounded-xl focus:ring-2 transition-all ${
+                                          isInstallmentLocked(request, 3)
+                                            ? 'border-orange-300 bg-orange-50 text-orange-600 cursor-not-allowed'
+                                            : (selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted)
+                                            ? 'border-red-300 bg-red-50 text-red-600 cursor-not-allowed'
+                                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-200 hover:border-orange-300'
+                                        }`}
+                                      />
+                                    </div>
+                                    
+                                    {/* Lock Checkbox */}
+                                    <div className="pt-3 border-t border-gray-100">
+                                      <label className={`flex items-center space-x-3 ${(selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer group'}`}>
+                                        <input
+                                          type="checkbox"
+                                          checked={isInstallmentLocked(request, 3)}
+                                          onChange={() => handleInstallmentLockClick(request.id, 3)}
+                                          disabled={selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted}
+                                          className="w-5 h-5 text-orange-600 border-2 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 transition-all group-hover:border-orange-400"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700 flex items-center group-hover:text-orange-600 transition-colors">
+                                          <Lock className="h-4 w-4 mr-2" />
+                                          Κλείδωμα Δόσης
+                                        </span>
+                                      </label>
+                                    </div>
+                                    
+                                    {/* Delete Checkbox */}
+                                    <div className="pt-3 border-t border-red-100">
+                                      <label className="flex items-center space-x-3 cursor-pointer group">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted || false}
+                                          onChange={() => handleDeleteThirdInstallmentClick(request.id)}
+                                          className="w-5 h-5 text-red-600 border-2 border-gray-300 rounded focus:ring-red-500 focus:ring-2 transition-all group-hover:border-red-400"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700 flex items-center group-hover:text-red-600 transition-colors">
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Διαγραφή 3ης Δόσης
+                                        </span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )}
@@ -3348,7 +3547,6 @@ const SecretaryDashboard: React.FC = () => {
             setInstallmentSearchTerm={setInstallmentSearchTerm}
             selectedRequestOptions={selectedRequestOptions}
             handleRequestOptionChange={handleRequestOptionChange}
-            updateInstallmentAmounts={updateInstallmentAmounts}
             deleteInstallmentRequest={deleteInstallmentRequest}
             loadInstallmentRequests={loadInstallmentRequests}
             handleApproveRequest={handleApproveRequest}
@@ -3365,6 +3563,11 @@ const SecretaryDashboard: React.FC = () => {
             pendingDeleteRequest={pendingDeleteRequest}
             confirmDeleteThirdInstallment={confirmDeleteThirdInstallment}
             cancelDeleteThirdInstallment={cancelDeleteThirdInstallment}
+            requestProgramApprovalStatus={requestProgramApprovalStatus}
+            handleRequestProgramApprovalChange={handleRequestProgramApprovalChange}
+            handleSaveRequestProgramOptions={handleSaveRequestProgramOptions}
+            requestPendingUsers={requestPendingUsers}
+            requestFrozenOptions={requestFrozenOptions}
           />
         ) : activeTab === 'users-information' ? (
           <SecretaryUsersInformation />
@@ -5252,6 +5455,78 @@ const SecretaryDashboard: React.FC = () => {
               >
                 Κλείσιμο
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lock Confirmation Modal */}
+      {showLockConfirmation && pendingLockRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Lock className="h-8 w-8 text-orange-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Κλείδωμα Δόσης
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Είστε σίγουροι ότι θέλετε να κλειδώσετε την {pendingLockRequest.installmentNumber}η δόση;
+                <br />
+                <span className="text-orange-600 font-semibold">Αυτή η ενέργεια είναι μόνιμη!</span>
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={cancelInstallmentLock}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+                >
+                  ❌ Cancel
+                </button>
+                <button
+                  onClick={confirmInstallmentLock}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-xl hover:from-orange-700 hover:to-orange-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                >
+                  <Check className="h-4 w-4" />
+                  <span>✅ Yes, Lock</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmation && pendingDeleteRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="h-8 w-8 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Διαγραφή 3ης Δόσης
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Είστε σίγουροι ότι θέλετε να διαγράψετε την 3η δόση;
+                <br />
+                <span className="text-red-600 font-semibold">Αυτή η ενέργεια είναι μόνιμη!</span>
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={cancelDeleteThirdInstallment}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+                >
+                  ❌ Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteThirdInstallment}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>✅ Yes, Delete</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

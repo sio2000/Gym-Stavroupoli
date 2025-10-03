@@ -43,3 +43,5 @@ GRANT EXECUTE ON FUNCTION lock_installment(UUID, INTEGER, UUID) TO authenticated
 
 -- Test the function
 SELECT 'lock_installment function updated successfully' as status;
+
+

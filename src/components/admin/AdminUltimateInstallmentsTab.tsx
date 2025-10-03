@@ -182,22 +182,22 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
           
           // Save installment amounts (use current values from form or database)
           if (installmentNumber === 1) {
-            updateData.installment_1_amount = parseFloat(requestOptions.installment1Amount || request.installment_1_amount || 0);
+            updateData.installment_1_amount = parseFloat(String(requestOptions.installment1Amount || request.installment_1_amount || 0)).toString();
             updateData.installment_1_payment_method = requestOptions.installment1PaymentMethod || request.installment_1_payment_method || 'cash';
             updateData.installment_1_due_date = requestOptions.installment1DueDate || request.installment_1_due_date;
           } else if (installmentNumber === 2) {
-            updateData.installment_2_amount = parseFloat(requestOptions.installment2Amount || request.installment_2_amount || 0);
+            updateData.installment_2_amount = parseFloat(String(requestOptions.installment2Amount || request.installment_2_amount || 0)).toString();
             updateData.installment_2_payment_method = requestOptions.installment2PaymentMethod || request.installment_2_payment_method || 'cash';
             updateData.installment_2_due_date = requestOptions.installment2DueDate || request.installment_2_due_date;
           } else if (installmentNumber === 3) {
-            updateData.installment_3_amount = parseFloat(requestOptions.installment3Amount || request.installment_3_amount || 0);
+            updateData.installment_3_amount = parseFloat(String(requestOptions.installment3Amount || request.installment_3_amount || 0)).toString();
             updateData.installment_3_payment_method = requestOptions.installment3PaymentMethod || request.installment_3_payment_method || 'cash';
             updateData.installment_3_due_date = requestOptions.installment3DueDate || request.installment_3_due_date;
           }
           
-          // Save values to database first (using membership_requests table)
+          // Save values to database first (using ultimate_membership_requests table)
           const { error: saveError } = await supabase
-            .from('membership_requests')
+            .from('ultimate_membership_requests')
             .update(updateData)
             .eq('id', requestId);
           
@@ -235,7 +235,26 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
         
         console.log(`[AdminUltimateInstallmentsTab] Successfully locked installment ${installmentNumber}`);
         
-        // Update local state
+        // Update local state with the saved values
+        const requestOptions = selectedRequestOptions[requestId] || {};
+        const currentRequest = ultimateRequests.find(r => r.id === requestId);
+        if (currentRequest) {
+          if (installmentNumber === 1) {
+            handleRequestOptionChange(requestId, 'installment1Amount', requestOptions.installment1Amount || currentRequest.installment_1_amount || '');
+            handleRequestOptionChange(requestId, 'installment1PaymentMethod', requestOptions.installment1PaymentMethod || currentRequest.installment_1_payment_method || 'cash');
+            handleRequestOptionChange(requestId, 'installment1DueDate', requestOptions.installment1DueDate || currentRequest.installment_1_due_date);
+          } else if (installmentNumber === 2) {
+            handleRequestOptionChange(requestId, 'installment2Amount', requestOptions.installment2Amount || currentRequest.installment_2_amount || '');
+            handleRequestOptionChange(requestId, 'installment2PaymentMethod', requestOptions.installment2PaymentMethod || currentRequest.installment_2_payment_method || 'cash');
+            handleRequestOptionChange(requestId, 'installment2DueDate', requestOptions.installment2DueDate || currentRequest.installment_2_due_date);
+          } else if (installmentNumber === 3) {
+            handleRequestOptionChange(requestId, 'installment3Amount', requestOptions.installment3Amount || currentRequest.installment_3_amount || '');
+            handleRequestOptionChange(requestId, 'installment3PaymentMethod', requestOptions.installment3PaymentMethod || currentRequest.installment_3_payment_method || 'cash');
+            handleRequestOptionChange(requestId, 'installment3DueDate', requestOptions.installment3DueDate || currentRequest.installment_3_due_date);
+          }
+        }
+        
+        // Update local state - lock the installment
         const lockField = `installment${installmentNumber}Locked` as keyof MembershipRequest;
         handleRequestOptionChange(requestId, lockField, true);
         
@@ -881,39 +900,6 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                     </div>
                   </div>
 
-                  {/* Save Installments Button */}
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={() => {
-                        const installment1Amount = parseFloat(selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || '0');
-                        const installment2Amount = parseFloat(selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || '0');
-                        const installment3Amount = (selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted) ? 0 : parseFloat(selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || '0');
-                        const installment1PaymentMethod = selectedRequestOptions[request.id]?.installment1PaymentMethod || request.installment_1_payment_method || 'cash';
-                        const installment2PaymentMethod = selectedRequestOptions[request.id]?.installment2PaymentMethod || request.installment_2_payment_method || 'cash';
-                        const installment3PaymentMethod = selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash';
-                        const installment1DueDate = selectedRequestOptions[request.id]?.installment1DueDate || request.installment_1_due_date;
-                        const installment2DueDate = selectedRequestOptions[request.id]?.installment2DueDate || request.installment_2_due_date;
-                        const installment3DueDate = (selectedRequestOptions[request.id]?.deleteThirdInstallment || (request as any).ultimate_third_installment_deleted) ? undefined : (selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date);
-
-                        updateInstallmentAmounts(
-                          request.id,
-                          installment1Amount,
-                          installment2Amount,
-                          installment3Amount,
-                          installment1PaymentMethod,
-                          installment2PaymentMethod,
-                          installment3PaymentMethod,
-                          installment1DueDate,
-                          installment2DueDate,
-                          installment3DueDate
-                        );
-                      }}
-                      className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center space-x-3 shadow-2xl hover:shadow-3xl transform hover:scale-110 font-bold text-lg"
-                    >
-                      <Save className="h-5 w-5" />
-                      <span>💾 Αποθήκευση Δόσεων & Ημερομηνιών</span>
-                    </button>
-                  </div>
                 </div>
               )}
 

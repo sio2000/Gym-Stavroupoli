@@ -89,3 +89,5 @@ LEFT JOIN membership_packages mp ON umr.package_id = mp.id
 LIMIT 3;
 
 SELECT 'Check completed!' as status;
+
+

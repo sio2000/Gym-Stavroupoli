@@ -45,3 +45,5 @@ LEFT JOIN user_profiles up ON umr.user_id = up.user_id
 LEFT JOIN membership_packages mp ON umr.package_id = mp.id;
 
 SELECT 'Foreign keys fixed successfully!' as status;
+
+

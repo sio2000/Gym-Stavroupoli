@@ -85,3 +85,5 @@ WHERE au.id IS NULL
 ORDER BY up.created_at DESC;
 
 SELECT 'User profiles check completed!' as status;
+
+

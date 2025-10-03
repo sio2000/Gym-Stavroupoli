@@ -137,3 +137,5 @@ WHERE routine_name IN ('lock_ultimate_installment', 'delete_ultimate_third_insta
 AND routine_schema = 'public';
 
 SELECT 'System fixed and ready to work!' as status;
+
+

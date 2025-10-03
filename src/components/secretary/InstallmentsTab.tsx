@@ -20,18 +20,6 @@ interface InstallmentsTabProps {
   setInstallmentSearchTerm: (term: string) => void;
   selectedRequestOptions: {[requestId: string]: any};
   handleRequestOptionChange: (requestId: string, option: string, value: any) => void;
-  updateInstallmentAmounts: (
-    requestId: string,
-    installment1Amount: number,
-    installment2Amount: number,
-    installment3Amount: number,
-    installment1PaymentMethod: string,
-    installment2PaymentMethod: string,
-    installment3PaymentMethod: string,
-    installment1DueDate?: string,
-    installment2DueDate?: string,
-    installment3DueDate?: string
-  ) => Promise<void>;
   deleteInstallmentRequest: (requestId: string) => Promise<void>;
   loadInstallmentRequests: () => Promise<void>;
   handleApproveRequest: (requestId: string) => Promise<void>;
@@ -48,6 +36,12 @@ interface InstallmentsTabProps {
   pendingDeleteRequest: string | null;
   confirmDeleteThirdInstallment: () => Promise<void>;
   cancelDeleteThirdInstallment: () => void;
+  // Program Options props
+  requestProgramApprovalStatus: {[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'};
+  handleRequestProgramApprovalChange: (requestId: string, status: 'none' | 'approved' | 'rejected' | 'pending') => void;
+  handleSaveRequestProgramOptions: (requestId: string) => Promise<void>;
+  requestPendingUsers: Set<string>;
+  requestFrozenOptions: {[requestId: string]: any};
 }
 
 const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
@@ -57,7 +51,6 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
   setInstallmentSearchTerm,
   selectedRequestOptions,
   handleRequestOptionChange,
-  updateInstallmentAmounts,
   deleteInstallmentRequest,
   loadInstallmentRequests,
   handleApproveRequest,
@@ -73,8 +66,22 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
   showDeleteConfirmation,
   pendingDeleteRequest,
   confirmDeleteThirdInstallment,
-  cancelDeleteThirdInstallment
+  cancelDeleteThirdInstallment,
+  requestProgramApprovalStatus,
+  handleRequestProgramApprovalChange,
+  handleSaveRequestProgramOptions,
+  requestPendingUsers,
+  requestFrozenOptions
 }) => {
+  // Helper functions for Program Options
+  const isRequestPending = (requestId: string) => {
+    return requestPendingUsers.has(requestId);
+  };
+
+  const getFrozenRequestOptions = (requestId: string) => {
+    return requestFrozenOptions[requestId] || {};
+  };
+
   // Filter installment requests by search term
   const getFilteredInstallmentRequests = () => {
     return installmentRequests.filter(request => {
@@ -555,39 +562,325 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
                   </div>
                 </div>
 
-                {/* Save Button */}
-                <div className="mt-6 flex justify-end">
+                {/* Program Options Section */}
+                <div className="mt-8 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl p-6 border border-purple-500/30 shadow-xl">
+                  <h4 className="text-xl font-bold text-white mb-6 flex items-center">
+                    <span className="text-3xl mr-3">⚙️</span>
+                    Program Options
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    {/* Old Members Button */}
+                    <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
                   <button
                     onClick={() => {
-                      const installment1Amount = parseFloat(selectedRequestOptions[request.id]?.installment1Amount || request.installment_1_amount || '0');
-                      const installment2Amount = parseFloat(selectedRequestOptions[request.id]?.installment2Amount || request.installment_2_amount || '0');
-                      const installment3Amount = parseFloat(selectedRequestOptions[request.id]?.installment3Amount || request.installment_3_amount || '0');
-                      const installment1PaymentMethod = selectedRequestOptions[request.id]?.installment1PaymentMethod || request.installment_1_payment_method || 'cash';
-                      const installment2PaymentMethod = selectedRequestOptions[request.id]?.installment2PaymentMethod || request.installment_2_payment_method || 'cash';
-                      const installment3PaymentMethod = selectedRequestOptions[request.id]?.installment3PaymentMethod || request.installment_3_payment_method || 'cash';
-                      const installment1DueDate = selectedRequestOptions[request.id]?.installment1DueDate || request.installment_1_due_date;
-                      const installment2DueDate = selectedRequestOptions[request.id]?.installment2DueDate || request.installment_2_due_date;
-                      const installment3DueDate = selectedRequestOptions[request.id]?.installment3DueDate || request.installment_3_due_date;
+                          if (isRequestPending(request.id)) {
+                            return; // Frozen, can't change
+                          }
+                          handleRequestOptionChange(request.id, 'oldMembers', 
+                            !(selectedRequestOptions[request.id]?.oldMembers || false)
+                          );
+                        }}
+                        disabled={isRequestPending(request.id)}
+                        className={`w-full p-3 rounded-lg text-left transition-colors ${
+                          selectedRequestOptions[request.id]?.oldMembers || getFrozenRequestOptions(request.id)?.oldMembers
+                            ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                            : isRequestPending(request.id)
+                            ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                            : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {isRequestPending(request.id) && '🔒 '}👴 Παλαιά μέλη
+                          </span>
+                          {(selectedRequestOptions[request.id]?.oldMembers || getFrozenRequestOptions(request.id)?.oldMembers) && (
+                            <span className="text-green-600">✓</span>
+                          )}
+                        </div>
+                      </button>
+                    </div>
 
-                      updateInstallmentAmounts(
-                        request.id,
-                        installment1Amount,
-                        installment2Amount,
-                        installment3Amount,
-                        installment1PaymentMethod,
-                        installment2PaymentMethod,
-                        installment3PaymentMethod,
-                        installment1DueDate,
-                        installment2DueDate,
-                        installment3DueDate
-                      );
-                    }}
-                    className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>Αποθήκευση Δόσεων & Ημερομηνιών</span>
+                    {/* First 150 Members - Only show when Old Members is selected */}
+                    {(() => {
+                      const hasOldMembersSelected = selectedRequestOptions[request.id]?.oldMembers || getFrozenRequestOptions(request.id)?.oldMembers;
+                      const hasFirst150Used = selectedRequestOptions[request.id]?.first150Members === false || getFrozenRequestOptions(request.id)?.first150Members === false;
+                      return hasOldMembersSelected && !hasFirst150Used;
+                    })() && (
+                      <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                        {/* Info text above the button */}
+                        <div className="mb-3 text-xs text-gray-600 bg-blue-50 p-2 rounded-lg border border-blue-200">
+                          <span className="font-medium">ℹ️ Πληροφορίες:</span> Ισχύει μόνο για τα πρώτα 150 παλιά μέλη του γυμναστηρίου με τιμή 45€ ετήσιος (προσφορά), τα οποία εμφανίζονται στην καρτέλα Ταμείο
+                        </div>
+                        
+                        <button
+                          onClick={() => {
+                            if (isRequestPending(request.id)) {
+                              return; // Frozen, can't change
+                            }
+                            
+                            const newFirst150 = !(selectedRequestOptions[request.id]?.first150Members || false);
+                            handleRequestOptionChange(request.id, 'first150Members', newFirst150);
+                            if (newFirst150) {
+                              // When first150Members is selected, automatically set cash to 45 and lock POS
+                              handleRequestOptionChange(request.id, 'cash', true);
+                              handleRequestOptionChange(request.id, 'cashAmount', 45);
+                              handleRequestOptionChange(request.id, 'pos', false);
+                              handleRequestOptionChange(request.id, 'posAmount', 0);
+                            }
+                          }}
+                          disabled={isRequestPending(request.id)}
+                          className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 relative shadow-lg ${
+                            selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members
+                              ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                              : 'bg-blue-500 text-white hover:bg-blue-600'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center space-x-2">
+                            <span>🏆 Πρώτα 150 Μέλη</span>
+                            {(selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members) && (
+                              <span className="text-orange-200">✓</span>
+                            )}
+                            {isRequestPending(request.id) && (
+                              <span className="text-yellow-600">🔒</span>
+                            )}
+                          </div>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Kettlebell Points */}
+                    <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {isRequestPending(request.id) && '🔒 '}🏋️ Kettlebell Points
+                      </label>
+                      <input
+                        type="number"
+                        value={isRequestPending(request.id) 
+                          ? (getFrozenRequestOptions(request.id)?.kettlebellPoints || '')
+                          : (selectedRequestOptions[request.id]?.kettlebellPoints || '')}
+                        onChange={(e) => {
+                          if (isRequestPending(request.id)) return; // Frozen
+                          handleRequestOptionChange(request.id, 'kettlebellPoints', e.target.value);
+                        }}
+                        placeholder="Εισάγετε πόντους"
+                        disabled={isRequestPending(request.id)}
+                        className={`w-full p-2 border rounded-lg ${
+                          isRequestPending(request.id)
+                            ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                            : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Cash */}
+                    <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                      <button
+                        onClick={() => {
+                          if (isRequestPending(request.id)) {
+                            return; // Frozen, can't change
+                          }
+                          // Block changes if First 150 Members is selected
+                          if (selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members) {
+                            return; // Locked when First 150 Members is selected
+                          }
+                          handleRequestOptionChange(request.id, 'cash', !(selectedRequestOptions[request.id]?.cash || false));
+                        }}
+                        disabled={isRequestPending(request.id) || (selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members)}
+                        className={`w-full p-3 rounded-lg text-left transition-colors ${
+                          (selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members)
+                            ? 'bg-gray-100 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
+                            : selectedRequestOptions[request.id]?.cash || getFrozenRequestOptions(request.id)?.cash
+                            ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                            : isRequestPending(request.id)
+                            ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                            : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {isRequestPending(request.id) && '🔒 '}
+                            {(selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members) && '🔒 '}
+                            💰 Μετρητά
+                          </span>
+                          {(selectedRequestOptions[request.id]?.cash || getFrozenRequestOptions(request.id)?.cash) && 
+                           !(selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members) && (
+                            <span className="text-green-600">✓</span>
+                          )}
+                        </div>
+                      </button>
+                      
+                      {(selectedRequestOptions[request.id]?.cash || getFrozenRequestOptions(request.id)?.cash) && 
+                       !(selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members) && (
+                        <div className="mt-2">
+                          <input
+                            type="number"
+                            value={isRequestPending(request.id) ? getFrozenRequestOptions(request.id)?.cashAmount || '' : selectedRequestOptions[request.id]?.cashAmount || ''}
+                            onChange={(e) => {
+                              if (isRequestPending(request.id)) return;
+                              handleRequestOptionChange(request.id, 'cashAmount', parseFloat(e.target.value) || 0);
+                            }}
+                            placeholder="Ποσό σε €"
+                            className={`w-full p-2 border rounded-lg ${
+                              isRequestPending(request.id)
+                                ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                : 'border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500'
+                            }`}
+                            disabled={isRequestPending(request.id)}
+                          />
+                          <button
+                            onClick={() => {
+                              if (isRequestPending(request.id)) return;
+                              // Handle cash selection
+                            }}
+                            className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
+                              isRequestPending(request.id)
+                                ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+                                : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}
+                            disabled={isRequestPending(request.id)}
+                          >
+                            ✓ Επιλογή
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* POS */}
+                    <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                      <button
+                        onClick={() => {
+                          if (isRequestPending(request.id)) {
+                            return; // Frozen, can't change
+                          }
+                          // Block changes if First 150 Members is selected
+                          if (selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members) {
+                            return; // Locked when First 150 Members is selected
+                          }
+                          handleRequestOptionChange(request.id, 'pos', !(selectedRequestOptions[request.id]?.pos || false));
+                        }}
+                        disabled={isRequestPending(request.id) || (selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members)}
+                        className={`w-full p-3 rounded-lg text-left transition-colors ${
+                          selectedRequestOptions[request.id]?.pos || getFrozenRequestOptions(request.id)?.pos
+                            ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
+                            : isRequestPending(request.id)
+                            ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
+                            : (selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members)
+                            ? 'bg-gray-100 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
+                            : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {isRequestPending(request.id) && '🔒 '}
+                            {(selectedRequestOptions[request.id]?.first150Members || getFrozenRequestOptions(request.id)?.first150Members) && '🔒 '}
+                            💳 POS
+                          </span>
+                          {(selectedRequestOptions[request.id]?.pos || getFrozenRequestOptions(request.id)?.pos) && (
+                            <span className="text-blue-600">✓</span>
+                          )}
+                        </div>
+                      </button>
+                      
+                      {(selectedRequestOptions[request.id]?.pos || getFrozenRequestOptions(request.id)?.pos) && (
+                        <div className="mt-2">
+                          <input
+                            type="number"
+                            value={isRequestPending(request.id) ? getFrozenRequestOptions(request.id)?.posAmount || '' : selectedRequestOptions[request.id]?.posAmount || ''}
+                            onChange={(e) => {
+                              if (isRequestPending(request.id)) return;
+                              handleRequestOptionChange(request.id, 'posAmount', parseFloat(e.target.value) || 0);
+                            }}
+                            placeholder="Ποσό σε €"
+                            className={`w-full p-2 border rounded-lg ${
+                              isRequestPending(request.id)
+                                ? 'bg-yellow-100 border-yellow-300 cursor-not-allowed'
+                                : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                            }`}
+                            disabled={isRequestPending(request.id)}
+                          />
+                          <button
+                            onClick={() => {
+                              if (isRequestPending(request.id)) return;
+                              // Handle POS selection
+                            }}
+                            className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
+                              isRequestPending(request.id)
+                                ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                            disabled={isRequestPending(request.id)}
+                          >
+                            ✓ Επιλογή
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Program Options Status and Actions */}
+                  <div className="bg-gray-800/50 rounded-xl p-4 mb-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h5 className="text-lg font-bold text-white">Κατάσταση Program Options</h5>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleRequestProgramApprovalChange(request.id, 'approved')}
+                          disabled={loading || isRequestPending(request.id)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            requestProgramApprovalStatus[request.id] === 'approved'
+                              ? 'bg-green-600 text-white'
+                              : 'bg-gray-600 text-gray-300 hover:bg-green-600 hover:text-white'
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          ✅ Εγκρίνω
+                        </button>
+                        <button
+                          onClick={() => handleRequestProgramApprovalChange(request.id, 'rejected')}
+                          disabled={loading || isRequestPending(request.id)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            requestProgramApprovalStatus[request.id] === 'rejected'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-gray-600 text-gray-300 hover:bg-red-600 hover:text-white'
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          ❌ Απορρίπτω
+                        </button>
+                        <button
+                          onClick={() => handleRequestProgramApprovalChange(request.id, 'pending')}
+                          disabled={loading || isRequestPending(request.id)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            requestProgramApprovalStatus[request.id] === 'pending'
+                              ? 'bg-yellow-600 text-white'
+                              : 'bg-gray-600 text-gray-300 hover:bg-yellow-600 hover:text-white'
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          ⏳ Αναμονή
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {isRequestPending(request.id) && (
+                      <div className="bg-yellow-600/20 border border-yellow-500/30 rounded-lg p-3 mb-4">
+                        <div className="flex items-center">
+                          <span className="text-yellow-400 text-lg mr-2">⏳</span>
+                          <span className="text-yellow-200 font-medium">Program Options είναι στην αναμονή - οι επιλογές είναι παγωμένες</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => handleSaveRequestProgramOptions(request.id)}
+                        disabled={loading || requestProgramApprovalStatus[request.id] === 'none'}
+                        className="px-8 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-2xl hover:from-purple-700 hover:to-purple-800 transition-all duration-200 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center shadow-2xl hover:shadow-3xl transform hover:scale-105"
+                      >
+                        {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Save className="h-5 w-5 mr-2" />}
+                        💾 Αποθήκευση Program Options
                   </button>
+                    </div>
+                  </div>
                 </div>
+
               </div>
             </div>
           ))}
