@@ -269,7 +269,7 @@ const PilatesCalendar: React.FC = () => {
           </div>
 
           {/* Week Navigation */}
-          <div className="grid grid-cols-[auto,1fr,auto] items-center gap-1.5 sm:gap-3 mb-3 sm:mb-4">
+          <div className="hidden sm:grid grid-cols-[auto,1fr,auto] items-center gap-1.5 sm:gap-3 mb-3 sm:mb-4">
             <div className="flex items-center gap-1.5 py-1 min-w-0">
               <button
                 onClick={() => navigateWeek('prev')}
@@ -277,17 +277,6 @@ const PilatesCalendar: React.FC = () => {
               >
                 <ChevronLeft size={16} className="mr-1.5" />
                 Προηγούμενη
-              </button>
-              <button
-                onClick={() => {
-                  // Force refresh current week calculation using Greek timezone
-                  const greekMonday = getGreekMondayOfCurrentWeek();
-                  setCurrentWeek(greekMonday);
-                  console.log('User: Force refreshed currentWeek to Greek Monday:', greekMonday.toISOString());
-                }}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 text-[12px] sm:text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors whitespace-nowrap"
-              >
-                🔄 Refresh
               </button>
             </div>
             
@@ -334,6 +323,33 @@ const PilatesCalendar: React.FC = () => {
             <p className="text-red-600 mt-3 text-xs sm:text-sm">Τα μαθήματά σας τελείωσαν. Για ανανέωση, απευθυνθείτε στη ρεσεψιόν.</p>
           )}
         </div>
+        </div>
+
+        {/* Mobile Week Header + Controls (above calendar) */}
+        <div className="sm:hidden mb-3">
+          <div className="text-center mb-2">
+            <div className="inline-block px-3 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-semibold">
+              2 εβδομάδες: {formatDate(weekDates[0])} - {formatDate(weekDates[13])}
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={() => navigateWeek('prev')}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg shadow-sm active:scale-[0.99]"
+              aria-label="Προηγούμενη εβδομάδα"
+            >
+              <ChevronLeft size={16} />
+              Προηγούμενη
+            </button>
+            <button
+              onClick={() => navigateWeek('next')}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg shadow-sm active:scale-[0.99]"
+              aria-label="Επόμενη εβδομάδα"
+            >
+              Επόμενη
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Schedule Grid */}
