@@ -269,8 +269,8 @@ const PilatesCalendar: React.FC = () => {
           </div>
 
           {/* Week Navigation */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <div className="grid grid-cols-[auto,1fr,auto] items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 min-w-0">
               <button
                 onClick={() => navigateWeek('prev')}
                 className="flex items-center px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
@@ -291,8 +291,8 @@ const PilatesCalendar: React.FC = () => {
               </button>
             </div>
             
-            <div className="text-center">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
+            <div className="text-center min-w-0">
+              <h2 className="text-sm xs:text-base sm:text-xl font-semibold text-gray-800 truncate">
                 2 εβδομάδες: {formatDate(weekDates[0])} - {formatDate(weekDates[13])}
               </h2>
             </div>
@@ -340,10 +340,10 @@ const PilatesCalendar: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="sm:hidden text-xs text-gray-500 px-3 pt-3">Σύρετε οριζόντια για να δείτε όλες τις ημέρες</div>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-[10px] sm:text-xs md:text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b sticky top-0 z-20">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 w-20 sticky left-0 bg-gray-50 z-30 border-r border-gray-200">
+                  <th className="px-3 sm:px-4 py-2 sm:py-3 text-left font-medium text-gray-700 w-16 sm:w-20 sticky left-0 bg-gray-50 z-30 border-r border-gray-200">
                     Ώρα
                   </th>
                   {weekDates.map((dateStr) => {
@@ -351,12 +351,12 @@ const PilatesCalendar: React.FC = () => {
                     return (
                       <th
                         key={dateStr}
-                        className={`px-4 py-3 text-center text-sm font-semibold min-w-32 ${isToday ? 'bg-blue-50 text-blue-800' : 'text-gray-700'}`}
+                        className={`px-3 sm:px-4 py-2 sm:py-3 text-center font-semibold min-w-[5.25rem] sm:min-w-32 ${isToday ? 'bg-blue-50 text-blue-800' : 'text-gray-700'}`}
                         title={isToday ? 'Σήμερα' : undefined}
                       >
                         {formatDate(dateStr)}
                         {isToday && (
-                          <span className="ml-2 inline-block px-2 py-0.5 text-[10px] rounded-full bg-blue-100 text-blue-700 align-middle">Σήμερα</span>
+                          <span className="ml-1.5 sm:ml-2 inline-block px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] rounded-full bg-blue-100 text-blue-700 align-middle">Σήμερα</span>
                         )}
                       </th>
                     );
@@ -366,7 +366,7 @@ const PilatesCalendar: React.FC = () => {
               <tbody>
                 {timeSlots.map((time) => (
                   <tr key={time} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-700 sticky left-0 bg-white z-10 border-r border-gray-100">
+                    <td className="px-3 sm:px-4 py-2 sm:py-3 font-medium text-gray-700 sticky left-0 bg-white z-10 border-r border-gray-100">
                       {time}
                     </td>
                     {weekDates.map((dateStr) => {
@@ -376,9 +376,9 @@ const PilatesCalendar: React.FC = () => {
                       const isToday = dateStr === todayKey;
                       
                       return (
-                        <td key={`${dateStr}-${time}`} className={`px-4 py-3 text-center ${isToday ? 'bg-blue-50/40' : ''}`}>
+                        <td key={`${dateStr}-${time}`} className={`px-2.5 sm:px-4 py-1.5 sm:py-3 text-center align-middle ${isToday ? 'bg-blue-50/40' : ''}`}>
                           {isWeekendDay ? (
-                            <div className="text-gray-400 text-xs">
+                            <div className="text-gray-400 text-[10px] sm:text-xs">
                               Σαβ/Κυρ
                             </div>
                           ) : hasSlots ? (
@@ -394,19 +394,19 @@ const PilatesCalendar: React.FC = () => {
                                 
                                 if (isBooked) {
                                   statusClass = 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200';
-                                  statusIcon = <CheckCircle size={16} className="text-blue-600" />;
+                                  statusIcon = <CheckCircle size={12} className="text-blue-600" />;
                                   capacityText = 'Κρατημένο';
                                 } else if (isActive && !isFull) {
                                   statusClass = 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200 cursor-pointer';
-                                  statusIcon = <CheckCircle size={16} className="text-green-600" />;
+                                  statusIcon = <CheckCircle size={12} className="text-green-600" />;
                                   capacityText = `${slot.booked_count}/${slot.max_capacity}`;
                                 } else if (isActive && isFull) {
                                   statusClass = 'bg-rose-50 text-rose-700 border-rose-200 cursor-not-allowed';
-                                  statusIcon = <XCircle size={16} className="text-rose-600" />;
+                                  statusIcon = <XCircle size={12} className="text-rose-600" />;
                                   capacityText = 'Πλήρες';
                                 } else {
                                   statusClass = 'bg-rose-50 text-rose-700 border-rose-200 cursor-not-allowed';
-                                  statusIcon = <XCircle size={16} className="text-rose-600" />;
+                                  statusIcon = <XCircle size={12} className="text-rose-600" />;
                                   capacityText = 'Ακυρωμένο';
                                 }
                                 
@@ -416,7 +416,7 @@ const PilatesCalendar: React.FC = () => {
                                     type="button"
                                     aria-label={isBooked ? 'Ακύρωση κράτησης' : (isActive && !isFull ? 'Κλείσιμο μαθήματος' : capacityText)}
                                     title={isBooked ? 'Κάντε κλικ για ακύρωση' : (isActive && !isFull ? 'Κάντε κλικ για κράτηση' : capacityText)}
-                                    className={`px-3 py-2 rounded-lg border text-xs font-medium transition-colors transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${statusClass} ${isActive && !isBooked && !isFull ? 'hover:scale-[1.02]' : ''}`}
+                                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border text-[10px] sm:text-xs font-medium transition-colors transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${statusClass} ${isActive && !isBooked && !isFull ? 'hover:scale-[1.02]' : ''}`}
                                     onClick={() => {
                                       if (isActive && !isBooked && !isFull) {
                                         openConfirm(slot);
@@ -425,7 +425,7 @@ const PilatesCalendar: React.FC = () => {
                                       }
                                     }}
                                   >
-                                    <div className="flex items-center justify-center space-x-1">
+                                    <div className="flex items-center justify-center gap-1">
                                       {statusIcon}
                                       <span>{capacityText}</span>
                                     </div>
@@ -434,9 +434,9 @@ const PilatesCalendar: React.FC = () => {
                               })}
                             </div>
                           ) : (
-                            <div className="bg-red-100 text-red-800 border-red-200 px-3 py-2 rounded-lg text-xs font-medium cursor-not-allowed">
-                              <div className="flex items-center justify-center space-x-1">
-                                <XCircle size={16} className="text-red-600" />
+                            <div className="bg-red-100 text-red-800 border-red-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium cursor-not-allowed">
+                              <div className="flex items-center justify-center gap-1">
+                                <XCircle size={12} className="text-red-600" />
                                 <span>Μη διαθέσιμο</span>
                               </div>
                             </div>
