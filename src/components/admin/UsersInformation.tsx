@@ -220,13 +220,14 @@ const UsersInformation: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                      {user.first_name.charAt(0)}{user.last_name.charAt(0)}
+                      {(user.first_name?.trim()?.charAt(0) || user.email?.trim()?.charAt(0) || '?')}
+                      {user.last_name?.trim()?.charAt(0) || ''}
                     </div>
                     <div>
                       <h4 className="text-lg font-semibold text-gray-900">
-                        {user.first_name} {user.last_name}
+                        {(user.first_name && user.first_name.trim().length > 0 ? user.first_name : (user.email || 'Χρήστης'))} {user.last_name || ''}
                       </h4>
-                      <p className="text-gray-600">{user.email}</p>
+                      <p className="text-gray-600">{user.email || '—'}</p>
                       <p className="text-sm text-gray-500">
                         ID: {user.user_id}
                       </p>
