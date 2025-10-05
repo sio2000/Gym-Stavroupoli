@@ -244,6 +244,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const trainerNavigation = [
     { name: 'Mike', href: '/trainer/mike', icon: Users },
     { name: 'Jordan', href: '/trainer/jordan', icon: Users },
+    { name: 'Katerina', href: '/trainer/katerina', icon: Users },
   ];
 
   const handleLogout = () => {
