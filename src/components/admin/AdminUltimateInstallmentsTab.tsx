@@ -71,8 +71,10 @@ interface AdminUltimateInstallmentsTabProps {
   requestProgramApprovalStatus: {[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'};
   handleRequestProgramApprovalChange: (requestId: string, status: 'approved' | 'rejected' | 'pending') => void;
   handleSaveRequestProgramOptions: (requestId: string) => Promise<void>;
+  handleUnfreezeRequestProgramOptions: (requestId: string) => Promise<void>;
   requestPendingUsers: Set<string>;
   requestFrozenOptions: {[requestId: string]: any};
+  ultimateRequestFrozenWithPending: Set<string>;
 }
 
 const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> = ({
@@ -91,8 +93,10 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
   requestProgramApprovalStatus,
   handleRequestProgramApprovalChange,
   handleSaveRequestProgramOptions,
+  handleUnfreezeRequestProgramOptions,
   requestPendingUsers,
-  requestFrozenOptions
+  requestFrozenOptions,
+  ultimateRequestFrozenWithPending
 }) => {
   const { user } = useAuth();
   
@@ -485,28 +489,40 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                   {/* Status and Actions */}
                   <div className="flex flex-col items-end space-y-3">
                     {request.status === 'pending' && (
-                      <div className="flex flex-col space-y-3">
-                        <button
-                          onClick={() => handleApproveRequest(request.id)}
-                          disabled={loading}
-                          className="px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:from-green-700 hover:to-green-800 transition-all duration-200 text-lg font-bold shadow-2xl hover:shadow-3xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 transform hover:scale-110"
-                        >
-                          <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          <span>✅ Εγκρίνω</span>
-                        </button>
-                        <button
-                          onClick={() => handleRejectRequest(request.id)}
-                          disabled={loading}
-                          className="px-8 py-4 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl hover:from-red-700 hover:to-red-800 transition-all duration-200 text-lg font-bold shadow-2xl hover:shadow-3xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 transform hover:scale-110"
-                        >
-                          <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                          <span>❌ Απορρίπτω</span>
-                        </button>
-                      </div>
+                      getFrozenRequestOptions(request.id) && (Object.keys(getFrozenRequestOptions(request.id) || {}).length > 0) ? (
+                        <div className="flex flex-col space-y-3">
+                          <button
+                            onClick={() => handleApproveRequest(request.id)}
+                            disabled={loading}
+                            className="px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:from-green-700 hover:to-green-800 transition-all duration-200 text-lg font-bold shadow-2xl hover:shadow-3xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 transform hover:scale-110"
+                          >
+                            <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            <span>✅ Εγκρίνω Συνδρομή</span>
+                          </button>
+                          <button
+                            onClick={() => handleRejectRequest(request.id)}
+                            disabled={loading}
+                            className="px-8 py-4 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl hover:from-red-700 hover:to-red-800 transition-all duration-200 text-lg font-bold shadow-2xl hover:shadow-3xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 transform hover:scale-110"
+                          >
+                            <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                            <span>❌ Απορρίπτω Συνδρομή</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="max-w-[340px] text-right">
+                          <div className="inline-flex items-start bg-yellow-500/10 border border-yellow-500/30 text-yellow-200 rounded-xl px-3 py-2 text-sm">
+                            <span className="mr-2">🔒</span>
+                            <span>
+                              Για να ενεργοποιηθούν τα κουμπιά «Εγκρίνω Συνδρομή / Απορρίπτω Συνδρομή»,
+                              εκτελέστε πρώτα ενέργεια πληρωμής (Έγκριση/Απόρριψη/Αναμονή) και πατήστε «Αποθήκευση Program Options».
+                            </span>
+                          </div>
+                        </div>
+                      )
                     )}
                     
                     {request.status === 'approved' && (
@@ -979,6 +995,26 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                       placeholder="Εισάγετε ποσό σε €..."
                       disabled={isRequestPending(request.id)}
                     />
+                    <button
+                      onClick={() => {
+                        const cashAmount = isRequestPending(request.id) 
+                          ? getFrozenRequestOptions(request.id)?.cashAmount 
+                          : selectedRequestOptions[request.id]?.cashAmount;
+                        if (cashAmount && parseFloat(cashAmount.toString()) > 0) {
+                          toast.success(`💰 Μετρητά €${cashAmount} επιλέχθηκαν!`);
+                        } else {
+                          toast.success('💰 Μετρητά μηδενίστηκαν!');
+                        }
+                      }}
+                      disabled={isRequestPending(request.id)}
+                      className={`mt-3 w-full px-4 py-3 text-sm rounded-xl font-medium transition-colors ${
+                        isRequestPending(request.id)
+                          ? 'bg-yellow-500/50 text-yellow-200 cursor-not-allowed'
+                          : 'bg-green-600 hover:bg-green-700 text-white'
+                      }`}
+                    >
+                      ✓ Επιλογή Μετρητά
+                    </button>
                   </div>
                 )}
 
@@ -1011,11 +1047,42 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                       placeholder="Εισάγετε ποσό σε €..."
                       disabled={isRequestPending(request.id)}
                     />
+                    <button
+                      onClick={() => {
+                        const posAmount = isRequestPending(request.id) 
+                          ? getFrozenRequestOptions(request.id)?.posAmount 
+                          : selectedRequestOptions[request.id]?.posAmount;
+                        if (posAmount && parseFloat(posAmount.toString()) > 0) {
+                          toast.success(`💳 POS €${posAmount} επιλέχθηκε!`);
+                        } else {
+                          toast.success('💳 POS μηδενίστηκε!');
+                        }
+                      }}
+                      disabled={isRequestPending(request.id)}
+                      className={`mt-3 w-full px-4 py-3 text-sm rounded-xl font-medium transition-colors ${
+                        isRequestPending(request.id)
+                          ? 'bg-yellow-500/50 text-yellow-200 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                    >
+                      ✓ Επιλογή POS
+                    </button>
                   </div>
                 )}
 
                 {/* Approval Buttons */}
                 <div className="mt-6 flex flex-wrap gap-4">
+                  {!getFrozenRequestOptions(request.id) && (
+                    <div className="w-full">
+                      <div className="inline-flex items-start bg-blue-500/10 border border-blue-500/30 text-blue-200 rounded-xl px-3 py-2 text-sm">
+                        <span className="mr-2">ℹ️</span>
+                        <span>
+                          Επιλέξτε μια κατάσταση πληρωμής (Έγκριση/Απόρριψη/Αναμονή) και πατήστε «Αποθήκευση Program Options».
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {getFrozenRequestOptions(request.id) && (
                   <button
                     onClick={() => handleRequestProgramApprovalChange(request.id, 'approved')}
                     className={`px-6 py-3 rounded-2xl text-lg font-bold transition-all duration-200 shadow-xl transform hover:scale-105 ${
@@ -1024,8 +1091,10 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                         : 'bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-300 border-2 border-green-500/30 hover:from-green-500/30 hover:to-green-600/30'
                     }`}
                   >
-                    ✅ Έγκριση
+                    ✅ Έγκριση Πληρωμής
                   </button>
+                  )}
+                  {getFrozenRequestOptions(request.id) && (
                   <button
                     onClick={() => handleRequestProgramApprovalChange(request.id, 'rejected')}
                     className={`px-6 py-3 rounded-2xl text-lg font-bold transition-all duration-200 shadow-xl transform hover:scale-105 ${
@@ -1034,8 +1103,9 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                         : 'bg-gradient-to-r from-red-500/20 to-red-600/20 text-red-300 border-2 border-red-500/30 hover:from-red-500/30 hover:to-red-600/30'
                     }`}
                   >
-                    ❌ Απόρριψη
+                    ❌ Απόρριψη Πληρωμής
                   </button>
+                  )}
                   <button
                     onClick={() => handleRequestProgramApprovalChange(request.id, 'pending')}
                     className={`px-6 py-3 rounded-2xl text-lg font-bold transition-all duration-200 shadow-xl transform hover:scale-105 ${
@@ -1044,7 +1114,7 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                         : 'bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 text-yellow-300 border-2 border-yellow-500/30 hover:from-yellow-500/30 hover:to-yellow-600/30'
                     }`}
                   >
-                    ⏳ Αναμονή
+                    ⏳ Αναμονή/Πάγωμα Πληρωμής
                   </button>
                   <button
                     onClick={() => handleSaveRequestProgramOptions(request.id)}
@@ -1054,6 +1124,19 @@ const AdminUltimateInstallmentsTab: React.FC<AdminUltimateInstallmentsTabProps> 
                     {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Save className="h-5 w-5 mr-2" />}
                     💾 Αποθήκευση Program Options
                   </button>
+                  
+                  {/* Unfreeze Button - Only show when options are frozen AND they were frozen with "pending" status */}
+                  {getFrozenRequestOptions(request.id) && ultimateRequestFrozenWithPending.has(request.id) && (
+                    <button
+                      onClick={() => handleUnfreezeRequestProgramOptions(request.id)}
+                      className="px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-2xl hover:from-orange-700 hover:to-orange-800 transition-all duration-200 text-lg font-bold flex items-center shadow-2xl hover:shadow-3xl transform hover:scale-105"
+                    >
+                      <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                      </svg>
+                      🔓 ΞΕΠΑΓΩΜΑ
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

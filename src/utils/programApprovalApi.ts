@@ -56,9 +56,9 @@ export const saveProgramApprovalState = async (
         program_id: options.programId,
         approval_status: approvalStatus,
         old_members_used: options.oldMembersUsed || false,
-        kettlebell_points: options.kettlebellPoints || 0,
-        cash_amount: options.cashAmount || 0,
-        pos_amount: options.posAmount || 0,
+        kettlebell_points: options.kettlebellPoints ?? 0,
+        cash_amount: options.cashAmount ?? 0,
+        pos_amount: options.posAmount ?? 0,
         created_by: options.createdBy,
         notes: options.notes,
         // Group room information

@@ -365,6 +365,8 @@ const AdminPanel: React.FC = () => {
   
   // Pagination and search state for membership requests
   const [membershipRequestsPage, setMembershipRequestsPage] = useState(1);
+  const [membershipRequestsFilter, setMembershipRequestsFilter] = useState<'all' | 'freegym' | 'pilates' | 'installments'>('all');
+  const [requestPaymentActionSaved, setRequestPaymentActionSaved] = useState<Set<string>>(new Set());
   const [membershipRequestsSearchTerm, setMembershipRequestsSearchTerm] = useState('');
   const ITEMS_PER_PAGE = 6;
   
@@ -418,6 +420,10 @@ const AdminPanel: React.FC = () => {
   const [requestProgramApprovalStatus, setRequestProgramApprovalStatus] = useState<{[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'}>({});
   const [requestPendingUsers, setRequestPendingUsers] = useState<Set<string>>(new Set());
   const [requestFrozenOptions, setRequestFrozenOptions] = useState<{[requestId: string]: any}>({});
+  
+  // Track which ultimate requests were frozen with "pending" status
+  const [ultimateRequestFrozenWithPending, setUltimateRequestFrozenWithPending] = useState<Set<string>>(new Set());
+  
   // Installment locking state
   const [showLockConfirmation, setShowLockConfirmation] = useState(false);
   const [pendingLockRequest, setPendingLockRequest] = useState<{
@@ -1979,7 +1985,14 @@ const AdminPanel: React.FC = () => {
   const getFilteredMembershipRequests = () => {
     const filtered = membershipRequests.filter(request => {
       // Filter by package type (EXCLUDE Ultimate - αυτά έχουν ξεχωριστή καρτέλα)
-      const packageMatch = request.package?.name === 'Free Gym' || request.package?.name === 'Pilates';
+      const isFreeGym = request.package?.name === 'Free Gym';
+      const isPilates = request.package?.name === 'Pilates';
+      const isInstallments = request.has_installments === true;
+
+      let packageMatch = isFreeGym || isPilates;
+      if (membershipRequestsFilter === 'freegym') packageMatch = isFreeGym;
+      if (membershipRequestsFilter === 'pilates') packageMatch = isPilates;
+      if (membershipRequestsFilter === 'installments') packageMatch = isInstallments;
       
       // Filter by search term (user name)
       const searchMatch = membershipRequestsSearchTerm === '' || 
@@ -2206,6 +2219,9 @@ const AdminPanel: React.FC = () => {
 
       if (success) {
         console.log(`Program approval state saved for membership request: ${requestId}`);
+        const newSaved = new Set(requestPaymentActionSaved);
+        newSaved.add(requestId);
+        setRequestPaymentActionSaved(newSaved);
         
         // Handle pending state
         if (status === 'pending') {
@@ -2260,6 +2276,154 @@ const AdminPanel: React.FC = () => {
       toast.error('Σφάλμα κατά την αποθήκευση των Program Options');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Separate handler for Ultimate requests
+  const handleSaveUltimateRequestProgramOptions = async (requestId: string) => {
+    const status = requestProgramApprovalStatus[requestId];
+    if (status === 'none' || !user) {
+      toast.error('Παρακαλώ επιλέξτε μια κατάσταση έγκρισης');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const requestOptions = selectedUltimateRequestOptions[requestId];
+      if (!requestOptions) {
+        toast.error('Δεν υπάρχουν επιλογές για αυτό το αίτημα');
+        return;
+      }
+
+      // Find the ultimate request to get user_id
+      const request = ultimateRequests.find(r => r.id === requestId);
+      if (!request) {
+        toast.error('Ultimate αίτημα δεν βρέθηκε');
+        return;
+      }
+
+      // Save approval state for the ultimate request
+      const success = await saveProgramApprovalState(
+        request.user_id,
+        (status || 'pending') as 'approved' | 'rejected' | 'pending',
+        {
+          oldMembersUsed: requestOptions.oldMembers || false,
+          kettlebellPoints: requestOptions.kettlebellPoints ? parseInt(requestOptions.kettlebellPoints) : 0,
+          cashAmount: requestOptions.cashAmount ?? 0,
+          posAmount: requestOptions.posAmount ?? 0,
+          createdBy: user.id,
+          notes: `Program options saved for ultimate membership request ${requestId} with ${status} status`
+        }
+      );
+
+      if (success) {
+        console.log(`[AdminPanel] Successfully saved program options for ultimate request ${requestId}`);
+        
+        // Handle pending state
+        if (status === 'pending') {
+          // Freeze options for pending status
+          setRequestPendingUsers(prev => new Set([...prev, requestId]));
+          
+          // Store frozen options
+          setRequestFrozenOptions(prev => ({
+            ...prev,
+            [requestId]: {
+              ...requestOptions,
+              oldMembers: requestOptions.oldMembers || false,
+              kettlebellPoints: requestOptions.kettlebellPoints || '',
+              cash: requestOptions.cash || false,
+              pos: requestOptions.pos || false,
+              cashAmount: requestOptions.cashAmount ?? 0,
+              posAmount: requestOptions.posAmount ?? 0
+            }
+          }));
+          
+          // Track that this request was frozen with "pending" status
+          setUltimateRequestFrozenWithPending(prev => new Set([...prev, requestId]));
+          
+          toast('Ultimate Program Options τοποθετήθηκαν στην αναμονή - οι επιλογές παγώθηκαν', { icon: '⏳' });
+        } else {
+          // Execute actions for approved/rejected status
+          if (status === 'approved') {
+            await executeApprovedUltimateRequestProgramActions(requestId, request.user_id, requestOptions);
+          }
+          
+          // Freeze options for any save (approved/rejected/pending)
+          // Mark request as pending to freeze options
+          setRequestPendingUsers(prev => new Set([...prev, requestId]));
+          
+          // Store frozen options
+          setRequestFrozenOptions(prev => ({
+            ...prev,
+            [requestId]: {
+              ...requestOptions,
+              oldMembers: requestOptions.oldMembers || false,
+              kettlebellPoints: requestOptions.kettlebellPoints || '',
+              cash: requestOptions.cash || false,
+              pos: requestOptions.pos || false,
+              cashAmount: requestOptions.cashAmount ?? 0,
+              posAmount: requestOptions.posAmount ?? 0
+            }
+          }));
+        }
+        
+        // Reset approval status
+        setRequestProgramApprovalStatus(prev => ({
+          ...prev,
+          [requestId]: 'none'
+        }));
+        
+        // Show success message
+        const statusText = {
+          approved: 'εγκρίθηκε και εκτελέστηκαν οι ενέργειες',
+          rejected: 'απορρίφθηκε', 
+          pending: 'τοποθετήθηκε στην αναμονή'
+        };
+        
+        toast.success(`Ultimate Program Options ${statusText[status]} επιτυχώς!`);
+        
+        // Reload ultimate requests
+        await loadUltimateRequests();
+      } else {
+        toast.error('Σφάλμα κατά την αποθήκευση των Ultimate Program Options');
+      }
+    } catch (error) {
+      console.error('[AdminPanel] Error saving ultimate program options:', error);
+      toast.error('Σφάλμα κατά την αποθήκευση των Ultimate Program Options');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to unfreeze ultimate request program options
+  const handleUnfreezeUltimateRequestProgramOptions = async (requestId: string) => {
+    try {
+      // Remove from pending users
+      setRequestPendingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
+      
+      // Remove from pending tracking
+      setUltimateRequestFrozenWithPending(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
+      
+      // Remove frozen options
+      setRequestFrozenOptions(prev => {
+        const newOptions = { ...prev };
+        delete newOptions[requestId];
+        return newOptions;
+      });
+      
+      toast.success('Program Options ξεπαγώθηκαν επιτυχώς!');
+    } catch (error) {
+      console.error('[AdminPanel] Error unfreezing ultimate program options:', error);
+      toast.error('Σφάλμα κατά το ξεπάγωμα των Program Options');
     }
   };
 
@@ -2344,6 +2508,77 @@ const AdminPanel: React.FC = () => {
       toast.success('Έγιναν όλες οι απαραίτητες ενέργειες για το εγκεκριμένο αίτημα!');
     } catch (error) {
       console.error('Error executing approved program actions for membership request:', error);
+    }
+  };
+
+  // Execute approved program actions for Ultimate requests
+  const executeApprovedUltimateRequestProgramActions = async (requestId: string, userId: string, userOptions: any) => {
+    console.log('[AdminPanel] Executing approved program actions for Ultimate membership request:', requestId);
+    
+    try {
+      // 1. Save Old Members usage if selected
+      if (userOptions.oldMembers) {
+        const oldMembersSuccess = await markOldMembersUsed(userId, user?.id || '');
+        if (oldMembersSuccess) {
+          console.log(`[APPROVED] Old Members marked as used for Ultimate membership request: ${requestId}`);
+        } else {
+          console.warn(`[APPROVED] Failed to mark Old Members as used for Ultimate membership request: ${requestId}`);
+        }
+      }
+
+      // 2. Save Kettlebell Points if provided
+      if (userOptions.kettlebellPoints && parseInt(userOptions.kettlebellPoints) > 0) {
+        const kettlebellSuccess = await saveKettlebellPoints(
+          userId, 
+          parseInt(userOptions.kettlebellPoints), 
+          requestId, // Use requestId as program_id for Ultimate requests
+          user?.id || ''
+        );
+        
+        if (kettlebellSuccess) {
+          console.log(`[APPROVED] Kettlebell Points saved for Ultimate membership request: ${requestId}, Points: ${userOptions.kettlebellPoints}`);
+        } else {
+          console.warn(`[APPROVED] Failed to save Kettlebell Points for Ultimate membership request: ${requestId}`);
+        }
+      }
+
+      // 3. Save Cash transactions if provided
+      if (userOptions.cashAmount && userOptions.cashAmount > 0) {
+        const cashSuccess = await saveCashTransaction(
+          userId,
+          userOptions.cashAmount,
+          'cash',
+          requestId, // Use requestId as program_id for Ultimate requests
+          user?.id || '',
+          'Cash transaction from approved Ultimate membership request'
+        );
+        if (cashSuccess) {
+          console.log(`[APPROVED] Cash transaction saved for Ultimate membership request: ${requestId}, Amount: €${userOptions.cashAmount}`);
+        } else {
+          console.warn(`[APPROVED] Failed to save Cash transaction for Ultimate membership request: ${requestId}`);
+        }
+      }
+
+      // 4. Save POS transactions if provided
+      if (userOptions.posAmount && userOptions.posAmount > 0) {
+        const posSuccess = await saveCashTransaction(
+          userId,
+          userOptions.posAmount,
+          'pos',
+          requestId, // Use requestId as program_id for Ultimate requests
+          user?.id || '',
+          'POS transaction from approved Ultimate membership request'
+        );
+        if (posSuccess) {
+          console.log(`[APPROVED] POS transaction saved for Ultimate membership request: ${requestId}, Amount: €${userOptions.posAmount}`);
+        } else {
+          console.warn(`[APPROVED] Failed to save POS transaction for Ultimate membership request: ${requestId}`);
+        }
+      }
+
+      toast.success('Έγιναν όλες οι απαραίτητες ενέργειες για το εγκεκριμένο Ultimate αίτημα!');
+    } catch (error) {
+      console.error('[AdminPanel] Error executing approved program actions for Ultimate membership request:', error);
       toast.error('Σφάλμα κατά την εκτέλεση των ενεργειών');
     }
   };
@@ -3209,6 +3444,8 @@ const AdminPanel: React.FC = () => {
                               </p>
                             )}
                           </div>
+
+                          
                           <div>
                             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Ώρα Έναρξης</label>
                             {editingSchedule ? (
@@ -3440,7 +3677,7 @@ const AdminPanel: React.FC = () => {
                     {/* Value Input */}
                     <div className="bg-white rounded-lg p-4 border border-orange-200">
                       <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Εξτρά Υπηρεσία
+                      🏋️‍♂️ Kettlebell Points
                       </label>
                       <input
                         type="number"
@@ -3574,7 +3811,33 @@ const AdminPanel: React.FC = () => {
                               <Edit3 className="h-4 w-4" />
                             </button>
                           </div>
-                          
+                          {/* Filters group */}
+                          <div className="flex items-center flex-wrap gap-2">
+                            <button
+                              onClick={() => { setMembershipRequestsFilter('all'); setMembershipRequestsPage(1); }}
+                              className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
+                                membershipRequestsFilter === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                              }`}
+                            >Όλα</button>
+                            <button
+                              onClick={() => { setMembershipRequestsFilter('freegym'); setMembershipRequestsPage(1); }}
+                              className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
+                                membershipRequestsFilter === 'freegym' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                              }`}
+                            >Open Gym</button>
+                            <button
+                              onClick={() => { setMembershipRequestsFilter('pilates'); setMembershipRequestsPage(1); }}
+                              className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
+                                membershipRequestsFilter === 'pilates' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                              }`}
+                            >Pilates</button>
+                            <button
+                              onClick={() => { setMembershipRequestsFilter('installments'); setMembershipRequestsPage(1); }}
+                              className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
+                                membershipRequestsFilter === 'installments' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                              }`}
+                            >Δόσεις</button>
+                          </div>
                           {editingDuration?.id === duration.id ? (
                             <div className="flex items-center space-x-2">
                               <div className="flex-1">
@@ -3741,8 +4004,39 @@ const AdminPanel: React.FC = () => {
                             </div>
                           </div>
                           
-                          {/* Enhanced Pagination Controls */}
-                          <div className="flex items-center space-x-2">
+                          {/* Filters + Pagination Controls */}
+                          <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+                            {/* Filters group (left) */}
+                            <div className="flex items-center flex-wrap gap-2 mr-4">
+                              <span className="text-xs sm:text-sm font-semibold text-slate-600 mr-1">Φίλτρα αιτημάτων συνδρομών:</span>
+                              <button
+                                onClick={() => { setMembershipRequestsFilter('all'); setMembershipRequestsPage(1); }}
+                                className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
+                                  membershipRequestsFilter === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                                }`}
+                              >Όλα</button>
+                              <button
+                                onClick={() => { setMembershipRequestsFilter('freegym'); setMembershipRequestsPage(1); }}
+                                className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
+                                  membershipRequestsFilter === 'freegym' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                                }`}
+                              >Open Gym</button>
+                              <button
+                                onClick={() => { setMembershipRequestsFilter('pilates'); setMembershipRequestsPage(1); }}
+                                className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
+                                  membershipRequestsFilter === 'pilates' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                                }`}
+                              >Pilates</button>
+                              <button
+                                onClick={() => { setMembershipRequestsFilter('installments'); setMembershipRequestsPage(1); }}
+                                className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
+                                  membershipRequestsFilter === 'installments' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                                }`}
+                              >Δόσεις</button>
+                            </div>
+                            
+                            {/* Pagination */}
+                            <div className="flex items-center space-x-2">
                             {/* First page button */}
                             {getTotalPages() > 3 && (
                               <button
@@ -3788,14 +4082,20 @@ const AdminPanel: React.FC = () => {
                                 »»
                               </button>
                             )}
+                            </div>
                           </div>
                         </div>
                       </div>
 
                       {/* Enhanced Requests List */}
-                      <div className="space-y-6">
+                      <div className="space-y-8">
                         {getPaginatedMembershipRequests().map((request) => (
-                        <div key={request.id} className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+                        <div key={request.id} className="relative bg-slate-100 border-2 border-slate-300 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+                          <div className={`absolute left-0 top-0 h-full w-2 
+                            ${request.status === 'approved' ? 'bg-green-400' : ''}
+                            ${request.status === 'pending' ? 'bg-yellow-400' : ''}
+                            ${request.status === 'rejected' ? 'bg-red-400' : ''}
+                          `} />
                           {/* Main Request Card */}
                           <div className="p-6">
                             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
@@ -3863,6 +4163,7 @@ const AdminPanel: React.FC = () => {
                                 {/* Status and Actions */}
                                 <div className="flex flex-col items-end space-y-3">
                               {request.status === 'pending' && (
+                                (requestPaymentActionSaved.has(request.id) || !!getRequestFrozenOptions(request.id)) ? (
                                 <div className="flex space-x-2">
                                   <button
                                     onClick={() => handleApproveRequest(request.id)}
@@ -3872,7 +4173,7 @@ const AdminPanel: React.FC = () => {
                                         <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                         </svg>
-                                        <span>Εγκρίνω</span>
+                                        <span>Εγκρίνω Συνδρομή</span>
                                   </button>
                                   <button
                                     onClick={() => handleRejectRequest(request.id)}
@@ -3882,9 +4183,20 @@ const AdminPanel: React.FC = () => {
                                         <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                                           <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                         </svg>
-                                        <span>Απορρίπτω</span>
+                                        <span>Απορρίπτω Συνδρομή</span>
                                   </button>
                                 </div>
+                                ) : (
+                                  <div className="max-w-[280px] text-right">
+                                    <div className="inline-flex items-start bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 text-xs">
+                                      <span className="mr-2">🔒</span>
+                                      <span>
+                                        Για να ενεργοποιηθούν τα κουμπιά «Εγκρίνω Συνδρομή / Απορρίπτω Συνδρομή»,
+                                        εκτελέστε πρώτα ενέργεια πληρωμής (Έγκριση/Απόρριψη/Αναμονή) και πατήστε «Αποθήκευση Program Options».
+                                      </span>
+                                    </div>
+                                  </div>
+                                )
                               )}
                               
                               {request.status === 'approved' && (
@@ -3913,29 +4225,29 @@ const AdminPanel: React.FC = () => {
                           {((request.status === 'pending') || 
                             (request.status === 'approved' && isRequestPending(request.id)) || 
                             (request.status === 'rejected' && isRequestPending(request.id))) && (
-                          <div className={`border-t border-slate-200 ${isRequestPending(request.id) ? 'bg-gradient-to-r from-yellow-50 to-amber-50' : 'bg-slate-50'}`}>
-                            <div className="p-6">
-                              <div className="flex items-center space-x-3 mb-4">
-                                <div className={`p-2 rounded-lg ${isRequestPending(request.id) ? 'bg-yellow-100' : 'bg-slate-100'}`}>
-                                  <Settings className={`h-5 w-5 ${isRequestPending(request.id) ? 'text-yellow-600' : 'text-slate-600'}`} />
+                          <div className={`border-t border-slate-200 ${isRequestPending(request.id) ? 'bg-yellow-50' : 'bg-slate-50'}`}>
+                            <div className="p-6 sm:p-7">
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-xl ${isRequestPending(request.id) ? 'bg-yellow-100' : 'bg-slate-100'}`}>
+                                    <Settings className={`h-5 w-5 ${isRequestPending(request.id) ? 'text-yellow-600' : 'text-slate-600'}`} />
+                                  </div>
+                                  <h5 className={`text-xl font-bold ${isRequestPending(request.id) ? 'text-yellow-800' : 'text-slate-800'} flex items-center`}>
+                                    🎛️ Επιλογές Προγράμματος
+                                  </h5>
                                 </div>
-                                <h5 className={`text-lg font-semibold ${isRequestPending(request.id) ? 'text-yellow-800' : 'text-slate-700'} flex items-center`}>
-                              Program Options
-                                  {isRequestPending(request.id) && (
-                                    <span className="ml-2 px-2 py-1 bg-yellow-200 text-yellow-800 rounded-full text-xs font-medium">
-                                      Κλειδωμένο
-                                    </span>
-                                  )}
-                            </h5>
+                                {isRequestPending(request.id) && (
+                                  <span className="px-3 py-1 rounded-full bg-yellow-200 text-yellow-900 text-xs font-semibold">🔒 Κλειδωμένο</span>
+                                )}
                               </div>
                             
                             {/* Program Options Section */}
                             <div className="space-y-4">
                               {/* Old Members, First 150 Members, and Kettlebell Points */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Old Members - Hide for Pilates package */}
-                                {request.package?.name !== 'Pilates' && (
-                                <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                {/* Old Members - Show also for Pilates */}
+                                {(
+                                <div className={`p-3 rounded-xl border-2 ${isRequestPending(request.id) ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-slate-200'}`}>
                                   <button
                                     onClick={() => {
                                       if (isRequestPending(request.id)) {
@@ -3944,12 +4256,12 @@ const AdminPanel: React.FC = () => {
                                       }
                                       handleRequestOptionChange(request.id, 'oldMembers', !selectedRequestOptions[request.id]?.oldMembers);
                                     }}
-                                    className={`w-full p-3 rounded-lg text-left transition-colors ${
+                                    className={`w-full p-3 rounded-full text-left transition-colors ${
                                       selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers
                                         ? 'bg-green-100 text-green-800 border-2 border-green-300'
                                         : isRequestPending(request.id)
                                         ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
-                                        : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                                        : 'bg-slate-100 text-slate-700 border-2 border-slate-200 hover:bg-slate-200'
                                     }`}
                                   >
                                     <div className="flex items-center justify-between">
@@ -3964,14 +4276,14 @@ const AdminPanel: React.FC = () => {
                                 </div>
                                 )}
 
-                                {/* First 150 Members - Only show when Old Members is selected AND not used - Hide for Pilates package */}
-                                {request.package?.name !== 'Pilates' && (
+                                {/* First 150 Members - Only show when Old Members is selected AND not used - Show also for Pilates */}
+                                {(
                                   (() => {
                                     const hasOldMembersSelected = selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers;
                                     const hasFirst150Used = selectedRequestOptions[request.id]?.first150Members === false || getRequestFrozenOptions(request.id)?.first150Members === false;
                                     return hasOldMembersSelected && !hasFirst150Used;
                                   })() && (
-                                  <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                  <div className={`p-3 rounded-xl border-2 ${isRequestPending(request.id) ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-slate-200'}`}>
                                     {/* Info text above the button */}
                                     <div className="mb-3 text-xs text-gray-600 bg-blue-50 p-2 rounded-lg border border-blue-200">
                                       <span className="font-medium">ℹ️ Πληροφορίες:</span> Ισχύει μόνο για τα πρώτα 150 παλιά μέλη του γυμναστηρίου με τιμή 45€ ετήσιος (προσφορά), τα οποία εμφανίζονται στην καρτέλα Ταμείο
@@ -3999,7 +4311,7 @@ const AdminPanel: React.FC = () => {
                                           return newOptions;
                                         });
                                       }}
-                                      className={`w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200 relative shadow-lg ${
+                                    className={`w-full px-4 py-3 rounded-full font-semibold transition-all duration-200 relative shadow ${
                                         selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members
                                           ? 'bg-orange-500 text-white hover:bg-orange-600' 
                                           : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -4019,9 +4331,9 @@ const AdminPanel: React.FC = () => {
                                   )
                                 )}
 
-                                {/* Kettlebell Points - Hide for Pilates package */}
-                                {request.package?.name !== 'Pilates' && (
-                                <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                {/* Kettlebell Points - Show also for Pilates */}
+                                {(
+                                <div className={`p-3 rounded-xl border-2 ${isRequestPending(request.id) ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-slate-200'}`}>
                                   <label className="block text-sm font-medium text-gray-700 mb-2">
                                     {isRequestPending(request.id) && '🔒 '}🏋️ Kettlebell Points
                                   </label>
@@ -4045,17 +4357,15 @@ const AdminPanel: React.FC = () => {
                               </div>
 
                               {/* Payment Section - Separated from other options */}
-                              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 border-2 border-green-200">
+                              <div className="bg-white rounded-2xl p-4 border-2 border-slate-100">
                                 <div className="flex items-center space-x-2 mb-4">
                                   <span className="text-2xl">💳</span>
-                                  <h3 className="text-lg font-semibold text-gray-800">
-                                    {isRequestPending(request.id) && '🔒 '}SECTION ΠΛΗΡΩΜΩΝ
-                                  </h3>
+                                  <h3 className="text-lg font-bold text-slate-800">SECTION ΠΛΗΡΩΜΩΝ</h3>
                                 </div>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {/* Cash Payment */}
-                                  <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                  <div className={`p-3 rounded-xl border-2 ${isRequestPending(request.id) ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-slate-200'}`}>
                                     <button
                                       onClick={() => {
                                         if (isRequestPending(request.id)) {
@@ -4069,14 +4379,14 @@ const AdminPanel: React.FC = () => {
                                         }
                                         handleRequestOptionChange(request.id, 'cash', !selectedRequestOptions[request.id]?.cash);
                                       }}
-                                      className={`w-full p-3 rounded-lg text-left transition-colors ${
+                                      className={`w-full p-3 rounded-full text-left transition-colors ${
                                         (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)
                                           ? 'bg-gray-100 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
                                           : selectedRequestOptions[request.id]?.cash || getRequestFrozenOptions(request.id)?.cash
                                           ? 'bg-green-100 text-green-800 border-2 border-green-300'
                                           : isRequestPending(request.id)
                                           ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
-                                          : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                                              : 'bg-slate-100 text-slate-700 border-2 border-slate-200 hover:bg-slate-200'
                                       }`}
                                       disabled={isRequestPending(request.id) || (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)}
                                     >
@@ -4130,7 +4440,7 @@ const AdminPanel: React.FC = () => {
                                   </div>
 
                                   {/* POS Payment */}
-                                  <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
+                                  <div className={`p-3 rounded-xl border-2 ${isRequestPending(request.id) ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-slate-200'}`}>
                                     <button
                                       onClick={() => {
                                         if (isRequestPending(request.id)) {
@@ -4144,14 +4454,14 @@ const AdminPanel: React.FC = () => {
                                         }
                                         handleRequestOptionChange(request.id, 'pos', !selectedRequestOptions[request.id]?.pos);
                                       }}
-                                      className={`w-full p-3 rounded-lg text-left transition-colors ${
+                                      className={`w-full p-3 rounded-full text-left transition-colors ${
                                         selectedRequestOptions[request.id]?.pos || getRequestFrozenOptions(request.id)?.pos
                                           ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
                                           : isRequestPending(request.id)
                                           ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed'
                                           : (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)
                                           ? 'bg-gray-100 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
-                                          : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                                          : 'bg-slate-100 text-slate-700 border-2 border-slate-200 hover:bg-slate-200'
                                       }`}
                                       disabled={isRequestPending(request.id) || (selectedRequestOptions[request.id]?.first150Members || getRequestFrozenOptions(request.id)?.first150Members)}
                                     >
@@ -4189,7 +4499,7 @@ const AdminPanel: React.FC = () => {
                                             if (isRequestPending(request.id)) return;
                                             // Handle POS selection
                                           }}
-                                          className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
+                                          className={`mt-2 w-full px-3 py-1 text-sm rounded-full ${
                                             isRequestPending(request.id)
                                               ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
                                               : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -4485,38 +4795,38 @@ const AdminPanel: React.FC = () => {
                             <div className="mt-4 flex flex-wrap gap-2">
                               <button
                                 onClick={() => handleRequestProgramApprovalChange(request.id, 'approved')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
                                   requestProgramApprovalStatus[request.id] === 'approved'
                                     ? 'bg-green-600 text-white'
                                     : 'bg-green-100 text-green-700 hover:bg-green-200'
                                 }`}
                               >
-                                ✅ Έγκριση
+                                ✅ Έγκριση Πληρωμής
                               </button>
                               <button
                                 onClick={() => handleRequestProgramApprovalChange(request.id, 'rejected')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
                                   requestProgramApprovalStatus[request.id] === 'rejected'
                                     ? 'bg-red-600 text-white'
                                     : 'bg-red-100 text-red-700 hover:bg-red-200'
                                 }`}
                               >
-                                ❌ Απόρριψη
+                                ❌ Απόρριψη Πληρωμής
                               </button>
                               <button
                                 onClick={() => handleRequestProgramApprovalChange(request.id, 'pending')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
                                   requestProgramApprovalStatus[request.id] === 'pending'
                                     ? 'bg-yellow-600 text-white'
-                                    : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                    : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                                 }`}
                               >
-                                ⏳ Αναμονή
+                                ⏳ Αναμονή/Πάγωμα Πληρωμής
                               </button>
                               <button
                                 onClick={() => handleSaveRequestProgramOptions(request.id)}
                                 disabled={loading || requestProgramApprovalStatus[request.id] === 'none'}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                               >
                                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                                 Αποθήκευση Program Options
@@ -5724,7 +6034,7 @@ const AdminPanel: React.FC = () => {
                             : 'bg-green-500 text-white hover:bg-green-600 shadow-lg'
                         }`}
                       >
-                        ✅ Έγκριση
+                        ✅ Έγκριση Πληρωμής
                       </button>
                     </div>
 
@@ -5741,7 +6051,7 @@ const AdminPanel: React.FC = () => {
                             : 'bg-red-500 text-white hover:bg-red-600 shadow-lg'
                         }`}
                       >
-                        ❌ Απόρριψη
+                        ❌ Απόρριψη Πληρωμής
                       </button>
                     </div>
 
@@ -5758,7 +6068,7 @@ const AdminPanel: React.FC = () => {
                             : 'bg-yellow-500 text-white hover:bg-yellow-600 shadow-lg'
                         }`}
                       >
-                        ⏳ Στην Αναμονή
+                        ⏳ Αναμονή/Πάγωμα Πληρωμής
                       </button>
                     </div>
 
@@ -6327,9 +6637,11 @@ const AdminPanel: React.FC = () => {
               loading={loading}
               requestProgramApprovalStatus={requestProgramApprovalStatus}
               handleRequestProgramApprovalChange={handleRequestProgramApprovalChange}
-              handleSaveRequestProgramOptions={handleSaveRequestProgramOptions}
+              handleSaveRequestProgramOptions={handleSaveUltimateRequestProgramOptions}
+              handleUnfreezeRequestProgramOptions={handleUnfreezeUltimateRequestProgramOptions}
               requestPendingUsers={requestPendingUsers}
               requestFrozenOptions={requestFrozenOptions}
+              ultimateRequestFrozenWithPending={ultimateRequestFrozenWithPending}
             />
           </div>
         </ErrorBoundary>
