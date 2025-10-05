@@ -335,7 +335,7 @@ const PilatesCalendar: React.FC = () => {
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => navigateWeek('prev')}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg shadow-sm active:scale-[0.99]"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-white bg-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-700 active:scale-[0.99]"
               aria-label="Προηγούμενη εβδομάδα"
             >
               <ChevronLeft size={16} />
@@ -343,7 +343,7 @@ const PilatesCalendar: React.FC = () => {
             </button>
             <button
               onClick={() => navigateWeek('next')}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg shadow-sm active:scale-[0.99]"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-white bg-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-700 active:scale-[0.99]"
               aria-label="Επόμενη εβδομάδα"
             >
               Επόμενη
