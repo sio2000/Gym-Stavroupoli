@@ -17,7 +17,7 @@ import {
 } from '@/utils/pilatesScheduleApi';
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
-import { toLocalDateKey, addDaysLocal } from '@/utils/date';
+import { toLocalDateKey, addDaysLocal, getGreekMondayOfCurrentWeek, parseDateKeyLocal } from '@/utils/date';
 
 const PilatesScheduleManagement: React.FC = () => {
   const [slots, setSlots] = useState<PilatesScheduleSlot[]>([]);
@@ -26,10 +26,11 @@ const PilatesScheduleManagement: React.FC = () => {
   const [scheduleGrid, setScheduleGrid] = useState<{[key: string]: boolean}>({});
   const [occupancy, setOccupancy] = useState<{ [key: string]: { booked: number, cap: number } }>({});
   const [currentWeek, setCurrentWeek] = useState(() => {
-    // Start with the same week as user panel - 13 Sep (Saturday)
-    const adminWeek = new Date('2025-09-13T00:00:00.000Z');
-    console.log('Admin: Using fixed week - 13 Sep:', adminWeek.toISOString());
-    return adminWeek;
+    // Use Greek timezone Monday of current week for synchronization - FORCE REFRESH
+    const greekMonday = getGreekMondayOfCurrentWeek();
+    console.log('🔥🔥🔥 ADMIN FORCE REFRESH: Using NEW Greek Monday function - Monday:', greekMonday.toISOString(), 'TIMESTAMP:', Date.now());
+    console.log('🔥🔥🔥 ADMIN FORCE REFRESH: Day of week (should be 1 for Monday):', greekMonday.getUTCDay());
+    return greekMonday;
   });
   const [selectedSlotInfo, setSelectedSlotInfo] = useState<{
     slotId: string;
@@ -144,7 +145,8 @@ const PilatesScheduleManagement: React.FC = () => {
   };
 
   const getDayName = (dateStr: string): string => {
-    const date = new Date(dateStr);
+    // Use parseDateKeyLocal to match user panel and avoid timezone issues
+    const date = parseDateKeyLocal(dateStr);
     const dayNames = ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'];
     return dayNames[date.getDay()];
   };
@@ -238,7 +240,7 @@ const PilatesScheduleManagement: React.FC = () => {
       
       console.log('✅ Created all slots:', slotsToCreate.length);
       
-      console.log('=== SAVE SCHEDULE COMPLETE ===');
+      console.log('🔥🔥🔥 === SAVE SCHEDULE COMPLETE - REALTIME SYNC TRIGGERED ===');
       toast.success('Πρόγραμμα αποθηκεύθηκε επιτυχώς!');
       await loadSlots();
     } catch (error) {
@@ -267,11 +269,16 @@ const PilatesScheduleManagement: React.FC = () => {
   };
 
   const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('el-GR', { 
-      day: 'numeric', 
-      month: 'short' 
-    });
+    // Use parseDateKeyLocal to match user panel and avoid timezone issues
+    const date = parseDateKeyLocal(dateStr);
+    const dayNames = ['Κυρ', 'Δευ', 'Τρι', 'Τετ', 'Πεμ', 'Παρ', 'Σαβ'];
+    const monthNames = ['Ιαν', 'Φεβ', 'Μαρ', 'Απρ', 'Μαι', 'Ιουν', 'Ιουλ', 'Αυγ', 'Σεπ', 'Οκτ', 'Νοε', 'Δεκ'];
+    
+    const dayName = dayNames[date.getDay()];
+    const day = date.getDate();
+    const month = monthNames[date.getMonth()];
+    
+    return `${day} ${month}`;
   };
 
   const handleInfoClick = async (slotId: string, date: string, time: string) => {
@@ -313,15 +320,10 @@ const PilatesScheduleManagement: React.FC = () => {
         <div className="flex items-center space-x-4">
           <button
             onClick={() => {
-              // Force refresh current week calculation
-              const today = new Date();
-              const dayOfWeek = today.getDay();
-              const monday = new Date(today);
-              const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-              monday.setDate(today.getDate() + daysToMonday);
-              monday.setHours(0, 0, 0, 0);
-              setCurrentWeek(monday);
-              console.log('Admin: Force refreshed currentWeek to:', monday.toISOString());
+              // Force refresh current week calculation using Greek timezone
+              const greekMonday = getGreekMondayOfCurrentWeek();
+              setCurrentWeek(greekMonday);
+              console.log('🔥🔥🔥 ADMIN: Force refreshed currentWeek to Greek Monday:', greekMonday.toISOString());
             }}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
@@ -388,7 +390,8 @@ const PilatesScheduleManagement: React.FC = () => {
                   {weekDates.map((date, index) => {
                     const key = `${date}-${time}`;
                     const isActive = scheduleGrid[key];
-                    const dayOfWeek = new Date(date).getDay();
+                    // Use parseDateKeyLocal to match user panel and avoid timezone issues
+                    const dayOfWeek = parseDateKeyLocal(date).getDay();
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday (0) or Saturday (6)
                     
                     const occVal = occupancy[key];

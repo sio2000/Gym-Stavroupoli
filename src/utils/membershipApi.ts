@@ -922,57 +922,22 @@ export const getUltimateMembershipRequests = async (): Promise<MembershipRequest
       return [];
     }
 
-    // Get Ultimate locks for all requests
-    const requestIds = ultimateRequests.map(req => req.id);
-    const { data: ultimateLocks, error: locksError } = await supabase
-      .from('ultimate_installment_locks')
-      .select('*')
-      .in('membership_request_id', requestIds);
-
-    if (locksError) {
-      console.error('[MembershipAPI] Error fetching Ultimate locks:', locksError);
-      // Continue without locks if there's an error
-    }
-
-    // Create a map of locks by request ID and installment number
-    const locksMap = new Map();
-    if (ultimateLocks) {
-      ultimateLocks.forEach(lock => {
-        const key = `${lock.membership_request_id}_${lock.installment_number}`;
-        locksMap.set(key, lock);
-      });
-    }
-
-    // Map the data with Ultimate-specific locking
-    const requestsWithUltimateLocks = ultimateRequests.map((request) => {
-      const lock1 = locksMap.get(`${request.id}_1`);
-      const lock2 = locksMap.get(`${request.id}_2`);
-      const lock3 = locksMap.get(`${request.id}_3`);
-
+    // Map the data with locking information from membership_requests table
+    const requestsWithLocks = ultimateRequests.map((request) => {
       return {
         ...request,
-        // Use Ultimate-specific lock field names to distinguish from regular requests
-        ultimate_installment_1_locked: lock1 ? lock1.deleted_at === null : false,
-        ultimate_installment_2_locked: lock2 ? lock2.deleted_at === null : false,
-        ultimate_installment_3_locked: lock3 ? lock3.deleted_at === null : false,
-        ultimate_third_installment_deleted: lock3 ? lock3.deleted_at !== null : false,
-        ultimate_third_installment_deleted_at: lock3?.deleted_at || null,
-        ultimate_third_installment_deleted_by: lock3?.deleted_by || null,
-        // Keep original fields for backward compatibility (but these should not be used for Ultimate)
-        installment_1_locked: lock1 ? lock1.deleted_at === null : false,
-        installment_2_locked: lock2 ? lock2.deleted_at === null : false,
-        installment_3_locked: lock3 ? lock3.deleted_at === null : false,
-        third_installment_deleted: lock3 ? lock3.deleted_at !== null : false,
-        third_installment_deleted_at: lock3?.deleted_at || null,
-        third_installment_deleted_by: lock3?.deleted_by || null,
-        installment_1_locked_by: lock1?.locked_by || null,
-        installment_2_locked_by: lock2?.locked_by || null,
-        installment_3_locked_by: lock3?.locked_by || null,
+        // Ensure locked fields are properly set from the database
+        installment_1_locked: request.installment_1_locked || false,
+        installment_2_locked: request.installment_2_locked || false,
+        installment_3_locked: request.installment_3_locked || false,
+        third_installment_deleted: request.third_installment_deleted || false,
+        third_installment_deleted_at: request.third_installment_deleted_at,
+        third_installment_deleted_by: request.third_installment_deleted_by,
       };
     });
     
-    console.log('[MembershipAPI] Returning Ultimate requests with separate locks:', requestsWithUltimateLocks.length);
-    return requestsWithUltimateLocks;
+    console.log('[MembershipAPI] Returning Ultimate requests with locks:', requestsWithLocks.length);
+    return requestsWithLocks;
   } catch (error) {
     console.error('[MembershipAPI] Error fetching Ultimate membership requests:', error);
     return [];

@@ -49,3 +49,5 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
 SELECT 'Foreign key constraints fixed!' as status;
 
 
+
+

@@ -30,3 +30,32 @@ export function combineLocalDateTime(dateKey: string, timeHHMM: string): Date {
 	return base;
 }
 
+// Greek timezone utilities
+export function getGreekTimeNow(): Date {
+	// Get current time in Greek timezone (UTC+2 for winter, UTC+3 for summer)
+	// For simplicity, we'll use UTC+3 (summer time) as it's more common
+	const now = new Date();
+	return new Date(now.getTime() + (3 * 60 * 60 * 1000));
+}
+
+export function getGreekMondayOfCurrentWeek(): Date {
+	// Get Monday of current week in Greek timezone
+	const greekTime = getGreekTimeNow();
+	
+	// Get day of week (0 = Sunday, 1 = Monday, etc.)
+	const dayOfWeek = greekTime.getUTCDay();
+	
+	// Calculate days to Monday
+	const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+	
+	// Get Monday of current week
+	const monday = new Date(greekTime);
+	monday.setUTCDate(greekTime.getUTCDate() + daysToMonday);
+	monday.setUTCHours(0, 0, 0, 0);
+	
+	// Ensure we return a Monday (day of week = 1)
+	console.log('🔥🔥🔥 getGreekMondayOfCurrentWeek called - Input day:', dayOfWeek, 'Days to Monday:', daysToMonday, 'Result day:', monday.getUTCDay(), 'TIMESTAMP:', Date.now());
+	
+	return monday;
+}
+

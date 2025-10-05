@@ -25,8 +25,7 @@ import {
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
 import { 
-  getMembershipRequests,
-  // getMembershipRequestsWithLockedInstallments,
+  getMembershipRequestsWithLockedInstallments,
   getUltimateMembershipRequests,
   approveMembershipRequest,
   rejectMembershipRequest,
@@ -154,7 +153,7 @@ const SecretaryDashboard: React.FC = () => {
   const [showResult, setShowResult] = useState(false);
   const [recentScans, setRecentScans] = useState<any[]>([]);
   const [membershipRequests, setMembershipRequests] = useState<MembershipRequest[]>([]);
-  const [activeTab, setActiveTab] = useState<'scanner' | 'membership-requests' | 'ultimate-installments' | 'users-information' | 'personal-training'>('scanner');
+  const [activeTab, setActiveTab] = useState<'scanner' | 'membership-requests' | 'users-information' | 'personal-training'>('scanner');
   
   // Program Options state for membership requests
   const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
@@ -268,6 +267,12 @@ const SecretaryDashboard: React.FC = () => {
     installmentNumber: number;
   } | null>(null);
   
+  // Membership Requests filters
+  const [requestPackageFilter, setRequestPackageFilter] = useState<'all' | 'Open Gym' | 'Pilates' | 'Ultimate' | 'Installments'>('all');
+  const [requestSearch, setRequestSearch] = useState<string>('');
+  const [requestsPage, setRequestsPage] = useState<number>(1);
+  const REQUESTS_PER_PAGE = 6;
+  
   // Delete third installment state
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [pendingDeleteRequest, setPendingDeleteRequest] = useState<string | null>(null);
@@ -328,8 +333,6 @@ const SecretaryDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'membership-requests') {
       loadMembershipRequests();
-    } else if (activeTab === 'ultimate-installments') {
-      loadInstallmentRequests();
     } else if (activeTab === 'personal-training') {
       // Clear existing users first to force reload
       setAllUsers([]);
@@ -387,13 +390,20 @@ const SecretaryDashboard: React.FC = () => {
     try {
       setLoading(true);
       // Φορτώνουμε και τα κανονικά αιτήματα και τα Ultimate αιτήματα
+      // Χρησιμοποιούμε getMembershipRequestsWithLockedInstallments για να φορτώσουμε τα κλειδωμένα πεδία
       const [regularRequests, ultimateRequests] = await Promise.all([
-        getMembershipRequests(), // Free Gym, Pilates
-        getUltimateMembershipRequests() // Ultimate
+        getMembershipRequestsWithLockedInstallments(), // Free Gym, Pilates - με κλειδωμένα δεδομένα
+        getUltimateMembershipRequests() // Ultimate - με κλειδωμένα δεδομένα
       ]);
+      
+      console.log('[SecretaryDashboard] Regular requests loaded:', regularRequests?.length || 0);
+      console.log('[SecretaryDashboard] Ultimate requests loaded:', ultimateRequests?.length || 0);
+      console.log('[SecretaryDashboard] Ultimate requests details:', ultimateRequests.map(r => ({ id: r.id, package: r.package?.name, status: r.status })));
       
       // Συνδυάζουμε όλα τα αιτήματα
       const allRequests = [...regularRequests, ...ultimateRequests];
+      console.log('[SecretaryDashboard] Total combined requests:', allRequests.length);
+      
       setMembershipRequests(allRequests);
     } catch (error) {
       console.error('Error loading membership requests:', error);
@@ -417,7 +427,7 @@ const SecretaryDashboard: React.FC = () => {
       
       try {
         // First, save current values to database before locking
-        const request = installmentRequests.find(r => r.id === requestId);
+        const request = (membershipRequests.find(r => r.id === requestId) || installmentRequests.find(r => r.id === requestId));
         if (request) {
           const requestOptions = selectedRequestOptions[requestId] || {};
           
@@ -459,11 +469,9 @@ const SecretaryDashboard: React.FC = () => {
         // Then lock the installment using the correct RPC function
         const lockedBy = await getValidUserId(user?.id);
         
-        // Check if this is an Ultimate request or regular request
-        const isUltimateRequest = request?.package?.name === 'Ultimate';
-        
+        // Use the same lock_installment function for both Ultimate and regular requests
         const { error: lockError } = await supabase
-          .rpc(isUltimateRequest ? 'lock_ultimate_installment' : 'lock_installment', { 
+          .rpc('lock_installment', { 
             p_request_id: requestId, 
             p_installment_number: installmentNumber, 
             p_locked_by: lockedBy || null 
@@ -475,14 +483,19 @@ const SecretaryDashboard: React.FC = () => {
           return;
         }
         
-        // Update local state - lock the installment
-        const lockField = `installment${installmentNumber}Locked` as keyof MembershipRequest;
-        handleRequestOptionChange(requestId, lockField, true);
+        // Update local UI state immediately (optimistic)
+        setMembershipRequests(prev => prev.map(req => {
+          if (req.id !== requestId) return req;
+          const dbLockField = `installment_${installmentNumber}_locked` as keyof MembershipRequest;
+          const updated: any = { ...req };
+          updated[dbLockField] = true; // reflect permanent lock flag
+          return updated;
+        }));
         
         toast.success(`${installmentNumber}η δόση κλειδώθηκε επιτυχώς με τις τρέχουσες τιμές`);
         
-        // Reload the requests to get updated data
-        await loadInstallmentRequests();
+        // Reload the requests to get updated data (membership requests tab)
+        await loadMembershipRequests();
         
       } catch (error) {
         console.error('Exception locking installment:', error);
@@ -848,11 +861,7 @@ const SecretaryDashboard: React.FC = () => {
         const success = await approveUltimateMembershipRequest(requestId);
         if (success) {
           toast.success('Το Ultimate αίτημα εγκρίθηκε επιτυχώς! Δημιουργήθηκαν 2 συνδρομές: Pilates + Open Gym');
-          if (activeTab === 'ultimate-installments') {
-            loadInstallmentRequests();
-          } else {
-            loadMembershipRequests();
-          }
+          loadMembershipRequests();
         }
       } else {
         // Handle regular package approval
@@ -879,11 +888,7 @@ const SecretaryDashboard: React.FC = () => {
       const success = await rejectMembershipRequest(requestId, reason);
       if (success) {
         toast.success('Το αίτημα απορρίφθηκε επιτυχώς!');
-        if (activeTab === 'ultimate-installments') {
-          loadInstallmentRequests();
-        } else {
-          loadMembershipRequests();
-        }
+        loadMembershipRequests();
       }
     } catch (error) {
       console.error('Error rejecting request:', error);
@@ -2524,7 +2529,6 @@ const SecretaryDashboard: React.FC = () => {
                 <p className="text-gray-300 mt-1">
                   {activeTab === 'scanner' ? '🔍 Σαρώστε QR codes για είσοδο/έξοδο' : 
                    activeTab === 'membership-requests' ? '📋 Διαχείριση αιτημάτων συνδρομών' : 
-                   activeTab === 'ultimate-installments' ? '👑 Διαχείριση Ultimate συνδρομών και δόσεων' :
                    activeTab === 'users-information' ? '👥 Πληροφορίες χρηστών' :
                    activeTab === 'personal-training' ? '💪 Διαχείριση προγραμμάτων Personal Training' :
                    '💳 Διαχείριση δόσεων για πακέτα Ultimate'}
@@ -2532,17 +2536,15 @@ const SecretaryDashboard: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <button
-                onClick={activeTab === 'scanner' ? loadRecentScans : 
-                         activeTab === 'membership-requests' ? loadMembershipRequests : 
-                         activeTab === 'ultimate-installments' ? loadInstallmentRequests :
-                         activeTab === 'personal-training' ? () => {} : // personal-training tab handles its own refresh
-                         () => {}} // users-information tab handles its own refresh
-                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <RefreshCw className="h-4 w-4" />
-                <span className="font-medium">Ανανέωση</span>
-              </button>
+              {activeTab === 'membership-requests' && (
+                <button
+                  onClick={loadMembershipRequests}
+                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span className="font-medium">Ανανέωση</span>
+                </button>
+              )}
               <button
                 onClick={logout}
                 className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -2580,19 +2582,6 @@ const SecretaryDashboard: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <CreditCard className="h-5 w-5" />
                   <span>📋 Αιτήματα Συνδρομών</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('ultimate-installments')}
-                className={`py-4 px-6 rounded-xl font-medium text-sm transition-all duration-200 transform hover:scale-105 ${
-                  activeTab === 'ultimate-installments'
-                    ? 'bg-gradient-to-r from-orange-600 to-orange-700 text-white shadow-lg border-2 border-orange-400'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-2 border-transparent'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <span className="text-orange-400 text-lg">👑</span>
-                  <span>Ultimate Συνδρομές</span>
                 </div>
               </button>
               <button
@@ -2797,13 +2786,48 @@ const SecretaryDashboard: React.FC = () => {
                 <span className="text-3xl mr-3">📋</span>
                 Αιτήματα Συνδρομών
               </h2>
-              <button
-                onClick={loadMembershipRequests}
-                className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium"
-              >
-                <RefreshCw className="h-4 w-4 inline mr-2" />
-                Ανανέωση
-              </button>
+            <div className="flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-2" onClick={() => setRequestsPage(1)}>
+                <button
+                  onClick={() => setRequestPackageFilter('all')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${requestPackageFilter === 'all' ? 'bg-gray-700 text-white border-gray-500' : 'bg-gray-800 text-gray-300 hover:text-white border-gray-700'}`}
+                >
+                  Όλα
+                </button>
+                <button
+                  onClick={() => setRequestPackageFilter('Open Gym')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${requestPackageFilter === 'Open Gym' ? 'bg-blue-700 text-white border-blue-500' : 'bg-gray-800 text-gray-300 hover:text-white border-gray-700'}`}
+                >
+                  Open Gym
+                </button>
+                <button
+                  onClick={() => setRequestPackageFilter('Pilates')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${requestPackageFilter === 'Pilates' ? 'bg-purple-700 text-white border-purple-500' : 'bg-gray-800 text-gray-300 hover:text-white border-gray-700'}`}
+                >
+                  Pilates
+                </button>
+                <button
+                  onClick={() => setRequestPackageFilter('Ultimate')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${requestPackageFilter === 'Ultimate' ? 'bg-orange-700 text-white border-orange-500' : 'bg-gray-800 text-gray-300 hover:text-white border-gray-700'}`}
+                >
+                  Ultimate
+                </button>
+                <button
+                  onClick={() => setRequestPackageFilter('Installments')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${requestPackageFilter === 'Installments' ? 'bg-amber-700 text-white border-amber-500' : 'bg-gray-800 text-gray-300 hover:text-white border-gray-700'}`}
+                >
+                  Δόσεις
+                </button>
+              </div>
+              <input
+                type="text"
+                value={requestSearch}
+                onChange={(e) => { setRequestsPage(1); setRequestSearch(e.target.value); }}
+                placeholder="Αναζήτηση χρήστη..."
+                className="px-3 py-2 rounded-lg text-sm bg-gray-800 text-gray-200 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {/* Removed inner refresh button to avoid duplicate with header */}
+            </div>
             </div>
 
             {loading ? (
@@ -2822,14 +2846,31 @@ const SecretaryDashboard: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 {membershipRequests
-                  .filter(request => request.package?.name === 'Free Gym' || request.package?.name === 'Pilates' || request.package?.name === 'Ultimate')
-                  .filter(request => 
-                    request.status === 'pending' || 
-                    (request.status === 'approved' && isRequestPending(request.id)) || 
-                    (request.status === 'rejected' && isRequestPending(request.id))
-                  )
+                  .filter(request => {
+                    // status gating
+                    const allowed = request.status === 'pending' || (request.status === 'approved' && isRequestPending(request.id)) || (request.status === 'rejected' && isRequestPending(request.id));
+                    if (!allowed) return false;
+                    // package filter
+                    if (requestPackageFilter === 'all') return true;
+                    if (requestPackageFilter === 'Installments') {
+                      return !!request.has_installments;
+                    }
+                    const pkg = (request.package?.name || '').trim();
+                    if (requestPackageFilter === 'Open Gym') {
+                      return pkg === 'Free Gym';
+                    }
+                    return pkg === requestPackageFilter;
+                  })
+                  .filter(request => {
+                    // search by user name
+                    const term = requestSearch.trim().toLowerCase();
+                    if (!term) return true;
+                    const fullName = `${request.user?.first_name || ''} ${request.user?.last_name || ''}`.trim().toLowerCase();
+                    return fullName.includes(term);
+                  })
+                  .slice((requestsPage - 1) * REQUESTS_PER_PAGE, requestsPage * REQUESTS_PER_PAGE)
                   .map((request) => (
-                  <div key={request.id} className="bg-gradient-to-r from-gray-700 to-gray-800 border border-gray-600 rounded-2xl p-6 hover:from-gray-600 hover:to-gray-700 transition-all duration-200 shadow-lg hover:shadow-2xl transform hover:scale-102">
+                  <div key={`${request.id}-${request.package?.name || 'pkg'}`} className="bg-gradient-to-r from-gray-700 to-gray-800 border border-gray-600 rounded-2xl p-6 hover:from-gray-600 hover:to-gray-700 transition-all duration-200 shadow-lg hover:shadow-2xl transform hover:scale-102">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-4 mb-4">
@@ -3170,21 +3211,7 @@ const SecretaryDashboard: React.FC = () => {
                                       </label>
                                     </div>
                                     
-                                    {/* Delete Checkbox */}
-                                    <div className="pt-3 border-t border-red-100">
-                                      <label className="flex items-center space-x-3 cursor-pointer group">
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedRequestOptions[request.id]?.deleteThirdInstallment || request.third_installment_deleted || false}
-                                          onChange={() => handleDeleteThirdInstallmentClick(request.id)}
-                                          className="w-5 h-5 text-red-600 border-2 border-gray-300 rounded focus:ring-red-500 focus:ring-2 transition-all group-hover:border-red-400"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700 flex items-center group-hover:text-red-600 transition-colors">
-                                          <Trash2 className="h-4 w-4 mr-2" />
-                                          Διαγραφή 3ης Δόσης
-                                        </span>
-                                      </label>
-                                    </div>
+                                    {/* Delete Checkbox removed per request */}
                                   </div>
                                 </div>
                               </div>
@@ -3232,8 +3259,8 @@ const SecretaryDashboard: React.FC = () => {
                       </h5>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Old Members - Hide for Pilates package */}
-                        {request.package?.name !== 'Pilates' && (
+                        {/* Old Members */}
+                        {(
                         <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
                           <button
                             onClick={() => {
@@ -3263,8 +3290,8 @@ const SecretaryDashboard: React.FC = () => {
                         </div>
                         )}
 
-                        {/* First 150 Members - Only show when Old Members is selected AND not used - Hide for Pilates package */}
-                        {request.package?.name !== 'Pilates' && (
+                        {/* First 150 Members - Only show when Old Members is selected AND not used */}
+                        {(
                           (() => {
                             const hasOldMembersSelected = selectedRequestOptions[request.id]?.oldMembers || getRequestFrozenOptions(request.id)?.oldMembers;
                             const hasFirst150Used = selectedRequestOptions[request.id]?.first150Members === false || getRequestFrozenOptions(request.id)?.first150Members === false;
@@ -3318,8 +3345,8 @@ const SecretaryDashboard: React.FC = () => {
                           )
                         )}
 
-                        {/* Kettlebell Points - Hide for Pilates package */}
-                        {request.package?.name !== 'Pilates' && (
+                        {/* Kettlebell Points */}
+                        {(
                         <div className={`p-3 rounded-lg border ${isRequestPending(request.id) ? 'bg-yellow-100 border-yellow-300' : 'bg-white border-gray-200'}`}>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             {isRequestPending(request.id) && '🔒 '}🏋️ Kettlebell Points
@@ -3536,39 +3563,26 @@ const SecretaryDashboard: React.FC = () => {
                     )}
                   </div>
                 ))}
+                {/* Pagination Controls */}
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={() => setRequestsPage(p => Math.max(1, p - 1))}
+                    disabled={requestsPage === 1}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border ${requestsPage === 1 ? 'opacity-50 cursor-not-allowed bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-800 text-gray-200 hover:text-white border-gray-700'}`}
+                  >
+                    Προηγούμενο
+                  </button>
+                  <span className="text-gray-300 text-sm">Σελίδα {requestsPage}</span>
+                  <button
+                    onClick={() => setRequestsPage(p => p + 1)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium border bg-gray-800 text-gray-200 hover:text-white border-gray-700"
+                  >
+                    Επόμενη
+                  </button>
+                </div>
               </div>
             )}
           </div>
-        ) : activeTab === 'ultimate-installments' ? (
-          <InstallmentsTab
-            installmentRequests={installmentRequests}
-            installmentLoading={installmentLoading}
-            installmentSearchTerm={installmentSearchTerm}
-            setInstallmentSearchTerm={setInstallmentSearchTerm}
-            selectedRequestOptions={selectedRequestOptions}
-            handleRequestOptionChange={handleRequestOptionChange}
-            deleteInstallmentRequest={deleteInstallmentRequest}
-            loadInstallmentRequests={loadInstallmentRequests}
-            handleApproveRequest={handleApproveRequest}
-            handleRejectRequest={handleRejectRequest}
-            loading={loading}
-            handleInstallmentLockClick={handleInstallmentLockClick}
-            handleDeleteThirdInstallmentClick={handleDeleteThirdInstallmentClick}
-            isInstallmentLocked={isInstallmentLocked}
-            showLockConfirmation={showLockConfirmation}
-            pendingLockRequest={pendingLockRequest}
-            confirmInstallmentLock={confirmInstallmentLock}
-            cancelInstallmentLock={cancelInstallmentLock}
-            showDeleteConfirmation={showDeleteConfirmation}
-            pendingDeleteRequest={pendingDeleteRequest}
-            confirmDeleteThirdInstallment={confirmDeleteThirdInstallment}
-            cancelDeleteThirdInstallment={cancelDeleteThirdInstallment}
-            requestProgramApprovalStatus={requestProgramApprovalStatus}
-            handleRequestProgramApprovalChange={handleRequestProgramApprovalChange}
-            handleSaveRequestProgramOptions={handleSaveRequestProgramOptions}
-            requestPendingUsers={requestPendingUsers}
-            requestFrozenOptions={requestFrozenOptions}
-          />
         ) : activeTab === 'users-information' ? (
           <SecretaryUsersInformation />
         ) : activeTab === 'personal-training' ? (

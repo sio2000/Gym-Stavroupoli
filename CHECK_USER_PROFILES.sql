@@ -87,3 +87,5 @@ ORDER BY up.created_at DESC;
 SELECT 'User profiles check completed!' as status;
 
 
+
+

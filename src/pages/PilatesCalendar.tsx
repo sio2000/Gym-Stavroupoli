@@ -10,8 +10,8 @@ import {
   subscribePilatesRealtime,
 } from '@/utils/pilatesScheduleApi';
 import { PilatesAvailableSlot, PilatesBooking } from '@/types';
-import { Calendar, CheckCircle, XCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { toLocalDateKey, addDaysLocal } from '@/utils/date';
+import { Calendar, CheckCircle, XCircle, Loader2, ChevronLeft, ChevronRight, Wallet, Sparkles } from 'lucide-react';
+import { toLocalDateKey, addDaysLocal, parseDateKeyLocal, getGreekMondayOfCurrentWeek } from '@/utils/date';
 
 const PilatesCalendar: React.FC = () => {
   const { user } = useAuth();
@@ -19,25 +19,30 @@ const PilatesCalendar: React.FC = () => {
   const [userBookings, setUserBookings] = useState<PilatesBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [deposit, setDeposit] = useState<number>(0);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [pendingSlot, setPendingSlot] = useState<PilatesAvailableSlot | null>(null);
   const [currentWeek, setCurrentWeek] = useState(() => {
-    // Start with the same week as admin panel - 13 Sep (Saturday)
-    const adminWeek = new Date('2025-09-13T00:00:00.000Z');
-    console.log('User: Using admin week - 13 Sep:', adminWeek.toISOString());
-    return adminWeek;
+    // Use Greek timezone Monday of current week for synchronization with admin
+    const greekMonday = getGreekMondayOfCurrentWeek();
+    console.log('🔥🔥🔥 USER FORCE REFRESH: Using NEW Greek Monday function - Monday:', greekMonday.toISOString(), 'TIMESTAMP:', Date.now());
+    console.log('🔥🔥🔥 USER FORCE REFRESH: Day of week (should be 1 for Monday):', greekMonday.getUTCDay());
+    return greekMonday;
   });
 
 
-  // Generate 2-week dates (current week + next week)
-  const getWeekDates = (): Date[] => {
-    const dates: Date[] = [];
-    const startOfWeek = new Date(currentWeek);
+  // Generate 2-week dates (current week + next week) - Use same logic as admin panel
+  const getWeekDates = (): string[] => {
+    const dates: string[] = [];
+    const startDate = new Date(currentWeek);
     
-    console.log('User: getWeekDates - currentWeek:', startOfWeek);
+    console.log('User: getWeekDates - currentWeek:', startDate);
     
+    // Generate 14 days (2 εβδομάδες) - same as admin panel
     for (let i = 0; i < 14; i++) {
-      const date = addDaysLocal(startOfWeek, i);
-      dates.push(date);
-      console.log(`User: Day ${i}: ${toLocalDateKey(date)}`);
+      const date = addDaysLocal(startDate, i);
+      const key = toLocalDateKey(date);
+      dates.push(key);
+      console.log(`User: Day ${i}: ${key}`);
     }
     
     return dates;
@@ -52,8 +57,9 @@ const PilatesCalendar: React.FC = () => {
     return slots;
   };
 
-  // Format date for display
-  const formatDate = (date: Date): string => {
+  // Format date for display - now takes date string (YYYY-MM-DD)
+  const formatDate = (dateStr: string): string => {
+    const date = parseDateKeyLocal(dateStr); // Use parseDateKeyLocal to avoid timezone issues
     const dayNames = ['Κυρ', 'Δευ', 'Τρι', 'Τετ', 'Πεμ', 'Παρ', 'Σαβ'];
     const monthNames = ['Ιαν', 'Φεβ', 'Μαρ', 'Απρ', 'Μαι', 'Ιουν', 'Ιουλ', 'Αυγ', 'Σεπ', 'Οκτ', 'Νοε', 'Δεκ'];
     
@@ -64,8 +70,9 @@ const PilatesCalendar: React.FC = () => {
     return `${dayName} ${day} ${month}`;
   };
 
-  // Check if date is weekend
-  const isWeekend = (date: Date): boolean => {
+  // Check if date is weekend - now takes date string (YYYY-MM-DD)
+  const isWeekend = (dateStr: string): boolean => {
+    const date = parseDateKeyLocal(dateStr); // Use parseDateKeyLocal to avoid timezone issues
     const day = date.getDay();
     return day === 0 || day === 6; // Sunday = 0, Saturday = 6
   };
@@ -99,8 +106,9 @@ const PilatesCalendar: React.FC = () => {
     try {
       setLoading(true);
       console.log('=== LOADING PILATES CALENDAR DATA ===');
-      const startStr = toLocalDateKey(new Date(currentWeek));
-      const endStr = toLocalDateKey(addDaysLocal(new Date(currentWeek), 13));
+      const weekDates = getWeekDates();
+      const startStr = weekDates[0];
+      const endStr = weekDates[13];
 
       const [slots, bookings, depositInfo] = await Promise.all([
         getPilatesAvailableSlots(startStr, endStr),
@@ -201,8 +209,9 @@ const PilatesCalendar: React.FC = () => {
     // Force refresh to avoid caching issues
     console.log('User: useEffect triggered - currentWeek changed to:', currentWeek.toISOString());
     loadData();
-    // realtime occupancy updates
+    // realtime occupancy updates with cache buster
     const ch = subscribePilatesRealtime(() => {
+      console.log('🔥🔥🔥 USER: Realtime update received - reloading data');
       loadData();
     });
     return () => {
@@ -212,6 +221,23 @@ const PilatesCalendar: React.FC = () => {
 
   const weekDates = getWeekDates();
   const timeSlots = getTimeSlots();
+  const todayKey = toLocalDateKey(new Date());
+
+  const openConfirm = (slot: PilatesAvailableSlot) => {
+    setPendingSlot(slot);
+    setIsConfirmOpen(true);
+  };
+
+  const closeConfirm = () => {
+    setIsConfirmOpen(false);
+    setPendingSlot(null);
+  };
+
+  const confirmBooking = async () => {
+    if (!pendingSlot) return;
+    await handleBookSlot(pendingSlot);
+    closeConfirm();
+  };
 
   if (loading) {
     return (
@@ -226,111 +252,131 @@ const PilatesCalendar: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 md:py-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-5 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 mb-3 md:mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-                <Calendar className="mr-3 text-primary" size={32} />
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center flex-wrap">
+                <Calendar className="mr-2 sm:mr-3 text-primary" size={28} />
                 Ημερολόγιο Pilates
+                <Sparkles className="ml-2 sm:ml-3 text-amber-500" size={20} />
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">
                 Κλείστε μαθήματα pilates για τις επόμενες 2 εβδομάδες
               </p>
             </div>
           </div>
 
           {/* Week Navigation */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
               <button
                 onClick={() => navigateWeek('prev')}
-                className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
               >
-                <ChevronLeft size={20} className="mr-2" />
+                <ChevronLeft size={18} className="mr-2" />
                 Προηγούμενη
               </button>
               <button
                 onClick={() => {
-                  // Force refresh current week calculation - MUST match admin exactly
-                  const today = new Date();
-                  const dayOfWeek = today.getDay();
-                  const monday = new Date(today);
-                  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-                  monday.setDate(today.getDate() + daysToMonday);
-                  monday.setHours(0, 0, 0, 0);
-                  setCurrentWeek(monday);
-                  console.log('User: Force refreshed currentWeek to:', monday.toISOString());
+                  // Force refresh current week calculation using Greek timezone
+                  const greekMonday = getGreekMondayOfCurrentWeek();
+                  setCurrentWeek(greekMonday);
+                  console.log('User: Force refreshed currentWeek to Greek Monday:', greekMonday.toISOString());
                 }}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors whitespace-nowrap"
               >
                 🔄 Refresh
               </button>
             </div>
             
             <div className="text-center">
-              <h2 className="text-xl font-semibold text-gray-800">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
                 2 εβδομάδες: {formatDate(weekDates[0])} - {formatDate(weekDates[13])}
               </h2>
             </div>
             
             <button
               onClick={() => navigateWeek('next')}
-              className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
             >
               Επόμενη
-              <ChevronRight size={20} className="ml-2" />
+              <ChevronRight size={18} className="ml-2" />
             </button>
           </div>
 
           {/* Instructions */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-blue-800 text-sm">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4 md:mb-6">
+            <p className="text-blue-800 text-xs sm:text-sm leading-relaxed">
               <strong>Οδηγίες:</strong> Κάντε κλικ στα πράσινα μαθήματα για να κλείσετε κράτηση. 
               Τα κόκκινα μαθήματα είναι ακυρωμένα από τον admin. 
               Τα μπλε μαθήματα είναι ήδη κρατημένα από εσάς.
             </p>
           </div>
         {/* Deposit Info */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-4 border">
-          <p className="text-lg font-semibold">Pilates deposit: {deposit} μαθήματα απομένουν</p>
+        <div className="rounded-xl p-4 sm:p-5 mb-4 border bg-gradient-to-r from-pink-50 to-rose-50 border-rose-200">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center">
+              <div className="mr-3 inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white border border-rose-200 shadow-sm">
+                <Wallet className="text-rose-500" size={18} />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm text-rose-700">Υπόλοιπο Pilates</p>
+                <p className="text-lg sm:text-xl font-bold text-rose-800">{deposit} μαθήματα απομένουν</p>
+              </div>
+            </div>
+            <span className="shrink-0 inline-flex items-center rounded-full bg-white text-rose-700 border border-rose-200 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold shadow-sm">
+              <Sparkles className="mr-1" size={12} /> Κράτα το ρυθμό!
+            </span>
+          </div>
           {deposit <= 0 && (
-            <p className="text-red-600 mt-1">Τα μαθήματά σας τελείωσαν. Για ανανέωση, απευθυνθείτε στη ρεσεψιόν.</p>
+            <p className="text-red-600 mt-3 text-xs sm:text-sm">Τα μαθήματά σας τελείωσαν. Για ανανέωση, απευθυνθείτε στη ρεσεψιόν.</p>
           )}
         </div>
         </div>
 
         {/* Schedule Grid */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="sm:hidden text-xs text-gray-500 px-3 pt-3">Σύρετε οριζόντια για να δείτε όλες τις ημέρες</div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 border-b">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 w-20">
+                <tr className="bg-gray-50 border-b sticky top-0 z-20">
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 w-20 sticky left-0 bg-gray-50 z-30 border-r border-gray-200">
                     Ώρα
                   </th>
-                  {weekDates.map((date) => (
-                    <th key={toLocalDateKey(date)} className="px-4 py-3 text-center text-sm font-medium text-gray-700 min-w-32">
-                      {formatDate(date)}
-                    </th>
-                  ))}
+                  {weekDates.map((dateStr) => {
+                    const isToday = dateStr === todayKey;
+                    return (
+                      <th
+                        key={dateStr}
+                        className={`px-4 py-3 text-center text-sm font-semibold min-w-32 ${isToday ? 'bg-blue-50 text-blue-800' : 'text-gray-700'}`}
+                        title={isToday ? 'Σήμερα' : undefined}
+                      >
+                        {formatDate(dateStr)}
+                        {isToday && (
+                          <span className="ml-2 inline-block px-2 py-0.5 text-[10px] rounded-full bg-blue-100 text-blue-700 align-middle">Σήμερα</span>
+                        )}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {timeSlots.map((time) => (
                   <tr key={time} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-700">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-700 sticky left-0 bg-white z-10 border-r border-gray-100">
                       {time}
                     </td>
-                    {weekDates.map((date) => {
-                      const dateStr = toLocalDateKey(date);
+                    {weekDates.map((dateStr) => {
                       const slots = getSlotsForDateTime(dateStr, time);
-                      const isWeekendDay = isWeekend(date);
+                      const isWeekendDay = isWeekend(dateStr);
                       const hasSlots = hasSlotsForDateTime(dateStr, time);
+                      const isToday = dateStr === todayKey;
                       
                       return (
-                        <td key={`${dateStr}-${time}`} className="px-4 py-3 text-center">
+                        <td key={`${dateStr}-${time}`} className={`px-4 py-3 text-center ${isToday ? 'bg-blue-50/40' : ''}`}>
                           {isWeekendDay ? (
                             <div className="text-gray-400 text-xs">
                               Σαβ/Κυρ
@@ -347,7 +393,7 @@ const PilatesCalendar: React.FC = () => {
                                 let capacityText = '';
                                 
                                 if (isBooked) {
-                                  statusClass = 'bg-blue-100 text-blue-800 border-blue-200';
+                                  statusClass = 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200';
                                   statusIcon = <CheckCircle size={16} className="text-blue-600" />;
                                   capacityText = 'Κρατημένο';
                                 } else if (isActive && !isFull) {
@@ -355,22 +401,25 @@ const PilatesCalendar: React.FC = () => {
                                   statusIcon = <CheckCircle size={16} className="text-green-600" />;
                                   capacityText = `${slot.booked_count}/${slot.max_capacity}`;
                                 } else if (isActive && isFull) {
-                                  statusClass = 'bg-red-100 text-red-800 border-red-200 cursor-not-allowed';
-                                  statusIcon = <XCircle size={16} className="text-red-600" />;
+                                  statusClass = 'bg-rose-50 text-rose-700 border-rose-200 cursor-not-allowed';
+                                  statusIcon = <XCircle size={16} className="text-rose-600" />;
                                   capacityText = 'Πλήρες';
                                 } else {
-                                  statusClass = 'bg-red-100 text-red-800 border-red-200 cursor-not-allowed';
-                                  statusIcon = <XCircle size={16} className="text-red-600" />;
+                                  statusClass = 'bg-rose-50 text-rose-700 border-rose-200 cursor-not-allowed';
+                                  statusIcon = <XCircle size={16} className="text-rose-600" />;
                                   capacityText = 'Ακυρωμένο';
                                 }
                                 
                                 return (
-                                  <div
+                                  <button
                                     key={slot.id}
-                                    className={`px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${statusClass}`}
+                                    type="button"
+                                    aria-label={isBooked ? 'Ακύρωση κράτησης' : (isActive && !isFull ? 'Κλείσιμο μαθήματος' : capacityText)}
+                                    title={isBooked ? 'Κάντε κλικ για ακύρωση' : (isActive && !isFull ? 'Κάντε κλικ για κράτηση' : capacityText)}
+                                    className={`px-3 py-2 rounded-lg border text-xs font-medium transition-colors transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${statusClass} ${isActive && !isBooked && !isFull ? 'hover:scale-[1.02]' : ''}`}
                                     onClick={() => {
                                       if (isActive && !isBooked && !isFull) {
-                                        handleBookSlot(slot);
+                                        openConfirm(slot);
                                       } else if (isBooked) {
                                         handleCancelBooking(slot.id);
                                       }
@@ -380,7 +429,7 @@ const PilatesCalendar: React.FC = () => {
                                       {statusIcon}
                                       <span>{capacityText}</span>
                                     </div>
-                                  </div>
+                                  </button>
                                 );
                               })}
                             </div>
@@ -415,15 +464,59 @@ const PilatesCalendar: React.FC = () => {
               <span className="text-sm text-gray-700">Κρατημένο από εσάς</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-4 h-4 bg-red-100 border border-red-200 rounded"></div>
+              <div className="w-4 h-4 bg-rose-50 border border-rose-200 rounded"></div>
               <span className="text-sm text-gray-700">Πλήρες/Ακυρωμένο</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-4 h-4 bg-red-100 border border-red-200 rounded"></div>
+              <div className="w-4 h-4 bg-neutral-100 border border-neutral-200 rounded"></div>
               <span className="text-sm text-gray-700">Μη διαθέσιμο</span>
             </div>
           </div>
         </div>
+
+        {/* Confirm Modal */}
+        {isConfirmOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-title"
+            aria-describedby="confirm-desc"
+          >
+            <div className="absolute inset-0 bg-black/40" onClick={closeConfirm} />
+            <div className="relative bg-white w-full sm:w-[90%] max-w-md rounded-t-2xl sm:rounded-xl shadow-lg border p-5 sm:p-6 animate-in fade-in slide-in-from-bottom-4 sm:zoom-in">
+              <h4 id="confirm-title" className="text-base sm:text-lg font-semibold text-gray-800 flex items-center">
+                <XCircle size={18} className="text-rose-600 mr-2" /> Επιβεβαίωση κράτησης
+              </h4>
+              <p id="confirm-desc" className="text-sm text-gray-700 mt-2 sm:mt-3">
+                Αν προχωρήσετε σε κράτηση, δεν θα μπορείτε να ακυρώσετε το μάθημα μετά.
+              </p>
+              {pendingSlot && (
+                <div className="mt-3 sm:mt-4 text-sm text-gray-600">
+                  <span className="font-medium text-gray-800">Ημερομηνία:</span> {pendingSlot.date}
+                  <span className="mx-2">•</span>
+                  <span className="font-medium text-gray-800">Ώρα:</span> {pendingSlot.start_time?.slice(0,5)}
+                </div>
+              )}
+              <div className="mt-5 sm:mt-6 flex items-center justify-end gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={closeConfirm}
+                  className="px-3 sm:px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmBooking}
+                  className="px-3 sm:px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-colors"
+                >
+                  Επιβεβαίωση
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
