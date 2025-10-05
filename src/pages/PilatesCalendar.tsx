@@ -269,13 +269,13 @@ const PilatesCalendar: React.FC = () => {
           </div>
 
           {/* Week Navigation */}
-          <div className="grid grid-cols-[auto,1fr,auto] items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 min-w-0">
+          <div className="grid grid-cols-[auto,1fr,auto] items-center gap-1.5 sm:gap-3 mb-3 sm:mb-4">
+            <div className="flex items-center gap-1.5 py-1 min-w-0">
               <button
                 onClick={() => navigateWeek('prev')}
-                className="flex items-center px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
+                className="flex items-center px-2 sm:px-3 py-1.5 sm:py-2 text-[12px] sm:text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
               >
-                <ChevronLeft size={18} className="mr-2" />
+                <ChevronLeft size={16} className="mr-1.5" />
                 Προηγούμενη
               </button>
               <button
@@ -285,24 +285,24 @@ const PilatesCalendar: React.FC = () => {
                   setCurrentWeek(greekMonday);
                   console.log('User: Force refreshed currentWeek to Greek Monday:', greekMonday.toISOString());
                 }}
-                className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors whitespace-nowrap"
+                className="px-2 sm:px-3 py-1.5 sm:py-2 text-[12px] sm:text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors whitespace-nowrap"
               >
                 🔄 Refresh
               </button>
             </div>
             
             <div className="text-center min-w-0">
-              <h2 className="text-sm xs:text-base sm:text-xl font-semibold text-gray-800 truncate">
+              <h2 className="text-xs sm:text-xl font-semibold text-gray-800 truncate">
                 2 εβδομάδες: {formatDate(weekDates[0])} - {formatDate(weekDates[13])}
               </h2>
             </div>
             
             <button
               onClick={() => navigateWeek('next')}
-              className="flex items-center px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
+              className="flex items-center px-2 sm:px-3 py-1.5 sm:py-2 text-[12px] sm:text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
             >
               Επόμενη
-              <ChevronRight size={18} className="ml-2" />
+              <ChevronRight size={16} className="ml-1.5" />
             </button>
           </div>
 
