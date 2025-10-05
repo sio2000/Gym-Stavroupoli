@@ -28,11 +28,10 @@ const Referral: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [points, setPoints] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [referralStats, setReferralStats] = useState({
     total_points: 0,
     total_referrals: 0,
-    recent_transactions: []
+    recent_transactions: [] as any[]
   });
 
   // Get user's referrals from real data
@@ -52,7 +51,6 @@ const Referral: React.FC = () => {
     const loadReferralData = async () => {
       if (!user?.id) return;
       
-      setLoading(true);
       try {
         // Use user's referral points from context
         setPoints(user?.referralPoints || 0);
@@ -64,8 +62,6 @@ const Referral: React.FC = () => {
         console.error('Error loading referral data:', error);
         // Use fallback data from context
         setPoints(user?.referralPoints || 0);
-      } finally {
-        setLoading(false);
       }
     };
 
