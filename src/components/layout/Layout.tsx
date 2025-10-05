@@ -230,7 +230,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     ...(hasPilatesMembership ? [{ name: 'Ημερολόγιο', href: '/pilates-calendar', icon: Calendar }] : []),
     // Προσθέτουμε δυναμικά το QR Codes μόνο όταν ο χρήστης έχει personal training ή pilates συνδρομή
     ...(hasQRCodeAccess ? [{ name: 'QR Codes', href: '/qr-codes', icon: QrCode }] : []),
-    { name: 'Παραπομπές', href: '/referral', icon: UserPlus },
+    { name: 'Refer & Win', href: '/referral', icon: UserPlus },
     { name: 'Προφίλ', href: '/profile', icon: User },
     { name: 'Είσαι Γονέας?', href: '/extras', icon: Star },
   ];
@@ -244,6 +244,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const trainerNavigation = [
     { name: 'Mike', href: '/trainer/mike', icon: Users },
     { name: 'Jordan', href: '/trainer/jordan', icon: Users },
+    { name: 'Katerina', href: '/trainer/katerina', icon: Users },
+    { name: 'Ιωάννα', href: '/trainer/ioanna', icon: Users },
   ];
 
   const handleLogout = () => {

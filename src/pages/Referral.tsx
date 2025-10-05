@@ -10,10 +10,6 @@ import {
   Clock,
   Gift,
   Star,
-  Facebook,
-  Instagram,
-  Twitter,
-  MessageCircle,
   ShoppingBag
 } from 'lucide-react';
 // import { mockReferrals } from '@/data/mockData';
@@ -114,38 +110,6 @@ const Referral: React.FC = () => {
     }
   };
 
-  // Handle social media sharing
-  const handleSocialShare = (platform: string) => {
-    const referralCode = user?.referralCode || '';
-    if (!referralCode) {
-      toast.error('Δεν υπάρχει κωδικός παραπομπής');
-      return;
-    }
-    
-    const text = `Γίνετε μέλος στο Get Fit χρησιμοποιώντας τον κωδικό παραπομπής μου: ${referralCode}`;
-    const url = `https://freegym.com/register?ref=${referralCode}`;
-    
-    let shareUrl = '';
-    switch (platform) {
-      case 'facebook':
-        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-        break;
-      case 'instagram':
-        shareUrl = `https://www.instagram.com/`;
-        break;
-      case 'twitter':
-        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-        break;
-      case 'whatsapp':
-        shareUrl = `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`;
-        break;
-    }
-    
-    if (shareUrl) {
-      window.open(shareUrl, '_blank');
-      toast.success(`Μοιρασμός στο ${platform} επιτυχής!`);
-    }
-  };
 
   // Handle reward redemption (commented out for now)
   // const handleRedeemReward = (rewardId: number, pointsCost: number) => {
@@ -241,16 +205,16 @@ const Referral: React.FC = () => {
   return (
     <>
       <style>{animationStyles}</style>
-      <div className="space-y-6 px-4 sm:px-0">
+      <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 lg:px-0">
       {/* Header */}
       <div 
-        className="text-center sm:text-left animate-fadeInUp"
+        className="text-center animate-fadeInUp"
         style={{ opacity: 0 }}
       >
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 px-4">
           Σύστημα Παραπομπών
         </h1>
-        <p className="text-gray-300 text-sm sm:text-base">
+        <p className="text-gray-300 text-sm sm:text-base lg:text-lg px-4">
           Κερδίστε πιστώσεις παρακαλώντας φίλους να εγγραφούν
         </p>
         
@@ -258,13 +222,13 @@ const Referral: React.FC = () => {
         <div className="mt-4 bg-gradient-to-r from-green-600/20 to-blue-600/20 rounded-xl p-4 border border-green-600/30">
           <div className="flex items-center justify-center space-x-2 mb-2">
             <Star className="h-5 w-5 text-yellow-500" />
-            <span className="text-sm font-semibold text-gray-300">Πόντοι Παραπομπής</span>
+            <span className="text-sm font-semibold text-gray-300">Kettlebell Points Παραπομπής</span>
           </div>
           <div className="text-2xl font-bold text-primary-600 mb-1">
             {points}
           </div>
           <p className="text-xs text-gray-400">
-            Κερδίστε 10 πόντους για κάθε επιτυχή παραπομπή!
+            Κερδίστε 10 kettlebell points για κάθε επιτυχή παραπομπή!
           </p>
         </div>
       </div>
@@ -281,7 +245,7 @@ const Referral: React.FC = () => {
             </div>
             <div>
               <h2 className="text-xl sm:text-2xl font-bold">Στορ Πιστώσεις</h2>
-              <p className="text-purple-100 text-sm">Κερδίστε 10 πιστώσεις για κάθε φίλο!</p>
+              <p className="text-purple-100 text-sm">Κερδίστε 10 kettlebell points για κάθε φίλο!</p>
             </div>
           </div>
           <div 
@@ -290,7 +254,7 @@ const Referral: React.FC = () => {
             <div className="text-3xl sm:text-4xl font-bold text-yellow-300">
               {points}
             </div>
-            <p className="text-purple-100 text-sm">πιστώσεις</p>
+            <p className="text-purple-100 text-sm">kettlebell points</p>
           </div>
         </div>
         
@@ -363,7 +327,7 @@ const Referral: React.FC = () => {
           <h3 className="text-2xl font-bold text-white mb-1">
             {points}
           </h3>
-          <p className="text-gray-600 text-sm">Συνολικές πιστώσεις</p>
+          <p className="text-gray-600 text-sm">Συνολικές kettlebell points</p>
         </div>
       </div>
 
@@ -376,22 +340,22 @@ const Referral: React.FC = () => {
           <h2 className="text-xl font-bold text-primary-900 mb-2">
             Ο Κωδικός Παραπομπής σας
           </h2>
-          <p className="text-primary-700">
-            Μοιραστείτε αυτόν τον κωδικό με φίλους για να κερδίσετε πιστώσεις
-          </p>
+            <p className="text-primary-700">
+              Μοιραστείτε αυτόν τον κωδικό με φίλους για να κερδίσετε kettlebell points
+            </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
-          <div className="bg-dark-800 px-6 py-3 rounded-lg border-2 border-primary-400 shadow-lg">
-            <span className="text-2xl font-bold text-primary-400 font-mono">
+        <div className="flex flex-col items-center justify-center space-y-4 mb-6">
+          <div className="bg-dark-800 px-4 py-3 rounded-lg border-2 border-primary-400 shadow-lg w-full max-w-sm">
+            <span className="text-lg sm:text-xl lg:text-2xl font-bold text-primary-400 font-mono break-all text-center block">
               {user?.referralCode || 'Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.'}
             </span>
           </div>
           
-          <div className="flex space-x-3">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full max-w-sm">
             <button
               onClick={handleCopyCode}
-              className="btn-secondary flex items-center hover:scale-105 active:scale-95 transition-transform duration-200"
+              className="btn-secondary flex items-center justify-center hover:scale-105 active:scale-95 transition-transform duration-200 w-full sm:w-auto"
             >
               <Copy className="h-4 w-4 mr-2" />
               Αντιγραφή
@@ -399,7 +363,7 @@ const Referral: React.FC = () => {
             
             <button
               onClick={handleShareCode}
-              className="btn-primary flex items-center hover:scale-105 active:scale-95 transition-transform duration-200"
+              className="btn-primary flex items-center justify-center hover:scale-105 active:scale-95 transition-transform duration-200 w-full sm:w-auto"
             >
               <Share2 className="h-4 w-4 mr-2" />
               Μοιρασμός
@@ -407,44 +371,9 @@ const Referral: React.FC = () => {
           </div>
         </div>
 
-        {/* Social Media Sharing */}
-        <div className="mb-6">
-          <h3 className="text-center text-primary-900 font-semibold mb-4">
-            Μοιραστείτε στα Social Media
-          </h3>
-          <div className="flex justify-center space-x-4">
-            <button
-              onClick={() => handleSocialShare('facebook')}
-              className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 hover:scale-110 active:scale-95 transition-all duration-200"
-            >
-              <Facebook className="h-5 w-5" />
-            </button>
-            
-            <button
-              onClick={() => handleSocialShare('instagram')}
-              className="p-3 bg-pink-600 text-white rounded-full hover:bg-pink-700 hover:scale-110 active:scale-95 transition-all duration-200"
-            >
-              <Instagram className="h-5 w-5" />
-            </button>
-            
-            <button
-              onClick={() => handleSocialShare('twitter')}
-              className="p-3 bg-blue-400 text-white rounded-full hover:bg-blue-500 hover:scale-110 active:scale-95 transition-all duration-200"
-            >
-              <Twitter className="h-5 w-5" />
-            </button>
-            
-            <button
-              onClick={() => handleSocialShare('whatsapp')}
-              className="p-3 bg-green-600 text-white rounded-full hover:bg-green-700 hover:scale-110 active:scale-95 transition-all duration-200"
-            >
-              <MessageCircle className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
 
         {/* How it works */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-primary-800">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 text-sm text-primary-800">
           <div 
             className="flex items-start space-x-2 animate-slideInLeft"
             style={{ opacity: 0, animationDelay: '0.7s' }}
@@ -479,8 +408,8 @@ const Referral: React.FC = () => {
               3
             </div>
             <div>
-              <p className="font-medium">Κερδίστε 10 πιστώσεις</p>
-              <p>Και οι δύο λαμβάνετε πιστώσεις</p>
+              <p className="font-medium">Κερδίστε 10 kettlebell points</p>
+              <p>Και οι δύο λαμβάνετε kettlebell points</p>
             </div>
           </div>
         </div>
@@ -488,7 +417,7 @@ const Referral: React.FC = () => {
 
       {/* Reward Catalog */}
       <div 
-        className="card animate-fadeInUp"
+        className="bg-dark-800 rounded-xl shadow-sm border border-dark-700 p-6 animate-fadeInUp"
         style={{ opacity: 0, animationDelay: '1.0s' }}
       >
         <div className="flex items-center space-x-3 mb-6">
@@ -501,12 +430,93 @@ const Referral: React.FC = () => {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Rewards will be implemented later */}
-          <div className="text-center p-8 bg-dark-700 rounded-xl">
-            <Gift className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-300 mb-2">Ανταμοιβές</h3>
-            <p className="text-gray-400 text-sm">Σύντομα διαθέσιμες!</p>
+        <div className="space-y-6">
+          {/* Reward System Content */}
+          <div className="bg-gradient-to-br from-purple-600/20 to-blue-600/20 rounded-xl p-6 border border-purple-600/30">
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4">🏆</div>
+              <h3 className="text-2xl font-bold text-white mb-3">Σύστημα Ανταμοιβών "Refer & Win"</h3>
+              <p className="text-lg text-gray-300 mb-4">Κέρδισε όσο γυμνάζεσαι και φέρνεις φίλους!</p>
+              <p className="text-gray-400">Κάθε σύσταση και κάθε επίτευγμα στο γυμναστήριο σου χαρίζουν πολύτιμους πόντους 💥</p>
+              <p className="text-gray-400 mt-2">Μάζεψέ τους και εξαργύρωσέ τους σε μοναδικά δώρα!</p>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              {/* Reward 1 */}
+              <div className="bg-dark-700 rounded-xl p-6 border border-gray-600 hover:border-yellow-500/50 transition-all duration-300">
+                <div className="text-center">
+                  <div className="text-4xl mb-3">🎽</div>
+                  <h4 className="text-lg font-bold text-white mb-2">100 Kettlebell Points</h4>
+                  <p className="text-gray-300 text-sm mb-3">Κέρδισε το αποκλειστικό φούτερ Get Fit — στυλ και άνεση σε κάθε προπόνηση!</p>
+                  <div className="inline-flex items-center px-3 py-1 bg-yellow-600/20 text-yellow-400 rounded-full text-sm font-semibold">
+                    <Star className="h-4 w-4 mr-1" />
+                    100 kettlebell points
+                  </div>
+                </div>
+              </div>
+              
+              {/* Reward 2 */}
+              <div className="bg-dark-700 rounded-xl p-6 border border-gray-600 hover:border-green-500/50 transition-all duration-300">
+                <div className="text-center">
+                  <div className="text-4xl mb-3">💪</div>
+                  <h4 className="text-lg font-bold text-white mb-2">200 Kettlebell Points</h4>
+                  <p className="text-gray-300 text-sm mb-3">Απόλαυσε 1 μήνα δωρεάν συνδρομή στο Open Gym και προπονήσου χωρίς όρια!</p>
+                  <div className="inline-flex items-center px-3 py-1 bg-green-600/20 text-green-400 rounded-full text-sm font-semibold">
+                    <Star className="h-4 w-4 mr-1" />
+                    200 kettlebell points
+                  </div>
+                </div>
+              </div>
+              
+              {/* Reward 3 */}
+              <div className="bg-dark-700 rounded-xl p-6 border border-gray-600 hover:border-blue-500/50 transition-all duration-300">
+                <div className="text-center">
+                  <div className="text-4xl mb-3">🧃</div>
+                  <h4 className="text-lg font-bold text-white mb-2">500 Kettlebell Points</h4>
+                  <p className="text-gray-300 text-sm mb-3">Εξασφάλισε 30% έκπτωση στα προϊόντα του γυμναστηρίου (πρωτεΐνες, ροφήματα, αξεσουάρ και άλλα fitness essentials).</p>
+                  <div className="inline-flex items-center px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full text-sm font-semibold">
+                    <Star className="h-4 w-4 mr-1" />
+                    500 kettlebell points
+                  </div>
+                </div>
+              </div>
+              
+              {/* Reward 4 */}
+              <div className="bg-dark-700 rounded-xl p-6 border border-gray-600 hover:border-orange-500/50 transition-all duration-300">
+                <div className="text-center">
+                  <div className="text-4xl mb-3">🚴</div>
+                  <h4 className="text-lg font-bold text-white mb-2">3.000 Kettlebell Points</h4>
+                  <p className="text-gray-300 text-sm mb-3">Ώρα για ανανέωση: κέρδισε ένα ποδήλατο και φέρε τη φυσική σου κατάσταση στο επόμενο επίπεδο!</p>
+                  <div className="inline-flex items-center px-3 py-1 bg-orange-600/20 text-orange-400 rounded-full text-sm font-semibold">
+                    <Star className="h-4 w-4 mr-1" />
+                    3.000 kettlebell points
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Mega Bonus */}
+            <div className="mt-6 bg-gradient-to-r from-red-600/20 to-pink-600/20 rounded-xl p-6 border border-red-600/30">
+              <div className="text-center">
+                <div className="text-6xl mb-3">🚗</div>
+                <h4 className="text-2xl font-bold text-white mb-2">Mega Bonus – 6.000 Kettlebell Points</h4>
+                <p className="text-gray-300 mb-3">Το απόλυτο έπαθλο!</p>
+                <p className="text-gray-300 mb-4">Κέρδισε ένα αυτοκίνητο και ζήσε τη δύναμη του fitness... στο δρόμο!</p>
+                <div className="inline-flex items-center px-4 py-2 bg-red-600/20 text-red-400 rounded-full text-lg font-bold">
+                  <Star className="h-5 w-5 mr-2" />
+                  6.000 kettlebell points
+                </div>
+              </div>
+            </div>
+            
+            {/* Call to Action */}
+            <div className="mt-6 text-center">
+              <div className="text-2xl mb-3">🔥</div>
+              <h4 className="text-xl font-bold text-white mb-2">Κάνε την προπόνησή σου να μετράει!</h4>
+              <p className="text-gray-300 mb-4">Όσο περισσότερο συμμετέχεις, τόσο πιο κοντά έρχεσαι στα έπαθλα που σου αξίζουν.</p>
+              <p className="text-gray-400">Μάζεψε kettlebell points – Κέρδισε δώρα – Ζήσε την εμπειρία Get Fit!</p>
+            </div>
+          </div>
           </div>
           {/* Rewards will be implemented later - commented out to avoid TypeScript errors */}
           {/* {false && [].map((reward, index) => {
@@ -701,8 +711,8 @@ const Referral: React.FC = () => {
 
       {/* Share Modal */}
       {showShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeInUp">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 animate-fadeInScale">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 animate-fadeInUp">
+          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full mx-2 sm:mx-4 animate-fadeInScale">
               <div className="text-center">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Μοιρασμός Κωδικού</h3>
                 
@@ -745,7 +755,6 @@ const Referral: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </>
   );
 };

@@ -466,6 +466,10 @@ export const getUserActiveMemberships = async (userId: string): Promise<Membersh
     console.log('[MembershipAPI] ===== FETCHING USER ACTIVE MEMBERSHIPS =====');
     console.log('[MembershipAPI] User ID:', userId);
     
+    // Get current date in YYYY-MM-DD format for comparison
+    const currentDate = new Date().toISOString().split('T')[0];
+    console.log('[MembershipAPI] Current date for filtering:', currentDate);
+    
     const { data, error } = await supabase
       .from('memberships')
       .select(`
@@ -479,15 +483,34 @@ export const getUserActiveMemberships = async (userId: string): Promise<Membersh
       `)
       .eq('user_id', userId)
       .eq('is_active', true)
-      .gte('end_date', new Date().toISOString().split('T')[0]) // Not expired
+      .gte('end_date', currentDate) // Only non-expired memberships
       .order('end_date', { ascending: false });
 
     console.log('[MembershipAPI] Query result - data:', data, 'error:', error);
     
     if (error) throw error;
     
+    // Additional client-side filtering to ensure no expired memberships slip through
+    const filteredData = (data || []).filter(membership => {
+      const membershipEndDate = new Date(membership.end_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day
+      
+      const isNotExpired = membershipEndDate >= today;
+      
+      if (!isNotExpired) {
+        console.log('[MembershipAPI] Filtering out expired membership:', {
+          id: membership.id,
+          end_date: membership.end_date,
+          package_name: membership.package?.name
+        });
+      }
+      
+      return isNotExpired;
+    });
+    
     // Transform data to match Membership interface
-    const transformedData = (data || []).map(membership => ({
+    const transformedData = filteredData.map(membership => ({
       ...membership,
       status: membership.status || 'active',
       duration_type: membership.duration_type || 'month', // Default fallback
@@ -495,7 +518,7 @@ export const getUserActiveMemberships = async (userId: string): Promise<Membersh
       approved_at: membership.approved_at || membership.created_at
     }));
     
-    console.log('[MembershipAPI] Returning active memberships:', transformedData);
+    console.log('[MembershipAPI] Returning active memberships (after filtering):', transformedData);
     return transformedData;
   } catch (error) {
     console.error('[MembershipAPI] ===== ERROR FETCHING USER ACTIVE MEMBERSHIPS =====');
@@ -514,17 +537,24 @@ export const checkUserHasActiveMembership = async (userId: string, packageId: st
       return false;
     }
 
+    const currentDate = new Date().toISOString().split('T')[0];
+    console.log('[MembershipAPI] Checking active membership for user:', userId, 'package:', packageId, 'current date:', currentDate);
+
     const { data, error } = await supabase
       .from('memberships')
-      .select('id')
+      .select('id, end_date')
       .eq('user_id', userId)
       .eq('package_id', packageId)
       .eq('is_active', true)
-      .gte('end_date', new Date().toISOString().split('T')[0]) // Not expired
+      .gte('end_date', currentDate) // Not expired
       .limit(1);
 
     if (error) throw error;
-    return data && data.length > 0;
+    
+    const hasActiveMembership = data && data.length > 0;
+    console.log('[MembershipAPI] Has active membership result:', hasActiveMembership, 'data:', data);
+    
+    return hasActiveMembership;
   } catch (error) {
     console.error('Error checking active membership:', error);
     return false;
