@@ -13,6 +13,14 @@ export interface TrainerUser {
   total_sessions: number;
 }
 
+export interface AllUser {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  profile_photo?: string;
+}
+
 export interface UserAbsence {
   id: string;
   user_id: string;
@@ -26,6 +34,31 @@ export interface UserAbsence {
   created_at: string;
   updated_at: string;
 }
+
+// Get all users from user_profiles
+export const getAllUsers = async (): Promise<AllUser[]> => {
+  try {
+    console.log('[AbsenceAPI] Getting all users from user_profiles');
+    
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('user_id, first_name, last_name, email, profile_photo')
+      .not('first_name', 'is', null)
+      .not('last_name', 'is', null)
+      .order('first_name', { ascending: true });
+    
+    if (error) {
+      console.error('[AbsenceAPI] Error getting all users:', error);
+      throw error;
+    }
+    
+    console.log(`[AbsenceAPI] Found ${data?.length || 0} active users`);
+    return data || [];
+  } catch (error) {
+    console.error('[AbsenceAPI] Exception getting all users:', error);
+    throw error;
+  }
+};
 
 // Get users assigned to a specific trainer
 export const getTrainerUsers = async (trainerName: string): Promise<TrainerUser[]> => {

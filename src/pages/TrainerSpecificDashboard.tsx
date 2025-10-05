@@ -13,7 +13,6 @@ import {
   Search,
   ChevronRight,
   ChevronLeft,
-  MoreVertical,
   TrendingUp,
   Activity,
   Target,
@@ -25,8 +24,8 @@ import {
 } from 'lucide-react';
 import { PersonalTrainingSchedule, PersonalTrainingSession, TrainerName } from '@/types';
 import toast from 'react-hot-toast';
-import { getTrainerUsers, getUserAbsences, addAbsence, deleteAbsence, TrainerUser, UserAbsence } from '@/utils/absenceApi';
-import MonthlyScheduleView from '@/components/MonthlyScheduleView';
+import { getTrainerUsers, getUserAbsences, addAbsence, deleteAbsence, getAllUsers, TrainerUser, UserAbsence, AllUser } from '@/utils/absenceApi';
+import TrainerMonthlyCalendar from '@/components/TrainerMonthlyCalendar';
 
 interface AttendanceRecord {
   id: string;
@@ -44,30 +43,22 @@ interface AttendanceRecord {
   createdAt: string;
 }
 
-interface PerformanceNote {
-  id: string;
-  userId: string;
-  userName: string;
-  note: string;
-  createdAt: string;
-}
 
 interface TrainerSpecificDashboardProps {
   trainerName: TrainerName;
 }
 
 const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ trainerName }) => {
-  const [activeTab, setActiveTab] = useState<'schedule' | 'attendance' | 'notes'>('schedule');
-  const [performanceNotes, setPerformanceNotes] = useState<PerformanceNote[]>([]);
-  const [editingNote, setEditingNote] = useState<string | null>(null);
-  const [newNote, setNewNote] = useState('');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'attendance'>('schedule');
   
   // Real data from database
   const [realSchedules, setRealSchedules] = useState<PersonalTrainingSchedule[]>([]);
   const [loading, setLoading] = useState(false);
   const [trainerUsers, setTrainerUsers] = useState<TrainerUser[]>([]);
+  const [allUsers, setAllUsers] = useState<AllUser[]>([]);
   const [userAbsences, setUserAbsences] = useState<{ [userId: string]: UserAbsence[] }>({});
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [selectedUserSearch, setSelectedUserSearch] = useState<string>('');
   const [loadedUsers, setLoadedUsers] = useState<Set<string>>(new Set());
   
   // Pagination state (kept for potential future use)
@@ -82,8 +73,6 @@ const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ tra
   
   // Date filter state
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [showAddAbsenceModal, setShowAddAbsenceModal] = useState(false);
   const [newAbsence, setNewAbsence] = useState({
     sessionId: '',
@@ -265,11 +254,6 @@ const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ tra
     setSearchTerm('');
   }, [trainerName]);
 
-  // Handle month change
-  const handleMonthChange = (month: number, year: number) => {
-    setCurrentMonth(month);
-    setCurrentYear(year);
-  };
 
   // Filter and pagination logic for absence system users
   const filteredTrainerUsers = useMemo(() => {
@@ -348,53 +332,21 @@ const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ tra
   //   }
   // ];
 
-  const fakePerformanceNotes: PerformanceNote[] = [
-    {
-      id: '1',
-      userId: '1',
-      userName: 'Μαρία Παπαδάκη',
-      note: 'Χρειάζεται βελτίωση στο posture. Προτείνω περισσότερες ασκήσεις ενδυνάμωσης κορμού.',
-      createdAt: '2024-01-20T10:00:00Z'
-    },
-    {
-      id: '2',
-      userId: '2',
-      userName: 'Γιώργος Νικολάου',
-      note: 'Εξαιρετική πρόοδος! Έχει βελτιώσει σημαντικά την αντοχή του.',
-      createdAt: '2024-01-18T14:30:00Z'
+
+
+
+
+  // Load all users for search modal
+  const loadAllUsers = async () => {
+    try {
+      console.log('[TrainerSpecificDashboard] Loading all users for search');
+      const users = await getAllUsers();
+      setAllUsers(users);
+      console.log(`[TrainerSpecificDashboard] Loaded ${users.length} total users for search`);
+    } catch (error) {
+      console.error('[TrainerSpecificDashboard] Error loading all users:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση των χρηστών');
     }
-  ];
-
-  useEffect(() => {
-    setPerformanceNotes(fakePerformanceNotes);
-  }, []);
-
-
-  const handleAddNote = () => {
-    if (newNote.trim()) {
-      const note: PerformanceNote = {
-        id: Date.now().toString(),
-        userId: '1',
-        userName: 'Νέος Χρήστης',
-        note: newNote,
-        createdAt: new Date().toISOString()
-      };
-      setPerformanceNotes(prev => [note, ...prev]);
-      setNewNote('');
-    }
-  };
-
-  const handleEditNote = (noteId: string, newText: string) => {
-    setPerformanceNotes(prev => 
-      prev.map(note => 
-        note.id === noteId ? { ...note, note: newText } : note
-      )
-    );
-    setEditingNote(null);
-  };
-
-  const handleDeleteNote = (noteId: string) => {
-    setPerformanceNotes(prev => prev.filter(note => note.id !== noteId));
   };
 
   // Load trainer users based on schedules
@@ -447,6 +399,8 @@ const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ tra
       
       toast.success('Η απουσία καταχωρήθηκε επιτυχώς');
       setShowAddAbsenceModal(false);
+      setSelectedUser(null);
+      setSelectedUserSearch('');
       setNewAbsence({
         sessionId: '',
         sessionDate: '',
@@ -488,6 +442,7 @@ const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ tra
   useEffect(() => {
     if (trainerName) {
       loadTrainerUsers();
+      loadAllUsers(); // Load all users for search modal
       // Reset cache when trainer changes
       setLoadedUsers(new Set());
       setUserAbsences({});
@@ -531,8 +486,7 @@ const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ tra
 
   const tabs = [
     { id: 'schedule', name: 'Μηνιαίο Πρόγραμμα', icon: Calendar },
-    { id: 'attendance', name: 'Σύστημα Απουσιών', icon: UserCheck },
-    { id: 'notes', name: 'Performance Notes', icon: StickyNote }
+    { id: 'attendance', name: 'Σύστημα Απουσιών', icon: UserCheck }
   ];
 
   return (
@@ -557,9 +511,6 @@ const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ tra
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-sm font-medium text-green-700">Online</span>
               </div>
-              <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                <MoreVertical className="h-5 w-5" />
-              </button>
             </div>
           </div>
         </div>
@@ -661,28 +612,10 @@ const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ tra
                 )}
               </div>
               
-              {filteredSessions.length > 0 ? (
-                <MonthlyScheduleView
-                  sessions={filteredSessions}
-                  trainerName={trainerName}
-                  currentMonth={currentMonth}
-                  currentYear={currentYear}
-                  onMonthChange={handleMonthChange}
-                />
-              ) : !loading ? (
-                <div className="text-center py-16">
-                  <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <Calendar className="h-12 w-12 text-gray-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Δεν υπάρχουν προγραμματισμένες σεσίας</h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Δεν υπάρχουν προγραμματισμένες σεσίας για τον {trainerName}. Ο admin θα δημιουργήσει το πρόγραμμά σας στο Personal Training section.
-                  </p>
-                  <button className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-                    Ενημέρωση
-                  </button>
-                </div>
-              ) : null}
+              <TrainerMonthlyCalendar
+                trainerName={trainerName}
+                featureEnabled={true}
+              />
             </div>
           )}
 
@@ -974,18 +907,41 @@ const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ tra
                     <div className="space-y-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Χρήστης</label>
-                        <select
-                          value={selectedUser || ''}
-                          onChange={(e) => setSelectedUser(e.target.value)}
-                          className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="">Επιλέξτε χρήστη</option>
-                          {trainerUsers.map(user => (
-                            <option key={user.user_id} value={user.user_id}>
-                              {user.first_name} {user.last_name}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Αναζήτηση χρήστη..."
+                            value={selectedUserSearch || ''}
+                            onChange={(e) => {
+                              setSelectedUserSearch(e.target.value);
+                              setSelectedUser('');
+                            }}
+                            className="w-full border border-gray-300 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        {selectedUserSearch && (
+                          <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-xl bg-white shadow-lg">
+                            {allUsers
+                              .filter(user => 
+                                `${user.first_name} ${user.last_name}`.toLowerCase().includes(selectedUserSearch.toLowerCase()) ||
+                                user.email.toLowerCase().includes(selectedUserSearch.toLowerCase())
+                              )
+                              .map(user => (
+                                <div
+                                  key={user.user_id}
+                                  onClick={() => {
+                                    setSelectedUser(user.user_id);
+                                    setSelectedUserSearch(`${user.first_name} ${user.last_name}`);
+                                  }}
+                                  className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                >
+                                  <div className="font-medium text-gray-900">{user.first_name} {user.last_name}</div>
+                                  <div className="text-sm text-gray-500">{user.email}</div>
+                                </div>
+                              ))}
+                          </div>
+                        )}
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4">
@@ -1067,127 +1023,8 @@ const TrainerSpecificDashboard: React.FC<TrainerSpecificDashboardProps> = ({ tra
             </div>
           )}
 
-          {/* Notes Tab */}
-          {activeTab === 'notes' && (
-            <div className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">
-                    Performance Notes
-                  </h2>
-                  <p className="text-sm text-gray-600">Σημειώσεις και παρατηρήσεις για τους χρήστες</p>
-                </div>
-                <div className="flex items-center space-x-3 mt-4 sm:mt-0">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Νέα σημείωση..."
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      className="pl-4 pr-12 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm w-full sm:w-64"
-                    />
-                    <button
-                      onClick={handleAddNote}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-4">
-                {performanceNotes.map((note) => (
-                  <div key={note.id} className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center">
-                          <StickyNote className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <span className="font-semibold text-gray-900">{note.userName}</span>
-                          <span className="text-xs text-gray-500 ml-2">{new Date(note.createdAt).toLocaleDateString('el-GR')}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => setEditingNote(note.id)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Επεξεργασία"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteNote(note.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Διαγραφή"
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    {editingNote === note.id ? (
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="text"
-                          defaultValue={note.note}
-                          className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              handleEditNote(note.id, e.currentTarget.value);
-                            }
-                          }}
-                        />
-                        <button
-                          onClick={() => {
-                            const input = document.querySelector(`input[defaultValue="${note.note}"]`) as HTMLInputElement;
-                            handleEditNote(note.id, input?.value || note.note);
-                          }}
-                          className="p-3 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-colors"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-700 leading-relaxed">{note.note}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* General Notes */}
-          <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/50 rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                <AlertCircle className="h-4 w-4 text-white" />
-              </div>
-              <h3 className="text-lg font-semibold text-blue-900">Σημαντικές Σημειώσεις</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
-                  <Star className="h-4 w-4 mr-2" />
-                  Προς Admin
-                </h4>
-                <p className="text-sm text-blue-800">Εγκρίνετε/ενημερώστε αλλαγές στο πρόγραμμα εφόσον χρειάζεται.</p>
-              </div>
-              <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
-                  <Activity className="h-4 w-4 mr-2" />
-                  Προς Trainers
-                </h4>
-                <p className="text-sm text-blue-800">Επικαιροποιείτε τα ωράριά σας εβδομαδιαίως.</p>
-              </div>
-              <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
-                  <Users className="h-4 w-4 mr-2" />
-                  Προς Users
-                </h4>
-                <p className="text-sm text-blue-800">Κλείστε εγκαίρως θέσεις – οι δημοφιλείς ώρες γεμίζουν.</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
