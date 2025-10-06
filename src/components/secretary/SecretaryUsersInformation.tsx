@@ -122,9 +122,12 @@ const SecretaryUsersInformation: React.FC = () => {
     setSearchResults([]);
   };
 
-  // Format date
+  // Format date safely in case of null/undefined
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('el-GR', {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('el-GR', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -210,13 +213,22 @@ const SecretaryUsersInformation: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                      {user.first_name.charAt(0)}{user.last_name.charAt(0)}
+                      {(() => {
+                        const firstInitial = (user.first_name && user.first_name.trim()) ? user.first_name.trim().charAt(0) : '';
+                        const lastInitial = (user.last_name && user.last_name.trim()) ? user.last_name.trim().charAt(0) : '';
+                        const combined = `${firstInitial}${lastInitial}`;
+                        if (combined) return combined;
+                        const emailInitial = (user.email && user.email.trim()) ? user.email.trim().charAt(0) : '?';
+                        return emailInitial;
+                      })()}
                     </div>
                     <div>
                       <h4 className="text-lg font-semibold text-gray-900">
-                        {user.first_name} {user.last_name}
+                        {((user.first_name && user.first_name.trim()) || (user.last_name && user.last_name.trim()))
+                          ? `${user.first_name ? user.first_name : ''} ${user.last_name ? user.last_name : ''}`.trim()
+                          : (user.email || '—')}
                       </h4>
-                      <p className="text-gray-600">{user.email}</p>
+                      <p className="text-gray-600">{user.email || '—'}</p>
                       <p className="text-sm text-gray-500">
                         ID: {user.user_id}
                       </p>
