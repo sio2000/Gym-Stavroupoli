@@ -4,7 +4,7 @@
 -- Add columns for group training information if they don't exist
 ALTER TABLE personal_training_schedules 
 ADD COLUMN IF NOT EXISTS training_type TEXT CHECK (training_type IN ('individual', 'group')),
-ADD COLUMN IF NOT EXISTS group_room_size INTEGER CHECK (group_room_size IN (2, 3, 6)),
+ADD COLUMN IF NOT EXISTS group_room_size INTEGER CHECK (group_room_size IN (2, 3, 6, 10)),
 ADD COLUMN IF NOT EXISTS weekly_frequency INTEGER CHECK (weekly_frequency BETWEEN 1 AND 5),
 ADD COLUMN IF NOT EXISTS monthly_total INTEGER;
 
@@ -27,6 +27,6 @@ SET
   monthly_total = (schedule_data->>'monthlyTotal')::INTEGER
 WHERE schedule_data->>'groupRoomSize' IS NOT NULL 
   AND schedule_data->>'groupRoomSize' != 'null'
-  AND (schedule_data->>'groupRoomSize')::INTEGER IN (2, 3, 6);
+  AND (schedule_data->>'groupRoomSize')::INTEGER IN (2, 3, 6, 10);
 
 SELECT 'Group training fields added successfully to personal_training_schedules!' as result;

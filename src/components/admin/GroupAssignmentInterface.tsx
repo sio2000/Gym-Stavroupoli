@@ -4,7 +4,7 @@ import { checkRoomCapacity } from '@/utils/groupAssignmentApi';
 import toast from 'react-hot-toast';
 
 interface GroupAssignmentInterfaceProps {
-  selectedGroupRoom: '2' | '3' | '6';
+  selectedGroupRoom: '2' | '3' | '6' | '10';
   weeklyFrequency: 1 | 2 | 3 | 4 | 5;
   monthlyTotal: number;
   selectedUserIds: string[];
@@ -240,7 +240,7 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
           <p className="text-sm text-blue-600 mt-1">
             Προσθέστε σεσίες για κάθε χρήστη ({monthlySessions} σεσίες/μήνα = {weeklyFrequency} φορές/εβδομάδα × 4 εβδομάδες)
             <br />
-            <span className="text-purple-600 font-medium">💡 Μπορείτε να επιλέξετε διαφορετικό Group Size για κάθε σεσία (2, 3, ή 6 άτομα)</span>
+            <span className="text-purple-600 font-medium">💡 Μπορείτε να επιλέξετε διαφορετικό Group Size για κάθε σεσία (2, 3, 6, ή 10 άτομα)</span>
           </p>
         </div>
       </div>
@@ -344,6 +344,7 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
                           <option value={2}>2 άτομα</option>
                           <option value={3}>3 άτομα</option>
                           <option value={6}>6 άτομα</option>
+                          <option value={10}>10 άτομα</option>
                         </select>
                       </div>
 

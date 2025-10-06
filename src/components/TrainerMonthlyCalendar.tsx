@@ -37,9 +37,9 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
       
       const response = await getGroupTrainingCalendarEvents(startDate, endDate);
       
-      // Filter events by trainer
-      const filteredEvents = response.events.filter(event => 
-        event.trainer === trainerName
+      // Filter events by trainer (robust to whitespace/case differences)
+      const filteredEvents = response.events.filter(event =>
+        (event.trainer || '').trim().toLowerCase() === (trainerName || '').trim().toLowerCase()
       );
       
       setEvents(filteredEvents);
@@ -177,7 +177,8 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
                         {event.capacity === 1 ? '👤' : 
                          event.capacity === 2 ? '👥👥' : 
                          event.capacity === 3 ? '👥👥👥' : 
-                         event.capacity === 6 ? '👥👥👥👥👥👥' : '👥'}
+                         event.capacity === 6 ? '👥👥👥👥👥👥' : 
+                         event.capacity === 10 ? '👥👥👥👥👥👥👥👥👥👥' : '👥'}
                       </span>
                       <span className="text-xs font-bold text-gray-700">
                         {event.participants_count}/{event.capacity}
@@ -187,7 +188,8 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
                       {event.capacity === 1 ? '1 άτομο (Individual)' : 
                        event.capacity === 2 ? '2 άτομα' : 
                        event.capacity === 3 ? '3 άτομα' : 
-                       event.capacity === 6 ? '6 άτομα' : `${event.capacity} άτομα`}
+                       event.capacity === 6 ? '6 άτομα' : 
+                       event.capacity === 10 ? '10 άτομα' : `${event.capacity} άτομα`}
                     </div>
                     {isFull && (
                       <div className="text-xs text-red-600 font-bold mt-1">
@@ -368,7 +370,8 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
                         {selectedEvent.capacity === 1 ? '👤' : 
                          selectedEvent.capacity === 2 ? '👥👥' : 
                          selectedEvent.capacity === 3 ? '👥👥👥' : 
-                         selectedEvent.capacity === 6 ? '👥👥👥👥👥👥' : '👥'}
+                         selectedEvent.capacity === 6 ? '👥👥👥👥👥👥' : 
+                         selectedEvent.capacity === 10 ? '👥👥👥👥👥👥👥👥👥👥' : '👥'}
                       </span>
                       <span className={`px-3 py-2 rounded-full text-lg font-bold ${getCapacityBgColor(selectedEvent.participants_count, selectedEvent.capacity)} ${getCapacityColor(selectedEvent.participants_count, selectedEvent.capacity)}`}>
                         {selectedEvent.participants_count}/{selectedEvent.capacity}
@@ -385,7 +388,8 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
                       {selectedEvent.capacity === 1 ? 'Individual Training - 1 άτομο' : 
                        selectedEvent.capacity === 2 ? 'Μάθημα για 2 άτομα' : 
                        selectedEvent.capacity === 3 ? 'Μάθημα για 3 άτομα' : 
-                       selectedEvent.capacity === 6 ? 'Μάθημα για 6 άτομα' : `Μάθημα για ${selectedEvent.capacity} άτομα`}
+                       selectedEvent.capacity === 6 ? 'Μάθημα για 6 άτομα' : 
+                       selectedEvent.capacity === 10 ? 'Μάθημα για 10 άτομα' : `Μάθημα για ${selectedEvent.capacity} άτομα`}
                     </div>
                     <div className="text-sm text-gray-600">
                       {selectedEvent.participants_count === 0 ? 'Κανένας συμμετέχων' :

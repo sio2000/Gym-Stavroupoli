@@ -153,7 +153,7 @@ const AdminPanel: React.FC = () => {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   
   // Group Room Options state
-  const [selectedGroupRoom, setSelectedGroupRoom] = useState<'2' | '3' | '6' | null>(null);
+  const [selectedGroupRoom, setSelectedGroupRoom] = useState<'2' | '3' | '6' | '10' | null>(null);
   const [weeklyFrequency, setWeeklyFrequency] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [monthlyTotal, setMonthlyTotal] = useState<number>(0);
   
@@ -5394,7 +5394,7 @@ const AdminPanel: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <div className="text-purple-600">💡</div>
                         <div className="text-sm text-purple-700">
-                          <strong>Νέα Λειτουργία:</strong> Θα επιλέξετε το Group Size (2, 3, ή 6 άτομα) για κάθε σεσία ξεχωριστά στη Διαχείριση Ομαδικών Αναθέσεων
+                          <strong>Νέα Λειτουργία:</strong> Θα επιλέξετε το Group Size (2, 3, 6, ή 10 άτομα) για κάθε σεσία ξεχωριστά στη Διαχείριση Ομαδικών Αναθέσεων
                         </div>
                       </div>
                     </div>

@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS group_assignments (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     program_id UUID NOT NULL REFERENCES personal_training_schedules(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES user_profiles(user_id) ON DELETE CASCADE,
-    group_type INTEGER NOT NULL CHECK (group_type IN (2, 3, 6)),
+    group_type INTEGER NOT NULL CHECK (group_type IN (2, 3, 6, 10)),
     day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS group_assignments (
 -- Group Schedule Templates table
 CREATE TABLE IF NOT EXISTS group_schedule_templates (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    group_type INTEGER NOT NULL CHECK (group_type IN (2, 3, 6)),
+    group_type INTEGER NOT NULL CHECK (group_type IN (2, 3, 6, 10)),
     day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
@@ -62,7 +62,7 @@ SELECT 'Adding group fields to personal_training_schedules...' as step;
 
 ALTER TABLE personal_training_schedules 
 ADD COLUMN IF NOT EXISTS training_type TEXT CHECK (training_type IN ('individual', 'group')),
-ADD COLUMN IF NOT EXISTS group_room_size INTEGER CHECK (group_room_size IN (2, 3, 6)),
+ADD COLUMN IF NOT EXISTS group_room_size INTEGER CHECK (group_room_size IN (2, 3, 6, 10)),
 ADD COLUMN IF NOT EXISTS weekly_frequency INTEGER CHECK (weekly_frequency BETWEEN 1 AND 5),
 ADD COLUMN IF NOT EXISTS monthly_total INTEGER;
 
