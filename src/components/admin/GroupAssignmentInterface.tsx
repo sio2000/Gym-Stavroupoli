@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Users, Plus, Trash2 } from 'lucide-react';
 import { checkRoomCapacity } from '@/utils/groupAssignmentApi';
 import toast from 'react-hot-toast';
+import { supabase } from '@/config/supabase';
+import { getUserExistingGroupSessions, saveUserExistingGroupSessions } from '@/utils/groupSessionsApi';
 
 interface GroupAssignmentInterfaceProps {
   selectedGroupRoom: '2' | '3' | '6' | '10';
@@ -25,11 +27,32 @@ interface GroupSession {
 const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
   selectedGroupRoom,
   weeklyFrequency,
+  // monthlyTotal not used directly here; kept for API consistency
   monthlyTotal,
   selectedUserIds,
   onSlotsChange
 }) => {
   const [userSessions, setUserSessions] = useState<{[userId: string]: GroupSession[]}>({});
+  // Sessions filter state similar to personal: 'new' or 'existing'
+  const [sessionFilter, setSessionFilter] = useState<'new' | 'existing'>('new');
+  const [loadingExisting, setLoadingExisting] = useState(false);
+  const [existingPerUser, setExistingPerUser] = useState<{[userId: string]: GroupSession[]}>({});
+  const lastExistingLoadKeyRef = useRef<string>('');
+  const lastToastKeyRef = useRef<string>('');
+
+  const persistExistingForUser = async (userId: string) => {
+    if (sessionFilter !== 'existing') return;
+    const sessions = userSessions[userId] || [];
+    await saveUserExistingGroupSessions(userId, weeklyFrequency, sessions.map(s => ({
+      date: s.date,
+      start_time: s.startTime,
+      end_time: s.endTime,
+      trainer: s.trainer,
+      room: s.room,
+      group_type: s.groupType,
+      notes: s.notes || ''
+    })));
+  };
 
   // Calculate monthly sessions (weekly frequency × 4 weeks)
   const monthlySessions = weeklyFrequency * 4;
@@ -63,17 +86,70 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
       }));
     });
     
-    setUserSessions(initialSessions);
-    initializationRef.current = configKey;
-    
-    // Notify parent immediately after initialization
-    if (onSlotsChange) {
-      setTimeout(() => {
-        console.log('[GroupAssignmentInterface] Notifying parent after initialization...');
-        onSlotsChange(initialSessions);
-      }, 100);
+    // Only set defaults when in 'new' mode
+    if (sessionFilter === 'new') {
+      setUserSessions(initialSessions);
+      // Notify parent immediately after initialization
+      if (onSlotsChange) {
+        setTimeout(() => {
+          console.log('[GroupAssignmentInterface] Notifying parent after initialization...');
+          onSlotsChange(initialSessions);
+        }, 100);
+      }
     }
-  }, [selectedUserIds, weeklyFrequency, selectedGroupRoom, monthlySessions, onSlotsChange]);
+    initializationRef.current = configKey;
+  }, [selectedUserIds, weeklyFrequency, selectedGroupRoom, monthlySessions, onSlotsChange, sessionFilter]);
+
+  // Load existing sessions per user when switching to 'existing'
+  useEffect(() => {
+    const loadAllExisting = async () => {
+      if (sessionFilter !== 'existing') return;
+      const loadKey = `${JSON.stringify(selectedUserIds)}-${selectedGroupRoom}`;
+      if (loadingExisting || lastExistingLoadKeyRef.current === loadKey) {
+        return;
+      }
+      lastExistingLoadKeyRef.current = loadKey;
+      setLoadingExisting(true);
+      try {
+        const result: {[userId: string]: GroupSession[]} = {};
+        for (const userId of selectedUserIds) {
+          try {
+            const presets = await getUserExistingGroupSessions(userId, weeklyFrequency);
+            const mapped: GroupSession[] = (presets || []).map((s, index) => ({
+              id: `existing-${userId}-${index}-${Date.now()}`,
+              date: s.date,
+              startTime: s.start_time,
+              endTime: s.end_time,
+              trainer: s.trainer,
+              room: s.room,
+              groupType: s.group_type,
+              notes: s.notes || ''
+            }));
+            result[userId] = mapped;
+          } catch (e) {
+            console.error('[GroupAssignmentInterface] Exception loading existing for', userId, e);
+            result[userId] = [];
+          }
+        }
+        setExistingPerUser(result);
+        setUserSessions(result);
+        if (Object.values(result).some(arr => arr.length > 0)) {
+          const total = Object.values(result).reduce((acc, arr) => acc + arr.length, 0);
+          const toastKey = `${loadKey}-${total}`;
+          if (lastToastKeyRef.current !== toastKey) {
+            lastToastKeyRef.current = toastKey;
+            toast.success(`Φορτώθηκαν ${total} υπάρχουσες σεσίες`);
+          }
+        }
+        if (onSlotsChange) {
+          setTimeout(() => onSlotsChange(result), 50);
+        }
+      } finally {
+        setLoadingExisting(false);
+      }
+    };
+    loadAllExisting();
+  }, [sessionFilter, selectedUserIds, selectedGroupRoom, onSlotsChange, loadingExisting]);
 
   // Update session for a user with validation
   const updateUserSession = async (userId: string, sessionId: string, field: keyof GroupSession, value: any) => {
@@ -134,6 +210,9 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
       
       return updatedSessions;
     });
+    if (sessionFilter === 'existing') {
+      await persistExistingForUser(userId);
+    }
   };
 
   // Add new session for a user
@@ -189,10 +268,13 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
       
       return updatedSessions;
     });
+    if (sessionFilter === 'existing') {
+      await persistExistingForUser(userId);
+    }
   };
 
   // Remove session for a user
-  const removeUserSession = (userId: string, sessionId: string) => {
+  const removeUserSession = async (userId: string, sessionId: string) => {
     setUserSessions(prev => {
       const updatedSessions = {
         ...prev,
@@ -209,6 +291,9 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
       
       return updatedSessions;
     });
+    if (sessionFilter === 'existing') {
+      await persistExistingForUser(userId);
+    }
   };
 
   // Helper functions
@@ -243,6 +328,22 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
             <span className="text-purple-600 font-medium">💡 Μπορείτε να επιλέξετε διαφορετικό Group Size για κάθε σεσία (2, 3, 6, ή 10 άτομα)</span>
           </p>
         </div>
+        {/* Sessions Filter Toggle */}
+        <div className="flex items-center space-x-2">
+          <span className="text-sm font-medium text-gray-700">Φίλτρο Σεσιών:</span>
+          <button
+            onClick={() => setSessionFilter('new')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${sessionFilter === 'new' ? 'bg-blue-500 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          >
+            🆕 Νέες Σεσίες
+          </button>
+          <button
+            onClick={() => setSessionFilter('existing')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${sessionFilter === 'existing' ? 'bg-green-500 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          >
+            📚 Υπάρχουσες Σεσίες{loadingExisting && <span className="ml-2">⏳</span>}
+          </button>
+        </div>
       </div>
 
       {/* User Sessions */}
@@ -264,6 +365,13 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
                     <p className="text-sm text-gray-600">
                       {sessions.length}/{monthlySessions} σεσίες προγραμματισμένες
                     </p>
+                    {sessionFilter === 'existing' && (
+                      <div className={`${(existingPerUser[userId]?.length || 0) > 0 ? 'text-green-700 bg-green-100' : 'text-gray-600 bg-gray-100'} text-xs inline-block px-2 py-0.5 rounded mt-1`}>
+                        {(existingPerUser[userId]?.length || 0) > 0
+                          ? `✅ ${(existingPerUser[userId] || []).length} υπάρχουσες σεσίες φορτώθηκαν`
+                          : !loadingExisting && 'ℹ️ Δεν βρέθηκαν υπάρχουσες σεσίες'}
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -285,7 +393,7 @@ const GroupAssignmentInterface: React.FC<GroupAssignmentInterfaceProps> = ({
                 
                 {/* Table Rows */}
                 <div className="divide-y divide-gray-200">
-                  {sessions.map((session, index) => (
+                  {sessions.map((session) => (
                     <div key={session.id} className="grid grid-cols-6 gap-0 hover:bg-gray-50 transition-colors">
                       {/* Date */}
                       <div className="p-2 border-r border-gray-200">

@@ -5,7 +5,8 @@ import {
   GroupScheduleTemplate, 
   GroupAssignment, 
   UserWithPersonalTraining,
-  UserWeeklyAssignment 
+  UserWeeklyAssignment,
+  PersonalTrainingSession 
 } from '@/types';
 import { 
   getAvailableGroupSlots,
@@ -20,6 +21,7 @@ import {
   getGroupTypeDisplayName,
   sendGroupProgramNotification
 } from '@/utils/groupAssignmentApi';
+import { supabase } from '@/config/supabase';
 
 interface GroupAssignmentManagerProps {
   selectedUser: UserWithPersonalTraining;
@@ -42,6 +44,10 @@ const GroupAssignmentManager: React.FC<GroupAssignmentManagerProps> = ({
   const [loading, setLoading] = useState(false);
   const [assignmentNotes, setAssignmentNotes] = useState('');
   const [weeklyAssignmentSummary, setWeeklyAssignmentSummary] = useState<UserWeeklyAssignment[]>([]);
+  // Sessions filter (Νέες/Υπάρχουσες) like personal individual
+  const [sessionFilter, setSessionFilter] = useState<'new' | 'existing'>('new');
+  const [existingSessions, setExistingSessions] = useState<PersonalTrainingSession[]>([]);
+  const [loadingExistingSessions, setLoadingExistingSessions] = useState(false);
 
   // Load data on component mount
   useEffect(() => {
@@ -63,6 +69,52 @@ const GroupAssignmentManager: React.FC<GroupAssignmentManagerProps> = ({
       setLoading(false);
     }
   };
+
+  // Load existing personal sessions for the selected user (for banner and reuse like individual)
+  const loadExistingSessions = async (userId: string) => {
+    if (!userId) return;
+    setLoadingExistingSessions(true);
+    try {
+      const { data, error } = await supabase
+        .from('personal_training_schedules')
+        .select('schedule_data, sessions, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('[GroupAssignmentManager] Error loading existing sessions:', error);
+        toast.error('Σφάλμα κατά τη φόρτωση των υπαρχόντων σεσιών');
+        setExistingSessions([]);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Support both schemas: schedule_data.sessions or flat sessions
+        const scheduleData: any = data[0];
+        const sessions: PersonalTrainingSession[] =
+          scheduleData?.schedule_data?.sessions || scheduleData?.sessions || [];
+        setExistingSessions(sessions);
+        if (sessions.length > 0) {
+          toast.success(`Φορτώθηκαν ${sessions.length} υπάρχουσες σεσίες`);
+        }
+      } else {
+        setExistingSessions([]);
+      }
+    } catch (e) {
+      console.error('[GroupAssignmentManager] Exception loading existing sessions:', e);
+      setExistingSessions([]);
+    } finally {
+      setLoadingExistingSessions(false);
+    }
+  };
+
+  // Auto-load when switching to Υπάρχουσες and user changes
+  useEffect(() => {
+    if (sessionFilter === 'existing' && selectedUser?.id) {
+      loadExistingSessions(selectedUser.id);
+    }
+  }, [sessionFilter, selectedUser?.id]);
 
   const loadAvailableSlots = async () => {
     try {
@@ -304,6 +356,48 @@ const GroupAssignmentManager: React.FC<GroupAssignmentManagerProps> = ({
           <p className={`text-sm font-medium ${isAssignmentComplete() ? 'text-green-700' : 'text-blue-700'}`}>
             {getCompletionStatusMessage()}
           </p>
+        </div>
+      </div>
+
+      {/* Session Filter Toggle Buttons (Νέες/Υπάρχουσες) */}
+      <div className="mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium text-gray-700">Φίλτρο Σεσιών:</span>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setSessionFilter('new')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                sessionFilter === 'new' ? 'bg-blue-500 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              🆕 Νέες Σεσίες
+            </button>
+            <button
+              onClick={() => {
+                setSessionFilter('existing');
+                if (selectedUser?.id) {
+                  loadExistingSessions(selectedUser.id);
+                }
+              }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                sessionFilter === 'existing' ? 'bg-green-500 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              📚 Υπάρχουσες Σεσίες{loadingExistingSessions && <span className="ml-2">⏳</span>}
+            </button>
+          </div>
+          {sessionFilter === 'existing' && existingSessions.length > 0 && (
+            <div className="text-sm text-green-600 bg-green-100 px-3 py-1 rounded-lg">
+              ✅ {existingSessions.length} υπάρχουσες σεσίες φορτώθηκαν
+            </div>
+          )}
+          {sessionFilter === 'existing' && existingSessions.length === 0 && !loadingExistingSessions && (
+            <div className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
+              ℹ️ Δεν βρέθηκαν υπάρχουσες σεσίες
+            </div>
+          )}
         </div>
       </div>
 

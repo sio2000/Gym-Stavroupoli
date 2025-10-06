@@ -372,6 +372,51 @@ export const createUserGroupSessions = async (
   }
 };
 
+// ================= User-level Existing Group Sessions (Presets)
+// Implemented as special rows in personal_training_schedules with a JSON flag
+
+export interface UserGroupSessionPresetItem {
+  date: string;
+  start_time: string;
+  end_time: string;
+  trainer: string;
+  room: string;
+  group_type: number;
+  notes?: string;
+}
+
+export const getUserExistingGroupSessions = async (
+  userId: string,
+  weeklyFrequency: number
+): Promise<UserGroupSessionPresetItem[]> => {
+  const { data, error } = await supabase
+    .from('user_group_weekly_presets')
+    .select('sessions')
+    .eq('user_id', userId)
+    .eq('weekly_frequency', weeklyFrequency)
+    .limit(1);
+  if (error) {
+    console.error('[GroupSessionsAPI] Error loading UGWP presets:', error);
+    return [];
+  }
+  return (data && (data[0] as any)?.sessions) || [];
+};
+
+export const saveUserExistingGroupSessions = async (
+  userId: string,
+  weeklyFrequency: number,
+  sessions: UserGroupSessionPresetItem[]
+): Promise<boolean> => {
+  const { error } = await supabase
+    .from('user_group_weekly_presets')
+    .upsert({ user_id: userId, weekly_frequency: weeklyFrequency, sessions }, { onConflict: 'user_id,weekly_frequency' });
+  if (error) {
+    console.error('[GroupSessionsAPI] Error saving UGWP presets:', error);
+    return false;
+  }
+  return true;
+};
+
 // Διαγραφή group sessions για έναν χρήστη και πρόγραμμα
 export const deleteUserGroupSessions = async (userId: string, programId: string): Promise<{ success: boolean; error?: string }> => {
   try {
