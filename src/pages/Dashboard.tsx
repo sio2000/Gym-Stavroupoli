@@ -728,7 +728,51 @@ const ProgressBar: React.FC<{
   unit: string;
   showPercentage?: boolean;
 }> = React.memo(({ label, current, target, color, bgColor, unit, showPercentage = true }) => {
-  const percentage = Math.min((current / target) * 100, 100);
+  // Υπολογισμός απόστασης από τον στόχο
+  const isGoalAchieved = Math.abs(current - target) < 0.1; // Στόχος πετυχαίνεται μόνο αν η διαφορά είναι < 0.1
+  const difference = Math.abs(current - target);
+  
+  // Για βάρος, λίπος, βήματα και ύπνο, δείχνουμε την απόσταση από τον στόχο αντί για ποσοστό προόδου
+  const isGoalBased = label === 'Βάρος' || label === 'Λίπος' || label === 'Βήματα' || label === 'Ύπνος';
+  
+  let displayText: string;
+  let progressPercentage: number;
+  
+  if (isGoalBased) {
+    if (isGoalAchieved) {
+      displayText = '🎯 Στόχος πετυχημένος!';
+      progressPercentage = 100;
+    } else {
+      // Δημιουργούμε πιο εντυπωσιακό κείμενο για την απόσταση
+      const distanceValue = difference.toFixed(1);
+      
+      // Διαφορετικά εικονίδια ανάλογα με το μέτρο
+      let icon = '📏';
+      if (label === 'Βήματα') icon = '👟';
+      else if (label === 'Ύπνος') icon = '😴';
+      else if (label === 'Λίπος') icon = '💪';
+      else if (label === 'Βάρος') icon = '⚖️';
+      
+      displayText = `${icon} Απόσταση: ${distanceValue} ${unit}`;
+      
+      // Για την progress bar, χρησιμοποιούμε διαφορετική λογική ανάλογα με το μέτρο
+      if (label === 'Βάρος' || label === 'Λίπος') {
+        // Για βάρος και λίπος, θέλουμε να μειώσουμε
+        if (current > target) {
+          progressPercentage = Math.min((target / current) * 100, 100);
+        } else {
+          progressPercentage = Math.min((current / target) * 100, 100);
+        }
+      } else {
+        // Για βήματα και ύπνο, θέλουμε να αυξήσουμε
+        progressPercentage = Math.min((current / target) * 100, 100);
+      }
+    }
+  } else {
+    // Για άλλες μετρήσεις, κρατάμε την παλιά λογική
+    progressPercentage = Math.min((current / target) * 100, 100);
+    displayText = `${progressPercentage.toFixed(1)}% προόδου`;
+  }
   
   return (
     <div 
@@ -756,8 +800,8 @@ const ProgressBar: React.FC<{
           <div 
             className={`h-3 md:h-4 rounded-full ${bgColor} shadow-lg transition-all duration-1000 ease-out`}
             style={{ 
-              width: `${percentage}%`,
-              ['--progress-width' as any]: `${percentage}%`,
+              width: `${progressPercentage}%`,
+              ['--progress-width' as any]: `${progressPercentage}%`,
               animation: 'progressFill 1.2s ease-out 0.3s forwards'
             }}
               />
@@ -773,9 +817,15 @@ const ProgressBar: React.FC<{
           >
             <span className="bg-dark-700 px-2 py-1 rounded-full text-center md:text-left text-gray-300">Στόχος: {target} {unit}</span>
             <span 
-              className={`px-2 md:px-3 py-1 rounded-full ${color} bg-opacity-10 animate-pulse text-center md:text-right`}
+              className={`px-3 md:px-4 py-2 rounded-full text-center md:text-right font-bold text-sm shadow-lg border-2 transition-all duration-300 hover:scale-105 ${
+                isGoalBased && !isGoalAchieved 
+                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white border-orange-400 animate-pulse' 
+                  : isGoalAchieved
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white border-green-400 animate-bounce'
+                  : `${color} bg-opacity-10 animate-pulse`
+              }`}
             >
-              {percentage.toFixed(1)}% προόδου
+              {displayText}
             </span>
           </div>
         )}
@@ -1354,7 +1404,6 @@ const Dashboard: React.FC = React.memo(() => {
                         color="text-blue-600"
                         bgColor="bg-gradient-to-r from-blue-300 to-blue-400"
                         unit="kg"
-                        showPercentage={false}
                       />
                     </div>
                   )}
@@ -1376,7 +1425,6 @@ const Dashboard: React.FC = React.memo(() => {
                         color="text-green-600"
                         bgColor="bg-gradient-to-r from-green-300 to-green-400"
                         unit="%"
-                        showPercentage={false}
                       />
             </div>
                   )}
@@ -1408,7 +1456,6 @@ const Dashboard: React.FC = React.memo(() => {
                         color="text-emerald-600"
                         bgColor="bg-gradient-to-r from-emerald-300 to-emerald-400"
                         unit="steps"
-                        showPercentage={false}
                       />
           </div>
                   )}
@@ -1440,7 +1487,6 @@ const Dashboard: React.FC = React.memo(() => {
                         color="text-indigo-600"
                         bgColor="bg-gradient-to-r from-indigo-300 to-indigo-400"
                         unit="ώρες"
-                        showPercentage={false}
                       />
                   </div>
                   )}
