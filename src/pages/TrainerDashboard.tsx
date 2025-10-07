@@ -204,11 +204,16 @@ const TrainerDashboard: React.FC = () => {
       });
     });
     
-    // Keep original order (no sorting)
+    // Ταξινόμηση από νωρίτερο σε αργότερο βάσει ημερομηνίας και ώρας
+    const sortedSessions = allSessions.sort((a, b) => {
+      const dateA = new Date(`${a.date}T${a.startTime}`);
+      const dateB = new Date(`${b.date}T${b.startTime}`);
+      return dateA.getTime() - dateB.getTime();
+    });
     
-    console.log('[TrainerDashboard] Final allSessions:', allSessions);
+    console.log('[TrainerDashboard] Final allSessions (sorted):', sortedSessions);
     console.log('[TrainerDashboard] ===== TRAINER SESSIONS USEMEMO COMPLETE =====');
-    return allSessions;
+    return sortedSessions;
   }, [realSchedules, trainerName, trainerUsers]);
 
   // Filter sessions by date if selected

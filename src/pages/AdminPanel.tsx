@@ -1338,10 +1338,14 @@ const AdminPanel: React.FC = () => {
 
   // Function to get current sessions based on filter selection
   const getCurrentSessions = (): PersonalTrainingSession[] => {
-    if (sessionFilter === 'existing') {
-      return existingSessions;
-    }
-    return programSessions;
+    const sessions = sessionFilter === 'existing' ? existingSessions : programSessions;
+    
+    // Ταξινόμηση από νωρίτερο σε αργότερο βάσει ημερομηνίας και ώρας
+    return sessions.sort((a, b) => {
+      const dateA = new Date(`${a.date}T${a.startTime}`);
+      const dateB = new Date(`${b.date}T${b.startTime}`);
+      return dateA.getTime() - dateB.getTime();
+    });
   };
 
   // Function to update sessions based on filter selection
@@ -1992,7 +1996,10 @@ const AdminPanel: React.FC = () => {
       let packageMatch = isFreeGym || isPilates;
       if (membershipRequestsFilter === 'freegym') packageMatch = isFreeGym;
       if (membershipRequestsFilter === 'pilates') packageMatch = isPilates;
-      if (membershipRequestsFilter === 'installments') packageMatch = isInstallments;
+      if (membershipRequestsFilter === 'installments') {
+        // Για αιτήματα με δόσεις, δείξε όλα ανεξάρτητα από status
+        packageMatch = isInstallments;
+      }
       
       // Filter by search term (user name)
       const searchMatch = membershipRequestsSearchTerm === '' || 
@@ -3420,7 +3427,14 @@ const AdminPanel: React.FC = () => {
 
                   {/* Mobile-First Schedule Sessions */}
                   <div className="space-y-3 sm:space-y-4">
-                    {personalTrainingSchedule.scheduleData.sessions.map((session) => (
+                    {personalTrainingSchedule.scheduleData.sessions
+                      .sort((a, b) => {
+                        // Ταξινόμηση από νωρίτερο σε αργότερο βάσει ημερομηνίας και ώρας
+                        const dateA = new Date(`${a.date}T${a.startTime}`);
+                        const dateB = new Date(`${b.date}T${b.startTime}`);
+                        return dateA.getTime() - dateB.getTime();
+                      })
+                      .map((session) => (
                       <div key={session.id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                           <div className="sm:col-span-2 lg:col-span-1">
@@ -4197,6 +4211,19 @@ const AdminPanel: React.FC = () => {
                                     </div>
                                   </div>
                                 )
+                              )}
+                              
+                              {/* Για αιτήματα με δόσεις που έχουν ήδη εγκριθεί/απορριφθεί, δείξε μόνο το status */}
+                              {(request.status === 'approved' || request.status === 'rejected') && request.has_installments && (
+                                <div className="flex items-center space-x-2">
+                                  <div className={`w-2 h-2 rounded-full ${request.status === 'approved' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                  <span className={`text-sm font-medium ${request.status === 'approved' ? 'text-green-700' : 'text-red-700'}`}>
+                                    {request.status === 'approved' ? '✅ Εγκεκριμένο' : '❌ Απορριφθέν'}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    (Διαχείριση δόσεων διαθέσιμη)
+                                  </span>
+                                </div>
                               )}
                               
                               {request.status === 'approved' && (

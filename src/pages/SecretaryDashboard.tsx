@@ -1948,7 +1948,14 @@ const SecretaryDashboard: React.FC = () => {
   };
 
   const getCurrentSessions = () => {
-    return sessionFilter === 'new' ? programSessions : existingSessions;
+    const sessions = sessionFilter === 'new' ? programSessions : existingSessions;
+    
+    // Ταξινόμηση από νωρίτερο σε αργότερο βάσει ημερομηνίας και ώρας
+    return sessions.sort((a, b) => {
+      const dateA = new Date(`${a.date}T${a.startTime}`);
+      const dateB = new Date(`${b.date}T${b.startTime}`);
+      return dateA.getTime() - dateB.getTime();
+    });
   };
 
   const updateCurrentSessions = (sessions: any[]) => {
@@ -2847,9 +2854,17 @@ const SecretaryDashboard: React.FC = () => {
               <div className="space-y-4">
                 {membershipRequests
                   .filter(request => {
-                    // status gating
-                    const allowed = request.status === 'pending' || (request.status === 'approved' && isRequestPending(request.id)) || (request.status === 'rejected' && isRequestPending(request.id));
-                    if (!allowed) return false;
+                    // status gating - για αιτήματα με δόσεις, δείξε όλα ανεξάρτητα από status
+                    const isInstallmentRequest = !!request.has_installments;
+                    if (requestPackageFilter === 'Installments' && isInstallmentRequest) {
+                      // Για αιτήματα με δόσεις, δείξε όλα ανεξάρτητα από status
+                      // Μη εφαρμόζεις status gating
+                    } else {
+                      // Για κανονικά αιτήματα, εφάρμοσε το status gating
+                      const allowed = request.status === 'pending' || (request.status === 'approved' && isRequestPending(request.id)) || (request.status === 'rejected' && isRequestPending(request.id));
+                      if (!allowed) return false;
+                    }
+                    
                     // package filter
                     if (requestPackageFilter === 'all') return true;
                     if (requestPackageFilter === 'Installments') {
@@ -3224,27 +3239,45 @@ const SecretaryDashboard: React.FC = () => {
                         </div>
                       </div>
                       
-                      <div className="flex flex-col space-y-3 ml-4">
-                        <button
-                          onClick={() => handleApproveRequest(request.id)}
-                          className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-                        >
-                          <Check className="h-4 w-4 inline mr-2" />
-                          ✅ Έγκριση
-                        </button>
-                        <button
-                          onClick={() => {
-                            const reason = prompt('Λόγος απόρριψης:');
-                            if (reason) {
-                              handleRejectRequest(request.id);
-                            }
-                          }}
-                          className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-                        >
-                          <X className="h-4 w-4 inline mr-2" />
-                          ❌ Απόρριψη
-                        </button>
-                      </div>
+                      {/* Κουμπιά Έγκριση/Απόρριψη - μόνο για pending αιτήματα ή αιτήματα με δόσεις που είναι pending */}
+                      {(!request.has_installments || request.status === 'pending') && (
+                        <div className="flex flex-col space-y-3 ml-4">
+                          <button
+                            onClick={() => handleApproveRequest(request.id)}
+                            className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                          >
+                            <Check className="h-4 w-4 inline mr-2" />
+                            ✅ Έγκριση
+                          </button>
+                          <button
+                            onClick={() => {
+                              const reason = prompt('Λόγος απόρριψης:');
+                              if (reason) {
+                                handleRejectRequest(request.id);
+                              }
+                            }}
+                            className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                          >
+                            <X className="h-4 w-4 inline mr-2" />
+                            ❌ Απόρριψη
+                          </button>
+                        </div>
+                      )}
+                      
+                      {/* Για αιτήματα με δόσεις που έχουν ήδη εγκριθεί/απορριφθεί, δείξε μόνο το status */}
+                      {request.has_installments && (request.status === 'approved' || request.status === 'rejected') && (
+                        <div className="flex flex-col space-y-2 ml-4">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-3 h-3 rounded-full ${request.status === 'approved' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <span className={`text-lg font-semibold ${request.status === 'approved' ? 'text-green-600' : 'text-red-600'}`}>
+                              {request.status === 'approved' ? '✅ Εγκεκριμένο' : '❌ Απορριφθέν'}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-500 bg-gray-100 px-3 py-2 rounded-lg">
+                            💳 Διαχείριση δόσεων διαθέσιμη
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
                     {/* Program Options Section for Free Gym requests - Only show if not approved/rejected OR if pending */}
@@ -3656,7 +3689,14 @@ const SecretaryDashboard: React.FC = () => {
 
                 {/* Schedule Sessions */}
                 <div className="space-y-3 sm:space-y-4">
-                  {personalTrainingSchedule.scheduleData.sessions.map((session) => (
+                  {personalTrainingSchedule.scheduleData.sessions
+                    .sort((a, b) => {
+                      // Ταξινόμηση από νωρίτερο σε αργότερο βάσει ημερομηνίας και ώρας
+                      const dateA = new Date(`${a.date}T${a.startTime}`);
+                      const dateB = new Date(`${b.date}T${b.startTime}`);
+                      return dateA.getTime() - dateB.getTime();
+                    })
+                    .map((session) => (
                     <div key={session.id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                         <div className="sm:col-span-2 lg:col-span-1">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toLocalDateKey } from '@/utils/date';
 import { ChevronLeft, ChevronRight, Users, Clock, MapPin, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { getGroupTrainingCalendarEvents, GroupTrainingCalendarEvent } from '@/utils/groupTrainingCalendarApi';
@@ -17,6 +17,7 @@ const GroupTrainingCalendar: React.FC<GroupTrainingCalendarProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<GroupTrainingCalendarEvent | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   // Get current month and year
   const currentMonth = currentDate.getMonth() + 1;
@@ -34,7 +35,18 @@ const GroupTrainingCalendar: React.FC<GroupTrainingCalendarProps> = ({
       console.log('[GroupTrainingCalendar] Loading events for:', { startDate, endDate });
       
       const response = await getGroupTrainingCalendarEvents(startDate, endDate);
-      setEvents(response.events);
+      
+      // Επιπλέον ταξινόμηση για να βεβαιωθούμε ότι τα events είναι ταξινομημένα
+      const sortedEvents = response.events.sort((a, b) => {
+        const timeA = new Date(a.start).getTime();
+        const timeB = new Date(b.start).getTime();
+        return timeA - timeB;
+      });
+      
+      setEvents(sortedEvents);
+      
+      // Force update για να ανανεώσει την εμφάνιση
+      setForceUpdate(prev => prev + 1);
       
       console.log('[GroupTrainingCalendar] Loaded events:', response.events.length);
     } catch (error) {
@@ -62,11 +74,38 @@ const GroupTrainingCalendar: React.FC<GroupTrainingCalendarProps> = ({
     setCurrentDate(new Date());
   };
 
-  // Get events for a specific date
-  const getEventsForDate = (date: Date) => {
-    const dateStr = toLocalDateKey(date);
-    return events.filter(event => event.start.startsWith(dateStr));
-  };
+  // Get events for a specific date with useMemo για καλύτερη απόδοση
+  const getEventsForDate = useMemo(() => {
+    return (date: Date) => {
+      const dateStr = toLocalDateKey(date);
+      const filteredEvents = events.filter(event => event.start.startsWith(dateStr));
+      
+      
+      const sortedEvents = filteredEvents.sort((a, b) => {
+        // Καθαρισμός της μορφής ώρας για σωστή σύγκριση
+        const timeAStr = a.start.split('T')[1].replace(/:\d{2}$/, ''); // Αφαίρεση τελευταίων :00 αν υπάρχουν
+        const timeBStr = b.start.split('T')[1].replace(/:\d{2}$/, ''); // Αφαίρεση τελευταίων :00 αν υπάρχουν
+        
+        // Σύγκριση ως strings για ώρες (π.χ. "08:00" vs "10:00")
+        if (timeAStr !== timeBStr) {
+          return timeAStr.localeCompare(timeBStr);
+        }
+        
+        // Αν οι ώρες είναι ίδιες, σύγκριση με Date objects
+        const timeA = new Date(a.start).getTime();
+        const timeB = new Date(b.start).getTime();
+        
+        if (isNaN(timeA) || isNaN(timeB)) {
+          return 0;
+        }
+        
+        return timeA - timeB;
+      });
+      
+      
+      return sortedEvents;
+    };
+  }, [events, forceUpdate]);
 
   // Get capacity status color
   const getCapacityColor = (participantsCount: number, capacity: number) => {
@@ -118,6 +157,13 @@ const GroupTrainingCalendar: React.FC<GroupTrainingCalendarProps> = ({
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
+      // Καθαρισμός events πρώτα
+      setEvents([]);
+      setForceUpdate(0);
+      
+      // Μικρή καθυστέρηση για να δούμε το καθάρισμα
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       await loadEvents();
       toast.success('Ημερολόγιο ανανεώθηκε');
     } catch (error) {
@@ -144,7 +190,30 @@ const GroupTrainingCalendar: React.FC<GroupTrainingCalendarProps> = ({
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentYear, currentMonth - 1, day);
-      const dayEvents = getEventsForDate(date);
+      let dayEvents = getEventsForDate(date);
+      
+      // Επιπλέον ταξινόμηση για να βεβαιωθούμε ότι είναι σωστά ταξινομημένα
+      dayEvents = [...dayEvents].sort((a, b) => {
+        // Καθαρισμός της μορφής ώρας για σωστή σύγκριση
+        const timeAStr = a.start.split('T')[1].replace(/:\d{2}$/, ''); // Αφαίρεση τελευταίων :00 αν υπάρχουν
+        const timeBStr = b.start.split('T')[1].replace(/:\d{2}$/, ''); // Αφαίρεση τελευταίων :00 αν υπάρχουν
+        
+        // Σύγκριση ως strings για ώρες (π.χ. "08:00" vs "10:00")
+        if (timeAStr !== timeBStr) {
+          return timeAStr.localeCompare(timeBStr);
+        }
+        
+        // Αν οι ώρες είναι ίδιες, σύγκριση με Date objects
+        const timeA = new Date(a.start).getTime();
+        const timeB = new Date(b.start).getTime();
+        
+        if (isNaN(timeA) || isNaN(timeB)) {
+          return 0;
+        }
+        
+        return timeA - timeB;
+      });
+      
       
       days.push(
         <div key={day} className="min-h-32 bg-white border border-gray-200 rounded-lg p-2 flex flex-col">
@@ -162,7 +231,7 @@ const GroupTrainingCalendar: React.FC<GroupTrainingCalendarProps> = ({
               const isFull = isSessionFull(event.participants_count, event.capacity);
               return (
                 <div
-                  key={index}
+                  key={`${event.id}-${event.start}-${event.trainer}-${event.room}-${event.capacity}-${index}-${forceUpdate}`}
                   onClick={() => handleEventClick(event)}
                   className={`rounded-lg cursor-pointer hover:opacity-90 transition-all duration-200 ${getCapacityBgColor(event.participants_count, event.capacity)} border border-opacity-20 shadow-sm hover:shadow-md p-2`}
                   title="Click to view session details"
@@ -274,6 +343,7 @@ const GroupTrainingCalendar: React.FC<GroupTrainingCalendarProps> = ({
               )}
               <span>Ανανέωση</span>
             </button>
+            
             
             <button
               onClick={goToNextMonth}

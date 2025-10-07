@@ -727,18 +727,6 @@ export const getGroupTrainingCalendarEvents = async (
 
     const events = Array.from(eventMap.values());
 
-    console.log('[GroupTrainingCalendarAPI] Final events summary:');
-    events.forEach((event, index) => {
-      console.log(`Event ${index + 1}:`, {
-        id: event.id,
-        date: event.start.split('T')[0],
-        time: `${event.start.split('T')[1].substring(0, 5)}-${event.end.split('T')[1].substring(0, 5)}`,
-        trainer: event.trainer,
-        room: event.room,
-        capacity: `${event.participants_count}/${event.capacity}`,
-        group_type: event.group_type
-      });
-    });
 
     console.log('[GroupTrainingCalendarAPI] Processed events:', events.length);
 
@@ -749,7 +737,29 @@ export const getGroupTrainingCalendarEvents = async (
     // Add individual sessions to events
     events.push(...individualSessions);
     
-    console.log('[GroupTrainingCalendarAPI] Total events including individual sessions:', events.length);
+    // Ταξινόμηση όλων των events από νωρίτερο σε αργότερο βάσει ημερομηνίας και ώρας
+    events.sort((a, b) => {
+      // Καθαρισμός της μορφής ώρας για σωστή σύγκριση
+      const timeAStr = a.start.split('T')[1].replace(/:\d{2}$/, ''); // Αφαίρεση τελευταίων :00 αν υπάρχουν
+      const timeBStr = b.start.split('T')[1].replace(/:\d{2}$/, ''); // Αφαίρεση τελευταίων :00 αν υπάρχουν
+      
+      // Σύγκριση ως strings για ώρες (π.χ. "08:00" vs "10:00")
+      if (timeAStr !== timeBStr) {
+        return timeAStr.localeCompare(timeBStr);
+      }
+      
+      // Αν οι ώρες είναι ίδιες, σύγκριση με Date objects
+      const timeA = new Date(a.start).getTime();
+      const timeB = new Date(b.start).getTime();
+      
+      if (isNaN(timeA) || isNaN(timeB)) {
+        return 0;
+      }
+      
+      return timeA - timeB;
+    });
+    
+    console.log('[GroupTrainingCalendarAPI] Total events including individual sessions (sorted):', events.length);
 
     return {
       events,

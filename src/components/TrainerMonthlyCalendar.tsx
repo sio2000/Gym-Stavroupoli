@@ -42,7 +42,14 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
         (event.trainer || '').trim().toLowerCase() === (trainerName || '').trim().toLowerCase()
       );
       
-      setEvents(filteredEvents);
+      // Επιπλέον ταξινόμηση για να βεβαιωθούμε ότι τα events είναι ταξινομημένα
+      const sortedFilteredEvents = filteredEvents.sort((a, b) => {
+        const timeA = new Date(a.start).getTime();
+        const timeB = new Date(b.start).getTime();
+        return timeA - timeB;
+      });
+      
+      setEvents(sortedFilteredEvents);
       
       console.log('[TrainerMonthlyCalendar] Loaded events for trainer:', filteredEvents.length);
     } catch (error) {
@@ -73,7 +80,14 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
   // Get events for a specific date
   const getEventsForDate = (date: Date) => {
     const dateStr = toLocalDateKey(date);
-    return events.filter(event => event.start.startsWith(dateStr));
+    return events
+      .filter(event => event.start.startsWith(dateStr))
+      .sort((a, b) => {
+        // Ταξινόμηση από νωρίτερο σε αργότερο βάσει ώρας
+        const timeA = new Date(a.start).getTime();
+        const timeB = new Date(b.start).getTime();
+        return timeA - timeB;
+      });
   };
 
   // Get capacity status color
