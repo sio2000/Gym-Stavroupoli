@@ -2113,7 +2113,7 @@ const AdminPanel: React.FC = () => {
       
       // Find the request to check if it's Ultimate package
       const request = membershipRequests.find(r => r.id === requestId);
-      const isUltimatePackage = request?.package?.name === 'Ultimate';
+      const isUltimatePackage = request?.package?.name === 'Ultimate' || request?.package?.name === 'Ultimate Medium';
       
       if (isUltimatePackage) {
         // Handle Ultimate package approval with dual activation
@@ -2758,7 +2758,7 @@ const AdminPanel: React.FC = () => {
       
       // Find the request to check if it's Ultimate package
       const request = ultimateRequests.find(r => r.id === requestId);
-      const isUltimatePackage = request?.package?.name === 'Ultimate';
+      const isUltimatePackage = request?.package?.name === 'Ultimate' || request?.package?.name === 'Ultimate Medium';
       
       if (isUltimatePackage) {
         // Handle Ultimate package approval with dual activation

@@ -450,7 +450,7 @@ const SecretaryDashboard: React.FC = () => {
           }
           
           // Save values to database first (check if Ultimate request)
-          const isUltimateRequest = request.package?.name === 'Ultimate';
+          const isUltimateRequest = request.package?.name === 'Ultimate' || request.package?.name === 'Ultimate Medium';
           
           const { error: saveError } = await supabase
             .from(isUltimateRequest ? 'ultimate_membership_requests' : 'membership_requests')
@@ -529,7 +529,7 @@ const SecretaryDashboard: React.FC = () => {
         
         // Check if this is an Ultimate request or regular request
         const request = membershipRequests.find(r => r.id === pendingDeleteRequest);
-        const isUltimateRequest = request?.package?.name === 'Ultimate';
+        const isUltimateRequest = request?.package?.name === 'Ultimate' || request?.package?.name === 'Ultimate Medium';
         
         // Call RPC to delete third installment permanently
         const { error: deleteError } = await supabase
@@ -853,7 +853,7 @@ const SecretaryDashboard: React.FC = () => {
       // Find the request to check if it's Ultimate package
       const allRequests = [...membershipRequests, ...ultimateRequests];
       const request = allRequests.find(r => r.id === requestId);
-      const isUltimatePackage = request?.package?.name === 'Ultimate';
+      const isUltimatePackage = request?.package?.name === 'Ultimate' || request?.package?.name === 'Ultimate Medium';
       
       if (isUltimatePackage) {
         // Handle Ultimate package approval with dual activation

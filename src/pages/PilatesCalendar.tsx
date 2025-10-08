@@ -9,6 +9,13 @@ import {
   getActivePilatesDeposit,
   subscribePilatesRealtime,
 } from '@/utils/pilatesScheduleApi';
+import { 
+  getUltimateWeeklyDepositInfo, 
+  formatUltimateDepositText, 
+  getWeeklyInfoText,
+  UltimateWeeklyDepositInfo 
+} from '@/utils/ultimateWeeklyDepositApi';
+import { debugWeeklyLogic } from '@/utils/debugWeeklyLogic';
 import { PilatesAvailableSlot, PilatesBooking } from '@/types';
 import { Calendar, CheckCircle, XCircle, Loader2, ChevronLeft, ChevronRight, Wallet, Sparkles } from 'lucide-react';
 import { toLocalDateKey, addDaysLocal, parseDateKeyLocal, getGreekMondayOfCurrentWeek } from '@/utils/date';
@@ -19,6 +26,7 @@ const PilatesCalendar: React.FC = () => {
   const [userBookings, setUserBookings] = useState<PilatesBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [deposit, setDeposit] = useState<number>(0);
+  const [weeklyDepositInfo, setWeeklyDepositInfo] = useState<UltimateWeeklyDepositInfo | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [pendingSlot, setPendingSlot] = useState<PilatesAvailableSlot | null>(null);
   const [currentWeek, setCurrentWeek] = useState(() => {
@@ -110,14 +118,21 @@ const PilatesCalendar: React.FC = () => {
       const startStr = weekDates[0];
       const endStr = weekDates[13];
 
-      const [slots, bookings, depositInfo] = await Promise.all([
+      const [slots, bookings, depositInfo, weeklyInfo] = await Promise.all([
         getPilatesAvailableSlots(startStr, endStr),
         getPilatesBookings(user.id),
-        getActivePilatesDeposit(user.id)
+        getActivePilatesDeposit(user.id),
+        getUltimateWeeklyDepositInfo()
       ]);
       
       console.log('Fetched slots from DB:', slots.length);
       console.log('Fetched bookings from DB:', bookings.length);
+      console.log('Weekly deposit info:', weeklyInfo);
+      
+      // Debug weekly logic
+      if (weeklyInfo?.is_ultimate_user) {
+        debugWeeklyLogic();
+      }
       
       // Slots already include booked_count from occupancy view; just compute available_capacity
       const slotsWithCapacity = slots.map(slot => ({
@@ -128,6 +143,7 @@ const PilatesCalendar: React.FC = () => {
       setAvailableSlots(slotsWithCapacity);
       setUserBookings(bookings);
       setDeposit(depositInfo?.deposit_remaining || 0);
+      setWeeklyDepositInfo(weeklyInfo);
       
     } catch (error) {
       console.error('Error loading data:', error);
@@ -312,13 +328,30 @@ const PilatesCalendar: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs sm:text-sm text-rose-700">Υπόλοιπο Pilates</p>
-                <p className="text-lg sm:text-xl font-bold text-rose-800">{deposit} μαθήματα απομένουν</p>
+                <p className="text-lg sm:text-xl font-bold text-rose-800">
+                  {weeklyDepositInfo ? formatUltimateDepositText(weeklyDepositInfo) : `${deposit} μαθήματα απομένουν`}
+                </p>
               </div>
             </div>
             <span className="shrink-0 inline-flex items-center rounded-full bg-white text-rose-700 border border-rose-200 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold shadow-sm">
-              <Sparkles className="mr-1" size={12} /> Κράτα το ρυθμό!
+              <Sparkles className="mr-1" size={12} /> 
+              {weeklyDepositInfo?.is_ultimate_user ? 'Ultimate' : 'Κράτα το ρυθμό!'}
             </span>
           </div>
+          
+          {/* Weekly info for Ultimate users */}
+          {weeklyDepositInfo?.is_ultimate_user && (
+            <div className="mt-3 p-3 bg-white/50 rounded-lg border border-rose-100">
+              <p className="text-xs text-rose-600 font-medium">
+                {getWeeklyInfoText(weeklyDepositInfo)}
+              </p>
+              <p className="text-xs text-rose-500 mt-1">
+                Εβδομαδιαία ανανέωση: {weeklyDepositInfo.weekly_allocation} μαθήματα | 
+                Εβδομάδες που απομένουν: {weeklyDepositInfo.total_weeks_remaining}
+              </p>
+            </div>
+          )}
+          
           {deposit <= 0 && (
             <p className="text-red-600 mt-3 text-xs sm:text-sm">Τα μαθήματά σας τελείωσαν. Για ανανέωση, απευθυνθείτε στη ρεσεψιόν.</p>
           )}
