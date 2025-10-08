@@ -307,7 +307,7 @@ const MembershipPage: React.FC = React.memo(() => {
     // Load appropriate durations based on package type
     if (pkg.name === 'Pilates') {
       setPackageDurations(pilatesDurations);
-    } else if (pkg.name === 'Ultimate') {
+    } else if (pkg.name === 'Ultimate' || pkg.name === 'Ultimate Medium') {
       setPackageDurations(ultimateDurations);
     } else {
       loadPackageDurations(pkg.id);
@@ -348,7 +348,7 @@ const MembershipPage: React.FC = React.memo(() => {
           user.id,
           hasInstallments
         );
-      } else if (selectedPackage.name === 'Ultimate') {
+      } else if (selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium') {
         await createUltimateMembershipRequest(
           selectedPackage.id,
           selectedDuration.duration_type,
@@ -423,9 +423,9 @@ const MembershipPage: React.FC = React.memo(() => {
     ['Personal Training'].includes(pkg.name)
   );
 
-  // Filter database packages to include Free Gym and Pilates
+  // Filter database packages to include Free Gym, Pilates, Ultimate, and Ultimate Medium
   const filteredDatabasePackages = packages.filter(pkg => 
-    pkg.name === 'Free Gym' || pkg.name === 'Pilates' || pkg.name === 'Ultimate'
+    pkg.name === 'Free Gym' || pkg.name === 'Pilates' || pkg.name === 'Ultimate' || pkg.name === 'Ultimate Medium'
   );
 
   // Combine filtered packages
@@ -607,7 +607,7 @@ const MembershipPage: React.FC = React.memo(() => {
               const isSpecial = pkg.name === 'Personal Training'; // Personal Training package
               const isFreeGym = pkg.name === 'Free Gym'; // Free Gym package
               const isPilates = pkg.name === 'Pilates'; // Pilates package
-              const isUltimate = pkg.name === 'Ultimate'; // Ultimate package
+              const isUltimate = pkg.name === 'Ultimate' || pkg.name === 'Ultimate Medium'; // Ultimate packages
               // const hasPersonalTraining = userMemberships.some(m => m.package_id === pkg.id);
               // Check if user has active membership for this package type
               const isLocked = userMemberships.some(m => {
@@ -617,11 +617,11 @@ const MembershipPage: React.FC = React.memo(() => {
                   return (m.package?.name === 'Personal Training' || 
                          m.package?.package_type === 'personal_training');
                 }
-                // For Ultimate package, check if user has any Ultimate-sourced memberships
-                if (pkg.name === 'Ultimate') {
-                  return m.package?.name === 'Ultimate' ||
+                // For Ultimate packages, check if user has any Ultimate-sourced memberships
+                if (pkg.name === 'Ultimate' || pkg.name === 'Ultimate Medium') {
+                  return m.package?.name === 'Ultimate' || m.package?.name === 'Ultimate Medium' ||
                          m.package?.package_type === 'ultimate' ||
-                         (m.source_package_name === 'Ultimate'); // Check Ultimate-sourced memberships
+                         (m.source_package_name === 'Ultimate') || (m.source_package_name === 'Ultimate Medium'); // Check Ultimate-sourced memberships
                 }
                 // For other packages, check by package_id
                 return m.package_id === pkg.id;
@@ -734,6 +734,25 @@ const MembershipPage: React.FC = React.memo(() => {
                             handlePackageSelect(pkg);
                           }}
                           className="w-full bg-pink-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-pink-700 transition-colors font-semibold text-sm sm:text-base"
+                        >
+                          Επιλέξτε Πακέτο
+                        </button>
+                      </div>
+                    ) : isUltimate ? (
+                      <div className="space-y-3">
+                        <div className="text-center">
+                          <div className="text-sm text-gray-600 mb-2">Από</div>
+                          <div className="text-2xl font-bold text-orange-600">
+                            {formatPrice(pkg.price)}
+                          </div>
+                          <div className="text-xs text-gray-500">για 1 έτος</div>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePackageSelect(pkg);
+                          }}
+                          className="w-full bg-orange-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-orange-700 transition-colors font-semibold text-sm sm:text-base"
                         >
                           Επιλέξτε Πακέτο
                         </button>
@@ -983,13 +1002,13 @@ const MembershipPage: React.FC = React.memo(() => {
                           {getDurationLabel(duration.duration_type)}
                         </h5>
                         <p className="text-sm text-gray-600">
-                          {selectedPackage.name === 'Ultimate' && duration.duration_type === 'ultimate_1year' 
+                          {(['Ultimate', 'Ultimate Medium'].includes(selectedPackage.name)) && (duration.duration_type === 'ultimate_1year' || duration.duration_type === 'ultimate_medium_1year')
                             ? 'Διαθέσιμα έως 3 μαθήματα την εβδομάδα'
                             : (duration.classes_count ? `${duration.classes_count} μαθήματα` : getDurationDisplayText(duration.duration_type, duration.duration_days))
                           }
                         </p>
-                        {/* Special description for Ultimate package */}
-                        {selectedPackage.name === 'Ultimate' && duration.duration_type === 'ultimate_1year' && (
+                        {/* Special description for Ultimate packages */}
+                        {(['Ultimate', 'Ultimate Medium'].includes(selectedPackage.name)) && (duration.duration_type === 'ultimate_1year' || duration.duration_type === 'ultimate_medium_1year') && (
                           <p className="text-xs text-blue-600 mt-1 font-medium">
                             1 έτος Pilates + 1 έτος ελεύθερο γυμναστήριο
                           </p>

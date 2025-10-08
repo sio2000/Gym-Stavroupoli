@@ -593,7 +593,8 @@ export const getDurationLabel = (durationType: string): string => {
     'pilates_3months': '16 Μαθημάτων (3 μήνες)',
     'pilates_6months': '25 Μαθημάτων (6 μήνες)',
     'pilates_1year': '50 Μαθημάτων (1 έτος)',
-    'ultimate_1year': '1 Έτος Ultimate'
+    'ultimate_1year': '1 Έτος Ultimate',
+    'ultimate_medium_1year': '1 Έτος Ultimate Medium'
   };
   return labels[durationType as keyof typeof labels] || durationType;
 };
@@ -610,7 +611,9 @@ export const getDurationDays = (durationType: string): number => {
     'pilates_2months': 60,
     'pilates_3months': 90,
     'pilates_6months': 180,
-    'pilates_1year': 365
+    'pilates_1year': 365,
+    'ultimate_1year': 365,
+    'ultimate_medium_1year': 365
   };
   return days[durationType as keyof typeof days] || 1;
 };
@@ -905,22 +908,22 @@ export const getUltimateMembershipRequests = async (): Promise<MembershipRequest
   try {
     console.log('[MembershipAPI] Fetching Ultimate membership requests with separate locking...');
     
-    // Get Ultimate requests from the original membership_requests table
-    // First, get the Ultimate package ID
-    const { data: ultimatePackage, error: packageError } = await supabase
+    // Get Ultimate and Ultimate Medium requests from the membership_requests table
+    // First, get both Ultimate package IDs
+    const { data: ultimatePackages, error: packageError } = await supabase
       .from('membership_packages')
-      .select('id')
-      .eq('name', 'Ultimate')
-      .single();
+      .select('id, name')
+      .in('name', ['Ultimate', 'Ultimate Medium']);
 
-    if (packageError || !ultimatePackage) {
-      console.log('[MembershipAPI] No Ultimate package found or error:', packageError);
+    if (packageError || !ultimatePackages || ultimatePackages.length === 0) {
+      console.log('[MembershipAPI] No Ultimate packages found or error:', packageError);
       return [];
     }
 
-    console.log('[MembershipAPI] Found Ultimate package ID:', ultimatePackage.id);
+    const packageIds = ultimatePackages.map(pkg => pkg.id);
+    console.log('[MembershipAPI] Found Ultimate package IDs:', packageIds);
 
-    // Now get requests with this package ID
+    // Now get requests with these package IDs
     const { data: ultimateRequests, error: ultimateError } = await supabase
       .from('membership_requests')
       .select(`
@@ -938,7 +941,7 @@ export const getUltimateMembershipRequests = async (): Promise<MembershipRequest
           description
         )
       `)
-      .eq('package_id', ultimatePackage.id)
+      .in('package_id', packageIds)
       .order('created_at', { ascending: false });
 
     if (ultimateError) {
@@ -1012,6 +1015,19 @@ export const createUltimateMembershipRequest = async (
         throw new Error('Ultimate package not found');
       }
       actualPackageId = ultimatePackage.id;
+    } else if (packageId === 'Ultimate Medium' || packageId === 'ultimate-medium-package') {
+      const { data: ultimateMediumPackage, error: packageError } = await supabase
+        .from('membership_packages')
+        .select('id')
+        .eq('name', 'Ultimate Medium')
+        .eq('is_active', true)
+        .single();
+
+      if (packageError || !ultimateMediumPackage) {
+        console.error('Error finding Ultimate Medium package:', packageError);
+        throw new Error('Ultimate Medium package not found');
+      }
+      actualPackageId = ultimateMediumPackage.id;
     }
 
     // Prepare the insert data
@@ -1122,7 +1138,7 @@ export const getUltimatePackageDurations = async (): Promise<MembershipPackageDu
           package_type
         )
       `)
-      .eq('membership_packages.name', 'Ultimate')
+      .in('membership_packages.name', ['Ultimate', 'Ultimate Medium'])
       .eq('is_active', true)
       .order('price', { ascending: true });
 
@@ -1159,8 +1175,8 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
       throw requestError;
     }
 
-    // Verify this is an Ultimate package
-    if (requestData.membership_packages?.name !== 'Ultimate') {
+    // Verify this is an Ultimate or Ultimate Medium package
+    if (!['Ultimate', 'Ultimate Medium'].includes(requestData.membership_packages?.name)) {
       throw new Error('This function is only for Ultimate package requests');
     }
 

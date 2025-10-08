@@ -177,7 +177,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                              pkg.name === 'Pilates' ||
                              pkg.name === 'Πιλάτες';
             const isUltimate = pkg.package_type === 'ultimate' ||
-                              pkg.name === 'Ultimate';
+                              pkg.name === 'Ultimate' ||
+                              pkg.name === 'Ultimate Medium';
             console.log('[Layout] Is Free Gym package?', isFreeGym);
             console.log('[Layout] Is Pilates package?', isPilates);
             console.log('[Layout] Is Ultimate package?', isUltimate);
