@@ -1,0 +1,109 @@
+workflows:
+  ios-workflow:
+    name: iOS Build
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    environment:
+      groups:
+        # Θα τα ορίσεις στο Codemagic UI
+        - app_store_credentials
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.freegym.app"
+        APP_STORE_APP_ID: "" # Θα το συμπληρώσεις αν θέλεις TestFlight
+      node: 18
+      xcode: 15.0
+      cocoapods: default
+    
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm ci
+      
+      - name: Build web assets
+        script: |
+          npm run build:mobile
+      
+      - name: Sync Capacitor
+        script: |
+          npx cap sync ios
+      
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
+      
+      - name: Increment build number
+        script: |
+          cd ios/App
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APP_ID")
+          agvtool new-version -all $(($LATEST_BUILD_NUMBER + 1))
+      
+      - name: Build ipa for distribution
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    
+    publishing:
+      email:
+        recipients:
+          - theoharis@getfitskg.com
+        notify:
+          success: true
+          failure: true
+      
+      # Αν θέλεις να ανεβάσει στο TestFlight (προαιρετικό)
+      # app_store_connect:
+      #   api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+      #   key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+      #   issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+      #   submit_to_testflight: true
+      #   beta_groups:
+      #     - Beta Testers
+
+  # Δωρεάν Development Build (χωρίς code signing)
+  ios-development:
+    name: iOS Development Build
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+      node: 18
+      xcode: 15.0
+      cocoapods: default
+    
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+      
+      - name: Build web assets
+        script: |
+          npm run build:mobile
+      
+      - name: Sync Capacitor
+        script: |
+          npx cap sync ios
+      
+      - name: Build for simulator (no code signing needed)
+        script: |
+          cd ios/App
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -derivedDataPath build
+      
+    artifacts:
+      - ios/App/build/Build/Products/Debug-iphonesimulator/*.app
+
