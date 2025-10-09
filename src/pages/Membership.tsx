@@ -621,7 +621,7 @@ const MembershipPage: React.FC = React.memo(() => {
                 if (pkg.name === 'Ultimate' || pkg.name === 'Ultimate Medium') {
                   return m.package?.name === 'Ultimate' || m.package?.name === 'Ultimate Medium' ||
                          m.package?.package_type === 'ultimate' ||
-                         (m.source_package_name === 'Ultimate') || (m.source_package_name === 'Ultimate Medium'); // Check Ultimate-sourced memberships
+                         (m as any).source_package_name === 'Ultimate' || (m as any).source_package_name === 'Ultimate Medium'; // Check Ultimate-sourced memberships
                 }
                 // For other packages, check by package_id
                 return m.package_id === pkg.id;
@@ -678,7 +678,9 @@ const MembershipPage: React.FC = React.memo(() => {
                     </div>
                     
                     <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
-                      {pkg.name === 'Free Gym' ? 'Open Gym' : pkg.name}
+                      {pkg.name === 'Free Gym' ? 'Open Gym' : 
+                       pkg.name === 'Ultimate Medium' ? 'Ultra Gym' : 
+                       pkg.name}
                     </h3>
                     <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">{pkg.description}</p>
                     
@@ -964,16 +966,66 @@ const MembershipPage: React.FC = React.memo(() => {
 
       {/* Purchase Modal */}
       {showPurchaseModal && selectedPackage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">
-              Επιλογή Πακέτου: {selectedPackage.name === 'Free Gym' ? 'Open Gym' : selectedPackage.name}
-            </h3>
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl transform transition-all duration-300 scale-100 flex flex-col">
+            {/* Header with gradient */}
+            <div className={`relative p-6 pb-4 ${
+              selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium' 
+                ? 'bg-gradient-to-br from-orange-500 via-red-500 to-pink-500' 
+                : selectedPackage.name === 'Pilates'
+                ? 'bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-500'
+                : selectedPackage.name === 'Free Gym'
+                ? 'bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500'
+                : 'bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500'
+            }`}>
+              <div className="absolute inset-0 bg-black opacity-10"></div>
+              <div className="relative flex items-center space-x-3">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  {selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium' ? (
+                    <span className="text-2xl">👑</span>
+                  ) : selectedPackage.name === 'Pilates' ? (
+                    <span className="text-2xl">🧘</span>
+                  ) : selectedPackage.name === 'Free Gym' ? (
+                    <Award className="h-8 w-8 text-white" />
+                  ) : (
+                    <Zap className="h-8 w-8 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    Επιλογή Πακέτου
+                  </h3>
+                  <p className="text-white/90 text-sm">
+                    {selectedPackage.name === 'Free Gym' ? 'Open Gym' : 
+                     selectedPackage.name === 'Ultimate Medium' ? 'Ultra Gym' : 
+                     selectedPackage.name}
+                  </p>
+                </div>
+              </div>
+            </div>
             
-            {packageDurations.length > 0 ? (
-              <div className="space-y-4">
-                <h4 className="font-semibold text-gray-700">Επιλέξτε Διάρκεια:</h4>
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-6 pt-4">
+              
+              {packageDurations.length > 0 ? (
+                <div className="space-y-4">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Clock className="h-5 w-5 text-gray-600" />
+                  <h4 className="font-semibold text-gray-700">Επιλέξτε Διάρκεια:</h4>
+                </div>
                 {packageDurations
+                  .filter((duration) => {
+                    // Filter for Ultimate Medium - show only 400€ option
+                    if (selectedPackage.name === 'Ultimate Medium') {
+                      return duration.price === 400;
+                    }
+                    // Filter for Ultimate - show only 500€ option
+                    if (selectedPackage.name === 'Ultimate') {
+                      return duration.price === 500;
+                    }
+                    // For other packages, show all options
+                    return true;
+                  })
                   .sort((a, b) => {
                     // For Pilates packages, sort by classes_count
                     if (selectedPackage.name === 'Pilates' && a.classes_count && b.classes_count) {
@@ -989,37 +1041,87 @@ const MembershipPage: React.FC = React.memo(() => {
                   .map((duration) => (
                   <div 
                     key={duration.id}
-                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    className={`group relative p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg ${
                       selectedDuration?.id === duration.id
-                        ? 'border-primary-500 bg-primary-50'
-                        : 'border-gray-200 hover:border-primary-300'
+                        ? `${
+                            selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium'
+                              ? 'border-orange-400 bg-gradient-to-r from-orange-50 to-red-50 shadow-lg'
+                              : selectedPackage.name === 'Pilates'
+                              ? 'border-pink-400 bg-gradient-to-r from-pink-50 to-purple-50 shadow-lg'
+                              : selectedPackage.name === 'Free Gym'
+                              ? 'border-green-400 bg-gradient-to-r from-green-50 to-emerald-50 shadow-lg'
+                              : 'border-blue-400 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg'
+                          }`
+                        : 'border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50'
                     }`}
                     onClick={() => handleDurationSelect(duration)}
                   >
                     <div className="flex justify-between items-center">
-                      <div>
-                        <h5 className="font-semibold text-gray-900">
-                          {getDurationLabel(duration.duration_type)}
-                        </h5>
-                        <p className="text-sm text-gray-600">
-                          {(['Ultimate', 'Ultimate Medium'].includes(selectedPackage.name)) && (duration.duration_type === 'ultimate_1year' || duration.duration_type === 'ultimate_medium_1year')
-                            ? 'Διαθέσιμα έως 3 μαθήματα την εβδομάδα'
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          {selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium' ? (
+                            <span className="text-lg">👑</span>
+                          ) : selectedPackage.name === 'Pilates' ? (
+                            <span className="text-lg">🧘</span>
+                          ) : selectedPackage.name === 'Free Gym' ? (
+                            <Award className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <Zap className="h-4 w-4 text-blue-600" />
+                          )}
+                          <h5 className="font-bold text-gray-900 text-lg">
+                            {getDurationLabel(duration.duration_type)}
+                          </h5>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {(['Ultimate', 'Ultimate Medium'].includes(selectedPackage.name)) && (duration.duration_type as any === 'ultimate_1year' || duration.duration_type as any === 'ultimate_medium_1year')
+                            ? selectedPackage.name === 'Ultimate Medium' 
+                              ? 'Διαθέσιμα έως 1 μάθημα την εβδομάδα'
+                              : 'Διαθέσιμα έως 3 μαθήματα την εβδομάδα'
                             : (duration.classes_count ? `${duration.classes_count} μαθήματα` : getDurationDisplayText(duration.duration_type, duration.duration_days))
                           }
                         </p>
                         {/* Special description for Ultimate packages */}
-                        {(['Ultimate', 'Ultimate Medium'].includes(selectedPackage.name)) && (duration.duration_type === 'ultimate_1year' || duration.duration_type === 'ultimate_medium_1year') && (
-                          <p className="text-xs text-blue-600 mt-1 font-medium">
-                            1 έτος Pilates + 1 έτος ελεύθερο γυμναστήριο
-                          </p>
+                        {(['Ultimate', 'Ultimate Medium'].includes(selectedPackage.name)) && (duration.duration_type as any === 'ultimate_1year' || duration.duration_type as any === 'ultimate_medium_1year') && (
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs">🏋️‍♀️</span>
+                            <p className="text-xs text-blue-600 font-medium">
+                              1 έτος Pilates + 1 έτος ελεύθερο γυμναστήριο
+                            </p>
+                          </div>
                         )}
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-primary-600">
+                      <div className="text-right ml-4">
+                        <div className={`text-2xl font-bold ${
+                          selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium'
+                            ? 'text-orange-600'
+                            : selectedPackage.name === 'Pilates'
+                            ? 'text-pink-600'
+                            : selectedPackage.name === 'Free Gym'
+                            ? 'text-green-600'
+                            : 'text-blue-600'
+                        }`}>
                           {formatPrice(duration.price)}
                         </div>
+                        <div className="text-xs text-gray-500 mt-1">Ευρώ</div>
                       </div>
                     </div>
+                    
+                    {/* Selection indicator */}
+                    {selectedDuration?.id === duration.id && (
+                      <div className="absolute -top-2 -right-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium'
+                            ? 'bg-orange-500'
+                            : selectedPackage.name === 'Pilates'
+                            ? 'bg-pink-500'
+                            : selectedPackage.name === 'Free Gym'
+                            ? 'bg-green-500'
+                            : 'bg-blue-500'
+                        }`}>
+                          <CheckCircle className="h-4 w-4 text-white" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
                 
@@ -1028,33 +1130,97 @@ const MembershipPage: React.FC = React.memo(() => {
                   (() => {
                     if (!isInstallmentsEligible(selectedPackage.name, selectedDuration.duration_type)) return null;
                     return (
-                  <div className="space-y-4 pt-4 border-t border-gray-200">
-                    <div className="flex items-center space-x-2">
+                  <div className="space-y-4 pt-6 border-t border-gray-200">
+                    <div className={`flex items-center space-x-3 p-4 rounded-2xl border-2 transition-all duration-300 ${
+                      hasInstallments 
+                        ? `${
+                            selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium'
+                              ? 'border-orange-300 bg-gradient-to-r from-orange-50 to-red-50'
+                              : selectedPackage.name === 'Pilates'
+                              ? 'border-pink-300 bg-gradient-to-r from-pink-50 to-purple-50'
+                              : selectedPackage.name === 'Free Gym'
+                              ? 'border-green-300 bg-gradient-to-r from-green-50 to-emerald-50'
+                              : 'border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50'
+                          }`
+                        : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                    }`}>
+                      <div className={`relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-300 ${
+                        hasInstallments 
+                          ? `${
+                              selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium'
+                                ? 'border-orange-500 bg-orange-500'
+                                : selectedPackage.name === 'Pilates'
+                                ? 'border-pink-500 bg-pink-500'
+                                : selectedPackage.name === 'Free Gym'
+                                ? 'border-green-500 bg-green-500'
+                                : 'border-blue-500 bg-blue-500'
+                            }`
+                          : 'border-gray-300 bg-white'
+                      }`}>
+                        {hasInstallments && (
+                          <CheckCircle className="h-4 w-4 text-white" />
+                        )}
+                      </div>
                       <input
                         type="checkbox"
                         id="installments"
                         checked={hasInstallments}
                         onChange={(e) => setHasInstallments(e.target.checked)}
-                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                        className="absolute opacity-0 cursor-pointer"
                       />
-                      <label htmlFor="installments" className="text-sm font-medium text-gray-700">
-                        Πληρωμή με δόσεις
-                      </label>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-lg">💳</span>
+                        <label htmlFor="installments" className="text-sm font-semibold text-gray-700 cursor-pointer">
+                          Πληρωμή με δόσεις
+                        </label>
+                      </div>
                     </div>
                     
                     {hasInstallments && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className={`border-2 rounded-2xl p-4 transition-all duration-300 ${
+                        selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium'
+                          ? 'border-orange-200 bg-gradient-to-r from-orange-50 to-red-50'
+                          : selectedPackage.name === 'Pilates'
+                          ? 'border-pink-200 bg-gradient-to-r from-pink-50 to-purple-50'
+                          : selectedPackage.name === 'Free Gym'
+                          ? 'border-green-200 bg-gradient-to-r from-green-50 to-emerald-50'
+                          : 'border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50'
+                      }`}>
                         <div className="flex items-start space-x-3">
                           <div className="flex-shrink-0">
-                            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-blue-600 text-sm">ℹ</span>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium'
+                                ? 'bg-orange-100'
+                                : selectedPackage.name === 'Pilates'
+                                ? 'bg-pink-100'
+                                : selectedPackage.name === 'Free Gym'
+                                ? 'bg-green-100'
+                                : 'bg-blue-100'
+                            }`}>
+                              <span className="text-lg">ℹ️</span>
                             </div>
                           </div>
                           <div className="flex-1">
-                            <h4 className="text-sm font-medium text-blue-900 mb-1">
+                            <h4 className={`text-sm font-bold mb-2 ${
+                              selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium'
+                                ? 'text-orange-900'
+                                : selectedPackage.name === 'Pilates'
+                                ? 'text-pink-900'
+                                : selectedPackage.name === 'Free Gym'
+                                ? 'text-green-900'
+                                : 'text-blue-900'
+                            }`}>
                               Πληρωμή με Δόσεις
                             </h4>
-                            <p className="text-sm text-blue-700">
+                            <p className={`text-sm leading-relaxed ${
+                              selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium'
+                                ? 'text-orange-700'
+                                : selectedPackage.name === 'Pilates'
+                                ? 'text-pink-700'
+                                : selectedPackage.name === 'Free Gym'
+                                ? 'text-green-700'
+                                : 'text-blue-700'
+                            }`}>
                               Με την ενεργοποίηση αυτής της επιλογής, μπορείτε να πληρώσετε το πακέτο με έως 3 δόσεις στο γυμναστήριο.
                               Ο διαχειριστής θα καθορίσει τα ακριβή ποσά και τις ημερομηνίες πληρωμής.
                             </p>
@@ -1066,34 +1232,59 @@ const MembershipPage: React.FC = React.memo(() => {
                     );
                   })()
                 )}
-                
-                <div className="flex space-x-3 pt-4">
+              </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="p-4 bg-gray-100 rounded-2xl mb-4">
+                    <span className="text-4xl">😔</span>
+                  </div>
+                  <p className="text-gray-600 mb-4">Δεν υπάρχουν διαθέσιμες επιλογές διάρκειας.</p>
                   <button
                     onClick={() => setShowPurchaseModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-6 py-3 bg-gray-600 text-white rounded-2xl hover:bg-gray-700 transition-all duration-300 font-semibold hover:scale-105"
                   >
-                    Ακύρωση
-                  </button>
-                  <button
-                    onClick={handleConfirmPurchase}
-                    disabled={!selectedDuration}
-                    className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Επιβεβαίωση
+                    <span className="flex items-center justify-center space-x-2">
+                      <span>🚪</span>
+                      <span>Κλείσιμο</span>
+                    </span>
                   </button>
                 </div>
+              )}
               </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-600">Δεν υπάρχουν διαθέσιμες επιλογές διάρκειας.</p>
+            </div>
+            
+            {/* Fixed bottom section with buttons */}
+            <div className="flex-shrink-0 p-6 pt-0 border-t border-gray-100">
+              <div className="flex space-x-3">
                 <button
                   onClick={() => setShowPurchaseModal(false)}
-                  className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 rounded-2xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 font-semibold text-gray-700 hover:scale-105"
                 >
-                  Κλείσιμο
+                  <span className="flex items-center justify-center space-x-2">
+                    <span>❌</span>
+                    <span>Ακύρωση</span>
+                  </span>
+                </button>
+                <button
+                  onClick={handleConfirmPurchase}
+                  disabled={!selectedDuration}
+                  className={`flex-1 px-6 py-3 rounded-2xl text-white font-bold transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                    selectedPackage.name === 'Ultimate' || selectedPackage.name === 'Ultimate Medium'
+                      ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg hover:shadow-xl'
+                      : selectedPackage.name === 'Pilates'
+                      ? 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 shadow-lg hover:shadow-xl'
+                      : selectedPackage.name === 'Free Gym'
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-lg hover:shadow-xl'
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-lg hover:shadow-xl'
+                  }`}
+                >
+                  <span className="flex items-center justify-center space-x-2">
+                    <span>✅</span>
+                    <span>Επιβεβαίωση</span>
+                  </span>
                 </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
@@ -1108,27 +1299,58 @@ const MembershipPage: React.FC = React.memo(() => {
 
       {/* Personal Training Modal */}
       {showPersonalTrainingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                <Zap className="h-8 w-8 text-white" />
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full mx-4 shadow-2xl overflow-hidden transform transition-all duration-300 scale-100">
+            {/* Header with gym-themed gradient */}
+            <div className="relative p-6 pb-4 bg-gradient-to-br from-purple-500 via-pink-500 to-indigo-500">
+              <div className="absolute inset-0 bg-black opacity-10"></div>
+              <div className="relative text-center">
+                <div className="w-20 h-20 mx-auto mb-4 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center animate-pulse">
+                  <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
+                    <span className="text-3xl">💪</span>
+                  </div>
+                </div>
+                
+                <h3 className="text-2xl font-bold text-white mb-2">
+                  Personal Training
+                </h3>
+                
+                <div className="flex items-center justify-center space-x-2 text-white/90">
+                  <span className="text-lg">🏋️‍♂️</span>
+                  <span className="text-sm font-medium">Εξειδικευμένη Προπόνηση</span>
+                  <span className="text-lg">🏋️‍♀️</span>
+                </div>
               </div>
-              
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Personal Training
-              </h3>
-              
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                Για να γίνετε μέλος στο Personal Training πρέπει να μεταβείτε στην γραμματεία του γυμναστηρίου για να ολοκληρώσετε την εγγραφή σας.
-              </p>
+            </div>
+            
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="flex items-center justify-center space-x-3 mb-4">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-lg">📋</span>
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-800">Εγγραφή στη Γραμματεία</h4>
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-teal-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-lg">✍️</span>
+                  </div>
+                </div>
+                
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-200">
+                  <p className="text-gray-700 leading-relaxed font-medium">
+                    Για να γίνετε μέλος στο <span className="font-bold text-purple-600">Personal Training</span> πρέπει να μεταβείτε στην γραμματεία του γυμναστηρίου για να ολοκληρώσετε την εγγραφή σας.
+                  </p>
+                </div>
+              </div>
               
               <div className="space-y-3">
                 <button
                   onClick={() => setShowPersonalTrainingModal(false)}
-                  className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-semibold"
+                  className="w-full bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 py-3 px-4 rounded-2xl hover:from-gray-200 hover:to-gray-300 transition-all duration-300 font-semibold hover:scale-105 shadow-md"
                 >
-                  Κατάλαβα
+                  <span className="flex items-center justify-center space-x-2">
+                    <span>👍</span>
+                    <span>Κατάλαβα</span>
+                  </span>
                 </button>
                 
                 <button
@@ -1138,11 +1360,28 @@ const MembershipPage: React.FC = React.memo(() => {
                     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(gymAddress)}`;
                     window.open(mapsUrl, '_blank');
                   }}
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center space-x-2"
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-3 px-4 rounded-2xl hover:from-blue-600 hover:to-purple-600 transition-all duration-300 font-bold hover:scale-105 shadow-lg hover:shadow-xl"
                 >
-                  <ExternalLink className="h-4 w-4" />
-                  <span>Βρείτε το Γυμναστήριο</span>
+                  <span className="flex items-center justify-center space-x-2">
+                    <span className="text-lg">🗺️</span>
+                    <span>Βρείτε το Γυμναστήριο</span>
+                    <ExternalLink className="h-4 w-4" />
+                  </span>
                 </button>
+              </div>
+              
+              {/* Gym info footer */}
+              <div className="mt-6 pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
+                  <div className="flex items-center space-x-1">
+                    <span>🏢</span>
+                    <span>Μαιάνδρου 43</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span>📍</span>
+                    <span>Κορδελιό Εύοσμος</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -3,7 +3,7 @@
  * This script runs the full test suite and outputs results
  */
 
-import { MembershipTestSuite } from '../tests/comprehensive/membershipPackageTestSuite';
+import { MembershipTestSuite } from '../tests/comprehensive/membershipPackageTestSuite.js';
 
 async function runTests() {
   console.log('🧪 COMPREHENSIVE MEMBERSHIP PACKAGE TEST RUNNER');

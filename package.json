@@ -9,8 +9,12 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test:comprehensive": "tsx scripts/runComprehensiveTests.ts",
+    "test:massive": "tsx scripts/runMassiveTests.ts",
+    "test:massive-simple": "node scripts/runMassiveTestsSimple.cjs",
+    "test:simple": "node scripts/basicTestRunner.cjs",
     "test:sql": "echo 'Run database/COMPREHENSIVE_MEMBERSHIP_TEST.sql in your database'",
-    "test:all": "npm run test:comprehensive && npm run test:sql"
+    "test:all": "npm run test:simple && npm run test:sql",
+    "test:all-massive": "npm run test:massive-simple"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -29,7 +33,7 @@
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
-    "tsx": "^4.6.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
   }

@@ -3,7 +3,7 @@
  * Tests all subscription packages, approval flows, weekly refills, and admin functions
  */
 
-import { supabase } from '@/config/supabase';
+import { supabase } from '../../src/config/supabase.js';
 
 // Test configuration
 const TEST_CONFIG = {
