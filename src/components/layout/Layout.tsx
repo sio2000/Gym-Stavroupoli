@@ -379,7 +379,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-dark-700 bg-dark-800 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-dark-700 bg-dark-800 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8 mobile-safe-top">
           <button
             type="button"
             className="-m-2.5 p-2.5 text-gray-300 lg:hidden"

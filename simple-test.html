@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeGym Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .success {
+            background: rgba(76, 175, 80, 0.3);
+            border: 2px solid #4CAF50;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .button {
+            background: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .button.secondary {
+            background: transparent;
+            border: 2px solid #4CAF50;
+            color: #4CAF50;
+        }
+        
+        .button.secondary:hover {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .info {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏋️‍♂️ FreeGym</h1>
+        <p>Η εφαρμογή FreeGym λειτουργεί επιτυχώς!</p>
+        
+        <div class="success">
+            <h3>✅ Επιτυχία!</h3>
+            <p>Το WebView φορτώνει σωστά και η εφαρμογή είναι έτοιμη για χρήση.</p>
+        </div>
+        
+        <div class="status" id="status">
+            <strong>Κατάσταση:</strong> Φόρτωση...
+        </div>
+        
+        <a href="https://www.getfitskg.com" class="button" target="_blank">
+            Άνοιγμα Live Site
+        </a>
+        
+        <button class="button secondary" onclick="testConnection()">
+            Test Connection
+        </button>
+        
+        <div class="info">
+            <p>FreeGym Mobile App v1.0</p>
+            <p>Powered by Capacitor & React</p>
+        </div>
+    </div>
+    
+    <script>
+        console.log('FreeGym Test Page Loaded Successfully!');
+        
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<strong>Κατάσταση:</strong> ${message}`;
+            statusDiv.style.background = type === 'success' ? 'rgba(76, 175, 80, 0.3)' : 
+                                       type === 'error' ? 'rgba(244, 67, 54, 0.3)' : 
+                                       'rgba(255,255,255,0.1)';
+        }
+        
+        function testConnection() {
+            updateStatus('Δοκιμάζω σύνδεση...', 'info');
+            
+            fetch('https://www.getfitskg.com')
+                .then(response => {
+                    if (response.ok) {
+                        updateStatus('✅ Σύνδεση επιτυχής!', 'success');
+                    } else {
+                        updateStatus('⚠️ Σύνδεση με προβλήματα', 'error');
+                    }
+                })
+                .catch(error => {
+                    updateStatus('❌ Σφάλμα σύνδεσης', 'error');
+                    console.error('Connection error:', error);
+                });
+        }
+        
+        // Test Capacitor
+        if (window.Capacitor) {
+            console.log('Capacitor is available!');
+            updateStatus('Capacitor: ✅ Available', 'success');
+        } else {
+            console.log('Capacitor not available (running in browser)');
+            updateStatus('Capacitor: ❌ Not Available', 'error');
+        }
+        
+        // Test WebView
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+            updateStatus('Platform: ✅ Native Mobile', 'success');
+        } else {
+            updateStatus('Platform: 🌐 Web Browser', 'info');
+        }
+        
+        // Auto test connection after 2 seconds
+        setTimeout(testConnection, 2000);
+    </script>
+</body>
+</html>
