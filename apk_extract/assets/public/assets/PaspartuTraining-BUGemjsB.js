@@ -1,0 +1,1 @@
+import{j as r}from"./index-CPD3QOvx.js";import t from"./PersonalTrainingSchedule-BpqGU0z9.js";import"./groupAssignmentApi-UnScOW0R.js";import"./book-open-CnQ_UX9P.js";import"./zap-DS2wJrNw.js";const n=()=>r.jsx(t,{});export{n as default};

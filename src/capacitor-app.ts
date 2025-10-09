@@ -12,7 +12,6 @@ export const initCapacitor = async () => {
       
       if (Capacitor.getPlatform() === 'android') {
         await StatusBar.setBackgroundColor({ color: '#000000' });
-        await StatusBar.setOverlaysWebView({ overlay: false });
       }
 
       // Απόκρυψη Splash Screen

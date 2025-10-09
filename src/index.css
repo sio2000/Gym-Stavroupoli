@@ -4,26 +4,11 @@
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply font-sans;
   }
   
   body {
-    background-color: #f9fafb;
-    color: #111827;
-  }
-  
-  /* Mobile safe area support */
-  @supports (padding: max(0px)) {
-    .mobile-safe-top {
-      padding-top: max(env(safe-area-inset-top), 20px);
-    }
-  }
-  
-  /* Fallback for devices without safe-area support */
-  @media (max-width: 768px) {
-    .mobile-safe-top {
-      padding-top: 20px;
-    }
+    @apply bg-gray-50 text-gray-900;
   }
 }
 

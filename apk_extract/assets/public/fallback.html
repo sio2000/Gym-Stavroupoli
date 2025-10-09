@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeGym - Εφαρμογή Γυμναστηρίου</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .logo {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin: 0 0 20px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        p {
+            font-size: 1.2em;
+            line-height: 1.6;
+            margin: 20px 0;
+        }
+        
+        .button {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: bold;
+            margin: 10px;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .features {
+            margin: 30px 0;
+            text-align: left;
+        }
+        
+        .feature {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        
+        .status {
+            background: rgba(76, 175, 80, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px solid rgba(76, 175, 80, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🏋️‍♂️</div>
+        <h1>FreeGym</h1>
+        
+        <div class="status">
+            <h3>✅ Η Εφαρμογή Λειτουργεί!</h3>
+            <p>Το FreeGym είναι έτοιμο για χρήση!</p>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <strong>📱 Mobile App:</strong> Εφαρμογή για Android & iOS
+            </div>
+            <div class="feature">
+                <strong>🏋️‍♂️ Διαχείριση Γυμναστηρίου:</strong> Μέλη, συνδρομές, προγράμματα
+            </div>
+            <div class="feature">
+                <strong>📊 Dashboard:</strong> Στατιστικά και αναφορές
+            </div>
+            <div class="feature">
+                <strong>🔐 Ασφάλεια:</strong> Αυθεντικοποίηση χρηστών
+            </div>
+        </div>
+        
+        <p><strong>Για πλήρη λειτουργία, χρησιμοποιήστε το web browser:</strong></p>
+        
+        <a href="https://www.getfitskg.com" class="button" target="_blank">
+            🌐 Άνοιγμα Web Site
+        </a>
+        
+        <button class="button" onclick="tryLoadApp()">
+            🔄 Δοκιμή Εφαρμογής
+        </button>
+        
+        <p style="font-size: 0.9em; opacity: 0.8; margin-top: 30px;">
+            FreeGym Mobile App v1.0<br>
+            Για υποστήριξη: info@freegym.com
+        </p>
+    </div>
+    
+    <script>
+        // Simple JavaScript that works on old WebView
+        console.log('FreeGym Fallback Page Loaded');
+        
+        // Add some basic interactivity
+        document.addEventListener('DOMContentLoaded', function() {
+            var buttons = document.querySelectorAll('.button');
+            buttons.forEach(function(button) {
+                button.addEventListener('click', function(e) {
+                    console.log('Button clicked: ' + this.textContent);
+                });
+            });
+        });
+        
+        // Function to try loading the app
+        function tryLoadApp() {
+            console.log('Attempting to load live app...');
+            // This will be handled by the native code if needed
+            alert('Για πλήρη λειτουργία, χρησιμοποιήστε το web browser στο https://www.getfitskg.com');
+        }
+    </script>
+</body>
+</html>

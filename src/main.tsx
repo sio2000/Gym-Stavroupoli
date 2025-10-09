@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
 import App from './App.tsx'
-import './index-v4.css'
+import './index.css'
 import { initCapacitor } from './capacitor-app'
 
 // Αρχικοποίηση Capacitor
