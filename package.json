@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build --config vite.production.config.ts",
     "build:mobile": "vite build",
     "build:simple": "vite build --config vite-simple.config.ts",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -66,6 +66,7 @@
     "eslint-plugin-react-refresh": "^0.4.5",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.14",
+    "terser": "^5.44.0",
     "tsx": "^4.20.6",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
