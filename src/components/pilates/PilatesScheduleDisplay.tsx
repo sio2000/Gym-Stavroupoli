@@ -417,14 +417,35 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500 border-r border-gray-200 min-w-[100px]">
                   Ώρα
                 </th>
-                {weekDates.map((date) => (
-                  <th key={date} className="px-4 py-3 text-center text-sm font-medium text-gray-500 border-r border-gray-200 min-w-[120px]">
-                    <div className="flex flex-col items-center">
-                      <span className="font-bold">{getDayName(date)}</span>
-                      <span className="text-xs text-gray-400">{formatDate(date)}</span>
-                    </div>
-                  </th>
-                ))}
+                {weekDates.map((date) => {
+                  const isToday = date === toLocalDateKey(new Date());
+                  return (
+                    <th key={date} className={`px-4 py-3 text-center text-sm font-medium border-r border-gray-200 min-w-[120px] relative ${
+                      isToday 
+                        ? 'bg-gradient-to-br from-orange-400 via-pink-500 to-purple-600 text-white shadow-lg animate-pulse' 
+                        : 'text-gray-500 bg-gray-50'
+                    }`}>
+                      {isToday && (
+                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                          <span className="text-xs">🔥</span>
+                        </div>
+                      )}
+                      <div className="flex flex-col items-center">
+                        <span className={`font-bold ${isToday ? 'text-white' : 'text-gray-900'}`}>{getDayName(date)}</span>
+                        <span className={`text-xs ${isToday ? 'text-white/90' : 'text-gray-400'}`}>{formatDate(date)}</span>
+                        {isToday && (
+                          <div className="mt-1 flex items-center space-x-1">
+                            <span className="text-xs">💪</span>
+                            <span className="inline-block px-1 py-0.5 text-[9px] rounded-full bg-white/20 text-white font-bold animate-pulse">
+                              ΣΗΜΕΡΑ
+                            </span>
+                            <span className="text-xs">🏋️‍♀️</span>
+                          </div>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -444,7 +465,9 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                     const booked = occVal?.booked ?? 0;
                     const cap = occVal?.cap ?? 4;
                     return (
-                      <td key={key} className="px-4 py-3 text-center border-r border-gray-200">
+                      <td key={key} className={`px-4 py-3 text-center border-r border-gray-200 relative ${
+                        date === toLocalDateKey(new Date()) ? 'bg-gradient-to-r from-orange-50/60 via-pink-50/60 to-purple-50/60 border-l-2 border-orange-400' : ''
+                      }`}>
                         {isWeekend ? (
                           <div className="w-full h-8 bg-gray-100 rounded flex items-center justify-center">
                             <span className="text-xs text-gray-400">Σαβ/Κυρ</span>

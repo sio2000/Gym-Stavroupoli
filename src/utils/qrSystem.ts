@@ -256,13 +256,13 @@ export async function validateQRCode(
 ): Promise<ScanResult> {
   try {
     // Check if feature is enabled
-    const { data: featureFlag } = await supabase
+    const { data: featureFlag, error: featureError } = await supabase
       .from('feature_flags')
       .select('is_enabled')
       .eq('name', 'FEATURE_QR_SYSTEM')
-      .single();
+      .maybeSingle();
 
-    if (!featureFlag?.is_enabled) {
+    if (featureError || !featureFlag?.is_enabled) {
       return { result: 'rejected', reason: 'system_disabled' };
     }
 
@@ -428,10 +428,20 @@ export async function isQRSystemEnabled(): Promise<boolean> {
       .from('feature_flags')
       .select('is_enabled')
       .eq('name', 'FEATURE_QR_SYSTEM')
-      .single();
+      .maybeSingle();
 
-    if (error) return false;
-    return data?.is_enabled || false;
+    if (error) {
+      console.error('Error checking QR system status:', error);
+      return false;
+    }
+    
+    // If no data found, assume system is disabled
+    if (!data) {
+      console.log('FEATURE_QR_SYSTEM flag not found, assuming disabled');
+      return false;
+    }
+    
+    return data.is_enabled || false;
   } catch (error) {
     console.error('Error checking QR system status:', error);
     return false;

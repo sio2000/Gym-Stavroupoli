@@ -238,6 +238,7 @@ const PilatesCalendar: React.FC = () => {
   const weekDates = getWeekDates();
   const timeSlots = getTimeSlots();
   const todayKey = toLocalDateKey(new Date());
+  
 
   const openConfirm = (slot: PilatesAvailableSlot) => {
     setPendingSlot(slot);
@@ -400,13 +401,32 @@ const PilatesCalendar: React.FC = () => {
                     return (
                       <th
                         key={dateStr}
-                        className={`px-3 sm:px-4 py-2 sm:py-3 text-center font-semibold min-w-[5.25rem] sm:min-w-32 ${isToday ? 'bg-blue-50 text-blue-800' : 'text-gray-700'}`}
+                        className={`px-3 sm:px-4 py-2 sm:py-3 text-center font-semibold min-w-[5.25rem] sm:min-w-32 relative ${
+                          isToday 
+                            ? 'bg-gradient-to-br from-orange-400 via-pink-500 to-purple-600 text-white shadow-lg animate-pulse' 
+                            : 'text-gray-700 bg-gray-50'
+                        }`}
                         title={isToday ? 'Σήμερα' : undefined}
                       >
-                        {formatDate(dateStr)}
                         {isToday && (
-                          <span className="ml-1.5 sm:ml-2 inline-block px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] rounded-full bg-blue-100 text-blue-700 align-middle">Σήμερα</span>
+                          <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                            <span className="text-xs">🔥</span>
+                          </div>
                         )}
+                        <div className="flex flex-col items-center">
+                          <span className={`${isToday ? 'text-white font-bold' : 'text-gray-700'}`}>
+                            {formatDate(dateStr)}
+                          </span>
+                          {isToday && (
+                            <div className="mt-1 flex items-center space-x-1">
+                              <span className="text-xs">💪</span>
+                              <span className="inline-block px-2 py-0.5 text-[9px] sm:text-[10px] rounded-full bg-white/20 text-white font-bold animate-pulse">
+                                ΣΗΜΕΡΑ
+                              </span>
+                              <span className="text-xs">🏋️‍♀️</span>
+                            </div>
+                          )}
+                        </div>
                       </th>
                     );
                   })}
@@ -425,7 +445,9 @@ const PilatesCalendar: React.FC = () => {
                       const isToday = dateStr === todayKey;
                       
                       return (
-                        <td key={`${dateStr}-${time}`} className={`px-2.5 sm:px-4 py-1.5 sm:py-3 text-center align-middle ${isToday ? 'bg-blue-50/40' : ''}`}>
+                        <td key={`${dateStr}-${time}`} className={`px-2.5 sm:px-4 py-1.5 sm:py-3 text-center align-middle relative ${
+                          isToday ? 'bg-gradient-to-r from-orange-50/60 via-pink-50/60 to-purple-50/60 border-l-2 border-orange-400' : ''
+                        }`}>
                           {isWeekendDay ? (
                             <div className="text-gray-400 text-[10px] sm:text-xs">
                               Σαβ/Κυρ
