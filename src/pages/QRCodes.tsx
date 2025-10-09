@@ -27,9 +27,9 @@ const QRCodeCanvas: React.FC<{ qrData: string; category: string }> = ({ qrData, 
   useEffect(() => {
     if (canvasRef.current && qrData) {
       QRCodeLib.toCanvas(canvasRef.current, qrData, {
-        width: 320, // μεγαλύτερα modules στην οθόνη
-        margin: 16, // ευρύ quiet-zone σύμφωνα με spec
-        errorCorrectionLevel: 'L', // ακόμα πιο αραιό pattern
+        width: 400,
+        margin: 2,
+        errorCorrectionLevel: 'H',
         color: {
           dark: '#000000',
           light: '#FFFFFF'
@@ -74,9 +74,9 @@ const ZoomableQRModal: React.FC<{
   useEffect(() => {
     if (canvasRef.current && qrData && isOpen) {
       QRCodeLib.toCanvas(canvasRef.current, qrData, {
-        width: 480,
-        margin: 24,
-        errorCorrectionLevel: 'L',
+        width: 600,
+        margin: 2,
+        errorCorrectionLevel: 'H',
         color: {
           dark: '#000000',
           light: '#FFFFFF'
@@ -263,7 +263,12 @@ const QRCodes: React.FC = () => {
       if (isEnabled) {
         const codes = await getUserQRCodes(user.id);
         console.log('Loaded QR codes:', codes);
-        setQrCodes(codes);
+        // Add qrData field from qr_token for rendering
+        const codesWithData = codes.map(code => ({
+          ...code,
+          qrData: code.qr_token
+        }));
+        setQrCodes(codesWithData);
       }
     } catch (error) {
       console.error('Error loading QR codes:', error);
@@ -341,8 +346,9 @@ const QRCodes: React.FC = () => {
       // Create QR code image
       const canvas = document.createElement('canvas');
       await QRCodeLib.toCanvas(canvas, qrData, {
-        width: 480,
-        margin: 24,
+        width: 600,
+        margin: 2,
+        errorCorrectionLevel: 'H',
         color: {
           dark: '#000000',
           light: '#FFFFFF'

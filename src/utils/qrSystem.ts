@@ -191,9 +191,8 @@ export async function generateQRCode(
       .maybeSingle();
 
     if (existingQR && !existingError) {
-      // Return existing QR code for this category
-      const qrData = generateQRToken(existingQR.id, userId, existingQR.category);
-      return { qrCode: existingQR, qrData };
+      // Return existing QR code for this category with its existing token
+      return { qrCode: existingQR, qrData: existingQR.qr_token };
     }
     
     // If there's an error checking existing QR, log it but continue

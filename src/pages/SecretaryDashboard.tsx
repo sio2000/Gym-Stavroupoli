@@ -1511,7 +1511,7 @@ const SecretaryDashboard: React.FC = () => {
     const { data: userProfile, error: userError } = await supabase
       .from('user_profiles')
       .select('id, email, first_name, last_name')
-      .eq('user_id', qrCode.user_id)
+      .eq('id', qrCode.user_id)
       .maybeSingle();
 
     console.log('🔍 [Ultra Simple QR] User profile query result:', userProfile ? 'Found' : 'Not found', userError ? 'Error' : 'No error');
