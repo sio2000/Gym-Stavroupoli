@@ -11,7 +11,7 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({ isOpen, onClose, packageNam
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 mobile-safe-top mobile-safe-bottom">
       <div className="bg-dark-800 rounded-2xl shadow-2xl max-w-md w-full mx-2 sm:mx-4 transform transition-all duration-300 ease-out max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-start justify-between p-4 sm:p-6 pb-4">

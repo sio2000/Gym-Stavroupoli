@@ -266,18 +266,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const currentNav = getCurrentNavigation();
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black mobile-safe-top mobile-full-height mobile-no-overflow">
       {/* Mobile sidebar */}
       <div className={cn(
         "fixed inset-0 z-50 lg:hidden",
         sidebarOpen ? "block" : "hidden"
       )}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-dark-900">
+        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-dark-900 mobile-safe-top mobile-safe-bottom">
           <div className="flex h-16 items-center justify-between px-4 border-b border-dark-700">
             <div className="flex items-center">
               <img 
-                src="/logo.png" 
+                src="/logo2.png" 
                 alt="Get Fit Logo" 
                 className="h-24 w-24 rounded-lg object-contain"
               />
@@ -333,7 +333,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex h-16 items-center px-4 border-b border-dark-700">
             <div className="flex items-center">
               <img 
-                src="/logo.png" 
+                src="/logo2.png" 
                 alt="Get Fit Logo" 
                 className="h-24 w-24 rounded-lg object-contain"
               />
@@ -379,7 +379,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-dark-700 bg-dark-800 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-dark-700 bg-dark-800 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8 mobile-safe-top">
           <button
             type="button"
             className="-m-2.5 p-2.5 text-gray-300 lg:hidden"
@@ -407,8 +407,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* Page content */}
-        <main className="py-6 bg-black">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <main className="py-6 bg-black mobile-container">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mobile-container">
             {children}
           </div>
         </main>

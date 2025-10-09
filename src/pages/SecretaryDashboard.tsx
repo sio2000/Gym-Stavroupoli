@@ -2525,7 +2525,7 @@ const SecretaryDashboard: React.FC = () => {
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
               <img 
-                src="/logo.png" 
+                src="/logo2.png" 
                 alt="Get Fit Logo" 
                 className="h-32 w-32 rounded-lg object-contain"
               />

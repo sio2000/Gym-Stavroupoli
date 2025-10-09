@@ -29,7 +29,7 @@ const PopupModal: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 mobile-safe-top mobile-safe-bottom">
       <div className="bg-dark-800 rounded-xl shadow-xl border border-dark-600 w-full max-w-md max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-dark-600">
           <h3 className="text-lg font-bold text-white">{title}</h3>

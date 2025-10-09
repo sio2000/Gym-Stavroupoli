@@ -26,7 +26,7 @@ const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = React.memo
   // console.log('[EmailConfirmationPopup] Rendering popup');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4 overflow-y-auto mobile-safe-top mobile-safe-bottom">
       <div className="bg-dark-800 rounded-2xl shadow-2xl max-w-md w-full mx-2 sm:mx-4 my-4 sm:my-0 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 sm:p-6 text-white">
