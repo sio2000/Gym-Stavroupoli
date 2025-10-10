@@ -8,12 +8,6 @@ workflows:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.freegym.app"
-        APPLE_ID: "karapanosnikos9@gmail.com"
-        APPLE_ID_PASSWORD: $APPLE_ID_PASSWORD
-        APPLE_ID_PASSWORD_ITEM: $APPLE_ID_PASSWORD_ITEM
-        APPLE_ID_PASSWORD_ISSUER_ID: $APPLE_ID_PASSWORD_ISSUER_ID
-        APPLE_ID_PASSWORD_KEY_IDENTIFIER: $APPLE_ID_PASSWORD_KEY_IDENTIFIER
-        APPLE_ID_PASSWORD_PRIVATE_KEY: $APPLE_ID_PASSWORD_PRIVATE_KEY
       node: 20
       xcode: 15.0
       cocoapods: default
@@ -33,13 +27,7 @@ workflows:
       
       - name: Set up code signing settings on Xcode project
         script: |
-          xcode-project use-profiles \
-            --apple-id "$APPLE_ID" \
-            --apple-id-password "$APPLE_ID_PASSWORD" \
-            --apple-id-password-item "$APPLE_ID_PASSWORD_ITEM" \
-            --apple-id-password-issuer-id "$APPLE_ID_PASSWORD_ISSUER_ID" \
-            --apple-id-password-key-identifier "$APPLE_ID_PASSWORD_KEY_IDENTIFIER" \
-            --apple-id-password-private-key "$APPLE_ID_PASSWORD_PRIVATE_KEY"
+          xcode-project use-profiles
       
       - name: Build ipa for distribution
         script: |
