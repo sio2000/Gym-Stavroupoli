@@ -11,7 +11,7 @@ workflows:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.freegym.app"
-      node: 18
+      node: 20
       xcode: 15.0
       cocoapods: default
     
@@ -72,7 +72,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-      node: 18
+      node: 20
       xcode: 15.0
       cocoapods: default
     
