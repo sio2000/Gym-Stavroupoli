@@ -28,6 +28,33 @@ workflows:
       - name: Build ipa for development (no code signing)
         script: |
           cd ios/App
+          
+          # Create export options plist file
+          cat > build/ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>development</string>
+            <key>teamID</key>
+            <string></string>
+            <key>compileBitcode</key>
+            <false/>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <false/>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>signingCertificate</key>
+            <string></string>
+            <key>provisioningProfiles</key>
+            <dict></dict>
+          </dict>
+          </plist>
+          EOF
+          
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
@@ -42,7 +69,7 @@ workflows:
             -exportArchive \
             -archivePath build/App.xcarchive \
             -exportPath build/ipa \
-            -exportOptionsPlist /dev/null \
+            -exportOptionsPlist build/ExportOptions.plist \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
