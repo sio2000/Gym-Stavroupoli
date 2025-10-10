@@ -203,6 +203,7 @@ const SecretaryDashboard: React.FC = () => {
     deleteThirdInstallment?: boolean;
   }}>({});
   const [requestProgramApprovalStatus, setRequestProgramApprovalStatus] = useState<{[requestId: string]: 'none' | 'approved' | 'rejected' | 'pending'}>({});
+  const [requestProgramOptionsSaved, setRequestProgramOptionsSaved] = useState<{[requestId: string]: boolean}>({});
   
   // Personal Training state variables
   const [selectedUser, setSelectedUser] = useState<UserWithPersonalTraining | null>(null);
@@ -1000,6 +1001,12 @@ const SecretaryDashboard: React.FC = () => {
             setRequestFrozenOptions(newFrozenOptions);
           }
         }
+        
+        // Mark that program options have been saved for this request
+        setRequestProgramOptionsSaved(prev => ({
+          ...prev,
+          [requestId]: true
+        }));
         
         // Reset approval status
         setRequestProgramApprovalStatus(prev => ({
@@ -3242,25 +3249,42 @@ const SecretaryDashboard: React.FC = () => {
                       {/* Κουμπιά Έγκριση/Απόρριψη - μόνο για pending αιτήματα ή αιτήματα με δόσεις που είναι pending */}
                       {(!request.has_installments || request.status === 'pending') && (
                         <div className="flex flex-col space-y-3 ml-4">
-                          <button
-                            onClick={() => handleApproveRequest(request.id)}
-                            className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-                          >
-                            <Check className="h-4 w-4 inline mr-2" />
-                            ✅ Έγκριση
-                          </button>
-                          <button
-                            onClick={() => {
-                              const reason = prompt('Λόγος απόρριψης:');
-                              if (reason) {
-                                handleRejectRequest(request.id);
-                              }
-                            }}
-                            className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-                          >
-                            <X className="h-4 w-4 inline mr-2" />
-                            ❌ Απόρριψη
-                          </button>
+                          {/* Show approval/rejection buttons only after program options have been saved */}
+                          {requestProgramOptionsSaved[request.id] ? (
+                            <>
+                              <button
+                                onClick={() => handleApproveRequest(request.id)}
+                                className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                <Check className="h-4 w-4 inline mr-2" />
+                                ✅ Έγκριση
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const reason = prompt('Λόγος απόρριψης:');
+                                  if (reason) {
+                                    handleRejectRequest(request.id);
+                                  }
+                                }}
+                                className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                              >
+                                <X className="h-4 w-4 inline mr-2" />
+                                ❌ Απόρριψη
+                              </button>
+                            </>
+                          ) : (
+                            <div className="flex flex-col space-y-2">
+                              <div className="px-6 py-3 bg-gray-600 text-gray-300 rounded-xl text-sm font-medium shadow-lg cursor-not-allowed opacity-75">
+                                <span className="flex items-center">
+                                  <span className="mr-2">🔒</span>
+                                  Κουμπιά Έγκριση/Απόρριψη
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-400 text-center max-w-32">
+                                Αποθηκεύστε πρώτα τα Program Options για να εμφανιστούν τα κουμπιά έγκρισης/απόρριψης
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                       
@@ -3591,6 +3615,11 @@ const SecretaryDashboard: React.FC = () => {
                           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                           Αποθήκευση Program Options
                         </button>
+                        {requestProgramApprovalStatus[request.id] === 'none' && (
+                          <p className="text-sm text-gray-400 mt-2 text-center w-full">
+                            Επιλέξτε Έγκριση, Απόρριψη ή Αναμονή για να αποθηκεύσετε τα Program Options
+                          </p>
+                        )}
                       </div>
                     </div>
                     )}

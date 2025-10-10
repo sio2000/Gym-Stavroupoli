@@ -79,6 +79,70 @@ workflows:
       #   beta_groups:
       #     - Beta Testers
 
+  # Signed iOS Build (για πραγματικό iPhone)
+  ios-signed:
+    name: iOS Signed Build
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    environment:
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.freegym.app"
+      node: 20
+      xcode: 15.0
+      cocoapods: default
+      # Χρειάζεσαι Apple Developer Account για αυτά
+      # ios_signing:
+      #   distribution_type: development
+      #   bundle_identifier: "com.freegym.app"
+    
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm ci
+      
+      - name: Build web assets
+        script: |
+          npm run build:mobile
+      
+      - name: Sync Capacitor
+        script: |
+          npx cap sync ios
+      
+      - name: Build signed .ipa
+        script: |
+          cd ios/App
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            -archivePath build/App.xcarchive \
+            archive
+          
+          # Export .ipa from archive
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportPath build/ipa \
+            -exportOptionsPlist exportOptions.plist
+          
+          # Verify the .ipa was created
+          ls -la build/ipa/
+    
+    artifacts:
+      - ios/App/build/ipa/*.ipa
+    
+    publishing:
+      email:
+        recipients:
+          - theoharis@getfitskg.com
+        notify:
+          success: true
+          failure: true
+
   # Δωρεάν Development Build (χωρίς code signing)
   ios-development:
     name: iOS Development Build
@@ -114,7 +178,18 @@ workflows:
             -sdk iphonesimulator \
             -configuration Debug \
             -derivedDataPath build
+          
+          # Verify the .app was created
+          ls -la build/Build/Products/Debug-iphonesimulator/
       
     artifacts:
       - ios/App/build/Build/Products/Debug-iphonesimulator/*.app
+    
+    publishing:
+      email:
+        recipients:
+          - theoharis@getfitskg.com
+        notify:
+          success: true
+          failure: true
 
