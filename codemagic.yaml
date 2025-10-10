@@ -29,6 +29,9 @@ workflows:
         script: |
           cd ios/App
           
+          # Create build directory first
+          mkdir -p build
+          
           # Create export options plist file
           cat > build/ExportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
