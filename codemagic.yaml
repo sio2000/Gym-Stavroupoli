@@ -44,11 +44,19 @@ workflows:
           
           # Create .ipa manually from .app
           mkdir -p build/ipa
-          cd build/Build/Products/Release-iphoneos
-          cp -r App.app ../../ipa/
-          cd ../../ipa
+          
+          # Copy the .app to the ipa directory
+          cp -r build/Build/Products/Release-iphoneos/App.app build/ipa/
+          
+          # Create the .ipa file
+          cd build/ipa
           zip -r App.ipa App.app
+          
+          # Clean up
           rm -rf App.app
+          
+          # Verify the .ipa was created
+          ls -la App.ipa
     
     artifacts:
       - ios/App/build/ipa/*.ipa
