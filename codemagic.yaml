@@ -45,13 +45,13 @@ workflows:
           # Create .ipa manually from .app
           mkdir -p build/ipa
           cd build/Build/Products/Release-iphoneos
-          cp -r App.app build/ipa/
-          cd build/ipa
+          cp -r App.app ../../ipa/
+          cd ../../ipa
           zip -r App.ipa App.app
           rm -rf App.app
     
     artifacts:
-      - ios/App/build/ipa/App.ipa
+      - ios/App/build/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
     
     publishing:
