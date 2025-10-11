@@ -108,70 +108,56 @@ const EmailConfirmationPopup: React.FC<EmailConfirmationPopupProps> = React.memo
           <div className="flex justify-center">
             <button
               onClick={() => {
-                // Try to open the device's mail app
+                // Διορθωμένος κώδικας για άνοιγμα email app
                 const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                const isAndroid = /Android/.test(navigator.userAgent);
+                
+                console.log('[EmailConfirmationPopup] Opening mail app...');
+                console.log('[EmailConfirmationPopup] Device:', { isMobile, isIOS, isAndroid });
                 
                 if (isMobile) {
-                  // Mobile device - use a more reliable approach
-                  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                  const isAndroid = /Android/.test(navigator.userAgent);
-                  
-                  let opened = false;
-                  
                   if (isIOS) {
-                    // iOS - try to open Mail app directly
-                    try {
-                      // Try to open Mail app with inbox
-                      window.location.href = 'message://';
-                      opened = true;
-                    } catch (e) {
-                      try {
-                        // Fallback to mailto
-                        window.location.href = 'mailto:';
-                        opened = true;
-                      } catch (e2) {
-                        console.log('[EmailConfirmationPopup] iOS mail attempts failed');
-                      }
-                    }
-                  } else if (isAndroid) {
-                    // Android - try Gmail first, then generic mailto
-                    try {
-                      // Try Gmail app first
-                      window.location.href = 'googlegmail://co';
-                      opened = true;
-                    } catch (e) {
-                      try {
-                        // Try generic mail app
-                        window.location.href = 'mailto:';
-                        opened = true;
-                      } catch (e2) {
-                        console.log('[EmailConfirmationPopup] Android mail attempts failed');
-                      }
-                    }
-                  } else {
-                    // Other mobile devices - try mailto
-                    try {
+                    // iOS - Χρησιμοποιούμε το σωστό URL scheme για Mail app
+                    // Σημείωση: 'message:' (χωρίς //) είναι το σωστό URL scheme για iOS Mail
+                    console.log('[EmailConfirmationPopup] iOS - Trying Mail app with message:');
+                    
+                    // Δοκιμάζουμε πρώτα το native Mail app URL
+                    const mailUrl = 'message:';
+                    window.location.href = mailUrl;
+                    
+                    // Fallback: Αν το message: δεν λειτουργήσει, το mailto: θα δουλέψει πάντα
+                    setTimeout(() => {
+                      console.log('[EmailConfirmationPopup] iOS fallback to mailto:');
                       window.location.href = 'mailto:';
-                      opened = true;
-                    } catch (e) {
-                      console.log('[EmailConfirmationPopup] Generic mobile mail attempt failed');
-                    }
-                  }
-                  
-                  if (!opened) {
-                    // Show instructions if nothing worked
-                    alert('Παρακαλώ ανοίξτε χειροκίνητα την εφαρμογή mail σας για να ελέγξετε τα εισερχόμενά σας.');
+                    }, 500);
+                    
+                  } else if (isAndroid) {
+                    // Android - Χρησιμοποιούμε mailto: που είναι universal
+                    // Το Android OS θα εμφανίσει picker με όλες τις email apps
+                    console.log('[EmailConfirmationPopup] Android - Using mailto: (universal)');
+                    window.location.href = 'mailto:';
+                    
+                  } else {
+                    // Άλλες mobile συσκευές - χρησιμοποιούμε το universal mailto:
+                    console.log('[EmailConfirmationPopup] Other mobile - Using mailto:');
+                    window.location.href = 'mailto:';
                   }
                 } else {
-                  // Desktop - try to open default mail client
-                  try {
-                    window.location.href = 'mailto:';
-                  } catch (e) {
-                    alert('Παρακαλώ ανοίξτε την εφαρμογή mail σας για να ελέγξετε τα εισερχόμενά σας.');
-                  }
+                  // Desktop - ανοίγει το default mail client του λειτουργικού
+                  console.log('[EmailConfirmationPopup] Desktop - Using mailto:');
+                  window.location.href = 'mailto:';
                 }
                 
-                onClose();
+                // Δείχνουμε ένα φιλικό μήνυμα
+                setTimeout(() => {
+                  console.log('[EmailConfirmationPopup] Mail app should be opening...');
+                }, 100);
+                
+                // Κλείνουμε το popup μετά από λίγο
+                setTimeout(() => {
+                  onClose();
+                }, 800);
               }}
               className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center space-x-2 text-sm sm:text-base"
             >
