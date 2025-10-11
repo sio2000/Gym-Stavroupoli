@@ -81,7 +81,9 @@ const RegisterForm: React.FC = () => {
     try {
       const { confirmPassword, ...registerData } = formData;
       await register(registerData);
-      navigate('/');
+      // Redirect to login page after successful registration
+      // User must confirm email and then login
+      navigate('/login');
     } catch (error) {
       // Error is handled in AuthContext
     }

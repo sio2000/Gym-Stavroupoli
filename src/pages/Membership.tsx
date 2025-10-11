@@ -428,10 +428,17 @@ const MembershipPage: React.FC = React.memo(() => {
     pkg.name === 'Free Gym' || pkg.name === 'Pilates' || pkg.name === 'Ultimate' || pkg.name === 'Ultimate Medium'
   );
 
+  // Sort database packages to ensure Ultra Gym (Ultimate Medium) comes before Ultimate
+  const sortedDatabasePackages = filteredDatabasePackages.sort((a, b) => {
+    if (a.name === 'Ultimate Medium' && b.name === 'Ultimate') return -1;
+    if (a.name === 'Ultimate' && b.name === 'Ultimate Medium') return 1;
+    return 0;
+  });
+
   // Combine filtered packages
   const allPackages = [
     ...filteredMockPackages, 
-    ...filteredDatabasePackages
+    ...sortedDatabasePackages
   ];
 
   // Debug logging - REMOVED TO PREVENT UNNECESSARY RENDERS

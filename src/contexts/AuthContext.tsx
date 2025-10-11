@@ -625,7 +625,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (data: RegisterData): Promise<void> => {
     try {
       setIsLoading(true);
-      const { email, password, firstName, lastName, phone, language, referralCode } = data;
+      const { email, password, firstName, lastName, phone, language } = data;
 
       console.log('[Auth] ===== REGISTRATION STARTED =====');
       console.log('[Auth] Registering user:', email);
@@ -657,26 +657,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (authData.user) {
         console.log('[Auth] User created successfully:', authData.user.email);
-        console.log('[Auth] Email confirmed:', authData.user.email_confirmed_at ? 'Yes' : 'No');
+        console.log('[Auth] Email confirmed at:', authData.user.email_confirmed_at);
         
-        // Check if email confirmation is required
-        if (authData.user.email_confirmed_at === null) {
-          console.log('[Auth] ===== EMAIL CONFIRMATION REQUIRED =====');
-          toast.success('Εγγραφή ολοκληρώθηκε! Ελέγξτε το email σας για επιβεβαίωση.');
-          return;
-        }
-
-        console.log('[Auth] ===== EMAIL ALREADY CONFIRMED =====');
-        console.log('[Auth] Proceeding with profile creation...');
-
-        // If email is already confirmed, proceed with profile creation
+        // ΣΗΜΑΝΤΙΚΟ: Δημιουργούμε το profile στη βάση ΠΡΙΝ κάνουμε sign out
+        // Έτσι όταν ο χρήστης κάνει confirm το email και login, το profile θα υπάρχει
+        console.log('[Auth] ===== CREATING USER PROFILE =====');
+        
         // Περιμένουμε να δημιουργηθεί το profile από το trigger
+        console.log('[Auth] Waiting for trigger to create profile...');
         const profileReady = await waitForProfile(authData.user.id);
-
-        // Αν δεν προλάβει, κάνουμε ένα ασφαλές insert με όλα τα στοιχεία
+        
+        // Αν το trigger δεν δημιούργησε το profile, το δημιουργούμε χειροκίνητα
         if (!profileReady) {
           console.log('[Auth] Trigger did not create profile, creating manually...');
-          const { error: insertFallbackError } = await supabase
+          const { error: insertError } = await supabase
             .from('user_profiles')
             .insert({
               user_id: authData.user.id,
@@ -687,10 +681,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               role: 'user',
               language: language || 'el'
             });
-
-          if (insertFallbackError) {
-            console.error('Profile insert fallback error:', insertFallbackError);
-            // Αν αποτύχει και το fallback, δημιουργούμε έναν minimal user
+          
+          if (insertError) {
+            console.error('[Auth] Error creating profile:', insertError);
+            // Προσπαθούμε μία ακόμα φορά με minimal data
             const { error: minimalError } = await supabase
               .from('user_profiles')
               .insert({
@@ -703,33 +697,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               });
             
             if (minimalError) {
-              console.error('Minimal profile insert error:', minimalError);
-            }
-          }
-        }
-
-        // Φόρτωση προφίλ
-        await loadUserProfile(authData.user.id);
-        
-        // Process referral code if provided
-        if (referralCode?.trim()) {
-          try {
-            const { processReferralSignup } = await import('@/services/referralService');
-            const result = await processReferralSignup(authData.user.id, referralCode.trim());
-            
-            if (result.success) {
-              toast.success(`Ευχαριστούμε! ${result.message}`);
+              console.error('[Auth] Minimal profile insert error:', minimalError);
             } else {
-              toast.error(result.message);
+              console.log('[Auth] Minimal profile created successfully');
             }
-          } catch (referralError) {
-            console.error('Error processing referral:', referralError);
-            // Don't fail registration if referral processing fails
-            toast.error('Σφάλμα επεξεργασίας κωδικού παραπομπής, αλλά η εγγραφή ολοκληρώθηκε επιτυχώς.');
+          } else {
+            console.log('[Auth] Profile created successfully');
           }
+        } else {
+          console.log('[Auth] Profile created by trigger');
         }
         
-        toast.success('Εγγραφή ολοκληρώθηκε επιτυχώς!');
+        console.log('[Auth] ===== PROFILE CREATION COMPLETED =====');
+        
+        // Τώρα κάνουμε sign out ώστε ο χρήστης να ΜΗΝ μπαίνει αυτόματα μέσα
+        // Θα πρέπει να επιβεβαιώσει το email του και μετά να κάνει login
+        console.log('[Auth] ===== SIGNING OUT USER AFTER REGISTRATION =====');
+        console.log('[Auth] User must confirm email and then login manually');
+        
+        // Sign out αμέσως για να μην υπάρχει session
+        await supabase.auth.signOut();
+        
+        // Clear any auth data
+        setUser(null);
+        localStorage.removeItem('freegym_user');
+        
+        console.log('[Auth] ===== USER SIGNED OUT SUCCESSFULLY =====');
+        console.log('[Auth] User must now check email and login');
+        
+        toast.success('Εγγραφή ολοκληρώθηκε! Ελέγξτε το email σας για επιβεβαίωση και στη συνέχεια συνδεθείτε.');
+        
+        // Note: Referral code processing will happen after email confirmation and first login
       }
     } catch (error) {
       console.error('Registration error:', error);
