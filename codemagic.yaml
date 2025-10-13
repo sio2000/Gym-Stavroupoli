@@ -17,10 +17,14 @@ workflows:
       xcode: 15.0
       cocoapods: default
       
-      # AUTOMATIC CODE SIGNING - ΧΡΗΣΗ DISTRIBUTION TYPE
+      # AUTOMATIC CODE SIGNING - ΧΡΗΣΗ APP STORE CONNECT API
       ios_signing:
         distribution_type: app_store
         bundle_identifier: "com.siozostheoharis.getfit"
+        # Manual Apple Developer Portal integration
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_PRIVATE_KEY_ID
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
     
     scripts:
       - name: Install npm dependencies
@@ -37,7 +41,8 @@ workflows:
       
       - name: Set up code signing settings on Xcode project
         script: |
-          xcode-project use-profiles
+          # Αυτό το step αφαιρείται - το CodeMagic θα χειριστεί το code signing αυτόματα
+          echo "Code signing θα χειριστεί αυτόματα από το CodeMagic με App Store Connect API"
       
       - name: Install Cocoapods dependencies
         script: |
@@ -85,8 +90,10 @@ workflows:
           echo "🚀 Ξεκινάω το build για App Store..."
           echo "📦 Bundle ID: $BUNDLE_ID"
           echo "🏢 Team ID: $APPLE_TEAM_ID"
+          echo "🔑 App Store Connect API Key ID: $APP_STORE_CONNECT_PRIVATE_KEY_ID"
+          echo "🔑 Issuer ID: $APP_STORE_CONNECT_ISSUER_ID"
           
-          # Build για App Store με AUTOMATIC code signing
+          # Build για App Store - το CodeMagic θα χειριστεί το code signing
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
@@ -96,8 +103,7 @@ workflows:
             archive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_STYLE=Automatic \
-            -allowProvisioningUpdates
+            CODE_SIGN_STYLE=Automatic
       
       - name: Export IPA για App Store
         script: |
