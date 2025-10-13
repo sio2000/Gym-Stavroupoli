@@ -17,10 +17,12 @@ workflows:
       xcode: 15.0
       cocoapods: default
       
-      # AUTOMATIC CODE SIGNING
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: "com.siozostheoharis.getfit"
+            # AUTOMATIC CODE SIGNING - ΠΡΕΠΕΙ ΝΑ ΕΝΕΡΓΟΠΟΙΗΘΕΙ ΚΑΙ ΣΤΟ CODEMAGIC UI
+            ios_signing:
+              distribution_type: app_store
+              bundle_identifier: "com.siozostheoharis.getfit"
+              # ΣΗΜΕΙΩΣΗ: Πρέπει να ενεργοποιήσεις το Automatic Code Signing στο Codemagic UI
+              # Applications → Gym-Stavroupoli → Settings → Code signing identities → iOS code signing
       
     scripts:
       - name: Install npm dependencies
@@ -40,24 +42,78 @@ workflows:
           cd ios/App
           pod install --repo-update
       
+      - name: Επαλήθευση Code Signing
+        script: |
+          echo "🔍 Ελέγχω αν υπάρχουν τα provisioning profiles..."
+          security find-identity -v -p codesigning
+          
+          echo "📱 Bundle ID: $BUNDLE_ID"
+          echo "🏢 Team ID: $APPLE_TEAM_ID"
+          
+          # Έλεγχος αν υπάρχουν profiles
+          if security find-identity -v -p codesigning | grep -q "$APPLE_TEAM_ID"; then
+            echo "✅ Βρέθηκαν certificates για το Team ID $APPLE_TEAM_ID"
+          else
+            echo "❌ ΔΕΝ βρέθηκαν certificates για το Team ID $APPLE_TEAM_ID"
+            echo "🚨 ΠΡΕΠΕΙ να ενεργοποιήσεις το Automatic Code Signing στο Codemagic UI!"
+            echo "📋 Βήματα: Applications → Gym-Stavroupoli → Settings → Code signing identities → iOS code signing"
+          fi
+
       - name: Build iOS App for App Store
         script: |
           cd ios/App
           
-          # Build για App Store - το Codemagic θα χειριστεί το code signing
+          echo "🚀 Ξεκινάω το build για App Store..."
+          echo "📦 Bundle ID: $BUNDLE_ID"
+          echo "🏢 Team ID: $APPLE_TEAM_ID"
+          
+          # Build για App Store με automatic code signing
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
             -archivePath build/App.xcarchive \
-            archive
+            archive \
+            -allowProvisioningUpdates \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            CODE_SIGN_STYLE=Automatic
       
       - name: Export IPA για App Store
         script: |
           cd ios/App
           
-          # Το Codemagic θα εξάγει το IPA αυτόματα με βάση τις ρυθμίσεις ios_signing
+          echo "📦 Εξάγω το .ipa αρχείο..."
+          
+          # Δημιουργία export options plist για App Store
+          cat > /tmp/export_options.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>$APPLE_TEAM_ID</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+            <key>destination</key>
+            <string>export</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$BUNDLE_ID</key>
+              <string>match AppStore $BUNDLE_ID</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+          
+          # Export το IPA
           xcodebuild -exportArchive \
             -archivePath build/App.xcarchive \
             -exportOptionsPlist /tmp/export_options.plist \
