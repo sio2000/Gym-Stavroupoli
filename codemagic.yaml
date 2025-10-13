@@ -17,12 +17,14 @@ workflows:
       xcode: 15.0
       cocoapods: default
       
-      # AUTOMATIC CODE SIGNING - ΠΡΕΠΕΙ ΝΑ ΕΝΕΡΓΟΠΟΙΗΘΕΙ ΚΑΙ ΣΤΟ CODEMAGIC UI
+      # AUTOMATIC CODE SIGNING - ΧΡΗΣΗ ΣΥΓΚΕΚΡΙΜΕΝΟΥ CERTIFICATE ΚΑΙ PROFILE
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: "com.siozostheoharis.getfit"
-        # ΣΗΜΕΙΩΣΗ: Πρέπει να ενεργοποιήσεις το Automatic Code Signing στο Codemagic UI
-        # Applications → Gym-Stavroupoli → Settings → Code signing identities → iOS code signing
+        provisioning_profiles:
+          - profile: GetFit_AppStore_Profile
+            environment_variable: PROVISIONING_PROFILE_PATH
+        certificates:
+          - certificate: developer2_certificate
+            environment_variable: CERTIFICATE_PATH
     
     scripts:
       - name: Install npm dependencies
@@ -36,6 +38,10 @@ workflows:
       - name: Sync Capacitor
         script: |
           npx cap sync ios
+      
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
       
       - name: Install Cocoapods dependencies
         script: |
