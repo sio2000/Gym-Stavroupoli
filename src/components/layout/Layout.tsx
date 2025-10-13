@@ -277,7 +277,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex h-16 items-center justify-between px-4 border-b border-dark-700">
             <div className="flex items-center">
               <img 
-                src="/logo2.png" 
+                src="/logo.png" 
                 alt="Get Fit Logo" 
                 className="h-24 w-24 rounded-lg object-contain"
               />
@@ -333,7 +333,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex h-16 items-center px-4 border-b border-dark-700">
             <div className="flex items-center">
               <img 
-                src="/logo2.png" 
+                src="/logo.png" 
                 alt="Get Fit Logo" 
                 className="h-24 w-24 rounded-lg object-contain"
               />

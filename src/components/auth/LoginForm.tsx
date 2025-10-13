@@ -62,7 +62,7 @@ const LoginForm: React.FC = () => {
         <div className="text-center">
           <div className="mx-auto h-48 w-48 flex items-center justify-center">
             <img 
-              src="/logo2.png" 
+              src="/logo.png" 
               alt="Get Fit Logo" 
               className="h-44 w-44 object-contain"
             />
