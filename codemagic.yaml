@@ -17,13 +17,13 @@ workflows:
       xcode: 15.0
       cocoapods: default
       
-            # AUTOMATIC CODE SIGNING - ΠΡΕΠΕΙ ΝΑ ΕΝΕΡΓΟΠΟΙΗΘΕΙ ΚΑΙ ΣΤΟ CODEMAGIC UI
-            ios_signing:
-              distribution_type: app_store
-              bundle_identifier: "com.siozostheoharis.getfit"
-              # ΣΗΜΕΙΩΣΗ: Πρέπει να ενεργοποιήσεις το Automatic Code Signing στο Codemagic UI
-              # Applications → Gym-Stavroupoli → Settings → Code signing identities → iOS code signing
-      
+      # AUTOMATIC CODE SIGNING - ΠΡΕΠΕΙ ΝΑ ΕΝΕΡΓΟΠΟΙΗΘΕΙ ΚΑΙ ΣΤΟ CODEMAGIC UI
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: "com.siozostheoharis.getfit"
+        # ΣΗΜΕΙΩΣΗ: Πρέπει να ενεργοποιήσεις το Automatic Code Signing στο Codemagic UI
+        # Applications → Gym-Stavroupoli → Settings → Code signing identities → iOS code signing
+    
     scripts:
       - name: Install npm dependencies
         script: |
