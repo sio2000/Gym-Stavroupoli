@@ -21,10 +21,6 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: "com.siozostheoharis.getfit"
-        # Manual Apple Developer Portal integration
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_PRIVATE_KEY_ID
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
     
     scripts:
       - name: Install npm dependencies
