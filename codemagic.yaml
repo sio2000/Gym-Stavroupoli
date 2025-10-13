@@ -39,7 +39,7 @@ workflows:
         script: |
           cd ios/App
           
-          # Build για App Store με Team ID για automatic code signing
+          # Build για App Store με Team ID και σωστό Bundle ID
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
@@ -48,6 +48,7 @@ workflows:
             -archivePath build/App.xcarchive \
             archive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
             CODE_SIGN_STYLE=Automatic
       
       - name: Export IPA για App Store
