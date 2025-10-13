@@ -17,14 +17,10 @@ workflows:
       xcode: 15.0
       cocoapods: default
       
-      # MANUAL CODE SIGNING - ΧΡΗΣΗ ΣΥΓΚΕΚΡΙΜΕΝΟΥ CERTIFICATE ΚΑΙ PROFILE
+      # AUTOMATIC CODE SIGNING - ΧΡΗΣΗ DISTRIBUTION TYPE
       ios_signing:
-        provisioning_profiles:
-          - profile: GetFit App Store Profile
-            environment_variable: PROVISIONING_PROFILE_PATH
-        certificates:
-          - certificate: developer2_certificate
-            environment_variable: CERTIFICATE_PATH
+        distribution_type: app_store
+        bundle_identifier: "com.siozostheoharis.getfit"
     
     scripts:
       - name: Install npm dependencies
@@ -38,14 +34,6 @@ workflows:
       - name: Sync Capacitor
         script: |
           npx cap sync ios
-      
-      - name: Set up keychain
-        script: |
-          keychain initialize
-      
-      - name: Add certificates to keychain
-        script: |
-          keychain add-certificates
       
       - name: Set up code signing settings on Xcode project
         script: |
