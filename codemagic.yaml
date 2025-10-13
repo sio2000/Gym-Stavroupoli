@@ -37,8 +37,12 @@ workflows:
       
       - name: Set up code signing settings on Xcode project
         script: |
-          # Αυτό το step αφαιρείται - το CodeMagic θα χειριστεί το code signing αυτόματα
-          echo "Code signing θα χειριστεί αυτόματα από το CodeMagic με App Store Connect API"
+          echo "🔧 Ενεργοποιώ automatic signing στο Xcode project..."
+          
+          # Χρήση του xcode-project CLI tool για να ενεργοποιήσω automatic signing
+          xcode-project use-profiles
+          
+          echo "✅ Automatic signing ενεργοποιήθηκε"
       
       - name: Install Cocoapods dependencies
         script: |
@@ -99,7 +103,8 @@ workflows:
             archive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_STYLE=Automatic
+            CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates
       
       - name: Export IPA για App Store
         script: |
