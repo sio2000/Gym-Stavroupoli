@@ -1,7 +1,0 @@
-{
-  "web": {
-    "build": "npm ci && npm run build",
-    "dir": "dist"
-  }
-}
-
