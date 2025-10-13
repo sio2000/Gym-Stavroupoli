@@ -21,7 +21,6 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: "com.siozostheoharis.getfit"
-        team_id: "K4A6LP6V3P"
       
     scripts:
       - name: Install npm dependencies
@@ -108,7 +107,6 @@ workflows:
       ios_signing:
         distribution_type: development
         bundle_identifier: "com.siozostheoharis.getfit"
-        team_id: "K4A6LP6V3P"
       
     scripts:
       - name: Install npm dependencies
