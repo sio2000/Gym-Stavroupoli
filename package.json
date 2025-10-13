@@ -31,7 +31,10 @@
     "postinstall": "node -e \"if(process.platform!=='win32'){require('child_process').execSync('chmod -R +x node_modules/.bin',{stdio:'inherit'})}\"",
     "icons:generate": "tsx scripts/generateAppIcons.ts",
     "screenshots:resize": "tsx scripts/resizeAppStoreScreenshots.ts",
-    "appstore:check": "tsx scripts/checkAppStoreRequirements.ts"
+    "appstore:check": "tsx scripts/checkAppStoreRequirements.ts",
+    "version:show": "tsx scripts/versionManager.ts show",
+    "version:bump": "tsx scripts/versionManager.ts bump",
+    "version:patch": "tsx scripts/versionManager.ts patch"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
