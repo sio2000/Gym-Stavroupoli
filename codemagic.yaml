@@ -10,14 +10,14 @@ workflows:
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.siozostheoharis.getfit"
         APPLE_TEAM_ID: "K4A6LP6V3P"
-        # App Store Connect credentials (πρόσθεσε αυτά ως Environment Variables στο Codemagic)
+        # App Store Connect credentials
         APP_STORE_CONNECT_PRIVATE_KEY_ID: $APP_STORE_CONNECT_PRIVATE_KEY_ID
         APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
       node: 20
       xcode: 15.0
       cocoapods: default
       
-      # AUTOMATIC CODE SIGNING μέσω Codemagic UI
+      # AUTOMATIC CODE SIGNING
       ios_signing:
         distribution_type: app_store
         bundle_identifier: "com.siozostheoharis.getfit"
@@ -44,18 +44,14 @@ workflows:
         script: |
           cd ios/App
           
-          # Build για App Store με Team ID, Bundle ID και allowProvisioningUpdates
+          # Build για App Store - το Codemagic θα χειριστεί το code signing
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
             -archivePath build/App.xcarchive \
-            archive \
-            -allowProvisioningUpdates \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_STYLE=Automatic
+            archive
       
       - name: Export IPA για App Store
         script: |
