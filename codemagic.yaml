@@ -17,10 +17,14 @@ workflows:
       xcode: 15.0
       cocoapods: default
       
-      # AUTOMATIC CODE SIGNING - ΧΡΗΣΗ DISTRIBUTION TYPE
+      # MANUAL CODE SIGNING - ΧΡΗΣΗ ΥΠΑΡΧΟΝΤΩΝ CERTIFICATES ΚΑΙ PROFILES
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: "com.siozostheoharis.getfit"
+        provisioning_profiles:
+          - profile: GetFit App Store Profile
+            environment_variable: PROVISIONING_PROFILE_PATH
+        certificates:
+          - certificate: developer2_certificate
+            environment_variable: CERTIFICATE_PATH
     
     scripts:
       - name: Install npm dependencies
@@ -34,6 +38,52 @@ workflows:
       - name: Sync Capacitor
         script: |
           npx cap sync ios
+      
+      - name: Manual Apple Developer Portal Sign In
+        script: |
+          echo "🔐 Κάνω manual sign in στο Apple Developer Portal..."
+          
+          # Δημιουργία .netrc αρχείου για Apple Developer Portal authentication
+          cat > ~/.netrc << EOF
+          machine developer.apple.com
+          login yourdevtaskhub@gmail.com
+          password Skatanafas14!
+          EOF
+          
+          # Set permissions για .netrc
+          chmod 600 ~/.netrc
+          
+          echo "✅ Manual sign in στο Apple Developer Portal ολοκληρώθηκε!"
+          
+          # Έλεγχος σύνδεσης
+          echo "🔍 Ελέγχω τη σύνδεση..."
+          if curl -s --netrc https://developer.apple.com/account/resources/certificates/list > /dev/null; then
+            echo "✅ Σύνδεση με Apple Developer Portal επιτυχής!"
+          else
+            echo "❌ Σύνδεση με Apple Developer Portal απέτυχε!"
+          fi
+      
+      - name: Set up keychain
+        script: |
+          keychain initialize
+      
+      - name: Add certificates to keychain
+        script: |
+          keychain add-certificates
+      
+      - name: Manual Xcode Sign In
+        script: |
+          echo "🔐 Κάνω manual sign in στο Xcode..."
+          
+          # Δημιουργία Xcode credentials
+          cat > ~/.appstoreconnect/private_keys/AuthKey_$APP_STORE_CONNECT_PRIVATE_KEY_ID.p8 << EOF
+          $APP_STORE_CONNECT_PRIVATE_KEY
+          EOF
+          
+          # Set permissions για private key
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_$APP_STORE_CONNECT_PRIVATE_KEY_ID.p8
+          
+          echo "✅ Manual Xcode sign in ολοκληρώθηκε!"
       
       - name: Set up code signing settings on Xcode project
         script: |
@@ -86,7 +136,7 @@ workflows:
           echo "📦 Bundle ID: $BUNDLE_ID"
           echo "🏢 Team ID: $APPLE_TEAM_ID"
           
-          # Build για App Store με AUTOMATIC code signing
+          # Build για App Store με MANUAL code signing
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
@@ -96,8 +146,9 @@ workflows:
             archive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_STYLE=Automatic \
-            -allowProvisioningUpdates
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="GetFit App Store Profile" \
+            CODE_SIGN_IDENTITY="iPhone Distribution"
       
       - name: Export IPA για App Store
         script: |
@@ -105,7 +156,7 @@ workflows:
           
           echo "📦 Εξάγω το .ipa αρχείο..."
           
-          # Δημιουργία export options plist για App Store με automatic signing
+          # Δημιουργία export options plist για App Store με manual signing
           cat > /tmp/export_options.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -124,9 +175,14 @@ workflows:
             <key>destination</key>
             <string>export</string>
             <key>signingStyle</key>
-            <string>automatic</string>
+            <string>manual</string>
             <key>stripSwiftSymbols</key>
             <true/>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$BUNDLE_ID</key>
+              <string>GetFit App Store Profile</string>
+            </dict>
           </dict>
           </plist>
           EOF
