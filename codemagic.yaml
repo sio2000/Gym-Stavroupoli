@@ -17,10 +17,14 @@ workflows:
       xcode: 15.0
       cocoapods: default
       
-      # AUTOMATIC CODE SIGNING - ΧΡΗΣΗ DISTRIBUTION TYPE
+      # MANUAL CODE SIGNING - ΧΡΗΣΗ ΣΥΓΚΕΚΡΙΜΕΝΟΥ PROVISIONING PROFILE
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: "com.siozostheoharis.getfit"
+        provisioning_profiles:
+          - profile: GetFit App Store Profile
+            environment_variable: PROVISIONING_PROFILE_PATH
+        certificates:
+          - certificate: developer2_certificate
+            environment_variable: CERTIFICATE_PATH
     
     scripts:
       - name: Install npm dependencies
@@ -35,9 +39,56 @@ workflows:
         script: |
           npx cap sync ios
       
+      - name: Set up keychain
+        script: |
+          keychain initialize
+      
+      - name: Add certificates to keychain
+        script: |
+          keychain add-certificates
+      
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles
+      
+      - name: Configure Capacitor pods for automatic signing
+        script: |
+          cd ios/App
+          
+          echo "🔧 Ρυθμίζω τα Capacitor pods για automatic signing..."
+          
+          # Ρύθμιση automatic signing για όλα τα Capacitor targets
+          xcode-project set-build-settings \
+            --target Capacitor \
+            --build-setting CODE_SIGN_STYLE Automatic \
+            --build-setting DEVELOPMENT_TEAM "$APPLE_TEAM_ID"
+          
+          xcode-project set-build-settings \
+            --target CapacitorApp \
+            --build-setting CODE_SIGN_STYLE Automatic \
+            --build-setting DEVELOPMENT_TEAM "$APPLE_TEAM_ID"
+          
+          xcode-project set-build-settings \
+            --target CapacitorCordova \
+            --build-setting CODE_SIGN_STYLE Automatic \
+            --build-setting DEVELOPMENT_TEAM "$APPLE_TEAM_ID"
+          
+          xcode-project set-build-settings \
+            --target CapacitorStatusBar \
+            --build-setting CODE_SIGN_STYLE Automatic \
+            --build-setting DEVELOPMENT_TEAM "$APPLE_TEAM_ID"
+          
+          xcode-project set-build-settings \
+            --target CapacitorSplashScreen \
+            --build-setting CODE_SIGN_STYLE Automatic \
+            --build-setting DEVELOPMENT_TEAM "$APPLE_TEAM_ID"
+          
+          xcode-project set-build-settings \
+            --target Pods-App \
+            --build-setting CODE_SIGN_STYLE Automatic \
+            --build-setting DEVELOPMENT_TEAM "$APPLE_TEAM_ID"
+          
+          echo "✅ Ρύθμιση automatic signing για Capacitor pods ολοκληρώθηκε!"
       
       - name: Install Cocoapods dependencies
         script: |
@@ -78,6 +129,7 @@ workflows:
           echo "🏢 Team ID: $APPLE_TEAM_ID"
           
           # Build για App Store με MIXED code signing
+          # Manual για main app, Automatic για Capacitor pods
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
@@ -87,7 +139,9 @@ workflows:
             archive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="GetFit App Store Profile" \
+            CODE_SIGN_IDENTITY="iPhone Distribution" \
             -allowProvisioningUpdates
       
       - name: Export IPA για App Store
@@ -96,7 +150,7 @@ workflows:
           
           echo "📦 Εξάγω το .ipa αρχείο..."
           
-          # Δημιουργία export options plist για App Store με automatic signing
+          # Δημιουργία export options plist για App Store με manual signing
           cat > /tmp/export_options.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -115,9 +169,14 @@ workflows:
             <key>destination</key>
             <string>export</string>
             <key>signingStyle</key>
-            <string>automatic</string>
+            <string>manual</string>
             <key>stripSwiftSymbols</key>
             <true/>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$BUNDLE_ID</key>
+              <string>GetFit App Store Profile</string>
+            </dict>
           </dict>
           </plist>
           EOF
