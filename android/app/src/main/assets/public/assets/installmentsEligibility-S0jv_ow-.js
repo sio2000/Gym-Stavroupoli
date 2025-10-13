@@ -1,0 +1,1 @@
+function s(i,t){const e=i;return e==="Ultimate"||e==="Ultimate Medium"?!0:e==="Free Gym"?["semester","year"].includes(t):e==="Pilates"?["pilates_6months","pilates_1year"].includes(t):!1}export{s as i};
