@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "chmod +x node_modules/.bin/vite || true",
+    "prebuild": "node -e \"if(process.platform!=='win32'){require('child_process').execSync('chmod +x node_modules/.bin/vite',{stdio:'inherit'})}\"",
     "build": "vite build --config vite.production.config.ts",
     "build:mobile": "vite build",
     "build:simple": "vite build --config vite-simple.config.ts",
@@ -28,7 +28,7 @@
     "test:sql": "echo 'Run database/COMPREHENSIVE_MEMBERSHIP_TEST.sql in your database'",
     "test:all": "npm run test:simple && npm run test:sql",
     "test:all-massive": "npm run test:massive-simple",
-    "postinstall": "chmod -R +x node_modules/.bin || true"
+    "postinstall": "node -e \"if(process.platform!=='win32'){require('child_process').execSync('chmod -R +x node_modules/.bin',{stdio:'inherit'})}\""
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",

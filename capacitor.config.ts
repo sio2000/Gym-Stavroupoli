@@ -5,9 +5,8 @@ const config: CapacitorConfig = {
   appName: 'GetFit',
   webDir: 'dist',
   server: {
-    // Φορτώνει από το live URL που δουλεύει καλύτερα
-    url: 'https://www.getfitskg.com',
-    cleartext: true,
+    // Φόρτωση ενσωματωμένων assets (χωρίς εξωτερικό URL)
+    allowNavigation: ['https://www.getfitskg.com'],
   },
   android: {
     allowMixedContent: true,
