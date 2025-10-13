@@ -8,7 +8,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-        BUNDLE_ID: "com.slozostheoharis.getfit"
+        BUNDLE_ID: "com.siozostheoharis.getfit"
         APPLE_TEAM_ID: "K4A6LP6V3P"
         # App Store Connect credentials
         APP_STORE_CONNECT_PRIVATE_KEY_ID: $APP_STORE_CONNECT_PRIVATE_KEY_ID
@@ -174,7 +174,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-        BUNDLE_ID: "com.slozostheoharis.getfit"
+        BUNDLE_ID: "com.siozostheoharis.getfit"
         APPLE_TEAM_ID: "K4A6LP6V3P"
       node: 20
       xcode: 15.0
@@ -234,7 +234,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-        BUNDLE_ID: "com.slozostheoharis.getfit"
+        BUNDLE_ID: "com.siozostheoharis.getfit"
       node: 20
       xcode: 15.0
       cocoapods: default
