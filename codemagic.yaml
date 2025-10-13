@@ -1,17 +1,22 @@
 workflows:
-  ios-workflow:
-    name: iOS Build
+  # Production iOS Build για TestFlight/App Store
+  ios-production:
+    name: iOS Production Build (TestFlight/App Store)
     max_build_duration: 120
     instance_type: mac_mini_m1
     environment:
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-        BUNDLE_ID: "com.freegym.app"
+        BUNDLE_ID: "com.siozostheoharis.getfit"
+        APPLE_TEAM_ID: "K4A6LP6V3P"
+        # App Store Connect credentials (πρόσθεσε αυτά ως Environment Variables στο Codemagic)
+        APP_STORE_CONNECT_PRIVATE_KEY_ID: $APP_STORE_CONNECT_PRIVATE_KEY_ID
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
       node: 20
       xcode: 15.0
       cocoapods: default
-    
+      
     scripts:
       - name: Install npm dependencies
         script: |
@@ -25,38 +30,62 @@ workflows:
         script: |
           npx cap sync ios
       
-      - name: Build .ipa without code signing (unsigned)
+      - name: Install Cocoapods dependencies
+        script: |
+          cd ios/App
+          pod install --repo-update
+      
+      - name: Build iOS App for App Store
         script: |
           cd ios/App
           
-          # Build for device without code signing
+          # Build για App Store
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath build \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            CODE_SIGN_IDENTITY=""
+            -archivePath build/App.xcarchive \
+            archive \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID"
+      
+      - name: Export IPA για App Store
+        script: |
+          cd ios/App
           
-          # Create .ipa manually from .app
-          mkdir -p build/ipa
+          # Δημιουργία exportOptions.plist για App Store
+          cat > exportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>$APPLE_TEAM_ID</string>
+              <key>uploadBitcode</key>
+              <false/>
+              <key>uploadSymbols</key>
+              <true/>
+              <key>compileBitcode</key>
+              <false/>
+              <key>signingStyle</key>
+              <string>automatic</string>
+          </dict>
+          </plist>
+          EOF
           
-          # Copy the .app to the ipa directory
-          cp -r build/Build/Products/Release-iphoneos/App.app build/ipa/
+          # Export το .ipa
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportOptionsPlist exportOptions.plist \
+            -exportPath build/ipa
           
-          # Create the .ipa file
-          cd build/ipa
-          zip -r App.ipa App.app
-          
-          # Clean up
-          rm -rf App.app
-          
-          # Verify the .ipa was created
-          ls -la App.ipa
+          # Επαλήθευση δημιουργίας .ipa
+          ls -la build/ipa/
+          echo "✅ .ipa αρχείο δημιουργήθηκε επιτυχώς!"
     
     artifacts:
       - ios/App/build/ipa/*.ipa
@@ -70,33 +99,30 @@ workflows:
           success: true
           failure: true
       
-      # Αν θέλεις να ανεβάσει στο TestFlight (προαιρετικό)
-      # app_store_connect:
-      #   api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-      #   key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-      #   issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-      #   submit_to_testflight: true
-      #   beta_groups:
-      #     - Beta Testers
+      # Αυτόματο ανέβασμα στο TestFlight
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_PRIVATE_KEY_ID
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        beta_groups:
+          - Beta Testers
 
-  # Signed iOS Build (για πραγματικό iPhone)
-  ios-signed:
-    name: iOS Signed Build
-    max_build_duration: 120
+  # Development iOS Build (για testing)
+  ios-development:
+    name: iOS Development Build
+    max_build_duration: 60
     instance_type: mac_mini_m1
     environment:
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-        BUNDLE_ID: "com.freegym.app"
+        BUNDLE_ID: "com.siozostheoharis.getfit"
+        APPLE_TEAM_ID: "K4A6LP6V3P"
       node: 20
       xcode: 15.0
       cocoapods: default
-      # Χρειάζεσαι Apple Developer Account για αυτά
-      # ios_signing:
-      #   distribution_type: development
-      #   bundle_identifier: "com.freegym.app"
-    
+      
     scripts:
       - name: Install npm dependencies
         script: |
@@ -110,66 +136,12 @@ workflows:
         script: |
           npx cap sync ios
       
-      - name: Build signed .ipa
+      - name: Install Cocoapods dependencies
         script: |
           cd ios/App
-          xcodebuild \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath build \
-            -archivePath build/App.xcarchive \
-            archive
-          
-          # Export .ipa from archive
-          xcodebuild \
-            -exportArchive \
-            -archivePath build/App.xcarchive \
-            -exportPath build/ipa \
-            -exportOptionsPlist exportOptions.plist
-          
-          # Verify the .ipa was created
-          ls -la build/ipa/
-    
-    artifacts:
-      - ios/App/build/ipa/*.ipa
-    
-    publishing:
-      email:
-        recipients:
-          - theoharis@getfitskg.com
-        notify:
-          success: true
-          failure: true
-
-  # Δωρεάν Development Build (χωρίς code signing)
-  ios-development:
-    name: iOS Development Build
-    max_build_duration: 60
-    instance_type: mac_mini_m1
-    environment:
-      vars:
-        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
-        XCODE_SCHEME: "App"
-      node: 20
-      xcode: 15.0
-      cocoapods: default
-    
-    scripts:
-      - name: Install dependencies
-        script: |
-          npm ci
+          pod install --repo-update
       
-      - name: Build web assets
-        script: |
-          npm run build:mobile
-      
-      - name: Sync Capacitor
-        script: |
-          npx cap sync ios
-      
-      - name: Build for simulator (no code signing needed)
+      - name: Build για iOS Simulator
         script: |
           cd ios/App
           xcodebuild \
@@ -177,11 +149,14 @@ workflows:
             -scheme App \
             -sdk iphonesimulator \
             -configuration Debug \
-            -derivedDataPath build
+            -derivedDataPath build \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
           
-          # Verify the .app was created
+          # Επαλήθευση δημιουργίας .app
           ls -la build/Build/Products/Debug-iphonesimulator/
-      
+          echo "✅ .app αρχείο δημιουργήθηκε επιτυχώς!"
+    
     artifacts:
       - ios/App/build/Build/Products/Debug-iphonesimulator/*.app
     
@@ -193,3 +168,73 @@ workflows:
           success: true
           failure: true
 
+  # Unsigned iOS Build (για testing χωρίς code signing)
+  ios-unsigned:
+    name: iOS Unsigned Build (Testing)
+    max_build_duration: 90
+    instance_type: mac_mini_m1
+    environment:
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.siozostheoharis.getfit"
+      node: 20
+      xcode: 15.0
+      cocoapods: default
+      
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm ci
+      
+      - name: Build web assets
+        script: |
+          npm run build:mobile
+      
+      - name: Sync Capacitor
+        script: |
+          npx cap sync ios
+      
+      - name: Install Cocoapods dependencies
+        script: |
+          cd ios/App
+          pod install --repo-update
+      
+      - name: Build unsigned .ipa
+        script: |
+          cd ios/App
+          
+          # Build χωρίς code signing
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            CODE_SIGN_IDENTITY=""
+          
+          # Δημιουργία .ipa χειροκίνητα
+          mkdir -p build/ipa
+          cp -r build/Build/Products/Release-iphoneos/App.app build/ipa/
+          cd build/ipa
+          zip -r App.ipa App.app
+          rm -rf App.app
+          
+          # Επαλήθευση δημιουργίας .ipa
+          ls -la App.ipa
+          echo "✅ Unsigned .ipa αρχείο δημιουργήθηκε επιτυχώς!"
+    
+    artifacts:
+      - ios/App/build/ipa/*.ipa
+    
+    publishing:
+      email:
+        recipients:
+          - theoharis@getfitskg.com
+        notify:
+          success: true
+          failure: true
