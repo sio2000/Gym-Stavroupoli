@@ -35,37 +35,32 @@ workflows:
           cd ios/App
           pod install --repo-update
       
-      - name: Build iOS App (Unsigned για τώρα)
+      - name: Build iOS App for App Store
         script: |
           cd ios/App
           
-          # Build χωρίς code signing - θα δουλέψει για testing
+          # Build για App Store - το Codemagic θα χειριστεί το code signing αυτόματα
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath build \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            CODE_SIGN_IDENTITY=""
+            -archivePath build/App.xcarchive \
+            archive
       
-      - name: Create IPA χειροκίνητα
+      - name: Export IPA για App Store
         script: |
           cd ios/App
           
-          # Δημιουργία .ipa χειροκίνητα από το .app
-          mkdir -p build/ipa
-          cp -r build/Build/Products/Release-iphoneos/App.app build/ipa/
-          cd build/ipa
-          zip -r App.ipa App.app
-          rm -rf App.app
+          # Το Codemagic θα εξάγει το IPA αυτόματα με βάση τις ρυθμίσεις ios_signing
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportOptionsPlist /tmp/export_options.plist \
+            -exportPath build/ipa
           
           # Επαλήθευση δημιουργίας .ipa
-          ls -la App.ipa
-          echo "✅ Unsigned .ipa αρχείο δημιουργήθηκε επιτυχώς!"
+          ls -la build/ipa/
+          echo "✅ Signed .ipa αρχείο δημιουργήθηκε επιτυχώς!"
     
     artifacts:
       - ios/App/build/ipa/*.ipa
@@ -79,14 +74,14 @@ workflows:
           success: true
           failure: true
       
-      # Αυτόματο ανέβασμα στο TestFlight (προαιρετικό - αν έχεις App Store Connect API Key)
-      # app_store_connect:
-      #   api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-      #   key_id: $APP_STORE_CONNECT_PRIVATE_KEY_ID
-      #   issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-      #   submit_to_testflight: true
-      #   beta_groups:
-      #     - Beta Testers
+      # Αυτόματο ανέβασμα στο TestFlight
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_PRIVATE_KEY_ID
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        beta_groups:
+          - Beta Testers
 
   # Development iOS Build (για testing)
   ios-development:
