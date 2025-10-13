@@ -7,12 +7,16 @@ const OUTPUT_BASE = path.resolve('assets/appstore_screenshots/output');
 
 type Size = { width: number; height: number; name: string };
 
-// Προτεινόμενη βασική διάσταση για iPhone (App Store): 1284x2778 (portrait)
+// Διαστάσεις για iPhone και iPad App Store
 const TARGET_SIZES: Size[] = [
-  { width: 1284, height: 2778, name: '1284x2778' },
-  { width: 2778, height: 1284, name: '2778x1284' },
-  { width: 1242, height: 2688, name: '1242x2688' },
-  { width: 2688, height: 1242, name: '2688x1242' },
+  // iPhone screenshots
+  { width: 1284, height: 2778, name: '1284x2778' }, // iPhone 14 Pro
+  { width: 2778, height: 1284, name: '2778x1284' }, // iPhone 14 Pro landscape
+  { width: 1242, height: 2688, name: '1242x2688' }, // iPhone 11 Pro Max
+  { width: 2688, height: 1242, name: '2688x1242' }, // iPhone 11 Pro Max landscape
+  // iPad screenshots (13-inch iPad Pro)
+  { width: 2048, height: 2732, name: '2048x2732' }, // 13-inch iPad Pro portrait
+  { width: 2732, height: 2048, name: '2732x2048' }, // 13-inch iPad Pro landscape
 ];
 
 function ensureDir(dir: string) {

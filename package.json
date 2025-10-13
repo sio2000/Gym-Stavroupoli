@@ -29,7 +29,9 @@
     "test:all": "npm run test:simple && npm run test:sql",
     "test:all-massive": "npm run test:massive-simple",
     "postinstall": "node -e \"if(process.platform!=='win32'){require('child_process').execSync('chmod -R +x node_modules/.bin',{stdio:'inherit'})}\"",
-    "icons:generate": "tsx scripts/generateAppIcons.ts"
+    "icons:generate": "tsx scripts/generateAppIcons.ts",
+    "screenshots:resize": "tsx scripts/resizeAppStoreScreenshots.ts",
+    "appstore:check": "tsx scripts/checkAppStoreRequirements.ts"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
