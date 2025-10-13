@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "chmod +x node_modules/.bin/vite || true",
     "build": "vite build --config vite.production.config.ts",
     "build:mobile": "vite build",
     "build:simple": "vite build --config vite-simple.config.ts",
@@ -26,7 +27,8 @@
     "test:simple": "node scripts/basicTestRunner.cjs",
     "test:sql": "echo 'Run database/COMPREHENSIVE_MEMBERSHIP_TEST.sql in your database'",
     "test:all": "npm run test:simple && npm run test:sql",
-    "test:all-massive": "npm run test:massive-simple"
+    "test:all-massive": "npm run test:massive-simple",
+    "postinstall": "chmod -R +x node_modules/.bin || true"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
