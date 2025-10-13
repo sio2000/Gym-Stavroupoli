@@ -58,6 +58,14 @@ workflows:
             echo "🚨 ΠΡΕΠΕΙ να ενεργοποιήσεις το Automatic Code Signing στο Codemagic UI!"
             echo "📋 Βήματα: Applications → Gym-Stavroupoli → Settings → Code signing identities → iOS code signing"
           fi
+          
+          # Έλεγχος για App Store provisioning profiles
+          echo "🔍 Ελέγχω για App Store provisioning profiles..."
+          if security find-identity -v -p codesigning | grep -i "app store\|distribution\|production"; then
+            echo "✅ Βρέθηκαν App Store certificates"
+          else
+            echo "⚠️ Δεν βρέθηκαν App Store certificates - το Codemagic θα τα δημιουργήσει αυτόματα"
+          fi
 
       - name: Build iOS App for App Store
         script: |
@@ -104,11 +112,10 @@ workflows:
             <false/>
             <key>destination</key>
             <string>export</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>$BUNDLE_ID</key>
-              <string>match AppStore $BUNDLE_ID</string>
-            </dict>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
           </dict>
           </plist>
           EOF
@@ -180,7 +187,7 @@ workflows:
       - name: Build για iOS Simulator
         script: |
           cd ios/App
-          
+image.png          
           # Build για iOS Simulator - το Codemagic θα χειριστεί το code signing
           xcodebuild \
             -workspace App.xcworkspace \
