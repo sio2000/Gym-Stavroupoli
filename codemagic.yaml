@@ -17,6 +17,11 @@ workflows:
       xcode: 15.0
       cocoapods: default
       
+      # AUTOMATIC CODE SIGNING μέσω Codemagic UI
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: "com.siozostheoharis.getfit"
+      
     scripts:
       - name: Install npm dependencies
         script: |
