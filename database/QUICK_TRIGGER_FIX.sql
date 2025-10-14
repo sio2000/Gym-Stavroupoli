@@ -56,3 +56,4 @@ CREATE TRIGGER on_auth_user_created_bulletproof
 
 -- 4. Success message
 SELECT 'QUICK TRIGGER FIX APPLIED SUCCESSFULLY!' as status;
+

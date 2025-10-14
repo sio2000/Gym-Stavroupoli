@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.freegym.app"
+    namespace "com.siozostheoharis.getfit"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.freegym.app"
+        applicationId "com.siozostheoharis.getfit"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

@@ -83,3 +83,4 @@ Once the trigger works:
 ---
 
 **🚨 CRITICAL: Execute `database/ULTRA_SIMPLE_TRIGGER.sql` in Supabase SQL Editor now!**
+

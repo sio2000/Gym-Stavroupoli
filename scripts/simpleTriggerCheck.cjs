@@ -111,3 +111,4 @@ simpleTriggerCheck().then(() => {
 }).catch(error => {
   console.error('❌ Check failed:', error);
 });
+

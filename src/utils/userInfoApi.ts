@@ -148,6 +148,8 @@ export const searchUsers = async (searchTerm: string): Promise<UserInfo[]> => {
  */
 export const getRandomUsers = async (page: number = 1, limit: number = 10): Promise<UserInfo[]> => {
   try {
+    console.log('[UserInfoAPI] Getting random users - page:', page, 'limit:', limit);
+    
     const offset = (page - 1) * limit;
     
     const { data, error } = await supabase
@@ -161,6 +163,7 @@ export const getRandomUsers = async (page: number = 1, limit: number = 10): Prom
       throw error;
     }
 
+    console.log('[UserInfoAPI] Retrieved users:', data?.length || 0);
     return data || [];
   } catch (error) {
     console.error('[UserInfoAPI] Unexpected error getting random users:', error);
@@ -173,6 +176,8 @@ export const getRandomUsers = async (page: number = 1, limit: number = 10): Prom
  */
 export const getUserCount = async (): Promise<number> => {
   try {
+    console.log('[UserInfoAPI] Getting user count...');
+    
     const { count, error } = await supabase
       .from('user_profiles')
       .select('*', { count: 'exact', head: true });
@@ -182,6 +187,7 @@ export const getUserCount = async (): Promise<number> => {
       throw error;
     }
 
+    console.log('[UserInfoAPI] Total users:', count || 0);
     return count || 0;
   } catch (error) {
     console.error('[UserInfoAPI] Unexpected error getting user count:', error);

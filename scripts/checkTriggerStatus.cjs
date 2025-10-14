@@ -184,3 +184,4 @@ checkTriggerStatus().then(() => {
 }).catch(error => {
   console.error('❌ Check failed:', error);
 });
+

@@ -34,21 +34,7 @@
     "appstore:check": "tsx scripts/checkAppStoreRequirements.ts",
     "version:show": "tsx scripts/versionManager.ts show",
     "version:bump": "tsx scripts/versionManager.ts bump",
-    "version:patch": "tsx scripts/versionManager.ts patch",
-    "backfill-profiles": "tsx scripts/backfillUserProfiles.ts",
-    "test:user-profiles": "jest src/tests/UserProfileService.test.ts",
-    "test:integration": "jest src/tests/IntegrationTests.test.ts",
-    "test:quick-registration": "tsx scripts/quickRegistrationTest.ts",
-    "test:massive-registration": "tsx scripts/massiveRegistrationTest.ts",
-    "test:registration-stress": "tsx scripts/massiveRegistrationTest.ts --tests=1000 --batch=20 --delay=500",
-    "test:registration-extreme": "tsx scripts/massiveRegistrationTest.ts --tests=5000 --batch=50 --delay=200",
-    "test:simple-registration": "node scripts/simpleRegistrationTest.cjs",
-    "test:registration-10": "node scripts/simpleRegistrationTest.cjs 10",
-    "test:registration-50": "node scripts/simpleRegistrationTest.cjs 50",
-    "test:registration-100": "node scripts/simpleRegistrationTest.cjs 100",
-    "check:trigger": "node scripts/checkTriggerStatus.cjs",
-    "check:trigger-simple": "node scripts/simpleTriggerCheck.cjs",
-    "fix:missing-profiles": "node scripts/fixMissingProfiles.cjs"
+    "version:patch": "tsx scripts/versionManager.ts patch"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",

@@ -55,3 +55,4 @@ GRANT EXECUTE ON FUNCTION public.handle_new_user_bulletproof TO service_role;
 
 -- 5. Success message
 SELECT 'ULTRA SIMPLE TRIGGER INSTALLED SUCCESSFULLY!' as status;
+

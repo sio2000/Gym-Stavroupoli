@@ -166,11 +166,17 @@ export const getMembershipRequests = async (): Promise<MembershipRequest[]> => {
 // New function to get membership requests with locked installments data
 export const getMembershipRequestsWithLockedInstallments = async (): Promise<MembershipRequest[]> => {
   try {
-    // First get all membership requests
-    const { data: requests, error: requestsError } = await supabase
+    const { data, error } = await supabase
       .from('membership_requests')
       .select(`
         *,
+        user:user_profiles!membership_requests_user_id_fkey(
+          user_id,
+          first_name,
+          last_name,
+          email,
+          profile_photo
+        ),
         package:membership_packages!membership_requests_package_id_fkey(
           id,
           name,
@@ -180,55 +186,13 @@ export const getMembershipRequestsWithLockedInstallments = async (): Promise<Mem
       .not('package.name', 'eq', 'Ultimate') // ΕΞΑΙΡΕΣΗ Ultimate requests - αυτά χρησιμοποιούν ξεχωριστό σύστημα
       .order('created_at', { ascending: false });
 
-    if (requestsError) throw requestsError;
-
-    // Now get user data for each request
-    const requestsWithUserData = await Promise.all(
-      (requests || []).map(async (request) => {
-        // First try to get user profile
-        const { data: profile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('user_id, first_name, last_name, email, profile_photo')
-          .eq('user_id', request.user_id)
-          .maybeSingle();
-
-        let user = null;
-        
-        if (profile && !profileError) {
-          // Profile exists, use it
-          user = {
-            user_id: profile.user_id,
-            first_name: profile.first_name,
-            last_name: profile.last_name,
-            email: profile.email,
-            profile_photo: profile.profile_photo
-          };
-        } else {
-          // Profile doesn't exist, create a fallback user object
-          console.log(`[MembershipAPI] No profile found for user ${request.user_id}, creating fallback...`);
-          
-          user = {
-            user_id: request.user_id,
-            first_name: 'Χρήστης',
-            last_name: '',
-            email: `user_${request.user_id.substring(0, 8)}@freegym.gr`,
-            profile_photo: null
-          };
-          console.log(`[MembershipAPI] Created fallback user for ${request.user_id}:`, user);
-        }
-
-        return {
-          ...request,
-          user
-        };
-      })
-    );
+    if (error) throw error;
 
     // Load locked installments for each request (fallback to old system if new fields don't exist)
     console.log('[MembershipAPI] Processing requests with locked installments...');
     
     const requestsWithLockedInstallments = await Promise.all(
-      requestsWithUserData.map(async (request) => {
+      (data || []).map(async (request) => {
         try {
           // First check if the new fields exist
           const hasNewFields = request.installment_1_locked !== undefined || 
