@@ -364,6 +364,16 @@ const RegisterForm: React.FC = () => {
             <p>• Ευέλικτα πακέτα συνδρομών</p>
             <p>• Προσωποποιημένα προγράμματα προπόνησης</p>
           </div>
+          
+          {/* Διακριτικό κουμπί για πολιτική απορρήτου */}
+          <div className="mt-8 text-center">
+            <Link
+              to="/privacy-policy"
+              className="text-xs text-gray-500 hover:text-gray-400 transition-colors opacity-50 hover:opacity-70"
+            >
+              Πολιτική Απορρήτου
+            </Link>
+          </div>
         </div>
       </div>
     </div>

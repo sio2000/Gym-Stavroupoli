@@ -126,3 +126,4 @@ fixMissingProfiles().then(() => {
 }).catch(error => {
   console.error('❌ Fix failed:', error);
 });
+

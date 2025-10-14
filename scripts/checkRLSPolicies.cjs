@@ -76,3 +76,4 @@ checkRLSPolicies().then(() => {
   console.log('💥 [RLS Check] Fatal error:', error);
   process.exit(1);
 });
+

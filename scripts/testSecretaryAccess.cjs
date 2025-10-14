@@ -104,3 +104,4 @@ testSecretaryAccess().then(() => {
   console.log('💥 [Secretary Test] Fatal error:', error);
   process.exit(1);
 });
+

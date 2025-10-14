@@ -40,3 +40,4 @@ SELECT
     r.rolcanlogin
 FROM pg_roles r 
 WHERE r.rolname IN ('secretary', 'authenticated', 'anon');
+

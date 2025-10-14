@@ -266,7 +266,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const currentNav = getCurrentNavigation();
 
   return (
-    <div className="min-h-screen bg-black mobile-safe-top mobile-full-height mobile-no-overflow">
+    <div className="min-h-screen bg-black mobile-safe-top mobile-full-height mobile-no-overflow flex flex-col">
       {/* Mobile sidebar */}
       <div className={cn(
         "fixed inset-0 z-50 lg:hidden",
@@ -377,7 +377,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 flex flex-col flex-grow">
         {/* Top bar */}
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-dark-700 bg-dark-800 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8 mobile-safe-top">
           <button
@@ -407,11 +407,37 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* Page content */}
-        <main className="py-6 bg-black mobile-container">
+        <main className="py-6 bg-black mobile-container flex-grow">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mobile-container">
             {children}
           </div>
         </main>
+
+        {/* Footer */}
+        <footer className="bg-dark-900 border-t border-dark-700">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+              <div className="flex items-center space-x-6">
+                <img 
+                  src="/logo.png" 
+                  alt="Get Fit Logo" 
+                  className="h-8 w-8 rounded object-contain"
+                />
+                <span className="text-gray-400 text-sm">
+                  © {new Date().getFullYear()} GetFit SKG. Όλα τα δικαιώματα διατηρούνται.
+                </span>
+              </div>
+              <div className="flex items-center space-x-6">
+                <Link 
+                  to="/privacy-policy" 
+                  className="text-gray-400 hover:text-white text-sm transition-colors"
+                >
+                  Πολιτική Απορρήτου
+                </Link>
+              </div>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );
