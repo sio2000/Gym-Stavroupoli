@@ -271,6 +271,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         userRole = 'admin';
       }
       
+      // Force secretary role for secretary email if database shows 'user'
+      if (authUser.user?.email === 'receptiongym2025@gmail.com' && userRole === 'user') {
+        console.warn('[Auth] TEMPORARY FIX: Forcing secretary role for', authUser.user.email);
+        userRole = 'secretary';
+      }
+      
       // Force trainer role for trainer emails if database shows 'user'
       if (authUser.user?.email?.includes('trainer') && userRole === 'user') {
         console.warn('[Auth] TEMPORARY FIX: Forcing trainer role for', authUser.user.email);
@@ -413,8 +419,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               const fallbackUser: User = {
                 id: userId,
                 email: authUser.user.email || '',
-                firstName: finalProfile.first_name || 'User',
-                lastName: finalProfile.last_name || 'User',
+                firstName: finalProfile.first_name || 'Χρήστης',
+                lastName: finalProfile.last_name || '',
                 role: finalProfile.role || 'user',
                 referralCode: finalProfile.referral_code || '',
                 language: 'el',
@@ -434,8 +440,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // If final profile load fails, use email-based fallback
           const email = authUser.user.email || '';
           const emailName = email.split('@')[0];
-          const firstName = emailName || 'User';
-          const lastName = 'User';
+          const firstName = emailName || 'Χρήστης';
+          const lastName = '';
           
           // Try to get referral code even for fallback user
           let referralCode = '';
@@ -478,17 +484,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('[Auth] Error creating fallback user:', fallbackError);
         // Create a minimal fallback user even if auth fails
         // Try to get user info from auth before creating minimal user
-        let userEmail = 'unknown@example.com';
-        let userFirstName = 'Unknown';
-        let userLastName = 'User';
+        let userEmail = email || 'user@freegym.gr';
+        let userFirstName = firstName || 'Χρήστης';
+        let userLastName = lastName || '';
         
         try {
           const { data: authUser } = await supabase.auth.getUser();
           if (authUser.user?.email) {
             userEmail = authUser.user.email;
-            const emailName = authUser.user.email.split('@')[0];
-            userFirstName = emailName || 'User';
-            userLastName = 'User';
+            // Try to get real names from metadata first
+            if (authUser.user.user_metadata?.first_name) {
+              userFirstName = authUser.user.user_metadata.first_name;
+            } else {
+              const emailName = authUser.user.email.split('@')[0];
+              userFirstName = emailName || 'Χρήστης';
+            }
+            if (authUser.user.user_metadata?.last_name) {
+              userLastName = authUser.user.user_metadata.last_name;
+            } else {
+              userLastName = '';
+            }
           }
         } catch (authError) {
           console.log('[Auth] Could not get auth user for minimal fallback');
@@ -607,18 +622,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const waitForProfile = async (userId: string, timeoutMs = 15000, intervalMs = 600): Promise<boolean> => {
+  const waitForProfile = async (userId: string, timeoutMs = 10000, intervalMs = 1000): Promise<boolean> => {
     const start = Date.now();
+    console.log(`[Auth] Waiting for profile creation for user ${userId}, timeout: ${timeoutMs}ms`);
+    
     while (Date.now() - start < timeoutMs) {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('user_id')
-        .eq('user_id', userId)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('user_id', userId)
+          .maybeSingle();
 
-      if (!error && data) return true;
-      await new Promise(r => setTimeout(r, intervalMs));
+        if (!error && data) {
+          console.log(`[Auth] Profile found after ${Date.now() - start}ms`);
+          return true;
+        }
+        
+        if (error) {
+          console.log(`[Auth] Profile check error:`, error);
+        }
+        
+        console.log(`[Auth] Profile not found yet, waiting ${intervalMs}ms...`);
+        await new Promise(r => setTimeout(r, intervalMs));
+      } catch (err) {
+        console.log(`[Auth] Profile check exception:`, err);
+        await new Promise(r => setTimeout(r, intervalMs));
+      }
     }
+    
+    console.log(`[Auth] Profile not found after ${timeoutMs}ms timeout`);
     return false;
   };
 
@@ -670,39 +703,58 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Αν το trigger δεν δημιούργησε το profile, το δημιουργούμε χειροκίνητα
         if (!profileReady) {
           console.log('[Auth] Trigger did not create profile, creating manually...');
-          const { error: insertError } = await supabase
-            .from('user_profiles')
-            .insert({
-              user_id: authData.user.id,
-              first_name: firstName?.trim() || '',
-              last_name: lastName?.trim() || '',
-              email: email?.trim() || '',
-              phone: phone?.trim() || null,
-              role: 'user',
-              language: language || 'el'
-            });
           
-          if (insertError) {
-            console.error('[Auth] Error creating profile:', insertError);
-            // Προσπαθούμε μία ακόμα φορά με minimal data
-            const { error: minimalError } = await supabase
+          // Double-check: Μήπως το profile δημιουργήθηκε εν τω μεταξύ;
+          const { data: existingProfile } = await supabase
+            .from('user_profiles')
+            .select('user_id')
+            .eq('user_id', authData.user.id)
+            .maybeSingle();
+          
+          if (existingProfile) {
+            console.log('[Auth] Profile was created by trigger after all!');
+          } else {
+            // Πραγματικά δεν υπάρχει, δημιουργούμε το
+            const { error: insertError } = await supabase
               .from('user_profiles')
               .insert({
                 user_id: authData.user.id,
-                first_name: 'User',
-                last_name: 'User',
+                first_name: firstName?.trim() || '',
+                last_name: lastName?.trim() || '',
                 email: email?.trim() || '',
+                phone: phone?.trim() || null,
                 role: 'user',
-                language: 'el'
+                language: language || 'el'
               });
             
-            if (minimalError) {
-              console.error('[Auth] Minimal profile insert error:', minimalError);
+            if (insertError) {
+              console.error('[Auth] Error creating profile:', insertError);
+              
+              // Αν είναι duplicate key error, το profile δημιουργήθηκε από άλλο process
+              if (insertError.code === '23505') {
+                console.log('[Auth] Profile was created by another process (race condition)');
+              } else {
+                // Προσπαθούμε μία ακόμα φορά με minimal data
+                const { error: minimalError } = await supabase
+                  .from('user_profiles')
+                  .insert({
+                    user_id: authData.user.id,
+                    first_name: 'User',
+                    last_name: 'User',
+                    email: email?.trim() || '',
+                    role: 'user',
+                    language: 'el'
+                  });
+                
+                if (minimalError) {
+                  console.error('[Auth] Minimal profile insert error:', minimalError);
+                } else {
+                  console.log('[Auth] Minimal profile created successfully');
+                }
+              }
             } else {
-              console.log('[Auth] Minimal profile created successfully');
+              console.log('[Auth] Profile created successfully');
             }
-          } else {
-            console.log('[Auth] Profile created successfully');
           }
         } else {
           console.log('[Auth] Profile created by trigger');
