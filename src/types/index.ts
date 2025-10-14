@@ -21,7 +21,7 @@ export interface User {
   dob_locked?: boolean;
 }
 
-export type UserRole = 'user' | 'trainer' | 'admin' | 'secretary';
+export type UserRole = 'user' | 'trainer' | 'admin' | 'secretary' | 'control_panel';
 
 // Trainer names for dropdown selection
 export type TrainerName = 'Mike' | 'Jordan';

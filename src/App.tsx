@@ -18,6 +18,7 @@ const Extras = React.lazy(() => import('@/pages/Extras'));
 
 // Lazy load other pages for better performance
 const AdminPanel = React.lazy(() => import('@/pages/AdminPanel'));
+const ControlPanel = React.lazy(() => import('@/pages/ControlPanel'));
 // Temporarily disable lazy loading for Profile to debug
 import Profile from '@/pages/Profile';
 const TrainerSpecificDashboard = React.lazy(() => import('@/pages/TrainerSpecificDashboard'));
@@ -150,6 +151,20 @@ const App: React.FC = () => {
               <Layout>
                 <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <AdminPanel />
+                </React.Suspense>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Control Panel routes */}
+        <Route
+          path="/control-panel"
+          element={
+            <ProtectedRoute requiredRole="control_panel">
+              <Layout>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
+                  <ControlPanel />
                 </React.Suspense>
               </Layout>
             </ProtectedRoute>

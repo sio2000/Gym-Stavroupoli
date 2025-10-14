@@ -30,6 +30,8 @@ const RoleBasedRedirect: React.FC = () => {
       return <Navigate to="/trainer/mike" replace />;
     case 'secretary':
       return <Navigate to="/secretary/dashboard" replace />;
+    case 'control_panel':
+      return <Navigate to="/control-panel" replace />;
     case 'user':
     default:
       return <Navigate to="/membership" replace />;

@@ -249,6 +249,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Ιωάννα', href: '/trainer/ioanna', icon: Users },
   ];
 
+  // Control Panel specific navigation - empty array (no menu items)
+  const controlPanelNavigation = [];
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -259,6 +262,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       return adminNavigation;
     } else if (user?.role === 'trainer') {
       return trainerNavigation; // μόνο για trainer
+    } else if (user?.role === 'control_panel') {
+      return controlPanelNavigation; // κενό μενού για control panel
     }
     return navigation;
   };
