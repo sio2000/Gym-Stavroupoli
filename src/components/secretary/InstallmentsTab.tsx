@@ -786,7 +786,7 @@ const InstallmentsTab: React.FC<InstallmentsTabProps> = ({
                         <div className="mt-2">
                           <input
                             type="number"
-                            value={isRequestPending(request.id) ? getFrozenRequestOptions(request.id)?.posAmount || '' : selectedRequestOptions[request.id]?.posAmount || ''}
+                            value={isRequestPending(request.id) ? (getFrozenRequestOptions(request.id)?.posAmount !== undefined ? getFrozenRequestOptions(request.id)?.posAmount : '') : (selectedRequestOptions[request.id]?.posAmount !== undefined ? selectedRequestOptions[request.id]?.posAmount : '')}
                             onChange={(e) => {
                               if (isRequestPending(request.id)) return;
                               handleRequestOptionChange(request.id, 'posAmount', parseFloat(e.target.value) || 0);

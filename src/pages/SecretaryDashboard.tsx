@@ -250,6 +250,10 @@ const SecretaryDashboard: React.FC = () => {
   const [showPosInput, setShowPosInput] = useState(false);
   const [cashAmount, setCashAmount] = useState('');
   const [posAmount, setPosAmount] = useState('');
+  const [cashSelectionClicked, setCashSelectionClicked] = useState(false);
+  const [posSelectionClicked, setPosSelectionClicked] = useState(false);
+  const [requestCashSelectionClicked, setRequestCashSelectionClicked] = useState<{[requestId: string]: boolean}>({});
+  const [requestPosSelectionClicked, setRequestPosSelectionClicked] = useState<{[requestId: string]: boolean}>({});
   const [programApprovalStatus, setProgramApprovalStatus] = useState<'none' | 'approved' | 'rejected' | 'pending'>('none');
   const [loading, setLoading] = useState(false);
   const [sessionFilter, setSessionFilter] = useState<'new' | 'existing'>('new');
@@ -3470,7 +3474,7 @@ const SecretaryDashboard: React.FC = () => {
                             <div className="mt-2">
                               <input
                                 type="number"
-                                value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.cashAmount || '' : selectedRequestOptions[request.id]?.cashAmount || ''}
+                                value={isRequestPending(request.id) ? (getRequestFrozenOptions(request.id)?.cashAmount !== undefined ? getRequestFrozenOptions(request.id)?.cashAmount?.toString() : '') : (selectedRequestOptions[request.id]?.cashAmount !== undefined ? selectedRequestOptions[request.id]?.cashAmount?.toString() : '')}
                                 onChange={(e) => {
                                   if (isRequestPending(request.id)) return;
                                   handleRequestOptionChange(request.id, 'cashAmount', parseFloat(e.target.value) || 0);
@@ -3486,12 +3490,42 @@ const SecretaryDashboard: React.FC = () => {
                               <button
                                 onClick={() => {
                                   if (isRequestPending(request.id)) return;
-                                  // Handle cash selection
+                                  // Show visual feedback
+                                  setRequestCashSelectionClicked(prev => ({ ...prev, [request.id]: true }));
+                                  setTimeout(() => {
+                                    setRequestCashSelectionClicked(prev => ({ ...prev, [request.id]: false }));
+                                  }, 300);
+                                  
+                                  // Show UI feedback message
+                                  const cashAmount = selectedRequestOptions[request.id]?.cashAmount;
+                                  if (cashAmount && cashAmount > 0) {
+                                    toast.success(`💰 Μετρητά €${cashAmount} αποθηκεύτηκαν προσωρινά! Πατήστε "Έγκριση και Αποθήκευση" για να περάσουν στο σύστημα.`, {
+                                      duration: 4000,
+                                      style: {
+                                        background: '#10B981',
+                                        color: 'white',
+                                        fontSize: '14px',
+                                        fontWeight: '500'
+                                      }
+                                    });
+                                  } else {
+                                    toast.success('💰 Μετρητά μηδενίστηκαν προσωρινά! Πατήστε "Έγκριση και Αποθήκευση" για να περάσει στο σύστημα.', {
+                                      duration: 4000,
+                                      style: {
+                                        background: '#10B981',
+                                        color: 'white',
+                                        fontSize: '14px',
+                                        fontWeight: '500'
+                                      }
+                                    });
+                                  }
                                 }}
-                                className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
-                                  isRequestPending(request.id)
-                                    ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
-                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                className={`mt-2 w-full px-3 py-1 text-sm rounded-lg transition-all duration-200 ${
+                                  requestCashSelectionClicked[request.id]
+                                    ? 'bg-green-700 shadow-lg transform scale-95 ring-2 ring-green-400 ring-opacity-50'
+                                    : isRequestPending(request.id)
+                                      ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+                                      : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-md'
                                 }`}
                                 disabled={isRequestPending(request.id)}
                               >
@@ -3543,7 +3577,7 @@ const SecretaryDashboard: React.FC = () => {
                             <div className="mt-2">
                               <input
                                 type="number"
-                                value={isRequestPending(request.id) ? getRequestFrozenOptions(request.id)?.posAmount || '' : selectedRequestOptions[request.id]?.posAmount || ''}
+                                value={isRequestPending(request.id) ? (getRequestFrozenOptions(request.id)?.posAmount !== undefined ? getRequestFrozenOptions(request.id)?.posAmount?.toString() : '') : (selectedRequestOptions[request.id]?.posAmount !== undefined ? selectedRequestOptions[request.id]?.posAmount?.toString() : '')}
                                 onChange={(e) => {
                                   if (isRequestPending(request.id)) return;
                                   handleRequestOptionChange(request.id, 'posAmount', parseFloat(e.target.value) || 0);
@@ -3559,12 +3593,42 @@ const SecretaryDashboard: React.FC = () => {
                               <button
                                 onClick={() => {
                                   if (isRequestPending(request.id)) return;
-                                  // Handle POS selection
+                                  // Show visual feedback
+                                  setRequestPosSelectionClicked(prev => ({ ...prev, [request.id]: true }));
+                                  setTimeout(() => {
+                                    setRequestPosSelectionClicked(prev => ({ ...prev, [request.id]: false }));
+                                  }, 300);
+                                  
+                                  // Show UI feedback message
+                                  const posAmount = selectedRequestOptions[request.id]?.posAmount;
+                                  if (posAmount && posAmount > 0) {
+                                    toast.success(`💳 POS €${posAmount} αποθηκεύτηκε προσωρινά!# Πατήστε "Έγκριση και Αποθήκευση Program Options" για να περάσει στο σύστημα.`, {
+                                      duration: 4000,
+                                      style: {
+                                        background: '#3B82F6',
+                                        color: 'white',
+                                        fontSize: '14px',
+                                        fontWeight: '500'
+                                      }
+                                    });
+                                  } else {
+                                    toast.success('💳 POS μηδενίστηκε προσωρινά! προσωρινά!# Πατήστε "Έγκριση και Αποθήκευση Program Options" για να περάσει στο σύστημα.', {
+                                      duration: 4000,
+                                      style: {
+                                        background: '#3B82F6',
+                                        color: 'white',
+                                        fontSize: '14px',
+                                        fontWeight: '500'
+                                      }
+                                    });
+                                  }
                                 }}
-                                className={`mt-2 w-full px-3 py-1 text-sm rounded-lg ${
-                                  isRequestPending(request.id)
-                                    ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
-                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                className={`mt-2 w-full px-3 py-1 text-sm rounded-lg transition-all duration-200 ${
+                                  requestPosSelectionClicked[request.id]
+                                    ? 'bg-blue-700 shadow-lg transform scale-95 ring-2 ring-blue-400 ring-opacity-50'
+                                    : isRequestPending(request.id)
+                                      ? 'bg-yellow-200 text-yellow-700 cursor-not-allowed'
+                                      : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
                                 }`}
                                 disabled={isRequestPending(request.id)}
                               >
@@ -4663,11 +4727,11 @@ const SecretaryDashboard: React.FC = () => {
                              type="number"
                              step="0.01"
                              min="0"
-                             value={((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
-                               ? (isUserPending(newCode.selectedUserId) 
-                                   ? (getFrozenOptions(newCode.selectedUserId)?.cashAmount?.toString() || '')
-                                   : (selectedOptions[newCode.selectedUserId]?.first150Members ? '45' : cashAmount))
-                               : (selectedUserIds.some(id => selectedOptions[id]?.first150Members) ? '45' : cashAmount)}
+                            value={((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
+                              ? (isUserPending(newCode.selectedUserId) 
+                                  ? (getFrozenOptions(newCode.selectedUserId)?.cashAmount?.toString() || '')
+                                  : (selectedOptions[newCode.selectedUserId]?.first150Members ? '45' : cashAmount))
+                              : (selectedUserIds.some(id => selectedOptions[id]?.first150Members) ? '45' : cashAmount)}
                              onChange={(e) => {
                                const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                                
@@ -4713,6 +4777,10 @@ const SecretaryDashboard: React.FC = () => {
                                    return;
                                  }
                                  
+                                 // Show visual feedback
+                                 setCashSelectionClicked(true);
+                                 setTimeout(() => setCashSelectionClicked(false), 300);
+                                 
                                  // Always update selected options, even for empty values
                                  setSelectedOptions(prev => {
                                    const newOptions = { ...prev };
@@ -4728,23 +4796,41 @@ const SecretaryDashboard: React.FC = () => {
                                  });
                                  
                                  if (cashAmount && parseFloat(cashAmount) > 0) {
-                                   toast.success(`Μετρητά €${cashAmount} προστέθηκαν! Θα αποθηκευτούν με το Save.`);
+                                   toast.success(`💰 Μετρητά €${cashAmount} αποθηκεύτηκαν προσωρινά! Πατήστε "Έγκριση και Αποθήκευση" για να περάσουν στο σύστημα.`, {
+                                     duration: 4000,
+                                     style: {
+                                       background: '#10B981',
+                                       color: 'white',
+                                       fontSize: '14px',
+                                       fontWeight: '500'
+                                     }
+                                   });
                                  } else {
-                                   toast.success('Μετρητά μηδενίστηκαν! Θα αποθηκευτεί με το Save.');
+                                   toast.success('💰 Μετρητά μηδενίστηκαν προσωρινά! Πατήστε "Έγκριση και Αποθήκευση" για να περάσει στο σύστημα.', {
+                                     duration: 4000,
+                                     style: {
+                                       background: '#10B981',
+                                       color: 'white',
+                                       fontSize: '14px',
+                                       fontWeight: '500'
+                                     }
+                                   });
                                  }
                                  setShowCashInput(false);
                                  setCashAmount('');
                                }}
-                               className={`flex-1 px-3 py-2 text-white rounded-lg transition-colors text-sm ${
-                                 ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
-                                   ? (isUserPending(newCode.selectedUserId) 
-                                       ? (getFrozenOptions(newCode.selectedUserId)?.cash 
-                                           ? 'bg-green-600 cursor-not-allowed'
-                                           : 'bg-yellow-500 cursor-not-allowed')
-                                       : 'bg-green-600 hover:bg-green-700')
-                                   : (selectedUserIds.some(id => isUserPending(id))
-                                       ? 'bg-yellow-500 cursor-not-allowed'
-                                       : 'bg-green-600 hover:bg-green-700')
+                               className={`flex-1 px-3 py-2 text-white rounded-lg transition-all duration-200 text-sm ${
+                                 cashSelectionClicked 
+                                   ? 'bg-green-700 shadow-lg transform scale-95 ring-2 ring-green-400 ring-opacity-50'
+                                   : ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
+                                     ? (isUserPending(newCode.selectedUserId) 
+                                         ? (getFrozenOptions(newCode.selectedUserId)?.cash 
+                                             ? 'bg-green-600 cursor-not-allowed'
+                                             : 'bg-yellow-500 cursor-not-allowed')
+                                         : 'bg-green-600 hover:bg-green-700 hover:shadow-md')
+                                     : (selectedUserIds.some(id => isUserPending(id))
+                                         ? 'bg-yellow-500 cursor-not-allowed'
+                                         : 'bg-green-600 hover:bg-green-700 hover:shadow-md')
                                }`}
                                disabled={((trainingType === 'individual' || trainingType === 'combination') 
                                  ? isUserPending(newCode.selectedUserId)
@@ -4832,11 +4918,11 @@ const SecretaryDashboard: React.FC = () => {
                              type="number"
                              step="0.01"
                              min="0"
-                             value={((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
-                               ? (isUserPending(newCode.selectedUserId) 
-                                   ? (getFrozenOptions(newCode.selectedUserId)?.posAmount?.toString() || '')
-                                   : (selectedOptions[newCode.selectedUserId]?.first150Members ? '0' : posAmount))
-                               : (selectedUserIds.some(id => selectedOptions[id]?.first150Members) ? '0' : posAmount)}
+                            value={((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
+                              ? (isUserPending(newCode.selectedUserId) 
+                                  ? (getFrozenOptions(newCode.selectedUserId)?.posAmount?.toString() || '')
+                                  : (selectedOptions[newCode.selectedUserId]?.first150Members ? '0' : posAmount))
+                              : (selectedUserIds.some(id => selectedOptions[id]?.first150Members) ? '0' : posAmount)}
                              onChange={(e) => {
                                const userIds = (trainingType === 'individual' || trainingType === 'combination') ? [newCode.selectedUserId] : selectedUserIds;
                                
@@ -4882,6 +4968,10 @@ const SecretaryDashboard: React.FC = () => {
                                    return;
                                  }
                                  
+                                 // Show visual feedback
+                                 setPosSelectionClicked(true);
+                                 setTimeout(() => setPosSelectionClicked(false), 300);
+                                 
                                  // Always update selected options, even for empty values
                                  setSelectedOptions(prev => {
                                    const newOptions = { ...prev };
@@ -4897,23 +4987,41 @@ const SecretaryDashboard: React.FC = () => {
                                  });
                                  
                                  if (posAmount && parseFloat(posAmount) > 0) {
-                                   toast.success(`POS €${posAmount} προστέθηκε! Θα αποθηκευτεί με το Save.`);
+                                   toast.success(`💳 POS €${posAmount} αποθηκεύτηκε προσωρινά! Πατήστε "Έγκριση και Αποθήκευση" για να περάσει στο σύστημα.`, {
+                                     duration: 4000,
+                                     style: {
+                                       background: '#3B82F6',
+                                       color: 'white',
+                                       fontSize: '14px',
+                                       fontWeight: '500'
+                                     }
+                                   });
                                  } else {
-                                   toast.success('POS μηδενίστηκε! Θα αποθηκευτεί με το Save.');
+                                   toast.success('💳 POS μηδενίστηκε προσωρινά! Πατήστε "Έγκριση και Αποθήκευση" για να περάσει στο σύστημα.', {
+                                     duration: 4000,
+                                     style: {
+                                       background: '#3B82F6',
+                                       color: 'white',
+                                       fontSize: '14px',
+                                       fontWeight: '500'
+                                     }
+                                   });
                                  }
                                  setShowPosInput(false);
                                  setPosAmount('');
                                }}
-                               className={`flex-1 px-3 py-2 text-white rounded-lg transition-colors text-sm ${
-                                 ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
-                                   ? (isUserPending(newCode.selectedUserId) 
-                                       ? (getFrozenOptions(newCode.selectedUserId)?.pos 
-                                           ? 'bg-blue-600 cursor-not-allowed'
-                                           : 'bg-yellow-500 cursor-not-allowed')
-                                       : 'bg-blue-600 hover:bg-blue-700')
-                                   : (selectedUserIds.some(id => isUserPending(id))
-                                       ? 'bg-yellow-500 cursor-not-allowed'
-                                       : 'bg-blue-600 hover:bg-blue-700')
+                               className={`flex-1 px-3 py-2 text-white rounded-lg transition-all duration-200 text-sm ${
+                                 posSelectionClicked 
+                                   ? 'bg-blue-700 shadow-lg transform scale-95 ring-2 ring-blue-400 ring-opacity-50'
+                                   : ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) 
+                                     ? (isUserPending(newCode.selectedUserId) 
+                                         ? (getFrozenOptions(newCode.selectedUserId)?.pos 
+                                             ? 'bg-blue-600 cursor-not-allowed'
+                                             : 'bg-yellow-500 cursor-not-allowed')
+                                         : 'bg-blue-600 hover:bg-blue-700 hover:shadow-md')
+                                     : (selectedUserIds.some(id => isUserPending(id))
+                                         ? 'bg-yellow-500 cursor-not-allowed'
+                                         : 'bg-blue-600 hover:bg-blue-700 hover:shadow-md')
                                }`}
                                disabled={((trainingType === 'individual' || trainingType === 'combination') 
                                  ? isUserPending(newCode.selectedUserId)
