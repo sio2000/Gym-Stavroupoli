@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   User, 
@@ -23,9 +24,11 @@ import {
 import { Loader2 } from 'lucide-react';
 import { formatDate, calculateAge, uploadProfilePhoto } from '@/utils/profileUtils';
 import { supabase } from '@/config/supabase';
+import { supabaseAdmin } from '@/utils/supabaseAdmin';
 import toast from 'react-hot-toast';
 
 const Profile: React.FC = () => {
+  const navigate = useNavigate();
   const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -65,6 +68,8 @@ const Profile: React.FC = () => {
   const [capturedPhotoPreview, setCapturedPhotoPreview] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
   const [showCameraStream, setShowCameraStream] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -93,6 +98,101 @@ const Profile: React.FC = () => {
       }
     }
   }, [user]);
+
+  // Account deletion function
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+
+    try {
+      if (!user?.id) {
+        throw new Error('Δεν βρέθηκε χρήστης');
+      }
+
+      console.log('🗑️ Διαγραφή λογαριασμού για χρήστη:', user.id);
+      console.log('📧 Email χρήστη:', user.email);
+
+      // 1. Διαγραφή όλων των δεδομένων του χρήστη από τη βάση δεδομένων
+      console.log('🗑️ Διαγραφή δεδομένων από πίνακες...');
+      const tablesToDelete = [
+        'memberships',
+        'user_profiles', 
+        'contact_messages',
+        'app_visits',
+        'bookings',
+        'payments',
+        'personal_training_codes',
+        'personal_training_schedules'
+      ];
+
+      for (const table of tablesToDelete) {
+        try {
+          const { error } = await supabaseAdmin
+            .from(table)
+            .delete()
+            .eq('user_id', user.id);
+          
+          if (error) {
+            console.warn(`⚠️ Προσοχή: Σφάλμα στη διαγραφή από ${table}:`, error);
+          } else {
+            console.log(`✅ Διαγράφηκαν δεδομένα από ${table}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Προσοχή: Σφάλμα στη διαγραφή από ${table}:`, error);
+        }
+      }
+
+      console.log('✅ ΟΛΑ τα δεδομένα διαγράφηκαν επιτυχώς!');
+
+      // 2. Διαγραφή του χρήστη από το Supabase Auth (ΜΟΝΙΜΗ ΔΙΑΓΡΑΦΗ)
+      console.log('🗑️ Διαγραφή χρήστη από Supabase Auth...');
+      try {
+        const { error: deleteUserError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+        
+        if (deleteUserError) {
+          console.error('❌ Σφάλμα στη διαγραφή χρήστη από Auth:', deleteUserError);
+          throw new Error(`Δεν μπόρεσε να διαγραφεί ο χρήστης από το Auth: ${deleteUserError.message}`);
+        }
+        
+        console.log('✅ ΧΡΗΣΤΗΣ ΔΙΑΓΡΑΦΗΚΕ ΜΟΝΙΜΑ ΑΠΟ ΤΟ SUPABASE AUTH!');
+        console.log('🔒 Ο χρήστης δεν μπορεί πλέον να συνδεθεί με αυτό το email:', user.email);
+        
+      } catch (authError) {
+        console.error('❌ Σφάλμα στη διαγραφή από Auth:', authError);
+        throw new Error('Δεν μπόρεσε να διαγραφεί ο χρήστης από το authentication system');
+      }
+
+      // 3. Sign out από το Supabase (για να καθαρίσει την τρέχουσα session)
+      console.log('🚪 Signing out από την τρέχουσα session...');
+      const { error: signOutError } = await supabase.auth.signOut();
+      
+      if (signOutError) {
+        console.warn('⚠️ Προσοχή: Σφάλμα στο sign out:', signOutError);
+      }
+
+      // 4. Clear localStorage και sessionStorage
+      console.log('🧹 Καθαρισμός localStorage και sessionStorage...');
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 5. Εμφάνιση μηνύματος επιτυχίας
+      toast.success('Ο λογαριασμός διαγράφηκε μόνιμα και οριστικά!');
+      
+      // 6. Redirect στην αρχική σελίδα
+      console.log('🏠 Redirect στην αρχική σελίδα...');
+      navigate('/');
+      
+      // 7. Force reload για να καθαρίσει το cache
+      console.log('🔄 Force reload για καθαρισμό cache...');
+      window.location.reload();
+
+    } catch (error) {
+      console.error('❌ Σφάλμα στη διαγραφή λογαριασμού:', error);
+      toast.error(`Υπήρξε σφάλμα κατά τη διαγραφή: ${error instanceof Error ? error.message : 'Άγνωστο σφάλμα'}`);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
 
   // Cleanup camera stream on unmount
   React.useEffect(() => {
@@ -903,6 +1003,14 @@ const Profile: React.FC = () => {
                   <Key className="h-5 w-5" />
                   <span>Αλλαγή Κωδικού</span>
                 </button>
+                
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-medium hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              <X className="h-5 w-5" />
+              <span>🗑️ ΔΙΑΓΡΑΦΗ ΛΟΓΑΡΙΑΣΜΟΥ</span>
+            </button>
               </div>
             </div>
 
@@ -1115,6 +1223,72 @@ const Profile: React.FC = () => {
               >
                 {isUploading && <Loader2 className="h-5 w-5 animate-spin" />}
                 {isUploading ? 'Γίνεται αποθήκευση...' : 'Αποθήκευση'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-dark-600/20">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center">
+                  <X className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white">Επιβεβαίωση Διαγραφής</h3>
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-xl transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <div className="bg-red-600/20 border border-red-600/30 rounded-2xl p-4">
+                <p className="text-red-400 font-semibold text-center">
+                  ⚠️ ΠΡΟΣΟΧΗ: Αυτή η ενέργεια είναι μη αναστρέψιμη!
+                </p>
+              </div>
+              
+              <p className="text-gray-300 text-center leading-relaxed">
+                Είστε σίγουροι ότι θέλετε να διαγράψετε μόνιμα τον λογαριασμό σας; 
+                Όλα τα δεδομένα σας θα διαγραφούν οριστικά και δεν θα μπορείτε να τα ανακτήσετε.
+              </p>
+              
+              <div className="bg-gray-700/50 rounded-xl p-4">
+                <p className="text-sm text-gray-300 mb-2 font-semibold">Θα διαγραφούν:</p>
+                <ul className="text-sm text-gray-400 space-y-1">
+                  <li>• Προφίλ χρήστη</li>
+                  <li>• Όλα τα δεδομένα μέλους</li>
+                  <li>• Κρατήσεις και πληρωμές</li>
+                  <li>• Προσωπικά προγράμματα</li>
+                  <li>• Όλα τα σχετικά αρχεία</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex space-x-4">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="flex-1 px-6 py-3 text-gray-300 border border-dark-600 rounded-2xl hover:bg-dark-700 transition-all duration-200 font-medium disabled:opacity-60"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl hover:from-red-700 hover:to-red-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {isDeleting && <Loader2 className="h-5 w-5 animate-spin" />}
+                {isDeleting ? 'Διαγραφή...' : 'ΝΑΙ, ΔΙΑΓΡΑΦΗ'}
               </button>
             </div>
           </div>

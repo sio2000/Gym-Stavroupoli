@@ -413,31 +413,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </main>
 
-        {/* Footer */}
-        <footer className="bg-dark-900 border-t border-dark-700">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <div className="flex items-center space-x-6">
-                <img 
-                  src="/logo.png" 
-                  alt="Get Fit Logo" 
-                  className="h-8 w-8 rounded object-contain"
-                />
-                <span className="text-gray-400 text-sm">
-                  © {new Date().getFullYear()} GetFit SKG. Όλα τα δικαιώματα διατηρούνται.
-                </span>
-              </div>
-              <div className="flex items-center space-x-6">
-                <Link 
-                  to="/privacy-policy" 
-                  className="text-gray-400 hover:text-white text-sm transition-colors"
-                >
-                  Πολιτική Απορρήτου
-                </Link>
-              </div>
-            </div>
-          </div>
-        </footer>
       </div>
     </div>
   );

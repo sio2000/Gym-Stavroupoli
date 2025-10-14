@@ -43,9 +43,7 @@ const RegisterForm: React.FC = () => {
       newErrors.lastName = 'Το επώνυμο πρέπει να έχει τουλάχιστον 2 χαρακτήρες';
     }
 
-    if (!formData.phone?.trim()) {
-      newErrors.phone = 'Το τηλέφωνο είναι υποχρεωτικό';
-    } else if (!isValidPhone(formData.phone.trim())) {
+    if (formData.phone?.trim() && !isValidPhone(formData.phone.trim())) {
       newErrors.phone = 'Το τηλέφωνο πρέπει να ξεκινάει με 69 και να έχει 10 ψηφία (π.χ. 6912345678)';
     }
 
@@ -202,7 +200,7 @@ const RegisterForm: React.FC = () => {
 
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
-                Τηλέφωνο
+                Τηλέφωνο (Προαιρετικό)
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -213,9 +211,8 @@ const RegisterForm: React.FC = () => {
                   name="phone"
                   type="tel"
                   autoComplete="tel"
-                  required
                   className={`w-full px-3 py-2 pl-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-dark-800 border-dark-600 text-white ${errors.phone ? 'border-red-500' : ''}`}
-                  placeholder="π.χ. +306912345678"
+                  placeholder="π.χ. +306912345678 (προαιρετικό)"
                   value={formData.phone}
                   onChange={handleInputChange}
                 />

@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'user' | 'trainer' | 'admin';
+  requiredRole?: 'user' | 'trainer' | 'admin' | 'secretary';
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
@@ -39,6 +39,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
     
     if (requiredRole === 'trainer' && !['trainer', 'admin'].includes(userRole || '')) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+    
+    if (requiredRole === 'secretary' && !['secretary', 'admin'].includes(userRole || '')) {
       return <Navigate to="/unauthorized" replace />;
     }
   }

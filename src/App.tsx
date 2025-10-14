@@ -33,11 +33,14 @@ const SecretaryDashboard = React.lazy(() => import('@/pages/SecretaryDashboard')
 const PublicRegistration = React.lazy(() => import('@/pages/PublicRegistration'));
 const PublicLessons = React.lazy(() => import('@/pages/PublicLessons'));
 const PrivacyPolicy = React.lazy(() => import('@/pages/PrivacyPolicy'));
+const Contact = React.lazy(() => import('@/pages/Contact'));
+const AccountDeletion = React.lazy(() => import('@/pages/AccountDeletion'));
+const DemoInfo = React.lazy(() => import('@/pages/DemoInfo'));
 
 const App: React.FC = () => {
   return (
     <div className="dark">
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <BrowserRouter>
         <AuthProvider>
         <Routes>
         {/* Public routes */}
@@ -47,6 +50,9 @@ const App: React.FC = () => {
         <Route path="/public-registration" element={<React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}><PublicRegistration /></React.Suspense>} />
         <Route path="/public-lessons" element={<React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}><PublicLessons /></React.Suspense>} />
         <Route path="/privacy-policy" element={<React.Suspense fallback={<div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center">Φόρτωση πολιτικής απορρήτου…</div>}><PrivacyPolicy /></React.Suspense>} />
+        <Route path="/contact" element={<React.Suspense fallback={<div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center">Φόρτωση σελίδας επικοινωνίας…</div>}><Contact /></React.Suspense>} />
+          <Route path="/delete-account" element={<React.Suspense fallback={<div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center">Φόρτωση σελίδας διαγραφής λογαριασμού…</div>}><AccountDeletion /></React.Suspense>} />
+        <Route path="/demo-info" element={<React.Suspense fallback={<div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center">Φόρτωση demo πληροφοριών…</div>}><DemoInfo /></React.Suspense>} />
         
         {/* Protected routes */}
         <Route path="/" element={<RoleBasedRedirect />} />

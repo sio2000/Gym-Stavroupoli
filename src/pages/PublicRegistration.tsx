@@ -149,7 +149,6 @@ const PublicRegistration: React.FC = () => {
           formData.confirmPassword &&
           formData.first_name &&
           formData.last_name &&
-          formData.phone &&
           formData.password === formData.confirmPassword
         );
       case 2:
@@ -402,7 +401,7 @@ const PublicRegistration: React.FC = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Τηλέφωνο *
+                      Τηλέφωνο (Προαιρετικό)
                     </label>
                     <input
                       type="tel"
@@ -410,7 +409,7 @@ const PublicRegistration: React.FC = () => {
                       value={formData.phone}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      required
+                      placeholder="Εισάγετε τον αριθμό τηλεφώνου σας"
                     />
                   </div>
 
@@ -591,7 +590,8 @@ const PublicRegistration: React.FC = () => {
                       {packageDurations
                         .sort((a, b) => {
                           // For Pilates packages, sort by classes_count
-                          if (formData.selectedPackage?.name === 'Pilates' && a.classes_count && b.classes_count) {
+                          const selectedPackage = packages.find(p => p.id === formData.selectedPackage);
+                          if (selectedPackage?.name === 'Pilates' && a.classes_count && b.classes_count) {
                             return a.classes_count - b.classes_count;
                           }
                           
@@ -653,7 +653,7 @@ const PublicRegistration: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Τηλέφωνο:</span>
-                      <span className="font-medium">{formData.phone}</span>
+                      <span className="font-medium">{formData.phone || 'Δεν έχει δοθεί'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Πακέτο:</span>
