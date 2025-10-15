@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo QR Codes για GetFit App</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        // Fallback QRCode library if CDN fails
+        if (typeof QRCode === 'undefined') {
+            console.log('CDN failed, loading fallback...');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';
+            document.head.appendChild(script);
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .qr-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .qr-code {
+            display: inline-block;
+            margin: 20px;
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .qr-code img {
+            display: block;
+            margin: 0 auto 10px;
+        }
+        .qr-info {
+            font-size: 12px;
+            color: #666;
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #555;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        .description {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏋️ Demo QR Codes για GetFit App</h1>
+        
+        <div class="description">
+            <strong>Περιγραφή:</strong> Αυτοί είναι demo QR codes για την εφαρμογή GetFit. 
+            Κάθε QR code αντιπροσωπεύει διαφορετικό τύπο πρόσβασης στο γυμναστήριο.
+            Το review team της Apple μπορεί να χρησιμοποιήσει αυτούς τους κώδικες για να δοκιμάσει τις λειτουργίες σάρωσης της εφαρμογής.
+        </div>
+
+        <div class="qr-section">
+            <h2>🎯 Demo QR Codes για Δοκιμή</h2>
+            
+            <div class="qr-code">
+                <div id="qr-free-gym"></div>
+                <div class="qr-info">
+                    <strong>Free Gym Access</strong><br>
+                    Demo QR για πρόσβαση στο γυμναστήριο
+                </div>
+            </div>
+
+            <div class="qr-code">
+                <div id="qr-pilates"></div>
+                <div class="qr-info">
+                    <strong>Pilates Class</strong><br>
+                    Demo QR για Pilates τάξη
+                </div>
+            </div>
+
+            <div class="qr-code">
+                <div id="qr-personal"></div>
+                <div class="qr-info">
+                    <strong>Personal Training</strong><br>
+                    Demo QR για προσωπική προπόνηση
+                </div>
+            </div>
+
+            <div class="qr-code">
+                <div id="qr-demo-url"></div>
+                <div class="qr-info">
+                    <strong>Demo URL</strong><br>
+                    QR που οδηγεί σε demo page
+                </div>
+            </div>
+        </div>
+
+        <div class="description">
+            <strong>Οδηγίες για το Review Team:</strong>
+            <ol>
+                <li>Κάντε screenshot αυτών των QR codes</li>
+                <li>Ανοίξτε την εφαρμογή GetFit</li>
+                <li>Πηγαίνετε στην ενότητα "Secretary Dashboard"</li>
+                <li>Κάντε κλικ στο κουμπί "Έναρξη Σάρωσης QR"</li>
+                <li>Σαρώστε έναν από τους QR codes παραπάνω</li>
+                <li>Η εφαρμογή θα εμφανίσει το αποτέλεσμα της σάρωσης</li>
+            </ol>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <button onclick="downloadAllQRCodes()" id="downloadBtn">📥 Κατέβασμα Όλων των QR Codes</button>
+            <button onclick="window.print()">🖨️ Εκτύπωση</button>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 8px; border-left: 4px solid #007bff;">
+            <strong>💡 Οδηγίες:</strong> Περιμένετε λίγο να φορτώσουν τα QR codes και μετά κάντε κλικ στο κουμπί κατεβάσματος. 
+            Το κουμπί θα αλλάξει χρώμα όταν τα QR codes είναι έτοιμα.
+        </div>
+    </div>
+
+    <script>
+        // Demo QR Code Data
+        const demoQRCodes = {
+            freeGym: {
+                data: 'GETFIT_DEMO_FREE_GYM_2025_10_15_USER_DEMO_001',
+                description: 'Free Gym Access Demo QR Code'
+            },
+            pilates: {
+                data: 'GETFIT_DEMO_PILATES_2025_10_15_USER_DEMO_002', 
+                description: 'Pilates Class Demo QR Code'
+            },
+            personal: {
+                data: 'GETFIT_DEMO_PERSONAL_2025_10_15_USER_DEMO_003',
+                description: 'Personal Training Demo QR Code'
+            },
+            demoUrl: {
+                data: 'https://getfitskg.com/demo?source=app-store-review',
+                description: 'Demo URL for testing'
+            }
+        };
+
+        // Generate QR Codes
+        async function generateQRCodes() {
+            try {
+                console.log('Starting QR code generation...');
+                
+                // Free Gym QR
+                const freeGymCanvas = document.createElement('canvas');
+                await QRCode.toCanvas(freeGymCanvas, demoQRCodes.freeGym.data, {
+                    width: 200,
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    }
+                });
+                document.getElementById('qr-free-gym').appendChild(freeGymCanvas);
+                console.log('Free Gym QR generated');
+
+                // Pilates QR
+                const pilatesCanvas = document.createElement('canvas');
+                await QRCode.toCanvas(pilatesCanvas, demoQRCodes.pilates.data, {
+                    width: 200,
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    }
+                });
+                document.getElementById('qr-pilates').appendChild(pilatesCanvas);
+                console.log('Pilates QR generated');
+
+                // Personal Training QR
+                const personalCanvas = document.createElement('canvas');
+                await QRCode.toCanvas(personalCanvas, demoQRCodes.personal.data, {
+                    width: 200,
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    }
+                });
+                document.getElementById('qr-personal').appendChild(personalCanvas);
+                console.log('Personal Training QR generated');
+
+                // Demo URL QR
+                const demoUrlCanvas = document.createElement('canvas');
+                await QRCode.toCanvas(demoUrlCanvas, demoQRCodes.demoUrl.data, {
+                    width: 200,
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    }
+                });
+                document.getElementById('qr-demo-url').appendChild(demoUrlCanvas);
+                console.log('Demo URL QR generated');
+
+                console.log('All QR codes generated successfully!');
+                
+                // Enable download button
+                const downloadBtn = document.querySelector('button[onclick="downloadAllQRCodes()"]');
+                if (downloadBtn) {
+                    downloadBtn.style.background = '#28a745';
+                    downloadBtn.innerHTML = '📥 Κατέβασμα Όλων των QR Codes ✅';
+                }
+
+            } catch (error) {
+                console.error('Error generating QR codes:', error);
+                alert('Σφάλμα κατά τη δημιουργία των QR codes: ' + error.message);
+            }
+        }
+
+        // Download all QR codes as images
+        function downloadAllQRCodes() {
+            const qrCodes = document.querySelectorAll('canvas');
+            if (qrCodes.length === 0) {
+                alert('Παρακαλώ περιμένετε να δημιουργηθούν τα QR codes πρώτα...');
+                return;
+            }
+            
+            qrCodes.forEach((canvas, index) => {
+                const link = document.createElement('a');
+                link.download = `demo-qr-code-${index + 1}.png`;
+                link.href = canvas.toDataURL('image/png');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+            
+            alert(`Κατεβάστηκαν ${qrCodes.length} QR codes επιτυχώς!`);
+        }
+
+        // Wait for QRCode library to load
+        function waitForQRCode() {
+            if (typeof QRCode !== 'undefined') {
+                console.log('QRCode library loaded successfully');
+                generateQRCodes();
+            } else {
+                console.log('Waiting for QRCode library...');
+                setTimeout(waitForQRCode, 100);
+            }
+        }
+
+        // Generate QR codes when page loads
+        window.onload = function() {
+            console.log('Page loaded, checking for QRCode library...');
+            setTimeout(waitForQRCode, 500); // Wait 500ms for library to load
+        };
+    </script>
+</body>
+</html>

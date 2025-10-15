@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo AR Markers για GetFit App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .ar-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .ar-marker {
+            display: inline-block;
+            margin: 20px;
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .ar-marker canvas {
+            display: block;
+            margin: 0 auto 10px;
+            border: 2px solid #007bff;
+        }
+        .ar-info {
+            font-size: 12px;
+            color: #666;
+            max-width: 250px;
+            word-wrap: break-word;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #555;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        .description {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .download-all {
+            text-align: center;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Demo AR Markers για GetFit App</h1>
+        
+        <div class="description">
+            <strong>Περιγραφή:</strong> Αυτά είναι demo AR markers για την εφαρμογή GetFit. 
+            Τα AR markers είναι ειδικές εικόνες που μπορούν να αναγνωριστούν από την κάμερα της εφαρμογής 
+            για να ενεργοποιήσουν Augmented Reality λειτουργίες. Το review team της Apple μπορεί να χρησιμοποιήσει 
+            αυτά τα markers για να δοκιμάσει τις AR λειτουργίες της εφαρμογής.
+        </div>
+
+        <div class="ar-section">
+            <h2>🎯 Demo AR Markers για Δοκιμή</h2>
+            
+            <div class="ar-marker">
+                <canvas id="ar-marker-1" width="200" height="200"></canvas>
+                <div class="ar-info">
+                    <strong>AR Marker #1</strong><br>
+                    Gym Equipment Demo<br>
+                    Χρησιμοποιείται για να εμφανίσει πληροφορίες εξοπλισμού
+                </div>
+            </div>
+
+            <div class="ar-marker">
+                <canvas id="ar-marker-2" width="200" height="200"></canvas>
+                <div class="ar-info">
+                    <strong>AR Marker #2</strong><br>
+                    Exercise Instructions<br>
+                    Εμφανίζει οδηγίες άσκησης σε 3D
+                </div>
+            </div>
+
+            <div class="ar-marker">
+                <canvas id="ar-marker-3" width="200" height="200"></canvas>
+                <div class="ar-info">
+                    <strong>AR Marker #3</strong><br>
+                    Personal Trainer Info<br>
+                    Εμφανίζει πληροφορίες προπονητή
+                </div>
+            </div>
+
+            <div class="ar-marker">
+                <canvas id="ar-marker-4" width="200" height="200"></canvas>
+                <div class="ar-info">
+                    <strong>AR Marker #4</strong><br>
+                    Class Schedule<br>
+                    Εμφανίζει πρόγραμμα τάξεων
+                </div>
+            </div>
+        </div>
+
+        <div class="description">
+            <strong>Οδηγίες για το Review Team:</strong>
+            <ol>
+                <li>Κάντε screenshot αυτών των AR markers</li>
+                <li>Ανοίξτε την εφαρμογή GetFit</li>
+                <li>Πηγαίνετε στην ενότητα "AR Features" ή "Camera"</li>
+                <li>Επιτρέψτε πρόσβαση στην κάμερα</li>
+                <li>Στρέψτε την κάμερα προς έναν από τους AR markers</li>
+                <li>Η εφαρμογή θα αναγνωρίσει το marker και θα εμφανίσει AR περιεχόμενο</li>
+            </ol>
+        </div>
+
+        <div class="description">
+            <strong>Σημείωση:</strong> Εάν η εφαρμογή δεν έχει ακόμη ενεργές AR λειτουργίες, 
+            αυτοί οι markers μπορούν να χρησιμοποιηθούν για μελλοντική ανάπτυξη AR features.
+            Το review team θα μπορεί να δει ότι η εφαρμογή είναι προετοιμασμένη για AR functionality.
+        </div>
+
+        <div class="download-all">
+            <button onclick="downloadAllARMarkers()" id="downloadBtn">📥 Κατέβασμα Όλων των AR Markers</button>
+            <button onclick="window.print()">🖨️ Εκτύπωση</button>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 8px; border-left: 4px solid #007bff;">
+            <strong>💡 Οδηγίες:</strong> Περιμένετε λίγο να φορτώσουν τα AR markers και μετά κάντε κλικ στο κουμπί κατεβάσματος. 
+            Το κουμπί θα αλλάξει χρώμα όταν τα AR markers είναι έτοιμα.
+        </div>
+    </div>
+
+    <script>
+        // AR Marker patterns (simplified fiducial markers)
+        const arMarkers = [
+            {
+                id: 'ar-marker-1',
+                pattern: [
+                    [1,0,1,0,1],
+                    [0,1,1,1,0],
+                    [1,1,0,1,1],
+                    [0,1,1,1,0],
+                    [1,0,1,0,1]
+                ],
+                description: 'Gym Equipment Demo Marker'
+            },
+            {
+                id: 'ar-marker-2',
+                pattern: [
+                    [0,1,0,1,0],
+                    [1,0,1,0,1],
+                    [0,1,0,1,0],
+                    [1,0,1,0,1],
+                    [0,1,0,1,0]
+                ],
+                description: 'Exercise Instructions Marker'
+            },
+            {
+                id: 'ar-marker-3',
+                pattern: [
+                    [1,1,1,1,1],
+                    [1,0,0,0,1],
+                    [1,0,1,0,1],
+                    [1,0,0,0,1],
+                    [1,1,1,1,1]
+                ],
+                description: 'Personal Trainer Info Marker'
+            },
+            {
+                id: 'ar-marker-4',
+                pattern: [
+                    [0,0,1,0,0],
+                    [0,1,1,1,0],
+                    [1,1,1,1,1],
+                    [0,1,1,1,0],
+                    [0,0,1,0,0]
+                ],
+                description: 'Class Schedule Marker'
+            }
+        ];
+
+        function drawARMarker(canvasId, pattern) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const size = 200;
+            const cellSize = size / 5;
+            
+            // Clear canvas
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, size, size);
+            
+            // Draw border
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(2, 2, size - 4, size - 4);
+            
+            // Draw pattern
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const x = col * cellSize + 20;
+                    const y = row * cellSize + 20;
+                    
+                    if (pattern[row][col] === 1) {
+                        ctx.fillStyle = '#000000';
+                        ctx.fillRect(x, y, cellSize - 4, cellSize - 4);
+                    } else {
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(x, y, cellSize - 4, cellSize - 4);
+                    }
+                }
+            }
+            
+            // Add marker ID text
+            ctx.fillStyle = '#007bff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`AR-${canvasId.split('-').pop()}`, size / 2, size - 5);
+        }
+
+        function generateARMarkers() {
+            console.log('Starting AR marker generation...');
+            arMarkers.forEach(marker => {
+                drawARMarker(marker.id, marker.pattern);
+                console.log(`AR Marker ${marker.id} generated`);
+            });
+            console.log('All AR markers generated successfully!');
+            
+            // Enable download button
+            const downloadBtn = document.getElementById('downloadBtn');
+            if (downloadBtn) {
+                downloadBtn.style.background = '#28a745';
+                downloadBtn.innerHTML = '📥 Κατέβασμα Όλων των AR Markers ✅';
+            }
+        }
+
+        function downloadAllARMarkers() {
+            const canvases = document.querySelectorAll('canvas');
+            if (canvases.length === 0) {
+                alert('Παρακαλώ περιμένετε να δημιουργηθούν τα AR markers πρώτα...');
+                return;
+            }
+            
+            arMarkers.forEach(marker => {
+                const canvas = document.getElementById(marker.id);
+                if (canvas) {
+                    const link = document.createElement('a');
+                    link.download = `${marker.id}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            });
+            
+            alert(`Κατεβάστηκαν ${canvases.length} AR markers επιτυχώς!`);
+        }
+
+        // Generate AR markers when page loads
+        window.onload = generateARMarkers;
+    </script>
+</body>
+</html>

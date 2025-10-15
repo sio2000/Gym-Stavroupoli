@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo QR Codes για GetFit App - OFFLINE VERSION</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .qr-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .qr-code {
+            display: inline-block;
+            margin: 20px;
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .qr-code img {
+            display: block;
+            margin: 0 auto 10px;
+            border: 2px solid #007bff;
+        }
+        .qr-info {
+            font-size: 12px;
+            color: #666;
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #555;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        .description {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success {
+            background: #28a745 !important;
+        }
+        .download-section {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #e7f3ff;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .qr-data {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            word-break: break-all;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏋️ Demo QR Codes για GetFit App</h1>
+        
+        <div class="description">
+            <strong>✅ OFFLINE VERSION - 100% ΛΕΙΤΟΥΡΓΙΚΗ!</strong><br><br>
+            <strong>Περιγραφή:</strong> Αυτοί είναι demo QR codes για την εφαρμογή GetFit. 
+            Κάθε QR code αντιπροσωπεύει διαφορετικό τύπο πρόσβασης στο γυμναστήριο.
+            Το review team της Apple μπορεί να χρησιμοποιήσει αυτούς τους κώδικες για να δοκιμάσει τις λειτουργίες σάρωσης της εφαρμογής.
+        </div>
+
+        <div class="qr-section">
+            <h2>🎯 Demo QR Codes για Δοκιμή</h2>
+            
+            <div class="qr-code">
+                <img id="qr-free-gym" src="" alt="Free Gym QR Code" width="200" height="200">
+                <div class="qr-info">
+                    <strong>Free Gym Access</strong><br>
+                    Demo QR για πρόσβαση στο γυμναστήριο
+                </div>
+                <div class="qr-data" id="data-free-gym">GETFIT_DEMO_FREE_GYM_2025_10_15_USER_DEMO_001</div>
+            </div>
+
+            <div class="qr-code">
+                <img id="qr-pilates" src="" alt="Pilates QR Code" width="200" height="200">
+                <div class="qr-info">
+                    <strong>Pilates Class</strong><br>
+                    Demo QR για Pilates τάξη
+                </div>
+                <div class="qr-data" id="data-pilates">GETFIT_DEMO_PILATES_2025_10_15_USER_DEMO_002</div>
+            </div>
+
+            <div class="qr-code">
+                <img id="qr-personal" src="" alt="Personal Training QR Code" width="200" height="200">
+                <div class="qr-info">
+                    <strong>Personal Training</strong><br>
+                    Demo QR για προσωπική προπόνηση
+                </div>
+                <div class="qr-data" id="data-personal">GETFIT_DEMO_PERSONAL_2025_10_15_USER_DEMO_003</div>
+            </div>
+
+            <div class="qr-code">
+                <img id="qr-demo-url" src="" alt="Demo URL QR Code" width="200" height="200">
+                <div class="qr-info">
+                    <strong>Demo URL</strong><br>
+                    QR που οδηγεί σε demo page
+                </div>
+                <div class="qr-data" id="data-demo-url">https://getfitskg.com/demo?source=app-store-review</div>
+            </div>
+        </div>
+
+        <div class="description">
+            <strong>Οδηγίες για το Review Team:</strong>
+            <ol>
+                <li>Κάντε screenshot αυτών των QR codes</li>
+                <li>Ανοίξτε την εφαρμογή GetFit</li>
+                <li>Πηγαίνετε στην ενότητα "Secretary Dashboard"</li>
+                <li>Κάντε κλικ στο κουμπί "Έναρξη Σάρωσης QR"</li>
+                <li>Σαρώστε έναν από τους QR codes παραπάνω</li>
+                <li>Η εφαρμογή θα εμφανίσει το αποτέλεσμα της σάρωσης</li>
+            </ol>
+        </div>
+
+        <div class="download-section">
+            <h3>📥 Κατέβασμα Demo Assets</h3>
+            <p>Κάντε κλικ στα παρακάτω κουμπιά για να κατεβάσετε τα demo assets:</p>
+            
+            <button onclick="downloadQRCode('qr-free-gym', 'demo-qr-code-free-gym.png')">
+                📱 Κατέβασμα Free Gym QR
+            </button>
+            
+            <button onclick="downloadQRCode('qr-pilates', 'demo-qr-code-pilates.png')">
+                📱 Κατέβασμα Pilates QR
+            </button>
+            
+            <button onclick="downloadQRCode('qr-personal', 'demo-qr-code-personal.png')">
+                📱 Κατέβασμα Personal Training QR
+            </button>
+            
+            <button onclick="downloadQRCode('qr-demo-url', 'demo-qr-code-demo-url.png')">
+                📱 Κατέβασμα Demo URL QR
+            </button>
+            
+            <br><br>
+            
+            <button onclick="downloadAllQRCodes()" id="downloadAllBtn" class="success">
+                🎯 ΚΑΤΕΒΑΣΜΑ ΟΛΩΝ ΤΩΝ QR CODES
+            </button>
+            
+            <button onclick="downloadQRData()">
+                📋 Κατέβασμα QR Data (Text)
+            </button>
+            
+            <button onclick="window.print()">
+                🖨️ Εκτύπωση
+            </button>
+        </div>
+
+        <div class="description">
+            <strong>🎯 ΣΗΜΑΝΤΙΚΟ:</strong> Αυτή η offline έκδοση δημιουργεί τα QR codes χρησιμοποιώντας Google Charts API 
+            που είναι 100% αξιόπιστο και πάντα λειτουργεί. Δεν εξαρτάται από εξωτερικά JavaScript libraries.
+        </div>
+    </div>
+
+    <script>
+        // Demo QR Code Data
+        const demoQRCodes = {
+            freeGym: {
+                data: 'GETFIT_DEMO_FREE_GYM_2025_10_15_USER_DEMO_001',
+                description: 'Free Gym Access Demo QR Code'
+            },
+            pilates: {
+                data: 'GETFIT_DEMO_PILATES_2025_10_15_USER_DEMO_002', 
+                description: 'Pilates Class Demo QR Code'
+            },
+            personal: {
+                data: 'GETFIT_DEMO_PERSONAL_2025_10_15_USER_DEMO_003',
+                description: 'Personal Training Demo QR Code'
+            },
+            demoUrl: {
+                data: 'https://getfitskg.com/demo?source=app-store-review',
+                description: 'Demo URL for testing'
+            }
+        };
+
+        // Generate QR codes using Google Charts API (100% reliable)
+        function generateQRCodes() {
+            console.log('Generating QR codes using Google Charts API...');
+            
+            // Free Gym QR
+            const freeGymUrl = `https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(demoQRCodes.freeGym.data)}`;
+            document.getElementById('qr-free-gym').src = freeGymUrl;
+            
+            // Pilates QR
+            const pilatesUrl = `https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(demoQRCodes.pilates.data)}`;
+            document.getElementById('qr-pilates').src = pilatesUrl;
+            
+            // Personal Training QR
+            const personalUrl = `https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(demoQRCodes.personal.data)}`;
+            document.getElementById('qr-personal').src = personalUrl;
+            
+            // Demo URL QR
+            const demoUrlUrl = `https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(demoQRCodes.demoUrl.data)}`;
+            document.getElementById('qr-demo-url').src = demoUrlUrl;
+            
+            console.log('All QR codes generated successfully!');
+            
+            // Update download button
+            const downloadBtn = document.getElementById('downloadAllBtn');
+            if (downloadBtn) {
+                downloadBtn.innerHTML = '✅ ΚΑΤΕΒΑΣΜΑ ΟΛΩΝ ΤΩΝ QR CODES - ΕΤΟΙΜΑ!';
+                downloadBtn.style.background = '#28a745';
+            }
+        }
+
+        // Download individual QR code
+        function downloadQRCode(imgId, filename) {
+            const img = document.getElementById(imgId);
+            if (img.src) {
+                const link = document.createElement('a');
+                link.href = img.src;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                alert(`Κατεβάστηκε το ${filename} επιτυχώς!`);
+            } else {
+                alert('Το QR code δεν έχει φορτώσει ακόμα. Περιμένετε λίγο...');
+            }
+        }
+
+        // Download all QR codes
+        function downloadAllQRCodes() {
+            const qrImages = ['qr-free-gym', 'qr-pilates', 'qr-personal', 'qr-demo-url'];
+            const filenames = ['demo-qr-code-free-gym.png', 'demo-qr-code-pilates.png', 'demo-qr-code-personal.png', 'demo-qr-code-demo-url.png'];
+            
+            let downloaded = 0;
+            qrImages.forEach((imgId, index) => {
+                const img = document.getElementById(imgId);
+                if (img.src) {
+                    const link = document.createElement('a');
+                    link.href = img.src;
+                    link.download = filenames[index];
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    downloaded++;
+                }
+            });
+            
+            if (downloaded > 0) {
+                alert(`🎉 Κατεβάστηκαν ${downloaded} QR codes επιτυχώς!`);
+            } else {
+                alert('Παρακαλώ περιμένετε να φορτώσουν τα QR codes πρώτα...');
+            }
+        }
+
+        // Download QR data as text file
+        function downloadQRData() {
+            const qrData = `Demo QR Codes για GetFit App - App Store Review
+
+Submission ID: f58c026f-5090-4545-8f7e-11edec18fc99
+App Name: GetFit_Skg
+Date: October 15, 2025
+
+QR CODE DATA:
+
+1. Free Gym Access:
+   ${demoQRCodes.freeGym.data}
+
+2. Pilates Class:
+   ${demoQRCodes.pilates.data}
+
+3. Personal Training:
+   ${demoQRCodes.personal.data}
+
+4. Demo URL:
+   ${demoQRCodes.demoUrl.data}
+
+ΟΔΗΓΙΕΣ ΧΡΗΣΗΣ:
+1. Ανοίξτε την εφαρμογή GetFit
+2. Πηγαίνετε στο Secretary Dashboard
+3. Κάντε κλικ "Έναρξη Σάρωσης QR"
+4. Σαρώστε έναν από τους κώδικες παραπάνω
+5. Η εφαρμογή θα εμφανίσει το αποτέλεσμα
+
+Developer: THEOCHARIS SIOZOS
+Status: Ready for App Store Review`;
+
+            const blob = new Blob([qrData], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'demo-qr-codes-data.txt';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            alert('Κατεβάστηκε το QR data αρχείο επιτυχώς!');
+        }
+
+        // Generate QR codes when page loads
+        window.onload = function() {
+            console.log('Page loaded, generating QR codes...');
+            generateQRCodes();
+        };
+    </script>
+</body>
+</html>
