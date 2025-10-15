@@ -4251,7 +4251,8 @@ const AdminPanel: React.FC = () => {
                           {/* Enhanced Program Options Section */}
                           {((request.status === 'pending') || 
                             (request.status === 'approved' && isRequestPending(request.id)) || 
-                            (request.status === 'rejected' && isRequestPending(request.id))) && (
+                            (request.status === 'rejected' && isRequestPending(request.id)) ||
+                            (request.has_installments && request.status === 'approved')) && (
                           <div className={`border-t border-slate-200 ${isRequestPending(request.id) ? 'bg-yellow-50' : 'bg-slate-50'}`}>
                             <div className="p-6 sm:p-7">
                               <div className="flex items-center justify-between mb-4">

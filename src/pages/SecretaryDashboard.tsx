@@ -3308,10 +3308,11 @@ const SecretaryDashboard: React.FC = () => {
                       )}
                     </div>
                     
-                    {/* Program Options Section for Free Gym requests - Only show if not approved/rejected OR if pending */}
+                    {/* Program Options Section for Free Gym requests - Only show if not approved/rejected OR if pending OR if has installments */}
                     {((request.status === 'pending') || 
                       (request.status === 'approved' && isRequestPending(request.id)) || 
-                      (request.status === 'rejected' && isRequestPending(request.id))) && (
+                      (request.status === 'rejected' && isRequestPending(request.id)) ||
+                      (request.has_installments && request.status === 'approved')) && (
                     <div className={`mt-6 p-6 rounded-2xl border shadow-lg ${isRequestPending(request.id) ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/30' : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/30'}`}>
                       <h5 className="text-lg font-bold text-white mb-4 flex items-center">
                         <span className="text-2xl mr-2">⚙️</span>

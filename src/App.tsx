@@ -19,6 +19,8 @@ const Extras = React.lazy(() => import('@/pages/Extras'));
 // Lazy load other pages for better performance
 const AdminPanel = React.lazy(() => import('@/pages/AdminPanel'));
 const ControlPanel = React.lazy(() => import('@/pages/ControlPanel'));
+// ADDED FOR INSTALLMENT_PLAN_PAGE - lazy load installment plan page
+const InstallmentPlanPage = React.lazy(() => import('@/pages/InstallmentPlanPage'));
 // Temporarily disable lazy loading for Profile to debug
 import Profile from '@/pages/Profile';
 const TrainerSpecificDashboard = React.lazy(() => import('@/pages/TrainerSpecificDashboard'));
@@ -137,6 +139,20 @@ const App: React.FC = () => {
               <Layout>
                 <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
                   <Extras />
+                </React.Suspense>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ADDED FOR INSTALLMENT_PLAN_PAGE - Installment Plan route */}
+        <Route
+          path="/installment-plan"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
+                  <InstallmentPlanPage />
                 </React.Suspense>
               </Layout>
             </ProtectedRoute>

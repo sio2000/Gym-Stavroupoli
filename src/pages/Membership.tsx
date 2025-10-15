@@ -508,7 +508,7 @@ const MembershipPage: React.FC = React.memo(() => {
                         {membership.package?.name}
                       </h3>
                       <p className="text-primary-700">
-                        {getDurationLabel(membership.duration_type)} - {formatPrice(membership.duration?.price || 0)}
+                        {getDurationLabel(membership.duration_type)}
                       </p>
                     </div>
                   </div>

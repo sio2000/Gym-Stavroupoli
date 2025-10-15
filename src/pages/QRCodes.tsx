@@ -11,7 +11,8 @@ import {
   AlertCircle,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  Receipt
 } from 'lucide-react';
 import { formatDate } from '@/utils';
 import { getUserQRCodes, generateQRCode, isQRSystemEnabled } from '@/utils/qrSystem';
@@ -19,6 +20,7 @@ import { getAvailableQRCategories, QRCodeCategory } from '@/utils/activeMembersh
 import QRCodeLib from 'qrcode';
 import toast from 'react-hot-toast';
 import NoActiveMembershipMessage from '@/components/NoActiveMembershipMessage';
+import { checkOverdueInstallment } from '@/services/api/installmentApi';
 
 // QR Code Canvas Component
 const QRCodeCanvas: React.FC<{ qrData: string; category: string }> = ({ qrData, category }) => {
@@ -245,12 +247,30 @@ const QRCodes: React.FC = () => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [zoomModalOpen, setZoomModalOpen] = useState(false);
   const [selectedQRData, setSelectedQRData] = useState<{ qrData: string; category: string } | null>(null);
+  const [hasOverdueInstallment, setHasOverdueInstallment] = useState(false);
+  const [checkingOverdue, setCheckingOverdue] = useState(true);
 
   // Load user's QR codes and available categories
   useEffect(() => {
     loadQRCodes();
     loadAvailableCategories();
+    checkOverdueStatus();
   }, [user?.id]);
+
+  const checkOverdueStatus = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setCheckingOverdue(true);
+      const hasOverdue = await checkOverdueInstallment();
+      setHasOverdueInstallment(hasOverdue);
+    } catch (error) {
+      console.error('Error checking overdue installment:', error);
+      setHasOverdueInstallment(false);
+    } finally {
+      setCheckingOverdue(false);
+    }
+  };
 
   const loadQRCodes = async () => {
     if (!user?.id) return;
@@ -506,6 +526,34 @@ const QRCodes: React.FC = () => {
               </button>
             ))}
           </div>
+        ) : hasOverdueInstallment ? (
+          <div className="text-center py-8">
+            <div className="max-w-md mx-auto">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
+                  <AlertCircle className="h-8 w-8 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-red-900 mb-2">
+                  QR Codes Δεν Διαθέσιμα
+                </h3>
+                <p className="text-red-700 mb-4">
+                  Δεν μπορείτε να αποκτήσετε πρόσβαση στα QR Codes επειδή έχετε εκπρόθεσμη δόση στο πλάνο δόσεων σας.
+                </p>
+                <p className="text-sm text-red-600 mb-4">
+                  Παρακαλώ πληρώστε την εκπρόθεσμη δόση για να αποκτήσετε ξανά πρόσβαση στα QR Codes.
+                </p>
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => window.location.href = '/installment-plan'}
+                    className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Προβολή Πλάνου Δόσεων
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
           <NoActiveMembershipMessage showQRMessage={true} />
         )}
@@ -515,10 +563,12 @@ const QRCodes: React.FC = () => {
       <div className="card">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Ενεργά QR Codes</h2>
         
-        {loading ? (
+        {loading || checkingOverdue ? (
           <div className="text-center py-8">
             <RefreshCw className="h-8 w-8 text-gray-400 mx-auto mb-3 animate-spin" />
-            <p className="text-gray-500">Φόρτωση QR codes...</p>
+            <p className="text-gray-500">
+              {checkingOverdue ? 'Έλεγχος κατάστασης δόσεων...' : 'Φόρτωση QR codes...'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">

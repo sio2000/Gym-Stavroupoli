@@ -15,11 +15,13 @@ import {
   UserPlus,
   QrCode,
   Target,
-  Star
+  Star,
+  Receipt
 } from 'lucide-react';
 import { cn } from '@/utils';
 import { supabase } from '@/config/supabase';
 import { trackPageVisit } from '@/utils/appVisits';
+import { checkOverdueInstallment } from '@/services/api/installmentApi';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -32,6 +34,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [hasQRCodeAccess, setHasQRCodeAccess] = useState(false);
   const [hasPersonalTraining, setHasPersonalTraining] = useState(false);
   const [hasPaspartuTraining, setHasPaspartuTraining] = useState(false);
+  // ADDED FOR INSTALLMENT_PLAN_PAGE - state for installment plan visibility
+  const [hasInstallmentPlan, setHasInstallmentPlan] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -191,7 +195,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         console.log('[Layout] Has QR Code access membership?', hasQRCodeAccessMembership);
         
         // QR Code access for both Free Gym and Pilates memberships
-        setHasQRCodeAccess(hasQRCodeAccessMembership || false);
+        // Αλλά ελέγχουμε αν χρωστάει δόση που έχει κλειδωθεί
+        if (hasQRCodeAccessMembership) {
+          try {
+            const hasOverdue = await checkOverdueInstallment();
+            console.log('[Layout] Has overdue installment?', hasOverdue);
+            
+            // Αν έχει πρόσβαση από membership αλλά χρωστάει δόση, αποκρύπτουμε τα QR Codes
+            setHasQRCodeAccess(!hasOverdue);
+          } catch (error) {
+            console.error('[Layout] Error checking overdue installment:', error);
+            // Σε περίπτωση σφάλματος, δίνουμε πρόσβαση για ασφάλεια
+            setHasQRCodeAccess(true);
+          }
+        } else {
+          setHasQRCodeAccess(false);
+        }
       } catch (error) {
         console.error('Error checking active membership:', error);
         setHasApprovedMembership(false);
@@ -202,6 +221,50 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     checkActiveMembership();
   }, [user?.id, hasPersonalTraining]);
+
+  // ADDED FOR INSTALLMENT_PLAN_PAGE - check if user has installment plan
+  useEffect(() => {
+    console.log('[Layout] useEffect triggered for installment plan check');
+    console.log('[Layout] User object:', user);
+    console.log('[Layout] User ID:', user?.id);
+    
+    const checkInstallmentPlan = async () => {
+      console.log('[Layout] checkInstallmentPlan function called');
+      
+      if (!user?.id) {
+        console.log('[Layout] No user ID, setting hasInstallmentPlan to false');
+        setHasInstallmentPlan(false);
+        return;
+      }
+
+      console.log('[Layout] User authenticated, checking installment plan for user:', user.id);
+
+      try {
+        // Dynamic import για να αποφύγουμε circular dependencies
+        console.log('[Layout] Importing hasInstallmentPlan function...');
+        const { hasInstallmentPlan: checkHasPlan } = await import('@/services/api/installmentApi');
+        console.log('[Layout] Imported hasInstallmentPlan function');
+        
+        const hasPlan = await checkHasPlan();
+        console.log('[Layout] hasInstallmentPlan result:', hasPlan);
+        
+        setHasInstallmentPlan(hasPlan);
+        console.log('[Layout] Set hasInstallmentPlan state to:', hasPlan);
+      } catch (error) {
+        console.error('[Layout] Error checking installment plan:', error);
+        setHasInstallmentPlan(false);
+      }
+    };
+
+    // Προσθέτουμε ένα μικρό delay για να βεβαιωθούμε ότι ο χρήστης είναι πλήρως authenticated
+    console.log('[Layout] Setting timeout for checkInstallmentPlan');
+    const timeoutId = setTimeout(checkInstallmentPlan, 100);
+    
+    return () => {
+      console.log('[Layout] Cleaning up timeout');
+      clearTimeout(timeoutId);
+    };
+  }, [user?.id]);
 
   // Track page visits when location changes (with debouncing)
   useEffect(() => {
@@ -220,6 +283,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [location.pathname, user?.id]);
 
+  console.log('[Layout] Building navigation with hasInstallmentPlan:', hasInstallmentPlan);
+  
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Συνδρομή', href: '/membership', icon: CreditCard },
@@ -231,10 +296,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     ...(hasPilatesMembership ? [{ name: 'Ημερολόγιο', href: '/pilates-calendar', icon: Calendar }] : []),
     // Προσθέτουμε δυναμικά το QR Codes μόνο όταν ο χρήστης έχει personal training ή pilates συνδρομή
     ...(hasQRCodeAccess ? [{ name: 'QR Codes', href: '/qr-codes', icon: QrCode }] : []),
+    // ADDED FOR INSTALLMENT_PLAN_PAGE - add installment plan menu item conditionally
+    ...(hasInstallmentPlan ? [{ name: 'Πλάνο Δόσεων', href: '/installment-plan', icon: Receipt }] : []),
     { name: 'Refer & Win', href: '/referral', icon: UserPlus },
     { name: 'Προφίλ', href: '/profile', icon: User },
     { name: 'Είσαι Γονέας?', href: '/extras', icon: Star },
   ];
+  
+  console.log('[Layout] Final navigation array:', navigation);
 
   // Admin specific navigation
   const adminNavigation = [
