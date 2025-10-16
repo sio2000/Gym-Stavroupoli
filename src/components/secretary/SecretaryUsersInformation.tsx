@@ -142,41 +142,48 @@ const SecretaryUsersInformation: React.FC = () => {
       <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-4 sm:p-6 text-white mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
           <div>
-            <h2 className="text-lg sm:text-2xl font-bold mb-2">👥 Χρήστες-Πληροφορίες</h2>
-            <p className="text-purple-100 text-sm sm:text-base">Αναζήτηση και λεπτομέρειες χρηστών</p>
+            <h2 className="text-lg sm:text-2xl font-bold mb-2">
+              <span className="hidden sm:inline">👥 Χρήστες-Πληροφορίες</span>
+              <span className="sm:hidden">👥 Χρήστες</span>
+            </h2>
+            <p className="text-purple-100 text-sm sm:text-base">
+              <span className="hidden sm:inline">Αναζήτηση και λεπτομέρειες χρηστών</span>
+              <span className="sm:hidden">Αναζήτηση χρηστών</span>
+            </p>
           </div>
           <button
             onClick={() => loadRandomUsers(1)}
             disabled={loading}
-            className="flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all duration-200 font-semibold shadow-lg text-sm disabled:opacity-50"
+            className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all duration-200 font-semibold shadow-lg text-xs sm:text-sm disabled:opacity-50"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            <span>🔄 Ανανέωση</span>
+            <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">🔄 Ανανέωση</span>
+            <span className="sm:hidden">⟳</span>
           </button>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-        <div className="flex items-center space-x-4">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+        <div className="flex items-center space-x-2 sm:space-x-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
               <input
                 type="text"
-                placeholder="🔍 Αναζήτηση με όνομα, email ή ID χρήστη..."
+                placeholder="🔍 Αναζήτηση με όνομα, email ή ID..."
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 placeholder-gray-500"
+                className="w-full pl-10 sm:pl-12 pr-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 placeholder-gray-500 text-sm sm:text-base"
               />
             </div>
           </div>
           {searchTerm && (
             <button
               onClick={clearSearch}
-              className="px-4 py-3 text-gray-400 hover:text-gray-600 transition-colors bg-gray-100 rounded-xl hover:bg-gray-200"
+              className="px-3 sm:px-4 py-2 sm:py-3 text-gray-400 hover:text-gray-600 transition-colors bg-gray-100 rounded-xl hover:bg-gray-200"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           )}
         </div>
@@ -184,9 +191,19 @@ const SecretaryUsersInformation: React.FC = () => {
 
       {/* Users List */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-xl font-bold text-gray-900">
-            {searchTerm ? `Αποτελέσματα αναζήτησης (${searchResults.length})` : `Χρήστες (Σελίδα ${currentPage} από ${totalPages})`}
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+            {searchTerm ? (
+              <>
+                <span className="hidden sm:inline">Αποτελέσματα αναζήτησης ({searchResults.length})</span>
+                <span className="sm:hidden">Αποτελέσματα ({searchResults.length})</span>
+              </>
+            ) : (
+              <>
+                <span className="hidden sm:inline">Χρήστες (Σελίδα {currentPage} από {totalPages})</span>
+                <span className="sm:hidden">Χρήστες ({currentPage}/{totalPages})</span>
+              </>
+            )}
           </h3>
         </div>
 
@@ -207,12 +224,12 @@ const SecretaryUsersInformation: React.FC = () => {
             {displayUsers.map((user) => (
               <div
                 key={user.user_id}
-                className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+                className="p-4 sm:p-6 hover:bg-gray-50 transition-colors cursor-pointer"
                 onClick={() => loadUserDetails(user.user_id)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
+                  <div className="flex items-center space-x-3 sm:space-x-4 w-full sm:w-auto">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-lg">
                       {(() => {
                         const firstInitial = (user.first_name && user.first_name.trim()) ? user.first_name.trim().charAt(0) : '';
                         const lastInitial = (user.last_name && user.last_name.trim()) ? user.last_name.trim().charAt(0) : '';
@@ -222,24 +239,25 @@ const SecretaryUsersInformation: React.FC = () => {
                         return emailInitial;
                       })()}
                     </div>
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-900">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                         {((user.first_name && user.first_name.trim()) || (user.last_name && user.last_name.trim()))
                           ? `${user.first_name ? user.first_name : ''} ${user.last_name ? user.last_name : ''}`.trim()
                           : (user.email || '—')}
                       </h4>
-                      <p className="text-gray-600">{user.email || '—'}</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm sm:text-base text-gray-600 truncate">{user.email || '—'}</p>
+                      <p className="text-xs sm:text-sm text-gray-500">
                         ID: {user.user_id}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500">
+                  <div className="text-left sm:text-right w-full sm:w-auto">
+                    <p className="text-xs sm:text-sm text-gray-500">
                       Εγγραφή: {formatDate(user.created_at)}
                     </p>
-                    <button className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm">
-                      Προβολή Λεπτομερειών
+                    <button className="mt-2 px-3 sm:px-4 py-1 sm:py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-xs sm:text-sm">
+                      <span className="hidden sm:inline">Προβολή Λεπτομερειών</span>
+                      <span className="sm:hidden">Λεπτομέρειες</span>
                     </button>
                   </div>
                 </div>
@@ -250,27 +268,30 @@ const SecretaryUsersInformation: React.FC = () => {
 
         {/* Pagination Controls */}
         {!searchTerm && totalPages > 1 && (
-          <div className="p-6 border-t border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                Εμφάνιση {((currentPage - 1) * USERS_PER_PAGE) + 1}-{Math.min(currentPage * USERS_PER_PAGE, totalUsers)} από {totalUsers} χρήστες
+          <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
+            <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+              <div className="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
+                <span className="hidden sm:inline">Εμφάνιση {((currentPage - 1) * USERS_PER_PAGE) + 1}-{Math.min(currentPage * USERS_PER_PAGE, totalUsers)} από {totalUsers} χρήστες</span>
+                <span className="sm:hidden">{((currentPage - 1) * USERS_PER_PAGE) + 1}-{Math.min(currentPage * USERS_PER_PAGE, totalUsers)} / {totalUsers}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={handlePreviousPage}
                   disabled={currentPage === 1}
-                  className="flex items-center space-x-1 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  className="flex items-center space-x-1 px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                 >
-                  <ChevronLeft className="h-4 w-4" />
-                  <span>Προηγούμενη</span>
+                  <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Προηγούμενη</span>
+                  <span className="sm:hidden">Προηγ.</span>
                 </button>
                 <button
                   onClick={handleNextPage}
                   disabled={currentPage === totalPages}
-                  className="flex items-center space-x-1 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  className="flex items-center space-x-1 px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                 >
-                  <span>Επόμενη</span>
-                  <ChevronRight className="h-4 w-4" />
+                  <span className="hidden sm:inline">Επόμενη</span>
+                  <span className="sm:hidden">Επόμ.</span>
+                  <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
               </div>
             </div>
@@ -280,18 +301,19 @@ const SecretaryUsersInformation: React.FC = () => {
 
       {/* User Details Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-gray-900">
-                  Λεπτομέρειες Χρήστη
+                <h3 className="text-lg sm:text-2xl font-bold text-gray-900">
+                  <span className="hidden sm:inline">Λεπτομέρειες Χρήστη</span>
+                  <span className="sm:hidden">Λεπτομέρειες</span>
                 </h3>
                 <button
                   onClick={() => setSelectedUser(null)}
                   className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5 sm:h-6 sm:w-6" />
                 </button>
               </div>
             </div>
@@ -304,14 +326,15 @@ const SecretaryUsersInformation: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                 {/* Basic Information */}
-                <div className="bg-gray-50 rounded-xl p-6">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <User className="h-5 w-5 mr-2" />
-                    Βασικές Πληροφορίες
+                <div className="bg-gray-50 rounded-xl p-4 sm:p-6">
+                  <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+                    <User className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                    <span className="hidden sm:inline">Βασικές Πληροφορίες</span>
+                    <span className="sm:hidden">Βασικές Πληροφορίες</span>
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <p className="text-sm text-gray-600">Όνομα</p>
                       <p className="font-medium">{selectedUser.user_info.first_name} {selectedUser.user_info.last_name}</p>

@@ -1,0 +1,33 @@
+APP STORE REVIEW INFORMATION - NOTES
+
+Submission ID: f58c026f-5090-4545-8f7e-11edec18fc99
+App Name: GetFit_Skg
+
+DEMO QR CODES PROVIDED FOR TESTING
+
+I have successfully created and tested demo QR codes for the app's QR scanning functionality. All demo assets are fully functional and ready for review.
+
+DEMO QR CODES (4 PNG files attached):
+1. demo-qr-code-free-gym.png - Free gym access QR code
+2. demo-qr-code-pilates.png - Pilates class access QR code  
+3. demo-qr-code-personal.png - Personal training access QR code
+4. demo-qr-code-demo-url.png - Demo URL QR code
+
+HOW TO TEST QR SCANNING:
+1. Open GetFit app
+2. Go to "Secretary Dashboard"
+3. Tap "Start QR Scan" or "Έναρξη Σάρωσης QR"
+4. Allow camera access when prompted
+5. Scan any of the provided demo QR codes
+6. App will show scan results with user info and access type
+
+TECHNICAL DETAILS:
+- QR System: ZXing library with jsQR fallback
+- Camera: HTML5 getUserMedia API
+- Security: Rate limiting and audit logging
+- Categories: Free gym, Pilates, Personal training
+
+All demo QR codes have been tested and work perfectly. The app is ready for approval.
+
+Thank you,
+THEOCHARIS SIOZOS
