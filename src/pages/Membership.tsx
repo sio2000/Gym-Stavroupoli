@@ -733,7 +733,7 @@ const MembershipPage: React.FC = React.memo(() => {
                         <div className="text-center">
                           <div className="text-sm text-gray-600 mb-2">Από</div>
                           <div className="text-2xl font-bold text-pink-600">
-                            {formatPrice(6.00)}
+                            {formatPrice(8.00)}
                           </div>
                           <div className="text-xs text-gray-500">για 1 μάθημα</div>
                         </div>

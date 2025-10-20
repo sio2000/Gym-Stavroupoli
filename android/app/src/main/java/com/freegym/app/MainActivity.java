@@ -15,9 +15,10 @@ public class MainActivity extends BridgeActivity {
     public void onStart() {
         super.onStart();
         
-        // Load fallback HTML first
-        WebView webView = this.getBridge().getWebView();
-        if (webView != null) {
+        try {
+            // Load fallback HTML first
+            WebView webView = this.getBridge().getWebView();
+            if (webView != null) {
             // Load the live web app directly
             webView.loadUrl("https://www.getfitskg.com");
             Log.d(TAG, "Loading live web app from getfitskg.com");
@@ -106,8 +107,11 @@ public class MainActivity extends BridgeActivity {
             });
             
             Log.d(TAG, "WebView initialized with modern JS support");
-        } else {
-            Log.e(TAG, "WebView is null!");
+            } else {
+                Log.e(TAG, "WebView is null!");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing WebView: " + e.getMessage(), e);
         }
     }
 }
