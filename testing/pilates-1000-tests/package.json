@@ -1,0 +1,48 @@
+{
+  "name": "pilates-1000-test-suite",
+  "version": "1.0.0",
+  "description": "1000+ comprehensive tests for Pilates booking system bug verification",
+  "main": "index.js",
+  "scripts": {
+    "generate:tests": "node generators/test-case-generator.js",
+    "generate:users": "node generators/user-generator.js",
+    "test:all": "node runners/master-runner.js",
+    "test:subset": "node runners/master-runner.js --subset",
+    "test:priority": "node runners/master-runner.js --priority",
+    "test:concurrent": "node runners/parallel-runner.js",
+    "test:sequential": "node runners/sequential-runner.js",
+    "verify:db": "node verifiers/db-verifier.js",
+    "inject:failures": "node injectors/failure-injector.js",
+    "analyze": "node scripts/analyze-results.js",
+    "report": "node scripts/generate-report.js",
+    "replay": "node scripts/replay-test.js",
+    "clean": "node scripts/clean-results.js",
+    "reconcile": "node scripts/reconcile-db.js"
+  },
+  "keywords": [
+    "testing",
+    "pilates",
+    "booking",
+    "end-to-end",
+    "qa"
+  ],
+  "author": "GetFitsKG",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "axios": "^1.6.2",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.3.1",
+    "uuid": "^9.0.1",
+    "moment-timezone": "^0.5.43",
+    "fast-csv": "^4.3.6",
+    "p-limit": "^3.1.0"
+  },
+  "devDependencies": {
+    "faker": "^5.5.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+

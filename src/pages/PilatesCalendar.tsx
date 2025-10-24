@@ -211,7 +211,15 @@ const PilatesCalendar: React.FC = () => {
     
     try {
       console.log('Cancelling booking for slot:', slotId);
-      await cancelPilatesBooking(slotId);
+      
+      // Find the booking ID for this slot
+      const booking = userBookings.find(b => b.slot_id === slotId && b.status === 'confirmed');
+      if (!booking) {
+        toast.error('Δεν βρέθηκε η κράτηση.');
+        return;
+      }
+      
+      await cancelPilatesBooking(booking.id, user.id);
       toast.success('Η κράτηση ακυρώθηκε επιτυχώς!');
       await loadData();
     } catch (error) {

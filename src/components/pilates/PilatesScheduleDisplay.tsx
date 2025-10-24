@@ -392,6 +392,24 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
         </div>
       </div>
 
+      {/* Alert: Client names shown in trainer schedule */}
+      <div className="bg-gradient-to-r from-yellow-100 via-yellow-50 to-yellow-100 border-4 border-yellow-500 rounded-xl p-6 shadow-2xl">
+        <div className="flex items-start">
+          <AlertCircle className="h-10 w-10 text-yellow-700 mt-1 mr-4 flex-shrink-0 animate-pulse" />
+          <div className="flex-1">
+            <h4 className="text-2xl font-black text-black mb-3 leading-tight">
+              ⚠️ ΣΗΜΑΝΤΙΚΗ ΕΝΗΜΕΡΩΣΗ
+            </h4>
+            <p className="text-lg font-bold text-black leading-relaxed mb-2">
+              Οι πελάτες του μαθήματος Pilates φαίνονται στο πρόγραμμα των trainers και όχι στο παρακάτω ημερολόγιο
+            </p>
+            <p className="text-base font-semibold text-gray-800 leading-relaxed">
+              Στο παρακάτω ημερολόγιο φαίνεται μόνο το ποσοστό που είναι γεμάτο το μάθημα (π.χ. 1/4, 4/4 κλπ) και όχι τα ονόματά τους
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Week Navigation Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="text-lg font-semibold text-blue-800 mb-2">

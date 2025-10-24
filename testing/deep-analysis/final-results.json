@@ -1,0 +1,450 @@
+{
+  "total": 35,
+  "success": 32,
+  "failed": 3,
+  "skipped": 0,
+  "details": [
+    {
+      "user_id": "3d64309f-b798-4a03-a28a-6c0bbae5e67c",
+      "user_name": "dora dora",
+      "booking_id": "bd632a28-e60c-4788-8664-7300a2e20693",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "ff96e258-5782-4d7a-890f-e276e2e3b7de",
+      "user_name": "ΣΩΤΗΡΗΣ ΠΟΛΥΖΟΠΟΥΛΟΣ",
+      "booking_id": "c7ff5467-668b-4a15-8f22-f865b1abafa7",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "d1f3fff3-93d0-4c6f-a981-f4a3f2db5af3",
+      "user_name": "Ασημένια Καπρανη",
+      "booking_id": "bc158dfa-4184-4921-b34a-8d5270a68673",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "c22ebf5e-db77-4f23-84a8-1ac45be2ee44",
+      "user_name": "ΣΟΦΙΑ ΚΕΤΣΙΑΚΙΔΟΥ",
+      "booking_id": "c9a247cf-95e9-48be-9190-0e54fc43b13e",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "4e234264-bec3-42af-947c-ebfceccd7c0f",
+      "user_name": "Σουζάνα Δάλλα",
+      "booking_id": "9c580802-44bc-4044-ab79-dca44c7b2247",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "b1bdc879-9b9f-4fed-88e9-15ccee1ea83d",
+      "user_name": "gkan gkan",
+      "booking_id": "76526e7f-9f5e-456d-9275-b7346643ab57",
+      "status": "FAILED",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": false,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": false
+      }
+    },
+    {
+      "user_id": "905ff8ee-18f5-455e-9ef2-57f10b0d74ca",
+      "user_name": "scs scs",
+      "booking_id": "c3072abe-8ac4-4bb4-8474-ac18d629f6fd",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "c219e601-fd60-4468-8ea0-307c7cff35af",
+      "user_name": "Μαρία  Σαββαϊδου ",
+      "booking_id": "d1316a72-74c1-46ea-a72f-d611b221ba9f",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "e778f907-8f13-4dc9-acc4-8c93652501e4",
+      "user_name": "apooooo apooooo",
+      "booking_id": "551a4d29-296e-43f6-8197-0b17969f5672",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "4f51d3ee-389f-40f0-9114-4c0394927bce",
+      "user_name": "as as",
+      "booking_id": "bf53b851-7688-454e-8c71-6f6b3a16e586",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "48173b1f-74ce-41a7-9184-388ae84d6629",
+      "user_name": "Αριστείδης Αμανατίδης",
+      "booking_id": "7126173e-fe90-4d2c-8cbc-ad144ab5c2ae",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "017fea7a-8642-4767-8a6d-1702608d5b51",
+      "user_name": "Φιλιππος Πασχαλουδης",
+      "booking_id": "6ee15449-ecd8-4db4-b8a3-fb4cf13813ac",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "9adf938d-6b00-4264-b8f8-11b7d140b6f7",
+      "user_name": "til til",
+      "booking_id": "1707c865-e2dd-43c6-81a5-c43d8a9c0628",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "8ffe2c16-1f0a-4ccb-9f0f-678bfaa12c25",
+      "user_name": "mamama mamama",
+      "booking_id": "7584e0d8-424b-4816-95c5-076ff6ed8519",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "5939b88d-65b1-4951-950f-7591895c1df7",
+      "user_name": "Evdokia Panagiotou",
+      "booking_id": "f2cbe15b-c1b6-463c-9c25-d732d1211246",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "632fe923-f28d-4d48-9ec2-877ead295676",
+      "user_name": "demena demena",
+      "booking_id": "4a0fdd35-ad51-4372-a5a3-3f951427756c",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "67783812-c084-46aa-bdce-a2854f5f836f",
+      "user_name": "Μαρια Νταβιτιδη",
+      "booking_id": "03f7a129-f47e-43a3-ae6b-b9b8c952cde9",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "7971f73e-7d52-4266-b39e-7efc67c9f345",
+      "user_name": "111 111",
+      "booking_id": "ede946ed-ae7a-4f63-a4ae-c12a3edc3586",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "605db52c-fdf0-443d-88fb-c9df7dac3d0d",
+      "user_name": "ΦΩΤΗΣ ΦΩΤΙΑΔΗΣ",
+      "booking_id": "2f3e07bb-fc33-4d59-a732-dafc3d28acbd",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "69ef4940-435a-417c-90b6-2406984b5f27",
+      "user_name": "Δημητρα Γκαγκαλουδη",
+      "booking_id": "6656b1c6-4bb8-4716-8664-03192cff9a22",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "ba262f03-6a57-4c63-9349-704d87bf8581",
+      "user_name": "Νενα Παπαδοπουλου",
+      "booking_id": "8cf4600e-108b-428b-8fb2-60e447765223",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "9d6ffcd1-b802-4f8e-a537-629c30f03803",
+      "user_name": "Ελευθερία Τσουρεκα",
+      "booking_id": "d93439c0-618a-4524-b733-bcb0b20e08e1",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "b1bdc879-9b9f-4fed-88e9-15ccee1ea83d",
+      "user_name": "gkan gkan",
+      "booking_id": "511203d5-0b4c-4585-8688-b772499ee0ef",
+      "status": "FAILED",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": false,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": false
+      }
+    },
+    {
+      "user_id": "dcfce45b-8418-4cb3-b81d-762a7575d8d4",
+      "user_name": "4324 5665",
+      "booking_id": "1d871a8b-88e7-4353-8c69-dc8b13e756b4",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "cf46b8c0-a5bf-41a8-8a22-ed25196a7896",
+      "user_name": "DODODO DODODO",
+      "booking_id": "628e7871-1f10-42ea-a72c-45315bb11f23",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "2b52db38-31b1-4387-9d7a-f7b88f18564b",
+      "user_name": "nik nik",
+      "booking_id": "7cc07360-5f21-411b-bc69-ac5a7004bfca",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "e5563484-3e07-4ffa-91a1-d0404bfe4b3f",
+      "user_name": "Ελεονωρα Τιτοπουλου",
+      "booking_id": "57519168-11ca-4f68-9dd2-baceb195b791",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "c56b9c3c-01a9-4eaf-b5c9-f0092928aa1b",
+      "user_name": "Lina Papad",
+      "booking_id": "95228fc7-c6c3-4187-bd81-5cfc0a335afe",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "c5c87b3e-6b44-432c-a690-1e045540b8d6",
+      "user_name": "sadf asdfg",
+      "booking_id": "fd795083-5c62-4265-8ced-de54b9ab39ac",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "cde3259d-17c7-4076-9bc7-31f5fa4a44a3",
+      "user_name": "Χρήστος ΣΑΛΤΣΙΔΗΣ",
+      "booking_id": "fb4cccdd-d339-4ffc-81ec-990d5fbeb9b5",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "5bf6ed0a-440f-46b6-9131-6d03fe823ed5",
+      "user_name": "Ντενια Ιγνατιδου",
+      "booking_id": "ef50e6e0-5333-40bc-b022-33a09f4ebd43",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "f66b9e8b-137c-4060-9089-515a5e242d66",
+      "user_name": "2222 23323",
+      "booking_id": "98ae3c85-3346-4600-a6f8-7e4949732b27",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "bcb09526-5d12-49cb-ad54-cdcb340150d4",
+      "user_name": "model model",
+      "booking_id": "edfdcc4d-f732-4253-98f7-3c859d25c77b",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    },
+    {
+      "user_id": "6f1588ba-7feb-4966-8ae8-ca4ae5deacdb",
+      "user_name": "asdafs asfasdg",
+      "booking_id": "9a59aaec-4b6a-4ca7-842a-a7c59267d0b1",
+      "status": "SUCCESS",
+      "checks": {
+        "booking_exists": true,
+        "deposit_decremented": true,
+        "occupancy_increased": true,
+        "correct_occupancy": true,
+        "all_consistent": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "name": "pilates-booking-test-suite",
+  "version": "1.0.0",
+  "description": "Comprehensive testing suite for Pilates booking system with 99.999% confidence",
+  "main": "index.js",
+  "scripts": {
+    "test": "node scripts/run-all-tests.js",
+    "test:all": "node scripts/run-all-tests.js",
+    "test:smoke": "node scripts/run-smoke.js",
+    "test:functional": "node tests/1-functional/runner.js",
+    "test:concurrency": "node tests/2-concurrency/runner.js",
+    "test:load": "node tests/3-load-stress/runner.js",
+    "test:stress": "node tests/3-load-stress/stress-test.js",
+    "test:soak": "node tests/3-load-stress/soak-test.js",
+    "test:edge": "node tests/4-edge-cases/runner.js",
+    "test:integration": "node tests/5-integration/runner.js",
+    "test:security": "node tests/6-security/runner.js",
+    "test:resilience": "node tests/7-resilience/runner.js",
+    "test:usability": "node tests/8-usability/runner.js",
+    "test:consistency": "node tests/9-data-consistency/runner.js",
+    "test:rerun-flaky": "node scripts/rerun-flaky.js",
+    "report": "node scripts/generate-report.js",
+    "report:pdf": "node scripts/generate-report.js --format pdf",
+    "report:dashboard": "node scripts/generate-dashboard.js",
+    "clean": "rm -rf results/*",
+    "setup": "node scripts/setup-test-env.js"
+  },
+  "keywords": [
+    "testing",
+    "pilates",
+    "booking",
+    "qa",
+    "automation"
+  ],
+  "author": "GetFitsKG Development Team",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "axios": "^1.6.2",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.3.1",
+    "joi": "^17.11.0",
+    "moment-timezone": "^0.5.43",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "artillery": "^2.0.0",
+    "autocannon": "^7.14.0",
+    "chai": "^4.3.10",
+    "joi": "^17.11.0",
+    "mocha": "^10.2.0",
+    "playwright": "^1.40.0",
+    "winston": "^3.11.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
+

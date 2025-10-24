@@ -1,0 +1,163 @@
+{
+  "testSuite": {
+    "name": "Pilates Booking System Test Suite",
+    "version": "1.0.0",
+    "timestamp": "2025-10-24T00:00:00Z",
+    "targetConfidence": 0.99999
+  },
+  "environments": {
+    "development": {
+      "enabled": true,
+      "apiUrl": "http://localhost:5173",
+      "dbUrl": "${SUPABASE_URL}",
+      "parallel": true,
+      "maxConcurrent": 10
+    },
+    "staging": {
+      "enabled": true,
+      "apiUrl": "https://staging.getfitskg.com",
+      "dbUrl": "${SUPABASE_URL}",
+      "parallel": true,
+      "maxConcurrent": 50
+    },
+    "production-snapshot": {
+      "enabled": false,
+      "apiUrl": "https://app.getfitskg.com",
+      "dbUrl": "${SUPABASE_URL}",
+      "parallel": false,
+      "maxConcurrent": 5,
+      "sandboxMode": true
+    }
+  },
+  "devices": [
+    { "type": "web", "browser": "chrome", "enabled": true },
+    { "type": "web", "browser": "firefox", "enabled": true },
+    { "type": "web", "browser": "safari", "enabled": false },
+    { "type": "mobile", "platform": "ios", "enabled": false },
+    { "type": "mobile", "platform": "android", "enabled": false },
+    { "type": "api", "platform": "direct", "enabled": true }
+  ],
+  "timezones": [
+    "UTC",
+    "Europe/Athens",
+    "America/New_York",
+    "Asia/Tokyo"
+  ],
+  "testCategories": {
+    "functional": {
+      "enabled": true,
+      "priority": 1,
+      "estimatedTests": 99,
+      "timeout": 30000,
+      "retries": 3
+    },
+    "concurrency": {
+      "enabled": true,
+      "priority": 1,
+      "estimatedTests": 50,
+      "timeout": 60000,
+      "retries": 1,
+      "maxSimultaneousUsers": 1000
+    },
+    "loadStress": {
+      "enabled": true,
+      "priority": 2,
+      "estimatedTests": 20,
+      "timeout": 300000,
+      "retries": 0,
+      "rampUpUsers": [10, 100, 1000, 5000, 10000],
+      "duration": "5m"
+    },
+    "edgeCases": {
+      "enabled": true,
+      "priority": 1,
+      "estimatedTests": 100,
+      "timeout": 30000,
+      "retries": 3
+    },
+    "integration": {
+      "enabled": true,
+      "priority": 1,
+      "estimatedTests": 40,
+      "timeout": 45000,
+      "retries": 2
+    },
+    "security": {
+      "enabled": true,
+      "priority": 1,
+      "estimatedTests": 60,
+      "timeout": 30000,
+      "retries": 1
+    },
+    "resilience": {
+      "enabled": true,
+      "priority": 2,
+      "estimatedTests": 30,
+      "timeout": 120000,
+      "retries": 0
+    },
+    "usability": {
+      "enabled": false,
+      "priority": 3,
+      "estimatedTests": 20,
+      "timeout": 60000,
+      "retries": 1,
+      "requiresManual": true
+    },
+    "dataConsistency": {
+      "enabled": true,
+      "priority": 1,
+      "estimatedTests": 40,
+      "timeout": 30000,
+      "retries": 2
+    }
+  },
+  "acceptanceCriteria": {
+    "functionalPassRate": 0.999,
+    "errorRate": 0.001,
+    "p99LatencyNormal": 2000,
+    "p99LatencyPeak": 5000,
+    "doubleBookingTolerance": 0,
+    "dataInconsistencyTolerance": 0
+  },
+  "reporting": {
+    "formats": ["json", "markdown", "pdf", "html"],
+    "includeScreenshots": true,
+    "includeNetworkTraces": true,
+    "includeDbSnapshots": true,
+    "includeLogs": true,
+    "outputDir": "results"
+  },
+  "automation": {
+    "smokeTestsOnDeploy": true,
+    "nightlyFullSuite": true,
+    "nightlyTime": "02:00",
+    "weeklyStressTests": true,
+    "weeklyStressDay": "Sunday",
+    "monthlyDurationTests": true
+  },
+  "alerts": {
+    "enabled": true,
+    "channels": ["console", "file"],
+    "slack": {
+      "enabled": false,
+      "webhook": "${SLACK_WEBHOOK_URL}"
+    },
+    "email": {
+      "enabled": false,
+      "recipients": ["dev-team@getfitskg.com"]
+    },
+    "thresholds": {
+      "p0FailuresCount": 1,
+      "p1FailuresCount": 5,
+      "performanceDegradation": 0.2
+    }
+  },
+  "flakiness": {
+    "maxRetries": 3,
+    "markFlakyAfter": 2,
+    "trackMetrics": true,
+    "correlateWithInfra": true
+  }
+}
+
