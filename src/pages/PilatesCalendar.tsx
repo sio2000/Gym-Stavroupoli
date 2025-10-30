@@ -326,6 +326,7 @@ const PilatesCalendar: React.FC = () => {
               <strong>Οδηγίες:</strong> Κάντε κλικ στα πράσινα μαθήματα για να κλείσετε κράτηση. 
               Τα κόκκινα μαθήματα είναι ακυρωμένα από τον admin. 
               Τα μπλε μαθήματα είναι ήδη κρατημένα από εσάς.
+              Τα κλειδωμένα μαθήματα (🔒) είναι από παλιές ημερομηνίες και δεν μπορείτε να τα κλείσετε.
             </p>
           </div>
         {/* Deposit Info */}
@@ -451,12 +452,21 @@ const PilatesCalendar: React.FC = () => {
                       const isWeekendDay = isWeekend(dateStr);
                       const hasSlots = hasSlotsForDateTime(dateStr, time);
                       const isToday = dateStr === todayKey;
+                      const isPastDate = dateStr < todayKey; // Έλεγχος αν η ημερομηνία είναι στο παρελθόν
                       
                       return (
                         <td key={`${dateStr}-${time}`} className={`px-2.5 sm:px-4 py-1.5 sm:py-3 text-center align-middle relative ${
                           isToday ? 'bg-gradient-to-r from-orange-50/60 via-pink-50/60 to-purple-50/60 border-l-2 border-orange-400' : ''
-                        }`}>
-                          {isWeekendDay ? (
+                        } ${isPastDate ? 'bg-gray-100' : ''}`}>
+                          {isPastDate ? (
+                            // Κλειδωμένες ημερομηνίες παρελθόντος
+                            <div className="bg-gray-200 text-gray-500 border-gray-300 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium cursor-not-allowed opacity-60">
+                              <div className="flex items-center justify-center gap-1">
+                                🔒
+                                <span>Κλειδωμένο</span>
+                              </div>
+                            </div>
+                          ) : isWeekendDay ? (
                             <div className="text-gray-400 text-[10px] sm:text-xs">
                               Σαβ/Κυρ
                             </div>
@@ -533,7 +543,7 @@ const PilatesCalendar: React.FC = () => {
         {/* Legend */}
         <div className="mt-6 bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Εξήγηση χρωμάτων</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="flex items-center space-x-3">
               <div className="w-4 h-4 bg-green-100 border border-green-200 rounded"></div>
               <span className="text-sm text-gray-700">Διαθέσιμο για κράτηση</span>
@@ -549,6 +559,10 @@ const PilatesCalendar: React.FC = () => {
             <div className="flex items-center space-x-3">
               <div className="w-4 h-4 bg-neutral-100 border border-neutral-200 rounded"></div>
               <span className="text-sm text-gray-700">Μη διαθέσιμο</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-4 h-4 bg-gray-200 border border-gray-300 rounded opacity-60"></div>
+              <span className="text-sm text-gray-700">🔒 Κλειδωμένο (παρελθόν)</span>
             </div>
           </div>
         </div>
