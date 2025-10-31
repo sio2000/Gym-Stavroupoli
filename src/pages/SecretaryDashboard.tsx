@@ -2797,13 +2797,44 @@ const SecretaryDashboard: React.FC = () => {
           </div>
         </div>
         ) : activeTab === 'membership-requests' ? (
-          /* Membership Requests */
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-600 p-6 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white flex items-center">
-                <span className="text-3xl mr-3">📋</span>
-                Αιτήματα Συνδρομών
-              </h2>
+          <>
+            {/* Membership Requests - Important Instructions Banner */}
+            <div className="bg-gradient-to-r from-blue-100 via-blue-50 to-blue-100 border-4 border-blue-500 rounded-xl p-6 shadow-2xl mb-6">
+              <div className="flex items-start">
+                <svg className="h-10 w-10 text-blue-700 mt-1 mr-4 flex-shrink-0 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <div className="flex-1">
+                  <h4 className="text-2xl font-black text-black mb-3 leading-tight">
+                    💡 Σημαντικές Οδηγίες
+                  </h4>
+                  <div className="space-y-2">
+                    <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                      🔍 <strong>Αναζήτηση:</strong> Χρησιμοποιήστε το πεδίο αναζήτησης για να βρείτε γρήγορα αιτήματα με όνομα χρήστη
+                    </p>
+                    <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                      📄 <strong>Φίλτρα:</strong> Χρησιμοποιήστε τα φίλτρα (Open Gym, Pilates, Ultimate, Δόσεις) για να εμφανίσετε τα αντίστοιχα αιτήματα
+                    </p>
+                    <p className="text-base font-bold text-orange-800 leading-relaxed bg-orange-200 rounded-lg px-3 py-2">
+                      💰 <strong>Διαδικασία Πληρωμής:</strong> Αποθηκεύουμε τα χρήματα (μετρητά/κάρτα) στο σύστημα, μετά κλικάρουμε στο επιλογή και ΕΠΕΙΤΑ επιλέγουμε ✅ Έγκριση Πληρωμής → Αποθήκευση Program Options και τέλος εγκρίνουμε το αίτημα συνδρομής
+                    </p>
+                    <p className="text-base font-bold text-red-800 leading-relaxed bg-red-200 rounded-lg px-3 py-2">
+                      ⚠️ <strong>ΠΡΟΣΟΧΗ ΣΤΙΣ ΔΟΣΕΙΣ:</strong> Κλειδώνουμε ΟΛΕς τις δόσεις (2 ή 3) του πελάτη ΕΠΕΙΤΑ ΑΠΟ ΣΥΝΝΕΝΟΗΣΗ και ΟΧΙ σταδιακά
+                    </p>
+                    <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                      📅 <strong>Προσυμφωνία:</strong> Εξαρχής προσυμφωνούνται ΟΛΕς οι δόσεις και οι ημερομηνίες του πελάτη (π.χ. 1η στις 12/10/25 μετρητά, 2η δόση 24/12/25)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-600 p-6 backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white flex items-center">
+                  <span className="text-3xl mr-3">📋</span>
+                  Αιτήματα Συνδρομών
+                </h2>
             <div className="flex items-center gap-2">
               <div className="hidden md:flex items-center gap-2" onClick={() => setRequestsPage(1)}>
                 <button
@@ -3710,6 +3741,7 @@ const SecretaryDashboard: React.FC = () => {
               </div>
             )}
           </div>
+          </>
         ) : activeTab === 'users-information' ? (
           <SecretaryUsersInformation />
         ) : activeTab === 'personal-training' ? (

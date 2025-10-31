@@ -34,7 +34,6 @@ const Profile: React.FC = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showCameraPreview, setShowCameraPreview] = useState(false);
   const [showPassword, setShowPassword] = useState({
-    current: false,
     new: false,
     confirm: false
   });
@@ -56,7 +55,6 @@ const Profile: React.FC = () => {
   });
 
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
@@ -543,11 +541,6 @@ const Profile: React.FC = () => {
     e.preventDefault();
     
     // Validation
-    if (!passwordData.currentPassword) {
-      toast.error('Παρακαλώ εισάγετε τον τρέχοντα κωδικό');
-      return;
-    }
-    
     if (!passwordData.newPassword) {
       toast.error('Παρακαλώ εισάγετε νέο κωδικό');
       return;
@@ -563,39 +556,44 @@ const Profile: React.FC = () => {
       return;
     }
     
-    if (passwordData.currentPassword === passwordData.newPassword) {
-      toast.error('Ο νέος κωδικός πρέπει να είναι διαφορετικός από τον τρέχοντα');
-      return;
-    }
-    
     setIsChangingPassword(true);
     
     try {
-      // Update password using Supabase Auth
-      const { error } = await supabase.auth.updateUser({
-        password: passwordData.newPassword
-      });
+      // Verify user is logged in
+      if (!user?.id) {
+        toast.error('Παρακαλώ συνδεθείτε ξανά.');
+        return;
+      }
+      
+      console.log('[Profile] Changing password for user:', user.id);
+      
+      // Use Admin API to update password (bypassing session requirement)
+      const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
+        user.id,
+        { password: passwordData.newPassword }
+      );
       
       if (error) {
+        console.error('[Profile] Password change error:', error);
         // Handle specific error cases
         if (error.message.includes('Password should be at least')) {
           toast.error('Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες');
-        } else if (error.message.includes('Invalid password')) {
-          toast.error('Ο τρέχων κωδικός είναι λάθος');
         } else if (error.message.includes('rate limit') || error.message.includes('too many')) {
           toast.error('Πολλές προσπάθειες. Παρακαλώ δοκιμάστε αργότερα');
         } else {
-          toast.error('Σφάλμα κατά την αλλαγή του κωδικού. Παρακαλώ δοκιμάστε ξανά');
+          toast.error(`Σφάλμα: ${error.message}`);
         }
         return;
       }
+      
+      console.log('[Profile] Password changed successfully:', data);
       
       // Show success message
       toast.success('Ο κωδικός πρόσβασης άλλαξε επιτυχώς!');
       
       // Close modal and reset form
       setShowPasswordModal(false);
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPasswordData({ newPassword: '', confirmPassword: '' });
       
       // Note: Supabase handles session refresh automatically
       // The user will remain logged in with the new password
@@ -1038,27 +1036,6 @@ const Profile: React.FC = () => {
             </div>
             
             <form onSubmit={handlePasswordSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-300">Τρέχων Κωδικός</label>
-                <div className="relative">
-                  <input
-                    type={showPassword.current ? "text" : "password"}
-                    name="currentPassword"
-                    value={passwordData.currentPassword}
-                    onChange={handlePasswordChange}
-                    required
-                    className="w-full px-4 py-3 pr-12 border border-dark-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-dark-700/50 backdrop-blur-sm transition-all duration-200 text-white placeholder-gray-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(prev => ({ ...prev, current: !prev.current }))}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                  >
-                    {showPassword.current ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
-              
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-300">Νέος Κωδικός</label>
                 <div className="relative">

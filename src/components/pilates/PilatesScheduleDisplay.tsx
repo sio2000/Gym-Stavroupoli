@@ -394,19 +394,27 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
 
       {/* Alert: Client names shown in trainer schedule - ONLY FOR ADMIN */}
       {showAdminControls && !readOnly && (
-        <div className="bg-gradient-to-r from-yellow-100 via-yellow-50 to-yellow-100 border-4 border-yellow-500 rounded-xl p-6 shadow-2xl">
+        <div className="bg-gradient-to-r from-blue-100 via-blue-50 to-blue-100 border-4 border-blue-500 rounded-xl p-6 shadow-2xl">
           <div className="flex items-start">
-            <AlertCircle className="h-10 w-10 text-yellow-700 mt-1 mr-4 flex-shrink-0 animate-pulse" />
+            <AlertCircle className="h-10 w-10 text-blue-700 mt-1 mr-4 flex-shrink-0 animate-pulse" />
             <div className="flex-1">
               <h4 className="text-2xl font-black text-black mb-3 leading-tight">
-                ⚠️ ΣΗΜΑΝΤΙΚΗ ΕΝΗΜΕΡΩΣΗ
+                💡 Οδηγίες Ημερολογίου Pilates
               </h4>
-              <p className="text-lg font-bold text-black leading-relaxed mb-2">
-                Οι πελάτες του μαθήματος Pilates φαίνονται στο πρόγραμμα των trainers και όχι στο παρακάτω ημερολόγιο
-              </p>
-              <p className="text-base font-semibold text-gray-800 leading-relaxed">
-                Στο παρακάτω ημερολόγιο φαίνεται μόνο το ποσοστό που είναι γεμάτο το μάθημα (π.χ. 1/4, 4/4 κλπ) και όχι τα ονόματά τους
-              </p>
+              <div className="space-y-2">
+                <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                  📊 <strong>Ποσοστό κράτησης:</strong> Στα κελιά φαίνεται το ποσοστό που είναι γεμάτο το μάθημα (π.χ. 1/4, 4/4 κλπ)
+                </p>
+                <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                  👁️ <strong>Κουμπί View:</strong> Κάντε κλικ για να δείτε ονόματα και φωτογραφίες των χρηστών που κράτησαν μάθημα
+                </p>
+                <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                  ⏱️ <strong>Διάρκεια μαθήματος:</strong> Κάθε μάθημα διαρκεί 1 ώρα (π.χ. το κελί 14:00 σημαίνει το μάθημα τελειώνει στις 15:00)
+                </p>
+                <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                  🟢 <strong>Πράσινο:</strong> Το Pilates λειτουργεί | 🔴 <strong>Κόκκινο:</strong> Το Pilates δεν λειτουργεί
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -493,42 +501,63 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                             <span className="text-xs text-gray-400">Σαβ/Κυρ</span>
                           </div>
                         ) : (
-                          <div className="relative w-full h-8">
-                            <button
-                              onClick={() => {
-                                if (readOnly && isActive) {
-                                  // In read-only mode, clicking on active slots shows info
-                                  const slot = slots.find(s => 
-                                    s.date === date && s.start_time === `${time}:00`
-                                  );
-                                  if (slot) {
-                                    handleInfoClick(slot.id, date, time);
+                          <div className="relative w-full">
+                            <div className="flex flex-col gap-1">
+                              <button
+                                onClick={() => {
+                                  if (readOnly && isActive) {
+                                    // In read-only mode, clicking on active slots shows info
+                                    const slot = slots.find(s => 
+                                      s.date === date && s.start_time === `${time}:00`
+                                    );
+                                    if (slot) {
+                                      handleInfoClick(slot.id, date, time);
+                                    }
+                                  } else {
+                                    // In admin mode, toggle slot
+                                    toggleSlot(date, time);
                                   }
-                                } else {
-                                  // In admin mode, toggle slot
-                                  toggleSlot(date, time);
-                                }
-                              }}
-                              className={`w-full h-8 rounded transition-all duration-200 flex items-center justify-center ${
-                                isActive
-                                  ? (booked >= cap 
-                                      ? 'bg-red-100 text-red-800 border-2 border-red-300' 
-                                      : 'bg-green-100 text-green-800 hover:bg-green-200 border-2 border-green-300 hover:shadow-md hover:scale-105')
-                                  : 'bg-red-100 text-red-800 hover:bg-red-200 border-2 border-red-300'
-                              } ${readOnly && isActive ? 'cursor-pointer hover:shadow-lg hover:scale-105' : readOnly ? 'cursor-default' : 'cursor-pointer'}`}
-                              title={readOnly && isActive && booked > 0 ? `Κάντε κλικ για λεπτομέρειες (${booked}/${cap})` : readOnly && isActive ? `Διαθέσιμο slot (${booked}/${cap})` : undefined}
-                            >
-                              {isActive ? (
-                                <div className="flex flex-col items-center">
-                                  <span className="text-xs font-semibold">{booked}/{cap}</span>
-                                  {readOnly && booked > 0 && (
-                                    <span className="text-xs text-gray-500">👆</span>
-                                  )}
-                                </div>
-                              ) : (
-                                <XCircle className="h-5 w-5" />
+                                }}
+                                className={`w-full h-8 rounded transition-all duration-200 flex items-center justify-center ${
+                                  isActive
+                                    ? (booked >= cap 
+                                        ? 'bg-red-100 text-red-800 border-2 border-red-300' 
+                                        : 'bg-green-100 text-green-800 hover:bg-green-200 border-2 border-green-300 hover:shadow-md hover:scale-105')
+                                    : 'bg-red-100 text-red-800 hover:bg-red-200 border-2 border-red-300'
+                                } ${readOnly && isActive ? 'cursor-pointer hover:shadow-lg hover:scale-105' : readOnly ? 'cursor-default' : 'cursor-pointer'}`}
+                                title={readOnly && isActive && booked > 0 ? `Κάντε κλικ για λεπτομέρειες (${booked}/${cap})` : readOnly && isActive ? `Διαθέσιμο slot (${booked}/${cap})` : undefined}
+                              >
+                                {isActive ? (
+                                  <div className="flex flex-col items-center">
+                                    <span className="text-xs font-semibold">{booked}/{cap}</span>
+                                    {readOnly && booked > 0 && (
+                                      <span className="text-xs text-gray-500">👆</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <XCircle className="h-5 w-5" />
+                                )}
+                              </button>
+                              
+                              {/* View Button for bookings - Show in admin mode when there are bookings */}
+                              {!readOnly && isActive && booked > 0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const slot = slots.find(s => 
+                                      s.date === date && s.start_time === `${time}:00`
+                                    );
+                                    if (slot) {
+                                      handleInfoClick(slot.id, date, time);
+                                    }
+                                  }}
+                                  className="w-full px-2 py-1 bg-blue-500 text-white text-xs font-semibold rounded hover:bg-blue-600 transition-colors shadow-sm hover:shadow-md"
+                                  title="Δείτε τις κρατήσεις"
+                                >
+                                  👁️ View
+                                </button>
                               )}
-                            </button>
+                            </div>
                           </div>
                         )}
                       </td>
@@ -618,22 +647,49 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                         </p>
                       </div>
                       {selectedSlotInfo.bookings.map((booking, index) => (
-                        <div key={booking.id || index} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="font-semibold text-gray-900 text-lg">
-                                {booking.user?.first_name} {booking.user?.last_name}
-                              </p>
-                              <p className="text-sm text-gray-600 mt-1">{booking.user?.email}</p>
-                              <div className="mt-2 text-xs text-gray-500 bg-white rounded-full px-3 py-1 inline-block">
-                                📅 Κράτηση: {new Date(booking.booking_date).toLocaleDateString('el-GR')}
-                              </div>
-                            </div>
-                            <div className="ml-4">
-                              <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">
+                        <div key={booking.id || index} className="bg-gradient-to-r from-white to-blue-50 rounded-lg p-4 border-2 border-blue-200 hover:shadow-lg hover:border-blue-300 transition-all duration-200">
+                          <div className="flex items-center gap-4">
+                            {/* Profile Picture */}
+                            <div className="flex-shrink-0">
+                              {booking.user?.profile_photo || booking.user?.avatar_url ? (
+                                <img 
+                                  src={booking.user?.profile_photo || booking.user?.avatar_url} 
+                                  alt={`${booking.user?.first_name} ${booking.user?.last_name}`}
+                                  className="w-16 h-16 rounded-full object-cover border-3 border-blue-400 shadow-md"
+                                  onError={(e) => {
+                                    // Fallback to initials if image fails to load
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                  }}
+                                />
+                              ) : null}
+                              <div className={`w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-md ${booking.user?.profile_photo || booking.user?.avatar_url ? 'hidden' : ''}`}>
+                                <span className="text-white font-bold text-xl">
                                   {booking.user?.first_name?.[0]}{booking.user?.last_name?.[0]}
                                 </span>
+                              </div>
+                            </div>
+                            
+                            {/* User Info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-gray-900 text-lg truncate">
+                                {booking.user?.first_name} {booking.user?.last_name}
+                              </p>
+                              <p className="text-sm text-gray-600 mt-0.5 truncate">
+                                📧 {booking.user?.email}
+                              </p>
+                              {booking.user?.phone && (
+                                <p className="text-sm text-gray-600 mt-0.5">
+                                  📱 {booking.user?.phone}
+                                </p>
+                              )}
+                              <div className="mt-2 text-xs text-gray-500 bg-white rounded-full px-3 py-1 inline-flex items-center shadow-sm">
+                                <span className="mr-1">📅</span>
+                                <span>Κράτηση: {new Date(booking.booking_date).toLocaleDateString('el-GR', { 
+                                  day: 'numeric', 
+                                  month: 'long', 
+                                  year: 'numeric' 
+                                })}</span>
                               </div>
                             </div>
                           </div>
@@ -677,7 +733,7 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
               <li>• Το πρόγραμμα εμφανίζεται στους χρήστες με ενεργή pilates συνδρομή</li>
               {!readOnly && <li>• Μην ξεχάσετε να αποθηκεύσετε τις αλλαγές!</li>}
               {readOnly && <li>• Κάντε κλικ σε μαθήματα με κρατήσεις (με 👆) για να δείτε τις λεπτομέρειες</li>}
-              {!readOnly && <li>• Κάντε κλικ στο μπλε κουμπί "i" για να δείτε τις κρατήσεις ενός slot</li>}
+              {!readOnly && <li>• Κάντε κλικ στο μπλε κουμπί "👁️ View" για να δείτε τα ονόματα και φωτογραφίες των χρηστών που έχουν κάνει κράτηση</li>}
             </ul>
           </div>
         </div>

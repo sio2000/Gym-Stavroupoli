@@ -3744,10 +3744,19 @@ const AdminPanel: React.FC = () => {
           {activeTab === 'membership-packages' && !loading && (
             <div className="space-y-6">
               {/* Packages List */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">Διαχείριση Πακέτων Συνδρομών</h3>
-                  <p className="text-gray-600 mt-1">Ενημερώστε τις τιμές για κάθε πακέτο και διάρκεια</p>
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500 px-8 py-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                      <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">Διαχείριση Των Τιμών Για Κάθε Πακέτου Συνδρομής</h3>
+                      <p className="text-white/90 mt-1">Ενημερώστε τις τιμές για κάθε πακέτο και διάρκεια</p>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="p-6">
@@ -3927,56 +3936,31 @@ const AdminPanel: React.FC = () => {
                 </div>
 
                 {/* Enhanced Alert with Better UI */}
-                <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-50 border border-slate-200 rounded-xl p-6 shadow-sm">
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                        <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    </div>
+                <div className="bg-gradient-to-r from-blue-100 via-blue-50 to-blue-100 border-4 border-blue-500 rounded-xl p-6 shadow-2xl">
+                  <div className="flex items-start">
+                    <svg className="h-10 w-10 text-blue-700 mt-1 mr-4 flex-shrink-0 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
                     <div className="flex-1">
-                      <h4 className="text-lg font-bold text-slate-900 mb-3 flex items-center">
-                        <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                        Οδηγίες Διαχείρισης Αιτημάτων
+                      <h4 className="text-2xl font-black text-black mb-3 leading-tight">
+                        💡 Σημαντικές Οδηγίες
                       </h4>
-                      
-                      <div className="space-y-4">
-                        {/* Search Instructions */}
-                        <div className="bg-white rounded-lg p-4 border border-blue-100">
-                          <div className="flex items-start space-x-3">
-                            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <Search className="h-3 w-3 text-blue-600" />
-                            </div>
-                            <div>
-                              <h5 className="font-semibold text-slate-800 mb-1">Αναζήτηση & Πλοήγηση</h5>
-                              <p className="text-sm text-slate-600 leading-relaxed">
-                                Χρησιμοποιήστε το πεδίο αναζήτησης για να βρείτε γρήγορα αιτήματα με όνομα χρήστη. 
-                                Η λίστα εμφανίζεται σε <span className="font-semibold text-blue-700">6άδες</span> - ελέγξτε την επόμενη σελίδα αν δεν βρείτε το επιθυμητό αίτημα.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Payment Instructions */}
-                        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
-                          <div className="flex items-start space-x-3">
-                            <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <DollarSign className="h-3 w-3 text-amber-600" />
-                            </div>
-                            <div>
-                              <h5 className="font-semibold text-amber-800 mb-1 flex items-center">
-                                <span className="w-2 h-2 bg-amber-500 rounded-full mr-2"></span>
-                                Σημαντική Προσοχή - Διαδικασία Πληρωμής
-                              </h5>
-                              <p className="text-sm text-amber-700 leading-relaxed">
-                                <span className="font-semibold">ΠΡΩΤΑ</span> αποθηκεύουμε τα χρήματα στο σύστημα (Cash Register) και 
-                                <span className="font-semibold"> ΕΠΕΙΤΑ</span> επιλέγουμε για το αίτημα του χρήστη εάν εγκρίνεται ή απορρίπτεται.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
+                      <div className="space-y-2">
+                        <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                          🔍 <strong>Αναζήτηση:</strong> Χρησιμοποιήστε το πεδίο αναζήτησης για να βρείτε γρήγορα αιτήματα με όνομα χρήστη
+                        </p>
+                        <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                          📄 <strong>Σελιδοποίηση:</strong> Η λίστα εμφανίζεται σε 6άδες - ελέγξτε την επόμενη σελίδα αν δεν βρείτε το επιθυμητό αίτημα
+                        </p>
+                        <p className="text-base font-bold text-orange-800 leading-relaxed bg-orange-200 rounded-lg px-3 py-2">
+                          💰 <strong>Διαδικασία Πληρωμής:</strong> Αποθηκεύουμε τα χρήματα (μετρητά/κάρτα) στο σύστημα, μετά κλικάρουμε στο επιλογή και ΕΠΕΙΤΑ επιλέγουμε ✅ Έγκριση Πληρωμής → Αποθήκευση Program Options και τέλος εγκρίνουμε το αίτημα συνδρομής
+                        </p>
+                        <p className="text-base font-bold text-red-800 leading-relaxed bg-red-200 rounded-lg px-3 py-2">
+                          ⚠️ <strong>ΠΡΟΣΟΧΗ ΣΤΙΣ ΔΟΣΕΙΣ:</strong> Κλειδώνουμε ΟΛΕς τις δόσεις (2 ή 3) του πελάτη ΕΠΕΙΤΑ ΑΠΟ ΣΥΝΝΕΝΟΗΣΗ και ΟΧΙ σταδιακά
+                        </p>
+                        <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                          📅 <strong>Προσυμφωνία:</strong> Εξαρχής προσυμφωνούνται ΟΛΕς οι δόσεις και οι ημερομηνίες του πελάτη (π.χ. 1η στις 12/10/25 μετρητά, 2η δόση 24/12/25)
+                        </p>
                       </div>
                     </div>
                   </div>

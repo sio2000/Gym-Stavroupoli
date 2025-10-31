@@ -364,7 +364,7 @@ export const getPilatesSlotBookings = async (slotId: string): Promise<PilatesBoo
     .from('pilates_bookings')
     .select(`
       *,
-      user:user_profiles(first_name, last_name, email)
+      user:user_profiles(first_name, last_name, email, phone, profile_photo, avatar_url)
     `)
     .eq('slot_id', slotId)
     .eq('status', 'confirmed')
