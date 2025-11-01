@@ -101,7 +101,7 @@ const ErrorFixing: React.FC = () => {
         // Ξανακάνουμε έλεγχο για να δούμε τα νέα αποτελέσματα
         await checkUsersWithoutProfiles();
       } else {
-        toast.info('Δεν χρειάστηκε να δημιουργηθούν νέα profiles');
+        toast.success('Δεν χρειάστηκε να δημιουργηθούν νέα profiles');
       }
     } catch (error) {
       console.error('Error fixing users:', error);
@@ -173,7 +173,7 @@ const ErrorFixing: React.FC = () => {
         // Ξανακάνουμε έλεγχο για να δούμε τα νέα αποτελέσματα
         await checkUnconfirmedEmails();
       } else {
-        toast.info('Δεν χρειάστηκε να επιβεβαιωθούν emails');
+        toast.success('Δεν χρειάστηκε να επιβεβαιωθούν emails');
       }
     } catch (error) {
       console.error('Error confirming emails:', error);
@@ -305,8 +305,10 @@ const ErrorFixing: React.FC = () => {
 
       {/* Main Content */}
       <div className="bg-gray-800 rounded-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
+        {/* Title Row with Example Image on the RIGHT */}
+        <div className="flex items-start justify-between gap-6 mb-6">
+          {/* Left: Title and Description */}
+          <div className="flex-1">
             <h2 className="text-xl font-bold text-white mb-1">
               Έλεγχος Χρηστών Χωρίς Profile
             </h2>
@@ -314,6 +316,49 @@ const ErrorFixing: React.FC = () => {
               Ελέγχει για χρήστες που δεν αναγνωρίζονται από το σύστημα
             </p>
           </div>
+
+          {/* RIGHT: Example Image Box - ΜΕΓΑΛΥΤΕΡΟ */}
+          <div className="w-96 flex-shrink-0">
+            <div className="bg-gradient-to-br from-yellow-900/40 to-orange-900/40 border-2 border-yellow-500 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                <span className="text-yellow-300 font-bold text-sm">
+                  📌 Πότε χρησιμοποιούμε αυτό το Section;
+                </span>
+              </div>
+              
+              <div className="bg-black/60 rounded p-2 mb-3 border border-gray-700">
+                <img 
+                  src="/sf.png" 
+                  alt="Σφάλμα χρήστη" 
+                  className="w-full h-auto rounded shadow-xl"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML = '<div class="text-red-300 text-center py-4 text-sm">⚠️ Η εικόνα sf.png<br/>δεν βρέθηκε στο /public</div>';
+                    }
+                  }}
+                />
+              </div>
+              
+              <p className="text-yellow-200 text-sm leading-relaxed">
+                <strong className="text-yellow-300">Όταν βλέπετε αυτό το σφάλμα στον πελάτη</strong>, 
+                χρησιμοποιήστε αυτό το section για να διορθώσετε το πρόβλημα! 
+                <span className="block mt-3 text-red-300 font-bold">
+                  ⚠️ ΠΡΟΣΟΧΗ: Αφού διορθώσετε το σφάλμα, πείτε στον πελάτη να αποσυνδεθεί και να επανασυνδεθεί ελέγχοντας ότι πλέον του λειτουργεί κανονικά η εφαρμογή.
+                </span>
+                <span className="block mt-2 text-green-300 font-semibold">
+                  ✅ Αυτό είναι το σωστό section!
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Button Row */}
+        <div className="flex justify-end mb-6">
           <button
             onClick={checkUsersWithoutProfiles}
             disabled={loading}
@@ -449,8 +494,10 @@ const ErrorFixing: React.FC = () => {
 
       {/* UNCONFIRMED EMAILS SECTION */}
       <div className="bg-gray-800 rounded-lg p-6 border-t-4 border-orange-500">
-        <div className="flex items-center justify-between mb-6">
-          <div>
+        {/* Title Row with Example Image on the RIGHT */}
+        <div className="flex items-start justify-between gap-6 mb-6">
+          {/* Left: Title and Description */}
+          <div className="flex-1">
             <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
               <Mail className="h-6 w-6 text-orange-500" />
               Έλεγχος Μη Επιβεβαιωμένων Emails
@@ -459,6 +506,46 @@ const ErrorFixing: React.FC = () => {
               Ελέγχει για χρήστες που δεν έχουν επιβεβαιώσει το email τους
             </p>
           </div>
+
+          {/* RIGHT: Example Image Box - ΜΕΓΑΛΥΤΕΡΟ */}
+          <div className="w-96 flex-shrink-0">
+            <div className="bg-gradient-to-br from-orange-900/40 to-red-900/40 border-2 border-orange-500 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-5 w-5 text-orange-400" />
+                <span className="text-orange-300 font-bold text-sm">
+                  📌 Πότε χρησιμοποιούμε αυτό το Section;
+                </span>
+              </div>
+              
+              <div className="bg-black/60 rounded p-2 mb-3 border border-gray-700">
+                <img 
+                  src="/mm.png" 
+                  alt="Μη επιβεβαιωμένο email" 
+                  className="w-full h-auto rounded shadow-xl"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML = '<div class="text-red-300 text-center py-4 text-sm">⚠️ Η εικόνα mm.png<br/>δεν βρέθηκε στο /public</div>';
+                    }
+                  }}
+                />
+              </div>
+              
+              <p className="text-orange-200 text-sm leading-relaxed">
+                <strong className="text-orange-300">Όταν βλέπετε αυτό το σφάλμα</strong>, 
+                χρησιμοποιήστε αυτό το section για να επιβεβαιώσετε τα emails! 
+                <span className="block mt-2 text-green-300 font-semibold">
+                  ✅ Αυτό είναι το σωστό section!
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Button Row */}
+        <div className="flex justify-end mb-6">
           <button
             onClick={checkUnconfirmedEmails}
             disabled={emailLoading}
