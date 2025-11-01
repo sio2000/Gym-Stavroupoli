@@ -9,7 +9,8 @@ import {
   User,
   Check,
   X,
-  Euro
+  Euro,
+  AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
@@ -18,6 +19,7 @@ import {
 import PilatesScheduleManagement from '@/components/admin/PilatesScheduleManagement';
 import CashRegister from '@/components/admin/CashRegister';
 import UsersInformation from '@/components/admin/UsersInformation';
+import ErrorFixing from '@/components/admin/ErrorFixing';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 import { 
@@ -29,7 +31,7 @@ import {
 
 const ControlPanel: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'pilates-schedule' | 'membership-packages' | 'cash-register' | 'users-information'>('pilates-schedule');
+  const [activeTab, setActiveTab] = useState<'pilates-schedule' | 'membership-packages' | 'cash-register' | 'users-information' | 'error-fixing'>('pilates-schedule');
   
 
   // Membership packages state - removed unused variables
@@ -50,7 +52,8 @@ const ControlPanel: React.FC = () => {
     { id: 'pilates-schedule', name: 'Πρόγραμμα Pilates', icon: Clock },
     { id: 'membership-packages', name: 'Πακέτα Συνδρομών', icon: Settings },
     { id: 'cash-register', name: 'Ταμείο', icon: DollarSign },
-    { id: 'users-information', name: 'Χρήστες-Πληροφορίες', icon: Users }
+    { id: 'users-information', name: 'Χρήστες-Πληροφορίες', icon: Users },
+    { id: 'error-fixing', name: 'Διόρθωση Σφαλμάτων', icon: AlertTriangle }
   ];
 
 
@@ -417,6 +420,11 @@ const ControlPanel: React.FC = () => {
             {/* Users Information Tab */}
             {activeTab === 'users-information' && (
               <UsersInformation />
+            )}
+
+            {/* Error Fixing Tab */}
+            {activeTab === 'error-fixing' && (
+              <ErrorFixing />
             )}
           </div>
         </div>

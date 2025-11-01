@@ -21,6 +21,7 @@ import {
   Plus,
   Trash2,
   Lock,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
@@ -50,6 +51,7 @@ import InstallmentsTab from '@/components/secretary/InstallmentsTab';
 import SecretaryUsersInformation from '@/components/secretary/SecretaryUsersInformation';
 import GroupTrainingCalendar from '@/components/admin/GroupTrainingCalendar';
 import GroupAssignmentInterface from '@/components/admin/GroupAssignmentInterface';
+import ErrorFixing from '@/components/admin/ErrorFixing';
 
 // Constants for the modal - moved to avoid duplication
 import Webcam from 'react-webcam';
@@ -153,7 +155,7 @@ const SecretaryDashboard: React.FC = () => {
   const [showResult, setShowResult] = useState(false);
   const [recentScans, setRecentScans] = useState<any[]>([]);
   const [membershipRequests, setMembershipRequests] = useState<MembershipRequest[]>([]);
-  const [activeTab, setActiveTab] = useState<'scanner' | 'membership-requests' | 'users-information' | 'personal-training'>('scanner');
+  const [activeTab, setActiveTab] = useState<'scanner' | 'membership-requests' | 'users-information' | 'personal-training' | 'error-fixing'>('scanner');
   
   // Program Options state for membership requests
   const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
@@ -2549,6 +2551,7 @@ const SecretaryDashboard: React.FC = () => {
                    activeTab === 'membership-requests' ? '📋 Διαχείριση αιτημάτων συνδρομών' : 
                    activeTab === 'users-information' ? '👥 Πληροφορίες χρηστών' :
                    activeTab === 'personal-training' ? '💪 Διαχείριση προγραμμάτων Personal Training' :
+                   activeTab === 'error-fixing' ? '⚠️ Διόρθωση Σφαλμάτων' :
                    '💳 Διαχείριση δόσεων για πακέτα Ultimate'}
                 </p>
               </div>
@@ -2626,6 +2629,19 @@ const SecretaryDashboard: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-pink-400 text-lg">💪</span>
                   <span>Personal Training</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('error-fixing')}
+                className={`py-4 px-6 rounded-xl font-medium text-sm transition-all duration-200 transform hover:scale-105 ${
+                  activeTab === 'error-fixing'
+                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg border-2 border-red-400'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-2 border-transparent'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  <span>Διόρθωση Σφαλμάτων</span>
                 </div>
               </button>
             </nav>
@@ -4141,6 +4157,8 @@ const SecretaryDashboard: React.FC = () => {
               </div>
             )}
           </div>
+        ) : activeTab === 'error-fixing' ? (
+          <ErrorFixing />
         ) : null}
       </div>
 

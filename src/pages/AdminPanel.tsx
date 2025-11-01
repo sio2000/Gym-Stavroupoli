@@ -37,6 +37,7 @@ import GroupAssignmentInterface from '@/components/admin/GroupAssignmentInterfac
 import GroupTrainingCalendar from '@/components/admin/GroupTrainingCalendar';
 import AdminUltimateInstallmentsTab from '@/components/admin/AdminUltimateInstallmentsTab';
 import UsersInformation from '@/components/admin/UsersInformation';
+import ErrorFixing from '@/components/admin/ErrorFixing';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { isInstallmentsEligible } from '@/utils/installmentsEligibility';
 
@@ -108,7 +109,7 @@ const getValidUserId = async (userId: string | undefined) => {
 
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'ultimate-subscriptions' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register' | 'users-information'>('personal-training');
+  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'ultimate-subscriptions' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register' | 'users-information' | 'error-fixing'>('personal-training');
   const [allUsers, setAllUsers] = useState<UserWithPersonalTraining[]>([]);
   const [programStatuses, setProgramStatuses] = useState<Array<{
     user: UserWithPersonalTraining;
@@ -128,7 +129,8 @@ const AdminPanel: React.FC = () => {
     'pilates-schedule': false,
     'kettlebell-points': false,
     'cash-register': false,
-    'users-information': false
+    'users-information': false,
+    'error-fixing': false
   });
   
   // Memoized pagination logic
@@ -446,7 +448,8 @@ const AdminPanel: React.FC = () => {
     { id: 'pilates-schedule', name: 'Πρόγραμμα Pilates', icon: Clock },
     { id: 'kettlebell-points', name: 'Kettlebell Points', icon: Award },
     { id: 'cash-register', name: 'Ταμείο', icon: DollarSign },
-    { id: 'users-information', name: 'Χρήστες-Πληροφορίες', icon: Users }
+    { id: 'users-information', name: 'Χρήστες-Πληροφορίες', icon: Users },
+    { id: 'error-fixing', name: 'Διόρθωση Σφαλμάτων', icon: AlertTriangle }
   ];
 
   const days = ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'];
@@ -4873,6 +4876,11 @@ const AdminPanel: React.FC = () => {
           {/* Users Information Tab */}
           {activeTab === 'users-information' && !loading && (
             <UsersInformation />
+          )}
+
+          {/* Error Fixing Tab */}
+          {activeTab === 'error-fixing' && !loading && (
+            <ErrorFixing />
           )}
 
           {/* Kettlebell Points Tab */}
