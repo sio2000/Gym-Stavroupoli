@@ -236,49 +236,81 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
         console.log('Sample existing slots:', existingSlots.slice(0, 3));
       }
       
-      // Delete all existing slots for this week
-      if (existingSlots && existingSlots.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('pilates_schedule_slots')
-          .delete()
-          .in('date', weekDates);
+      // Create a map of existing slots by date-time key for quick lookup
+      const existingSlotsMap = new Map<string, any>();
+      if (existingSlots) {
+        existingSlots.forEach(slot => {
+          // Convert "08:00:00" to "08:00" for comparison
+          const timeKey = slot.start_time.slice(0, 5);
+          const key = `${slot.date}-${timeKey}`;
+          existingSlotsMap.set(key, slot);
+        });
+      }
+      
+      // Separate slots into UPDATE and INSERT lists
+      const slotsToUpdate: any[] = [];
+      const slotsToInsert: any[] = [];
+      
+      allSlots.forEach(slot => {
+        const key = `${slot.date}-${slot.time}`;
+        const existingSlot = existingSlotsMap.get(key);
         
-        if (deleteError) {
-          console.error('Error deleting existing slots:', deleteError);
-          throw deleteError;
+        if (existingSlot) {
+          // UPDATE: Slot exists, only update is_active status
+          slotsToUpdate.push({
+            id: existingSlot.id,
+            is_active: slot.is_active,
+            updated_at: new Date().toISOString()
+          });
+        } else {
+          // INSERT: New slot
+          slotsToInsert.push({
+            date: slot.date,
+            start_time: slot.time,
+            end_time: getEndTime(slot.time),
+            max_capacity: 4,
+            is_active: slot.is_active
+          });
         }
+      });
+      
+      console.log('Slots to UPDATE (preserves bookings):', slotsToUpdate.length);
+      console.log('Slots to INSERT (new):', slotsToInsert.length);
+      
+      // UPDATE existing slots (preserves IDs and bookings)
+      if (slotsToUpdate.length > 0) {
+        for (const slot of slotsToUpdate) {
+          const { error: updateError } = await supabase
+            .from('pilates_schedule_slots')
+            .update({ 
+              is_active: slot.is_active,
+              updated_at: slot.updated_at
+            })
+            .eq('id', slot.id);
+          
+          if (updateError) {
+            console.error('Error updating slot:', slot.id, updateError);
+            throw updateError;
+          }
+        }
+        console.log('✅ Updated existing slots (bookings preserved):', slotsToUpdate.length);
+      }
+      
+      // INSERT new slots
+      if (slotsToInsert.length > 0) {
+        const { error: createError } = await supabase
+          .from('pilates_schedule_slots')
+          .insert(slotsToInsert);
         
-        console.log('✅ Deleted existing slots for week');
-      } else {
-        console.log('ℹ️ No existing slots to delete');
+        if (createError) {
+          console.error('Error creating new slots:', createError);
+          throw createError;
+        }
+        console.log('✅ Created new slots:', slotsToInsert.length);
       }
       
-      // Create ALL slots (both active and inactive)
-      const slotsToCreate = allSlots.map(slot => ({
-        date: slot.date,
-        start_time: slot.time,
-        end_time: getEndTime(slot.time),
-        max_capacity: 4,
-        is_active: slot.is_active
-      }));
-      
-      console.log('Creating all slots:', slotsToCreate.slice(0, 3));
-      console.log('Active slots count:', slotsToCreate.filter(s => s.is_active).length);
-      console.log('Inactive slots count:', slotsToCreate.filter(s => !s.is_active).length);
-      
-      const { error: createError } = await supabase
-        .from('pilates_schedule_slots')
-        .insert(slotsToCreate);
-      
-      if (createError) {
-        console.error('Error creating new slots:', createError);
-        throw createError;
-      }
-      
-      console.log('✅ Created all slots:', slotsToCreate.length);
-      
-      console.log('🔥🔥🔥 === SAVE SCHEDULE COMPLETE - REALTIME SYNC TRIGGERED ===');
-      toast.success('Πρόγραμμα αποθηκεύθηκε επιτυχώς!');
+      console.log('🔥🔥🔥 === SAVE SCHEDULE COMPLETE - BOOKINGS PRESERVED ===');
+      toast.success('Πρόγραμμα αποθηκεύθηκε επιτυχώς! Τα κλεισμένα μαθήματα διατηρήθηκαν.');
       await loadSlots();
     } catch (error) {
       console.error('Error saving schedule:', error);
