@@ -93,15 +93,21 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
     try {
       setLoading(true);
       
-      // Only load schedule slots, skip available slots for now
-      const slotsData = await getPilatesScheduleSlots();
-      
-      // If trainerName is specified, filter slots for that trainer
-      // For now, we'll show all slots since Pilates doesn't have trainer-specific filtering in the current schema
-      // This can be enhanced later if needed
+      const { startDate, endDate } = (() => {
+        const dates = getWeekDates();
+        return { startDate: dates[0], endDate: dates[dates.length - 1] };
+      })();
+
+      const [availableSlots, allSlotsData] = await Promise.all([
+        getPilatesAvailableSlots(startDate, endDate),
+        getPilatesScheduleSlots()
+      ]);
+
+      const slotsData = allSlotsData.filter(slot =>
+        slot.date >= startDate && slot.date <= endDate
+      );
       setSlots(slotsData);
-      
-      // Initialize grid with all slots as available (true) by default
+
       const grid: {[key: string]: boolean} = {};
       const weekDates = getWeekDates();
       
@@ -113,11 +119,19 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
           const key = `${date}-${time}`;
           // Check if this slot exists in the database and is active
           // Note: start_time in DB is "08:00:00" but we search for "08:00"
-          const existingSlot = slotsData.find(slot => 
+          const availableSlot = availableSlots.find(slot =>
             slot.date === date && slot.start_time === `${time}:00`
           );
-          // If slot exists in DB, use its is_active status, otherwise default to true (available)
-          grid[key] = existingSlot ? existingSlot.is_active : true;
+          const existingSlot = slotsData.find(slot =>
+            slot.date === date && slot.start_time === `${time}:00`
+          );
+          if (availableSlot) {
+            grid[key] = availableSlot.is_active;
+          } else if (existingSlot) {
+            grid[key] = existingSlot.is_active;
+          } else {
+            grid[key] = false;
+          }
           
           // Debug log for first few slots
           if (Object.keys(grid).length <= 5) {
@@ -143,9 +157,7 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
       setScheduleGrid(grid);
 
       // Load occupancy from view in range
-      const start = weekDates[0];
-      const end = weekDates[weekDates.length - 1];
-      const slotsWithOcc = await getPilatesAvailableSlots(start, end);
+      const slotsWithOcc = availableSlots;
 
       // Build helper map for confirmed booking counts per slot (needed because the occupancy view omits certain days like Saturday)
       const weekSlotIds = slotsData
@@ -565,6 +577,53 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                     const occVal = occupancy[key];
                     const booked = occVal?.booked ?? 0;
                     const cap = occVal?.cap ?? 4;
+                    const isFull = booked >= cap;
+
+                    let statusClass = '';
+                    let statusTitle = '';
+                    let statusContent: React.ReactNode = null;
+
+                    if (!isActive) {
+                      statusClass = [
+                        'w-full h-8 rounded transition-all duration-200 flex items-center justify-center',
+                        'bg-rose-50 text-rose-700 border border-rose-200',
+                        readOnly ? 'cursor-default' : 'cursor-pointer hover:bg-rose-100'
+                      ].join(' ');
+                      statusTitle = 'Μη διαθέσιμο μάθημα';
+                      statusContent = (
+                        <div className="flex items-center gap-1 text-xs font-medium">
+                          <XCircle className="h-4 w-4 text-rose-600" />
+                          <span>Μη διαθέσιμο</span>
+                        </div>
+                      );
+                    } else if (isFull) {
+                      statusClass = [
+                        'w-full h-8 rounded transition-all duration-200 flex items-center justify-center',
+                        'bg-rose-50 text-rose-700 border border-rose-200',
+                        readOnly ? 'cursor-pointer hover:shadow-lg hover:scale-105' : 'cursor-pointer hover:bg-rose-100'
+                      ].join(' ');
+                      statusTitle = 'Πλήρες μάθημα';
+                      statusContent = (
+                        <div className="flex items-center gap-1 text-xs font-medium">
+                          <XCircle className="h-4 w-4 text-rose-600" />
+                          <span>Πλήρες</span>
+                        </div>
+                      );
+                    } else {
+                      statusClass = [
+                        'w-full h-8 rounded transition-all duration-200 flex items-center justify-center',
+                        'bg-green-100 text-green-800 border border-green-200',
+                        readOnly ? 'cursor-pointer hover:shadow-lg hover:scale-105' : 'cursor-pointer hover:bg-green-200 hover:shadow-md hover:scale-[1.02]'
+                      ].join(' ');
+                      statusTitle = `Διαθέσιμες θέσεις: ${cap - booked}`;
+                      statusContent = (
+                        <div className="flex items-center gap-1 text-xs font-medium">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span>{booked}/{cap}</span>
+                        </div>
+                      );
+                    }
+
                     return (
                       <td key={key} className={`px-4 py-3 text-center border-r border-gray-200 relative ${
                         date === toLocalDateKey(new Date()) ? 'bg-gradient-to-r from-orange-50/60 via-pink-50/60 to-purple-50/60 border-l-2 border-orange-400' : ''
@@ -591,25 +650,10 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                                     toggleSlot(date, time);
                                   }
                                 }}
-                                className={`w-full h-8 rounded transition-all duration-200 flex items-center justify-center ${
-                                  isActive
-                                    ? (booked >= cap 
-                                        ? 'bg-red-100 text-red-800 border-2 border-red-300' 
-                                        : 'bg-green-100 text-green-800 hover:bg-green-200 border-2 border-green-300 hover:shadow-md hover:scale-105')
-                                    : 'bg-red-100 text-red-800 hover:bg-red-200 border-2 border-red-300'
-                                } ${readOnly && isActive ? 'cursor-pointer hover:shadow-lg hover:scale-105' : readOnly ? 'cursor-default' : 'cursor-pointer'}`}
-                                title={readOnly && isActive && booked > 0 ? `Κάντε κλικ για λεπτομέρειες (${booked}/${cap})` : readOnly && isActive ? `Διαθέσιμο slot (${booked}/${cap})` : undefined}
+                                className={statusClass}
+                                title={statusTitle}
                               >
-                                {isActive ? (
-                                  <div className="flex flex-col items-center">
-                                    <span className="text-xs font-semibold">{booked}/{cap}</span>
-                                    {readOnly && booked > 0 && (
-                                      <span className="text-xs text-gray-500">👆</span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <XCircle className="h-5 w-5" />
-                                )}
+                                {statusContent}
                               </button>
                               
                               {/* View Button for bookings - Show in admin mode when there are bookings */}
