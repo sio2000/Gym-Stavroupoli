@@ -5,7 +5,6 @@ import {
   getPilatesAvailableSlots,
   getPilatesBookings,
   createPilatesBooking,
-  cancelPilatesBooking,
   getActivePilatesDeposit,
   subscribePilatesRealtime,
 } from '@/utils/pilatesScheduleApi';
@@ -202,29 +201,6 @@ const PilatesCalendar: React.FC = () => {
     } catch (error) {
       console.error('Error booking slot:', error);
       toast.error('Σφάλμα κατά την κράτηση του μαθήματος.');
-    }
-  };
-
-  // Handle slot cancellation
-  const handleCancelBooking = async (slotId: string) => {
-    if (!user?.id) return;
-    
-    try {
-      console.log('Cancelling booking for slot:', slotId);
-      
-      // Find the booking ID for this slot
-      const booking = userBookings.find(b => b.slot_id === slotId && b.status === 'confirmed');
-      if (!booking) {
-        toast.error('Δεν βρέθηκε η κράτηση.');
-        return;
-      }
-      
-      await cancelPilatesBooking(booking.id, user.id);
-      toast.success('Η κράτηση ακυρώθηκε επιτυχώς!');
-      await loadData();
-    } catch (error) {
-      console.error('Error cancelling booking:', error);
-      toast.error('Σφάλμα κατά την ακύρωση της κράτησης.');
     }
   };
 
@@ -482,7 +458,7 @@ const PilatesCalendar: React.FC = () => {
                                 let capacityText = '';
                                 
                                 if (isBooked) {
-                                  statusClass = 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200';
+                                  statusClass = 'bg-blue-100 text-blue-800 border-blue-200 cursor-default';
                                   statusIcon = <CheckCircle size={12} className="text-blue-600" />;
                                   capacityText = 'Κρατημένο';
                                 } else if (isActive && !isFull) {
@@ -503,16 +479,15 @@ const PilatesCalendar: React.FC = () => {
                                   <button
                                     key={slot.id}
                                     type="button"
-                                    aria-label={isBooked ? 'Ακύρωση κράτησης' : (isActive && !isFull ? 'Κλείσιμο μαθήματος' : capacityText)}
-                                    title={isBooked ? 'Κάντε κλικ για ακύρωση' : (isActive && !isFull ? 'Κάντε κλικ για κράτηση' : capacityText)}
+                                    aria-label={isBooked ? 'Κρατημένο μάθημα (δεν ακυρώνεται μέσω εφαρμογής)' : (isActive && !isFull ? 'Κλείσιμο μαθήματος' : capacityText)}
+                                    title={isBooked ? 'Η κράτησή σας έχει ολοκληρωθεί. Επικοινωνήστε με τη ρεσεψιόν για αλλαγές.' : (isActive && !isFull ? 'Κάντε κλικ για κράτηση' : capacityText)}
                                     className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border text-[10px] sm:text-xs font-medium transition-colors transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${statusClass} ${isActive && !isBooked && !isFull ? 'hover:scale-[1.02]' : ''}`}
                                     onClick={() => {
                                       if (isActive && !isBooked && !isFull) {
                                         openConfirm(slot);
-                                      } else if (isBooked) {
-                                        handleCancelBooking(slot.id);
                                       }
                                     }}
+                                    disabled={isBooked}
                                   >
                                     <div className="flex items-center justify-center gap-1">
                                       {statusIcon}

@@ -146,10 +146,51 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
       const start = weekDates[0];
       const end = weekDates[weekDates.length - 1];
       const slotsWithOcc = await getPilatesAvailableSlots(start, end);
+
+      // Build helper map for confirmed booking counts per slot (needed because the occupancy view omits certain days like Saturday)
+      const weekSlotIds = slotsData
+        .filter(slot => weekDates.includes(slot.date))
+        .map(slot => slot.id);
+
+      const bookingCountsBySlot: Record<string, number> = {};
+
+      if (weekSlotIds.length > 0) {
+        const { data: weekBookings, error: weekBookingsError } = await supabase
+          .from('pilates_bookings')
+          .select('slot_id')
+          .in('slot_id', weekSlotIds)
+          .eq('status', 'confirmed');
+
+        if (weekBookingsError) {
+          console.error('Error fetching weekly pilates bookings:', weekBookingsError);
+        } else if (weekBookings) {
+          weekBookings.forEach(booking => {
+            if (!booking?.slot_id) return;
+            bookingCountsBySlot[booking.slot_id] = (bookingCountsBySlot[booking.slot_id] || 0) + 1;
+          });
+        }
+      }
+
       const occ: { [key: string]: { booked: number, cap: number } } = {};
       slotsWithOcc.forEach(s => {
         const key = `${s.date}-${s.start_time.slice(0,5)}`;
-        occ[key] = { booked: (s as any).booked_count || 0, cap: s.max_capacity };
+        const viewCount = (s as any).booked_count || 0;
+        const fallbackCount = bookingCountsBySlot[s.id] || 0;
+        occ[key] = { booked: Math.max(viewCount, fallbackCount), cap: s.max_capacity };
+      });
+
+      // Ensure every slot for the week gets a booking count entry (even if not returned from occupancy view)
+      slotsData.forEach(slot => {
+        if (!weekDates.includes(slot.date)) return;
+        const key = `${slot.date}-${slot.start_time.slice(0,5)}`;
+        if (!occ[key]) {
+          occ[key] = {
+            booked: bookingCountsBySlot[slot.id] || 0,
+            cap: slot.max_capacity
+          };
+        } else {
+          occ[key].booked = Math.max(occ[key].booked, bookingCountsBySlot[slot.id] || 0);
+        }
       });
       setOccupancy(occ);
     } catch (error) {
