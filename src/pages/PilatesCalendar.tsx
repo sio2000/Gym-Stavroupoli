@@ -78,11 +78,11 @@ const PilatesCalendar: React.FC = () => {
     return `${dayName} ${day} ${month}`;
   };
 
-  // Check if date is weekend - now takes date string (YYYY-MM-DD)
+  // Check if date is Sunday - now takes date string (YYYY-MM-DD)
   const isWeekend = (dateStr: string): boolean => {
     const date = parseDateKeyLocal(dateStr); // Use parseDateKeyLocal to avoid timezone issues
     const day = date.getDay();
-    return day === 0 || day === 6; // Sunday = 0, Saturday = 6
+    return day === 0; // Sunday = 0
   };
 
   // Get slots for specific date and time
@@ -468,7 +468,7 @@ const PilatesCalendar: React.FC = () => {
                             </div>
                           ) : isWeekendDay ? (
                             <div className="text-gray-400 text-[10px] sm:text-xs">
-                              Σαβ/Κυρ
+                              Κυριακή
                             </div>
                           ) : hasSlots ? (
                             <div className="space-y-1">

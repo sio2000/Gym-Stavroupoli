@@ -64,7 +64,7 @@ const MonthlyScheduleSpreadsheetView: React.FC<MonthlyScheduleSpreadsheetViewPro
       const date = new Date(year, month - 1, day);
       const dateString = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
       const dayName = date.toLocaleDateString('el-GR', { weekday: 'short' });
-      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+      const isWeekend = date.getDay() === 0;
       
       days.push({
         day,
@@ -98,7 +98,7 @@ const MonthlyScheduleSpreadsheetView: React.FC<MonthlyScheduleSpreadsheetViewPro
         const date = new Date(currentYear, currentMonth - 1, dayNumber);
         const dateString = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
         const dayName = date.toLocaleDateString('el-GR', { weekday: 'short' });
-        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        const isWeekend = date.getDay() === 0;
         
         weekDays.push({
           day: dayNumber,

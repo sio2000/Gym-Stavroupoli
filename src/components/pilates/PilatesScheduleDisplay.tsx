@@ -265,11 +265,11 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
         } else {
           // INSERT: New slot
           slotsToInsert.push({
-            date: slot.date,
-            start_time: slot.time,
-            end_time: getEndTime(slot.time),
-            max_capacity: 4,
-            is_active: slot.is_active
+        date: slot.date,
+        start_time: slot.time,
+        end_time: getEndTime(slot.time),
+        max_capacity: 4,
+        is_active: slot.is_active
           });
         }
       });
@@ -298,14 +298,14 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
       
       // INSERT new slots
       if (slotsToInsert.length > 0) {
-        const { error: createError } = await supabase
-          .from('pilates_schedule_slots')
+      const { error: createError } = await supabase
+        .from('pilates_schedule_slots')
           .insert(slotsToInsert);
-        
-        if (createError) {
-          console.error('Error creating new slots:', createError);
-          throw createError;
-        }
+      
+      if (createError) {
+        console.error('Error creating new slots:', createError);
+        throw createError;
+      }
         console.log('✅ Created new slots:', slotsToInsert.length);
       }
       
@@ -519,7 +519,7 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                     const isActive = scheduleGrid[key];
                     // Use parseDateKeyLocal to match user panel and avoid timezone issues
                     const dayOfWeek = parseDateKeyLocal(date).getDay();
-                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday (0) or Saturday (6)
+                    const isSunday = dayOfWeek === 0; // Sunday
                     
                     const occVal = occupancy[key];
                     const booked = occVal?.booked ?? 0;
@@ -528,9 +528,9 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                       <td key={key} className={`px-4 py-3 text-center border-r border-gray-200 relative ${
                         date === toLocalDateKey(new Date()) ? 'bg-gradient-to-r from-orange-50/60 via-pink-50/60 to-purple-50/60 border-l-2 border-orange-400' : ''
                       }`}>
-                        {isWeekend ? (
+                        {isSunday ? (
                           <div className="w-full h-8 bg-gray-100 rounded flex items-center justify-center">
-                            <span className="text-xs text-gray-400">Σαβ/Κυρ</span>
+                            <span className="text-xs text-gray-400">Κυριακή</span>
                           </div>
                         ) : (
                           <div className="relative w-full">
@@ -626,10 +626,10 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
           </div>
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-              <span className="text-xs text-gray-400">Σαβ/Κυρ</span>
+              <span className="text-xs text-gray-400">Κυριακή</span>
             </div>
             <div>
-              <p className="font-medium text-gray-900">Σαββατοκύριακο</p>
+              <p className="font-medium text-gray-900">Κυριακή</p>
               <p className="text-sm text-gray-600">Δεν υπάρχουν μαθήματα</p>
             </div>
           </div>
