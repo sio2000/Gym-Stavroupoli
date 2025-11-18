@@ -360,11 +360,13 @@ export const getUserPilatesBookingsForDateRange = async (userId: string, startDa
 
 // Get bookings for a specific slot
 export const getPilatesSlotBookings = async (slotId: string): Promise<PilatesBooking[]> => {
+  console.log('getPilatesSlotBookings called with slotId:', slotId);
+  
   const { data, error } = await supabase
     .from('pilates_bookings')
     .select(`
       *,
-      user:user_profiles(first_name, last_name, email, phone, profile_photo, avatar_url)
+      user:user_profiles(*)
     `)
     .eq('slot_id', slotId)
     .eq('status', 'confirmed')
@@ -375,5 +377,6 @@ export const getPilatesSlotBookings = async (slotId: string): Promise<PilatesBoo
     throw error;
   }
 
+  console.log('getPilatesSlotBookings result:', { count: data?.length || 0, data });
   return data || [];
 };

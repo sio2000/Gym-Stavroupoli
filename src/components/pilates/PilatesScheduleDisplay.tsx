@@ -34,6 +34,7 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
   subtitle = "Κάντε κλικ στις ώρες που δεν θέλετε να είναι διαθέσιμες"
 }) => {
   const [slots, setSlots] = useState<PilatesScheduleSlot[]>([]);
+  const [availableSlotsState, setAvailableSlotsState] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [scheduleGrid, setScheduleGrid] = useState<{[key: string]: boolean}>({});
@@ -107,6 +108,7 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
         slot.date >= startDate && slot.date <= endDate
       );
       setSlots(slotsData);
+      setAvailableSlotsState(availableSlots);
 
       const grid: {[key: string]: boolean} = {};
       const weekDates = getWeekDates();
@@ -404,16 +406,24 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
   const handleInfoClick = async (slotId: string, date: string, time: string) => {
     try {
       setLoadingSlotInfo(true);
+      console.log('handleInfoClick called with:', { slotId, date, time });
+      
+      if (!slotId) {
+        throw new Error('Slot ID is missing');
+      }
+      
       const bookings = await getPilatesSlotBookings(slotId);
+      console.log('Bookings fetched:', bookings.length, bookings);
+      
       setSelectedSlotInfo({
         slotId,
         date,
         time,
-        bookings
+        bookings: bookings || []
       });
     } catch (error) {
       console.error('Error loading slot info:', error);
-      toast.error('Σφάλμα φόρτωσης πληροφοριών slot');
+      toast.error('Σφάλμα φόρτωσης πληροφοριών slot. Παρακαλώ δοκιμάστε ξανά.');
     } finally {
       setLoadingSlotInfo(false);
     }
@@ -659,13 +669,47 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                               {/* View Button for bookings - Show in admin mode when there are bookings */}
                               {!readOnly && isActive && booked > 0 && (
                                 <button
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation();
-                                    const slot = slots.find(s => 
-                                      s.date === date && s.start_time === `${time}:00`
-                                    );
-                                    if (slot) {
-                                      handleInfoClick(slot.id, date, time);
+                                    // Find slot by matching date and time
+                                    // Normalize time format: "08:00:00" -> "08:00" or keep "08:00"
+                                    const normalizeTime = (timeStr: string | undefined): string => {
+                                      if (!timeStr) return '';
+                                      // If format is "HH:MM:SS", take first 5 chars to get "HH:MM"
+                                      if (timeStr.length >= 8) {
+                                        return timeStr.slice(0, 5);
+                                      }
+                                      // If format is already "HH:MM", return as is
+                                      return timeStr;
+                                    };
+                                    
+                                    // Try to find in availableSlots first (has correct ID from view)
+                                    let slot = availableSlotsState.find(s => {
+                                      const slotTime = normalizeTime(s.start_time);
+                                      return s.date === date && slotTime === time;
+                                    });
+                                    
+                                    // If not found in availableSlots, try in slots
+                                    if (!slot) {
+                                      slot = slots.find(s => {
+                                        const slotTime = normalizeTime(s.start_time);
+                                        return s.date === date && slotTime === time;
+                                      });
+                                    }
+                                    
+                                    if (slot && slot.id) {
+                                      console.log('View button clicked - Slot found:', { slotId: slot.id, date, time, slot });
+                                      await handleInfoClick(slot.id, date, time);
+                                    } else {
+                                      console.error('View button clicked - Slot not found:', { 
+                                        date, 
+                                        time, 
+                                        availableSlotsCount: availableSlotsState.length,
+                                        slotsCount: slots.length,
+                                        sampleAvailableSlots: availableSlotsState.filter(s => s.date === date).slice(0, 3),
+                                        sampleSlots: slots.filter(s => s.date === date).slice(0, 3)
+                                      });
+                                      toast.error('Δεν βρέθηκε το slot. Παρακαλώ ανανεώστε τη σελίδα.');
                                     }
                                   }}
                                   className="w-full px-2 py-1 bg-blue-500 text-white text-xs font-semibold rounded hover:bg-blue-600 transition-colors shadow-sm hover:shadow-md"
