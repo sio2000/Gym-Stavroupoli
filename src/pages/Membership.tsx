@@ -576,7 +576,6 @@ const MembershipPage: React.FC = React.memo(() => {
       <div className="card p-0 overflow-hidden">
         <div className="bg-gradient-to-r from-orange-500 via-pink-500 to-red-500 px-6 py-5">
           <h2 className="text-xl font-bold text-white">Προσφορές & Banners</h2>
-          <p className="text-white/80 text-sm">Ενημερώνονται από το Admin Panel.</p>
         </div>
 
         {bannersLoading ? (
