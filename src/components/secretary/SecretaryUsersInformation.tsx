@@ -19,11 +19,12 @@ import {
 } from 'lucide-react';
 import { 
   searchUsers, 
-  getRandomUsers, 
+  getUsersWithFilter, 
   getUserCount, 
   getUserDetailedInfo,
   UserInfo,
-  UserDetailedInfo
+  UserDetailedInfo,
+  UserFilter
 } from '@/utils/userInfoApi';
 import toast from 'react-hot-toast';
 
@@ -35,6 +36,7 @@ const SecretaryUsersInformation: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [userDetailsLoading, setUserDetailsLoading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<UserFilter>('all');
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -43,13 +45,10 @@ const SecretaryUsersInformation: React.FC = () => {
   const USERS_PER_PAGE = 10;
 
   // Load random users and total count
-  const loadRandomUsers = async (page: number = 1) => {
+  const loadUsers = async (page: number = 1, filter: UserFilter = filterStatus) => {
     try {
       setLoading(true);
-      const [users, count] = await Promise.all([
-        getRandomUsers(page, USERS_PER_PAGE),
-        getUserCount()
-      ]);
+      const [users, count] = await getUsersWithFilter(page, USERS_PER_PAGE, filter);
       
       setRandomUsers(users);
       setTotalUsers(count);
@@ -65,8 +64,8 @@ const SecretaryUsersInformation: React.FC = () => {
 
   // Load data on component mount
   useEffect(() => {
-    loadRandomUsers(1);
-  }, []);
+    loadUsers(1, filterStatus);
+  }, [filterStatus]);
 
   // Search functionality
   const handleSearch = async (term: string) => {
@@ -74,12 +73,13 @@ const SecretaryUsersInformation: React.FC = () => {
     
     if (!term.trim()) {
       setSearchResults([]);
+      loadUsers(1, filterStatus);
       return;
     }
 
     try {
       setSearchLoading(true);
-      const results = await searchUsers(term);
+      const results = await searchUsers(term, filterStatus);
       setSearchResults(results);
     } catch (error) {
       console.error('Error searching users:', error);
@@ -106,13 +106,13 @@ const SecretaryUsersInformation: React.FC = () => {
   // Pagination handlers
   const handlePreviousPage = () => {
     if (currentPage > 1) {
-      loadRandomUsers(currentPage - 1);
+      loadUsers(currentPage - 1, filterStatus);
     }
   };
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
-      loadRandomUsers(currentPage + 1);
+      loadUsers(currentPage + 1, filterStatus);
     }
   };
 
@@ -159,7 +159,7 @@ const SecretaryUsersInformation: React.FC = () => {
       {/* Search Bar */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
         <div className="flex items-center space-x-4">
-          <div className="flex-1">
+          <div className="flex-1 space-y-3">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
@@ -169,6 +169,29 @@ const SecretaryUsersInformation: React.FC = () => {
                 onChange={(e) => handleSearch(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 placeholder-gray-500"
               />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {([
+                { key: 'all', label: 'Όλοι οι χρήστες' },
+                { key: 'active', label: 'Ενεργοί Χρήστες' },
+                { key: 'expired', label: 'Ληγμένες Συνδρομές' },
+              ] as { key: UserFilter; label: string }[]).map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => {
+                    setFilterStatus(opt.key);
+                    setSearchResults([]);
+                    setSearchTerm('');
+                  }}
+                  className={`px-3 py-2 rounded-lg border text-sm font-medium ${
+                    filterStatus === opt.key
+                      ? 'bg-purple-600 text-white border-purple-500 shadow'
+                      : 'bg-gray-100 text-gray-700 border-gray-200 hover:border-purple-400 hover:text-purple-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
           {searchTerm && (
@@ -435,6 +458,45 @@ const SecretaryUsersInformation: React.FC = () => {
                                 Εκκρεμές
                               </span>
                             </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Πλάνο Δόσεων */}
+                <div className="bg-purple-50 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <Calendar className="h-5 w-5 mr-2 text-purple-600" />
+                    Πλάνο Δόσεων ({selectedUser.installment_plans.length})
+                  </h4>
+                  {selectedUser.installment_plans.length === 0 ? (
+                    <p className="text-gray-600">Δεν υπάρχει πλάνο δόσεων</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {selectedUser.installment_plans.map(plan => (
+                        <div key={plan.id} className="bg-white rounded-lg p-4 border border-purple-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h5 className="font-semibold text-gray-900">{plan.package_name}</h5>
+                              <p className="text-sm text-gray-600">
+                                Διάρκεια: {plan.duration_type} | Τιμή: €{plan.requested_price}
+                                {plan.classes_count && ` | Μαθήματα: ${plan.classes_count}`}
+                              </p>
+                              <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                {plan.installment_1_amount && <p>Δόση 1: €{plan.installment_1_amount} {plan.installment_1_due_date && `(έως ${formatDate(plan.installment_1_due_date)})`}</p>}
+                                {plan.installment_2_amount && <p>Δόση 2: €{plan.installment_2_amount} {plan.installment_2_due_date && `(έως ${formatDate(plan.installment_2_due_date)})`}</p>}
+                                {plan.installment_3_amount && <p>Δόση 3: €{plan.installment_3_amount} {plan.installment_3_due_date && `(έως ${formatDate(plan.installment_3_due_date)})`}</p>}
+                              </div>
+                            </div>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              plan.status === 'approved' ? 'bg-green-100 text-green-800' :
+                              plan.status === 'pending' ? 'bg-orange-100 text-orange-800' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {plan.status === 'approved' ? 'Εγκεκριμένο' : plan.status === 'pending' ? 'Εκκρεμεί' : 'Απορριφθέν'}
+                            </span>
                           </div>
                         </div>
                       ))}

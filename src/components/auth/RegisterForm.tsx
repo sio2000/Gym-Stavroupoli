@@ -6,6 +6,9 @@ import { isValidEmail, isValidPassword, isValidPhone } from '@/utils';
 import { Eye, EyeOff, Mail, Lock, User, Loader2, Phone } from 'lucide-react';
 
 const RegisterForm: React.FC = () => {
+  // Η δημόσια εγγραφή απενεργοποιήθηκε: γίνεται μόνο μέσω γραμματείας
+  const registrationDisabled = true;
+
   const [formData, setFormData] = useState<RegisterData & { confirmPassword: string }>({
     email: '',
     password: '',
@@ -23,12 +26,37 @@ const RegisterForm: React.FC = () => {
   const { register, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  // Initial validation on component mount
-  useEffect(() => {
-    validateForm();
-  }, []);
+  if (registrationDisabled) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-6 text-center bg-dark-900/50 border border-dark-700 rounded-2xl p-8 shadow-2xl">
+          <div className="mx-auto h-16 w-16 bg-primary-600 rounded-full flex items-center justify-center">
+            <Lock className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-white">Η εγγραφή γίνεται μόνο από τη Γραμματεία</h2>
+          <p className="text-gray-300 text-sm">
+            Παρακαλούμε απευθυνθείτε στη γραμματεία του γυμναστηρίου για να δημιουργήσετε λογαριασμό. Θα λάβετε email επιβεβαίωσης μετά την καταχώρηση.
+          </p>
+          <div className="space-y-3">
+            <Link
+              to="/"
+              className="block w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
+            >
+              Επιστροφή στην αρχική
+            </Link>
+            <a
+              href="mailto:getfit.skg@gmail.com?subject=%CE%95%CF%80%CE%B9%CE%BA%CE%BF%CE%B9%CE%BD%CF%89%CE%BD%CE%AF%CE%B1%20%CE%BC%CE%B5%20GetFit"
+              className="block w-full border border-gray-600 text-gray-200 py-3 rounded-lg hover:bg-gray-800 transition-colors font-semibold"
+            >
+              Επικοινωνία
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const validateForm = (): boolean => {
+  function validateForm(): boolean {
     const newErrors: Partial<RegisterData & { confirmPassword: string }> = {};
 
     if (!formData.firstName?.trim()) {
@@ -69,7 +97,12 @@ const RegisterForm: React.FC = () => {
     const isValid = Object.keys(newErrors).length === 0;
     setIsFormValid(isValid);
     return isValid;
-  };
+  }
+
+  // Initial validation on component mount
+  useEffect(() => {
+    validateForm();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();

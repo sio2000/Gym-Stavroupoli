@@ -40,10 +40,10 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
   const [scheduleGrid, setScheduleGrid] = useState<{[key: string]: boolean}>({});
   const [occupancy, setOccupancy] = useState<{ [key: string]: { booked: number, cap: number } }>({});
   const [currentWeek, setCurrentWeek] = useState(() => {
-    // Use Greek timezone Monday of current week for synchronization - FORCE REFRESH
-    const greekMonday = getGreekMondayOfCurrentWeek();
-    console.log('🔥🔥🔥 PILATES SCHEDULE: Using Greek Monday function - Monday:', greekMonday.toISOString(), 'TIMESTAMP:', Date.now());
-    return greekMonday;
+    // Default starting point: today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
   });
   const [selectedSlotInfo, setSelectedSlotInfo] = useState<{
     slotId: string;
@@ -217,12 +217,15 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
 
   const getWeekDates = (): string[] => {
     const dates: string[] = [];
-    const startDate = new Date(currentWeek);
+    // For admin (readOnly=false) allow navigation via currentWeek.
+    // For user (readOnly=true) keep clamped to today forward.
+    const startDate = new Date(readOnly ? new Date() : currentWeek);
+    startDate.setHours(0, 0, 0, 0);
     
     console.log('PilatesScheduleDisplay: getWeekDates - currentWeek:', startDate);
     
-    // Generate 14 days (2 εβδομάδες)
-    for (let i = 0; i < 14; i++) {
+    // Generate 16 days (today + 15)
+    for (let i = 0; i < 16; i++) {
       const date = addDaysLocal(startDate, i);
       const key = toLocalDateKey(date);
       dates.push(key);
@@ -383,12 +386,15 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
+    if (readOnly) return; // Το user view μένει πάντα στο σήμερα+15
+
     const newWeek = new Date(currentWeek);
     if (direction === 'prev') {
-      newWeek.setDate(newWeek.getDate() - 14); // βήμα 2 εβδομάδων προς τα πίσω
+      newWeek.setDate(newWeek.getDate() - 14);
     } else {
-      newWeek.setDate(newWeek.getDate() + 14); // βήμα 2 εβδομάδων προς τα εμπρός
+      newWeek.setDate(newWeek.getDate() + 14);
     }
+    newWeek.setHours(0, 0, 0, 0);
     setCurrentWeek(newWeek);
   };
 
@@ -515,22 +521,6 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
         </div>
       )}
 
-      {/* Week Navigation Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-blue-800 mb-2">
-          2 εβδομάδες: {formatDate(weekDates[0])} - {formatDate(weekDates[13])}
-        </h3>
-        {!readOnly ? (
-          <p className="text-sm text-blue-700">
-            Κάντε κλικ στις κόκκινες ώρες για να τις απενεργοποιήσετε (δεν θα εμφανίζονται στους χρήστες)
-          </p>
-        ) : (
-          <p className="text-sm text-blue-700">
-            Προβολή προγράμματος Pilates - Δεν μπορείτε να κάνετε αλλαγές
-          </p>
-        )}
-      </div>
-
       {/* Excel-like Grid */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
@@ -599,11 +589,11 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                         'bg-rose-50 text-rose-700 border border-rose-200',
                         readOnly ? 'cursor-default' : 'cursor-pointer hover:bg-rose-100'
                       ].join(' ');
-                      statusTitle = 'Μη διαθέσιμο μάθημα';
+                      statusTitle = 'Πλήρες/Μη διαθέσιμο μάθημα';
                       statusContent = (
                         <div className="flex items-center gap-1 text-xs font-medium">
                           <XCircle className="h-4 w-4 text-rose-600" />
-                          <span>Μη διαθέσιμο</span>
+                          <span>Πλήρες/Μη διαθέσιμο</span>
                         </div>
                       );
                     } else if (isFull) {

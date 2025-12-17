@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditCard, AlertCircle, ShoppingCart } from 'lucide-react';
+import { CreditCard, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface NoActiveMembershipMessageProps {
@@ -27,20 +27,12 @@ const NoActiveMembershipMessage: React.FC<NoActiveMembershipMessageProps> = ({
           
           <p className="text-gray-600 mb-4">
             {showQRMessage 
-              ? 'Για να δημιουργήσετε QR codes, χρειάζεστε ενεργή συνδρομή. Παρακαλώ επιλέξτε ένα πακέτο συνδρομής για να συνεχίσετε.'
+              ? 'Για να δημιουργήσετε QR codes, χρειάζεστε ενεργή συνδρομή. Παρακαλώ επικοινωνήστε με το γυμναστήριο για να συνεχίσετε.'
               : 'Δεν έχετε καμία ενεργή συνδρομή αυτή τη στιγμή. Επιλέξτε ένα πακέτο για να ξεκινήσετε.'
             }
           </p>
           
           <div className="flex flex-col sm:flex-row gap-3">
-            <Link
-              to="/membership"
-              className="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              <ShoppingCart className="h-4 w-4 mr-2" />
-              Επιλέξτε Πακέτο Συνδρομής
-            </Link>
-            
             <Link
               to="/dashboard"
               className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"

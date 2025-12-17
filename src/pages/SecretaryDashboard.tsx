@@ -22,6 +22,9 @@ import {
   Trash2,
   Lock,
   AlertTriangle,
+  UserPlus,
+  Wallet,
+  ListChecks
 } from 'lucide-react';
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
@@ -49,9 +52,13 @@ import {
 import { MembershipRequest } from '@/types';
 import InstallmentsTab from '@/components/secretary/InstallmentsTab';
 import SecretaryUsersInformation from '@/components/secretary/SecretaryUsersInformation';
+import SecretaryRegistrationWizard from '@/components/secretary/SecretaryRegistrationWizard';
+import NewSubscriptionTab from '@/components/secretary/NewSubscriptionTab';
 import GroupTrainingCalendar from '@/components/admin/GroupTrainingCalendar';
 import GroupAssignmentInterface from '@/components/admin/GroupAssignmentInterface';
 import ErrorFixing from '@/components/admin/ErrorFixing';
+import InstallmentsAdminTab from '@/components/secretary/InstallmentsAdminTab';
+import { fetchInstallmentsAdmin, InstallmentListItem, recordInstallmentPayment } from '@/services/api/installmentAdminApi';
 
 // Constants for the modal - moved to avoid duplication
 import Webcam from 'react-webcam';
@@ -155,7 +162,7 @@ const SecretaryDashboard: React.FC = () => {
   const [showResult, setShowResult] = useState(false);
   const [recentScans, setRecentScans] = useState<any[]>([]);
   const [membershipRequests, setMembershipRequests] = useState<MembershipRequest[]>([]);
-  const [activeTab, setActiveTab] = useState<'scanner' | 'membership-requests' | 'users-information' | 'personal-training' | 'error-fixing'>('scanner');
+  const [activeTab, setActiveTab] = useState<'registration' | 'scanner' | 'membership-requests' | 'users-information' | 'personal-training' | 'error-fixing' | 'installments'>('scanner');
   
   // Program Options state for membership requests
   const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
@@ -267,6 +274,30 @@ const SecretaryDashboard: React.FC = () => {
   const [usersPerPage] = useState(10);
   const [requestPendingUsers, setRequestPendingUsers] = useState<Set<string>>(new Set());
   const [requestFrozenOptions, setRequestFrozenOptions] = useState<{[requestId: string]: any}>({});
+
+  // Installments admin tab state
+  const [installments, setInstallments] = useState<InstallmentListItem[]>([]);
+  const [installmentSearch, setInstallmentSearch] = useState('');
+  const [installmentStatusFilter, setInstallmentStatusFilter] = useState<'all' | 'pending' | 'overdue' | 'paid'>('all');
+  const [installmentPage, setInstallmentPage] = useState(1);
+  const INSTALLMENTS_PER_PAGE = 10;
+  const [installmentsLoading, setInstallmentsLoading] = useState(false);
+  const [paymentModal, setPaymentModal] = useState<{
+    open: boolean;
+    installment: InstallmentListItem | null;
+    amount: string;
+    method: 'cash' | 'pos';
+    note: string;
+  }>({
+    open: false,
+    installment: null,
+    amount: '',
+    method: 'cash',
+    note: ''
+  });
+  const [overduePage, setOverduePage] = useState(1);
+  const OVERDUE_PER_PAGE = 6;
+  const [dismissedOverdue, setDismissedOverdue] = useState<Set<string>>(new Set());
   // Installment locking state
   const [showLockConfirmation, setShowLockConfirmation] = useState(false);
   const [pendingLockRequest, setPendingLockRequest] = useState<{
@@ -279,6 +310,8 @@ const SecretaryDashboard: React.FC = () => {
   const [requestSearch, setRequestSearch] = useState<string>('');
   const [requestsPage, setRequestsPage] = useState<number>(1);
   const REQUESTS_PER_PAGE = 6;
+  // Feature toggle: hide subscription requests UI while keeping code for future reuse
+  const showSubscriptionRequests = false;
   
   // Delete third installment state
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -347,6 +380,8 @@ const SecretaryDashboard: React.FC = () => {
       setTimeout(() => {
       loadAllUsers();
       }, 100);
+    } else if (activeTab === 'installments') {
+      loadInstallmentsAdminList();
     }
     // Note: users-information tab loads its own data
   }, [activeTab]);
@@ -2518,6 +2553,105 @@ const SecretaryDashboard: React.FC = () => {
     setScanResult(null);
   };
 
+  useEffect(() => {
+    setInstallmentPage(1);
+  }, [installmentSearch, installmentStatusFilter, installments]);
+
+  const filteredInstallments = installments.filter((inst) => {
+    const searchLower = installmentSearch.toLowerCase();
+    const matchesSearch =
+      !installmentSearch ||
+      inst.userName.toLowerCase().includes(searchLower) ||
+      (inst.userEmail || '').toLowerCase().includes(searchLower) ||
+      (inst.userPhone || '').toLowerCase().includes(searchLower);
+    const matchesStatus = installmentStatusFilter === 'all' ? true : inst.status === installmentStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const overdueInstallments = filteredInstallments.filter((inst) => inst.status === 'overdue');
+  const visibleOverdue = overdueInstallments.filter(
+    (inst) => !dismissedOverdue.has(`${inst.requestId}-${inst.installmentNumber}`)
+  );
+  const totalInstallmentPages = Math.max(1, Math.ceil(filteredInstallments.length / INSTALLMENTS_PER_PAGE));
+  const paginatedInstallments = filteredInstallments.slice(
+    (installmentPage - 1) * INSTALLMENTS_PER_PAGE,
+    installmentPage * INSTALLMENTS_PER_PAGE
+  );
+  const totalOverduePages = Math.max(1, Math.ceil(visibleOverdue.length / OVERDUE_PER_PAGE));
+  const paginatedOverdue = visibleOverdue.slice(
+    (overduePage - 1) * OVERDUE_PER_PAGE,
+    overduePage * OVERDUE_PER_PAGE
+  );
+  useEffect(() => {
+    setOverduePage(1);
+  }, [visibleOverdue.length, installmentSearch, installmentStatusFilter, dismissedOverdue]);
+
+  // ===== Installments admin helpers =====
+  const loadInstallmentsAdminList = async () => {
+    try {
+      setInstallmentsLoading(true);
+      const data = await fetchInstallmentsAdmin();
+      setInstallments(data);
+    } catch (error) {
+      console.error('[SecretaryDashboard] Error loading installments:', error);
+      toast.error('Σφάλμα φόρτωσης δόσεων');
+    } finally {
+      setInstallmentsLoading(false);
+    }
+  };
+
+  const openPaymentModal = (inst: InstallmentListItem) => {
+    setPaymentModal({
+      open: true,
+      installment: inst,
+      amount: String(inst.amount || ''),
+      method: inst.paymentMethod || 'cash',
+      note: ''
+    });
+  };
+
+  const closePaymentModal = () => {
+    setPaymentModal({
+      open: false,
+      installment: null,
+      amount: '',
+      method: 'cash',
+      note: ''
+    });
+  };
+
+  const submitPayment = async () => {
+    if (!paymentModal.installment) return;
+    const amountNum = Number(paymentModal.amount);
+    if (!amountNum || Number.isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Συμπλήρωσε έγκυρο ποσό');
+      return;
+    }
+    try {
+      setInstallmentsLoading(true);
+      const ok = await recordInstallmentPayment({
+        requestId: paymentModal.installment.requestId,
+        installmentNumber: paymentModal.installment.installmentNumber,
+        amount: amountNum,
+        method: paymentModal.method,
+        note: paymentModal.note,
+        createdBy: user?.id
+      });
+      if (ok) {
+        toast.success('Η πληρωμή καταχωρήθηκε');
+        closePaymentModal();
+        await loadInstallmentsAdminList();
+      } else {
+        toast.error('Αποτυχία καταχώρησης πληρωμής');
+      }
+    } catch (error) {
+      console.error('[SecretaryDashboard] submitPayment error:', error);
+      toast.error('Σφάλμα καταχώρησης πληρωμής');
+    } finally {
+      setInstallmentsLoading(false);
+    }
+  };
+
   if (!user || (user.role as string) !== 'secretary') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -2547,8 +2681,10 @@ const SecretaryDashboard: React.FC = () => {
                   Secretary Dashboard
                 </h1>
                 <p className="text-gray-300 mt-1">
-                  {activeTab === 'scanner' ? '🔍 Σαρώστε QR codes για είσοδο/έξοδο' : 
-                   activeTab === 'membership-requests' ? '📋 Διαχείριση αιτημάτων συνδρομών' : 
+                  {activeTab === 'registration' ? '📝 Εγγραφή νέου χρήστη από γραμματεία' :
+                   activeTab === 'scanner' ? '🔍 Σαρώστε QR codes για είσοδο/έξοδο' : 
+                   activeTab === 'membership-requests' ? '📋 Νέα Συνδρομή & υπηρεσίες' : 
+                   activeTab === 'installments' ? '💰 Διαχείριση δόσεων' :
                    activeTab === 'users-information' ? '👥 Πληροφορίες χρηστών' :
                    activeTab === 'personal-training' ? '💪 Διαχείριση προγραμμάτων Personal Training' :
                    activeTab === 'error-fixing' ? '⚠️ Διόρθωση Σφαλμάτων' :
@@ -2580,6 +2716,19 @@ const SecretaryDashboard: React.FC = () => {
           <div className="border-t border-gray-600">
             <nav className="flex space-x-2 p-2">
               <button
+                onClick={() => setActiveTab('registration')}
+                className={`py-4 px-6 rounded-xl font-medium text-sm transition-all duration-200 transform hover:scale-105 ${
+                  activeTab === 'registration'
+                    ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg border-2 border-emerald-400'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-2 border-transparent'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <UserPlus className="h-5 w-5" />
+                  <span>📝 Νέα Εγγραφή</span>
+                </div>
+              </button>
+              <button
                 onClick={() => setActiveTab('scanner')}
                 className={`py-4 px-6 rounded-xl font-medium text-sm transition-all duration-200 transform hover:scale-105 ${
                   activeTab === 'scanner'
@@ -2602,7 +2751,20 @@ const SecretaryDashboard: React.FC = () => {
               >
                 <div className="flex items-center space-x-2">
                   <CreditCard className="h-5 w-5" />
-                  <span>📋 Αιτήματα Συνδρομών</span>
+                  <span>📋 Νέα Συνδρομή</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('installments')}
+                className={`py-4 px-6 rounded-xl font-medium text-sm transition-all duration-200 transform hover:scale-105 ${
+                  activeTab === 'installments'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg border-2 border-amber-300'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-2 border-transparent'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Wallet className="h-5 w-5" />
+                  <span>Δόσεις</span>
                 </div>
               </button>
               <button
@@ -2650,7 +2812,80 @@ const SecretaryDashboard: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'scanner' ? (
+        {paymentModal.open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div className="bg-gray-900 border border-amber-400/60 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-white">Καταχώρηση πληρωμής δόσης</h3>
+                <button onClick={closePaymentModal} className="text-gray-300 hover:text-white">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="text-sm text-gray-300 space-y-1">
+                <div>Χρήστης: {paymentModal.installment?.userName}</div>
+                <div>Δόση: {paymentModal.installment ? `#${paymentModal.installment.installmentNumber}` : '-'}</div>
+                <div>Λήξη: {paymentModal.installment?.dueDate}</div>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-gray-400">Ποσό (€)</label>
+                  <input
+                    type="number"
+                    value={paymentModal.amount}
+                    onChange={(e) => setPaymentModal((p) => ({ ...p, amount: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400">Τρόπος πληρωμής</label>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    {(['cash', 'pos'] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setPaymentModal((p) => ({ ...p, method: m }))}
+                        className={`w-full px-3 py-2 rounded-lg border text-sm ${
+                          paymentModal.method === m
+                            ? 'bg-amber-500 text-black border-amber-300'
+                            : 'bg-gray-800 text-gray-200 border-gray-700 hover:border-amber-400'
+                        }`}
+                      >
+                        {m === 'cash' ? 'Μετρητά' : 'POS'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400">Σημειώσεις (προαιρετικό)</label>
+                  <textarea
+                    value={paymentModal.note}
+                    onChange={(e) => setPaymentModal((p) => ({ ...p, note: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white focus:ring-2 focus:ring-amber-400"
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={closePaymentModal}
+                  className="px-4 py-2 rounded-lg border border-gray-600 text-gray-200 hover:bg-gray-800"
+                >
+                  Άκυρο
+                </button>
+                <button
+                  onClick={submitPayment}
+                  className="px-4 py-2 rounded-lg bg-amber-500 text-black font-semibold hover:bg-amber-400"
+                >
+                  Καταχώρηση
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'registration' ? (
+          <SecretaryRegistrationWizard />
+        ) : activeTab === 'scanner' ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
             {/* QR Scanner */}
             <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-600 p-6 backdrop-blur-sm">
@@ -2763,87 +2998,235 @@ const SecretaryDashboard: React.FC = () => {
         </div>
           </div>
 
-          {/* Recent Scans */}
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-600 p-6 backdrop-blur-sm">
-            <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
-              <span className="text-2xl mr-2">📋</span>
-              Πρόσφατες σαρώσεις
-            </h2>
-            
-            {recentScans.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="bg-gradient-to-br from-gray-600 to-gray-700 rounded-full p-3 w-16 h-16 mx-auto mb-4 shadow-lg">
-                  <QrCode className="h-10 w-10 text-gray-300" />
-                </div>
-                <p className="text-gray-300">Δεν υπάρχουν πρόσφατες σαρώσεις</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentScans.map((scan, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-700 to-gray-800 rounded-xl border border-gray-600 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-102">
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-3 rounded-full shadow-lg ${scan.status === 'approved' ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-red-500 to-red-600'}`}>
-                        {scan.status === 'approved' ? (
-                          <CheckCircle className="h-5 w-5 text-white" />
-                        ) : (
-                          <XCircle className="h-5 w-5 text-white" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-white">
-                          {scan.user_profiles ? `${scan.user_profiles.first_name} ${scan.user_profiles.last_name}` : 'Άγνωστος'}
-                        </p>
-                        <p className="text-sm text-gray-300">
-                          {getCategoryLabel(scan.category)} • {scan.scan_type}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-300">
-                        {new Date(scan.created_at).toLocaleTimeString('el-GR')}
-                      </p>
-                      <p className={`text-xs font-medium px-2 py-1 rounded-full ${scan.status === 'approved' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                        {scan.status === 'approved' ? 'Εγκεκριμένο' : 'Απορριφθέν'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
-        ) : activeTab === 'membership-requests' ? (
-          <>
-            {/* Membership Requests - Important Instructions Banner */}
-            <div className="bg-gradient-to-r from-blue-100 via-blue-50 to-blue-100 border-4 border-blue-500 rounded-xl p-6 shadow-2xl mb-6">
-              <div className="flex items-start">
-                <svg className="h-10 w-10 text-blue-700 mt-1 mr-4 flex-shrink-0 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-                <div className="flex-1">
-                  <h4 className="text-2xl font-black text-black mb-3 leading-tight">
-                    💡 Σημαντικές Οδηγίες
-                  </h4>
-                  <div className="space-y-2">
-                    <p className="text-base font-semibold text-gray-800 leading-relaxed">
-                      🔍 <strong>Αναζήτηση:</strong> Χρησιμοποιήστε το πεδίο αναζήτησης για να βρείτε γρήγορα αιτήματα με όνομα χρήστη
-                    </p>
-                    <p className="text-base font-semibold text-gray-800 leading-relaxed">
-                      📄 <strong>Φίλτρα:</strong> Χρησιμοποιήστε τα φίλτρα (Open Gym, Pilates, Ultimate, Δόσεις) για να εμφανίσετε τα αντίστοιχα αιτήματα
-                    </p>
-                    <p className="text-base font-bold text-orange-800 leading-relaxed bg-orange-200 rounded-lg px-3 py-2">
-                      💰 <strong>Διαδικασία Πληρωμής:</strong> Αποθηκεύουμε τα χρήματα (μετρητά/κάρτα) στο σύστημα, μετά κλικάρουμε στο επιλογή και ΕΠΕΙΤΑ επιλέγουμε ✅ Έγκριση Πληρωμής → Αποθήκευση Program Options και τέλος εγκρίνουμε το αίτημα συνδρομής
-                    </p>
-                    <p className="text-base font-bold text-red-800 leading-relaxed bg-red-200 rounded-lg px-3 py-2">
-                      ⚠️ <strong>ΠΡΟΣΟΧΗ ΣΤΙΣ ΔΟΣΕΙΣ:</strong> Κλειδώνουμε ΟΛΕς τις δόσεις (2 ή 3) του πελάτη ΕΠΕΙΤΑ ΑΠΟ ΣΥΝΝΕΝΟΗΣΗ και ΟΧΙ σταδιακά
-                    </p>
-                    <p className="text-base font-semibold text-gray-800 leading-relaxed">
-                      📅 <strong>Προσυμφωνία:</strong> Εξαρχής προσυμφωνούνται ΟΛΕς οι δόσεις και οι ημερομηνίες του πελάτη (π.χ. 1η στις 12/10/25 μετρητά, 2η δόση 24/12/25)
-                    </p>
-                  </div>
-                </div>
+        ) : activeTab === 'installments' ? (
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-300/60 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-amber-200">Διαχείριση Δόσεων</h2>
+                <p className="text-amber-100 text-sm">Αναζήτηση, πληρωμές και παρακολούθηση καθυστερήσεων</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  value={installmentSearch}
+                  onChange={(e) => setInstallmentSearch(e.target.value)}
+                  placeholder="Αναζήτηση (όνομα, email, τηλ.)"
+                  className="px-3 py-2 rounded-lg bg-white/10 border border-amber-200/50 text-white placeholder:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                />
+                <select
+                  value={installmentStatusFilter}
+                  onChange={(e) => setInstallmentStatusFilter(e.target.value as any)}
+                  className="px-3 py-2 rounded-lg bg-white/10 border border-amber-200/50 text-white focus:outline-none focus:ring-2 focus:ring-amber-300"
+                >
+                  <option value="all">Όλες</option>
+                  <option value="pending">Αναμένεται</option>
+                  <option value="overdue">Καθυστερεί</option>
+                  <option value="paid">Πληρωμένες</option>
+                </select>
+                <button
+                  onClick={loadInstallmentsAdminList}
+                  className="px-4 py-2 bg-amber-500 text-black rounded-lg font-semibold hover:bg-amber-400 transition"
+                  disabled={installmentsLoading}
+                >
+                  {installmentsLoading ? 'Φόρτωση...' : 'Ανανέωση'}
+                </button>
               </div>
             </div>
+
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-xl">
+              <div className="p-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Όλες οι δόσεις</h3>
+                <span className="text-sm text-gray-300">
+                  Συνολικά: {filteredInstallments.length} | Σελίδα {installmentPage}/{totalInstallmentPages}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-gray-800">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Χρήστης</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Επικοινωνία</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Πακέτο</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Δόση</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Λήξη</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Ποσό</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Κατάσταση</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Ενέργεια</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {paginatedInstallments.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-6 text-center text-gray-400">
+                          Δεν βρέθηκαν δόσεις
+                        </td>
+                      </tr>
+                    )}
+                    {paginatedInstallments.map((inst) => (
+                      <tr key={`${inst.requestId}-${inst.installmentNumber}`} className="hover:bg-gray-800/60 transition">
+                        <td className="px-4 py-3 text-white font-medium">{inst.userName}</td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">
+                          <div>{inst.userEmail || '—'}</div>
+                          <div className="text-xs text-gray-400">{inst.userPhone || '—'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-200 text-sm">{inst.packageName || '—'}</td>
+                        <td className="px-4 py-3 text-gray-200 text-sm">Δόση {inst.installmentNumber}</td>
+                        <td className="px-4 py-3 text-gray-200 text-sm">{inst.dueDate}</td>
+                        <td className="px-4 py-3 text-white font-semibold">{formatPrice(inst.amount)}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              inst.status === 'paid'
+                                ? 'bg-green-500/20 text-green-300 border border-green-400/40'
+                                : inst.status === 'overdue'
+                                ? 'bg-red-500/20 text-red-300 border border-red-400/40'
+                                : 'bg-amber-500/20 text-amber-200 border border-amber-400/40'
+                            }`}
+                          >
+                            {inst.status === 'paid' ? 'Πληρωμένη' : inst.status === 'overdue' ? 'Καθυστερεί' : 'Αναμένεται'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {inst.status === 'paid' ? (
+                            <span className="text-green-300 text-sm">✔ Καταχωρήθηκε</span>
+                          ) : (
+                            <button
+                              onClick={() => openPaymentModal(inst)}
+                              className="px-3 py-2 bg-amber-500 text-black rounded-lg text-sm font-semibold hover:bg-amber-400 transition"
+                            >
+                              Καταχώρηση πληρωμής
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800 text-gray-300 text-sm">
+                <button
+                  disabled={installmentPage === 1}
+                  onClick={() => setInstallmentPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1 rounded bg-gray-800 disabled:opacity-40"
+                >
+                  Προηγούμενη
+                </button>
+                <span>Σελίδα {installmentPage} / {totalInstallmentPages}</span>
+                <button
+                  disabled={installmentPage >= totalInstallmentPages}
+                  onClick={() => setInstallmentPage((p) => Math.min(totalInstallmentPages, p + 1))}
+                  className="px-3 py-1 rounded bg-gray-800 disabled:opacity-40"
+                >
+                  Επόμενη
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-red-900/30 border border-red-500/40 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-red-200">Καθυστερημένες / λήγουσες δόσεις</h3>
+                <span className="text-sm text-red-100">Σύνολο: {visibleOverdue.length} • Σελίδα {overduePage}/{totalOverduePages}</span>
+              </div>
+              {visibleOverdue.length === 0 ? (
+                <p className="text-red-100 text-sm">Καμία καθυστερημένη δόση</p>
+              ) : (
+                <>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {paginatedOverdue.map((inst) => (
+                      <div key={`${inst.requestId}-${inst.installmentNumber}-over`} className="bg-red-950/40 border border-red-500/40 rounded-xl p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-white font-semibold">{inst.userName}</p>
+                            <p className="text-red-100 text-sm">Δόση {inst.installmentNumber} • Λήξη {inst.dueDate}</p>
+                          </div>
+                          <span className="text-white font-bold">{formatPrice(inst.amount)}</span>
+                        </div>
+                        <div className="mt-2 text-xs text-red-100">
+                          Επικοινωνία: {inst.userPhone || '—'} {inst.userEmail ? `• ${inst.userEmail}` : ''}
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <button
+                            onClick={() => openPaymentModal(inst)}
+                            className="px-3 py-2 bg-amber-500 text-black rounded-lg text-sm font-semibold hover:bg-amber-400 transition"
+                          >
+                            Καταχώρηση πληρωμής
+                          </button>
+                          <button
+                            onClick={() =>
+                              setDismissedOverdue((prev) => {
+                                const next = new Set(prev);
+                                next.add(`${inst.requestId}-${inst.installmentNumber}`);
+                                return next;
+                              })
+                            }
+                            className="px-3 py-2 bg-gray-800 text-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-700 transition border border-gray-700"
+                          >
+                            Διαγραφή
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between mt-3 text-sm text-red-100">
+                    <button
+                      disabled={overduePage === 1}
+                      onClick={() => setOverduePage((p) => Math.max(1, p - 1))}
+                      className="px-3 py-1 rounded bg-red-950/60 border border-red-500/40 disabled:opacity-40"
+                    >
+                      Προηγούμενη
+                    </button>
+                    <span>Σελίδα {overduePage} / {totalOverduePages}</span>
+                    <button
+                      disabled={overduePage >= totalOverduePages}
+                      onClick={() => setOverduePage((p) => Math.min(totalOverduePages, p + 1))}
+                      className="px-3 py-1 rounded bg-red-950/60 border border-red-500/40 disabled:opacity-40"
+                    >
+                      Επόμενη
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'membership-requests' ? (
+          <>
+            <NewSubscriptionTab />
+            {showSubscriptionRequests && (
+              <>
+                {false && (
+                  <>
+                {/* Membership Requests - Important Instructions Banner */}
+                <div className="bg-gradient-to-r from-blue-100 via-blue-50 to-blue-100 border-4 border-blue-500 rounded-xl p-6 shadow-2xl mb-6">
+                  <div className="flex items-start">
+                    <svg className="h-10 w-10 text-blue-700 mt-1 mr-4 flex-shrink-0 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <div className="flex-1">
+                      <h4 className="text-2xl font-black text-black mb-3 leading-tight">
+                        💡 Σημαντικές Οδηγίες
+                      </h4>
+                      <div className="space-y-2">
+                        <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                          🔍 <strong>Αναζήτηση:</strong> Χρησιμοποιήστε το πεδίο αναζήτησης για να βρείτε γρήγορα αιτήματα με όνομα χρήστη
+                        </p>
+                        <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                          📄 <strong>Φίλτρα:</strong> Χρησιμοποιήστε τα φίλτρα (Open Gym, Pilates, Ultimate, Δόσεις) για να εμφανίσετε τα αντίστοιχα αιτήματα
+                        </p>
+                        <p className="text-base font-bold text-orange-800 leading-relaxed bg-orange-200 rounded-lg px-3 py-2">
+                          💰 <strong>Διαδικασία Πληρωμής:</strong> Αποθηκεύουμε τα χρήματα (μετρητά/κάρτα) στο σύστημα, μετά κλικάρουμε στο επιλογή και ΕΠΕΙΤΑ επιλέγουμε ✅ Έγκριση Πληρωμής → Αποθήκευση Program Options και τέλος εγκρίνουμε το αίτημα συνδρομής
+                        </p>
+                        <p className="text-base font-bold text-red-800 leading-relaxed bg-red-200 rounded-lg px-3 py-2">
+                          ⚠️ <strong>ΠΡΟΣΟΧΗ ΣΤΙΣ ΔΟΣΕΙΣ:</strong> Κλειδώνουμε ΟΛΕς τις δόσεις (2 ή 3) του πελάτη ΕΠΕΙΤΑ ΑΠΟ ΣΥΝΝΕΝΟΗΣΗ και ΟΧΙ σταδιακά
+                        </p>
+                        <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                          📅 <strong>Προσυμφωνία:</strong> Εξαρχής προσυμφωνούνται ΟΛΕς οι δόσεις και οι ημερομηνίες του πελάτη (π.χ. 1η στις 12/10/25 μετρητά, 2η δόση 24/12/25)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-600 p-6 backdrop-blur-sm">
               <div className="flex items-center justify-between mb-6">
@@ -3757,6 +4140,8 @@ const SecretaryDashboard: React.FC = () => {
               </div>
             )}
           </div>
+              </>
+            )}
           </>
         ) : activeTab === 'users-information' ? (
           <SecretaryUsersInformation />

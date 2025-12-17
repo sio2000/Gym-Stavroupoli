@@ -9,8 +9,6 @@ import {
   LogOut, 
   Menu, 
   X,
-  Bell,
-  Settings,
   CreditCard,
   UserPlus,
   QrCode,
@@ -31,7 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [, setHasApprovedMembership] = useState(false);
   const [hasPilatesMembership, setHasPilatesMembership] = useState(false);
-  const [hasQRCodeAccess, setHasQRCodeAccess] = useState(false);
+  const [, setHasQRCodeAccess] = useState(false);
   const [hasPersonalTraining, setHasPersonalTraining] = useState(false);
   const [hasPaspartuTraining, setHasPaspartuTraining] = useState(false);
   // ADDED FOR INSTALLMENT_PLAN_PAGE - state for installment plan visibility
@@ -287,15 +285,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Συνδρομή', href: '/membership', icon: CreditCard },
+    { name: 'Αρχική', href: '/membership', icon: CreditCard },
     // Προσθέτουμε δυναμικά το Personal Training μόνο όταν είναι ενεργό
     ...(hasPersonalTraining ? [{ name: 'Personal Training', href: '/personal-training-schedule', icon: Calendar }] : []),
     // Προσθέτουμε δυναμικά το Paspartu Training μόνο όταν είναι ενεργό
     ...(hasPaspartuTraining ? [{ name: 'Paspartu Training', href: '/paspartu-training', icon: Target }] : []),
     // Προσθέτουμε δυναμικά το Ημερολόγιο Pilates μόνο όταν ο χρήστης έχει ενεργή pilates συνδρομή
     ...(hasPilatesMembership ? [{ name: 'Ημερολόγιο', href: '/pilates-calendar', icon: Calendar }] : []),
-    // Προσθέτουμε δυναμικά το QR Codes μόνο όταν ο χρήστης έχει personal training ή pilates συνδρομή
-    ...(hasQRCodeAccess ? [{ name: 'QR Codes', href: '/qr-codes', icon: QrCode }] : []),
+    // QR Codes εμφανίζεται πάντα στο μενού χρήστη
+    { name: 'QR Codes', href: '/qr-codes', icon: QrCode },
     // ADDED FOR INSTALLMENT_PLAN_PAGE - add installment plan menu item conditionally
     ...(hasInstallmentPlan ? [{ name: 'Πλάνο Δόσεων', href: '/installment-plan', icon: Receipt }] : []),
     { name: 'Refer & Win', href: '/referral', icon: UserPlus },
@@ -319,7 +317,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   ];
 
   // Control Panel specific navigation - empty array (no menu items)
-  const controlPanelNavigation = [];
+  const controlPanelNavigation: { name: string; href: string; icon: any }[] = [];
 
   const handleLogout = () => {
     logout();

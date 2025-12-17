@@ -124,51 +124,29 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
  */
 export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCategory[]> => {
   try {
-    // Έλεγχος για Personal Training
+    // Ενιαίο QR: αν υπάρχει οποιαδήποτε ενεργή συνδρομή ή accepted personal training, δίνουμε μόνο free_gym
+    const activeMemberships = await getUserActiveMembershipsForQR(userId);
+
     let hasPersonalTraining = false;
     try {
-      const { data: personalSchedule, error: personalErr } = await supabase
+      const { data: personalSchedule } = await supabase
         .from('personal_training_schedules')
         .select('id,status')
         .eq('user_id', userId)
         .eq('status', 'accepted')
         .order('created_at', { ascending: false })
         .limit(1);
-      
-      if (!personalErr && personalSchedule && personalSchedule.length > 0) {
-        hasPersonalTraining = true;
-        console.log('[ActiveMemberships] User has Personal Training');
-      }
+      hasPersonalTraining = !!(personalSchedule && personalSchedule.length > 0);
     } catch (e) {
       console.warn('[ActiveMemberships] Could not check personal schedule acceptance:', e);
     }
 
-    // Έλεγχος για άλλες συνδρομές (Free Gym, Pilates)
-    const activeMemberships = await getUserActiveMembershipsForQR(userId);
-    
-    // Get unique package types from active memberships
-    const availablePackageTypes = [...new Set(activeMemberships.map(m => m.packageType))];
-    
-    // Map to QR code categories for Free Gym & Pilates (μέσω ενεργών συνδρομών)
-    const membershipCategories: QRCodeCategory[] = availablePackageTypes
-      .map(packageType => PACKAGE_TYPE_TO_QR_CATEGORY[packageType])
-      .filter(Boolean) as QRCodeCategory[]; // Remove undefined entries
-
-    // Προσθήκη Personal Training αν υπάρχει
-    const availableCategories: QRCodeCategory[] = [...membershipCategories];
-    
-    if (hasPersonalTraining) {
-      const personalCategory = PACKAGE_TYPE_TO_QR_CATEGORY['personal_training'];
-      if (personalCategory) {
-        // Προσθήκη Personal Training αν δεν υπάρχει ήδη
-        if (!availableCategories.find(cat => cat.key === 'personal')) {
-          availableCategories.push(personalCategory);
-        }
-      }
+    if ((activeMemberships && activeMemberships.length > 0) || hasPersonalTraining) {
+      const freeGymCategory = PACKAGE_TYPE_TO_QR_CATEGORY['free_gym'];
+      return freeGymCategory ? [freeGymCategory] : [];
     }
-    
-    console.log('[ActiveMemberships] Available QR categories:', availableCategories);
-    return availableCategories;
+
+    return [];
   } catch (error) {
     console.error('[ActiveMemberships] Error getting available QR categories:', error);
     return [];

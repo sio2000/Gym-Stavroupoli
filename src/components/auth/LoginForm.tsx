@@ -5,19 +5,22 @@ import { LoginCredentials } from '@/types';
 import { isValidEmail } from '@/utils';
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
 
+type LoginFormErrors = Partial<LoginCredentials> & { acceptPolicies?: string };
+
 const LoginForm: React.FC = () => {
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<Partial<LoginCredentials>>({});
+  const [acceptPolicies, setAcceptPolicies] = useState(false);
+  const [errors, setErrors] = useState<LoginFormErrors>({});
   
   const { login, isLoading } = useAuth();
   const navigate = useNavigate();
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<LoginCredentials> = {};
+    const newErrors: LoginFormErrors = {};
 
     if (!credentials.email) {
       newErrors.email = 'Το email είναι υποχρεωτικό';
@@ -27,6 +30,10 @@ const LoginForm: React.FC = () => {
 
     if (!credentials.password) {
       newErrors.password = 'Ο κωδικός πρόσβασης είναι υποχρεωτικός';
+    }
+
+    if (!acceptPolicies) {
+      newErrors.acceptPolicies = 'Πρέπει να αποδεχτείτε την πολιτική απορρήτου και τους όρους χρήσης';
     }
 
     setErrors(newErrors);
@@ -53,6 +60,14 @@ const LoginForm: React.FC = () => {
     // Clear error when user starts typing
     if (errors[name as keyof LoginCredentials]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
+    }
+  };
+
+  const handlePoliciesChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const checked = e.target.checked;
+    setAcceptPolicies(checked);
+    if (errors.acceptPolicies && checked) {
+      setErrors(prev => ({ ...prev, acceptPolicies: undefined }));
     }
   };
 
@@ -149,6 +164,32 @@ const LoginForm: React.FC = () => {
               </Link>
             </div>
           </div>
+
+          <div className="flex items-start space-x-3">
+            <input
+              id="acceptPolicies"
+              name="acceptPolicies"
+              type="checkbox"
+              checked={acceptPolicies}
+              onChange={handlePoliciesChange}
+              className="mt-1 h-4 w-4 text-primary-500 focus:ring-primary-500 border-gray-300 rounded"
+              required
+            />
+            <label htmlFor="acceptPolicies" className="text-sm text-gray-300">
+              Αποδέχομαι την{' '}
+              <a
+                href="/privacy-policy"
+                className="text-primary-400 hover:text-primary-300 underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Πολιτική Απορρήτου &amp; Όρους Χρήσης (GDPR)
+              </a>
+            </label>
+          </div>
+          {errors.acceptPolicies && (
+            <p className="text-sm text-red-400">{errors.acceptPolicies}</p>
+          )}
 
           <div>
             <button

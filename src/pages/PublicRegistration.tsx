@@ -50,6 +50,39 @@ interface RegistrationFormData {
 }
 
 const PublicRegistration: React.FC = () => {
+  // Δημόσια εγγραφή απενεργοποιήθηκε: μόνο η γραμματεία δημιουργεί λογαριασμούς
+  const registrationDisabled = true;
+
+  if (registrationDisabled) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <div className="max-w-xl w-full bg-white rounded-2xl shadow-2xl p-8 text-center">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Mail className="h-10 w-10 text-blue-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">Η εγγραφή γίνεται μέσω γραμματείας</h1>
+          <p className="text-gray-600 mb-6">
+            Η ομάδα της γραμματείας θα καταχωρήσει τα στοιχεία σας, θα ορίσει κωδικό και θα λάβετε email επιβεβαίωσης για να ενεργοποιήσετε τον λογαριασμό σας.
+          </p>
+          <div className="space-y-3">
+            <Link
+              to="/"
+              className="block w-full bg-primary-600 text-white py-3 px-6 rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              Επιστροφή στην Αρχική
+            </Link>
+            <Link
+              to="/contact"
+              className="block w-full border border-gray-300 text-gray-700 py-3 px-6 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Επικοινωνία
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const [formData, setFormData] = useState<RegistrationFormData>({
     email: '',
     password: '',

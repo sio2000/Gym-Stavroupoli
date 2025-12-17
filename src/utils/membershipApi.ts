@@ -57,34 +57,320 @@ export const getMembershipPackageDurations = async (packageId: string): Promise<
   }
 };
 
+// Helper: format date YYYY-MM-DD (local)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+type InstallmentInput = {
+  installment1Amount?: number;
+  installment1DueDate?: string;
+  installment1PaymentMethod?: 'cash' | 'pos';
+  installment2Amount?: number;
+  installment2DueDate?: string;
+  installment2PaymentMethod?: 'cash' | 'pos';
+  installment3Amount?: number;
+  installment3DueDate?: string;
+  installment3PaymentMethod?: 'cash' | 'pos';
+};
+
+const buildInstallmentPayload = (installments?: InstallmentInput) => {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Defaults when installments ζητούνται αλλά δεν ήρθαν τιμές
+  if (!installments) {
+    return {
+      has_installments: true,
+      installment_1_amount: 0,
+      installment_2_amount: 0,
+      installment_3_amount: 0,
+      installment_1_payment_method: 'cash',
+      installment_2_payment_method: 'cash',
+      installment_3_payment_method: 'cash',
+      installment_1_due_date: today,
+      installment_2_due_date: today,
+      installment_3_due_date: today,
+      installment_1_locked: false,
+      installment_2_locked: false,
+      installment_3_locked: false,
+      third_installment_deleted: false,
+      all_installments_paid: false
+    };
+  }
+
+  const a1 = installments.installment1Amount ?? 0;
+  const a2 = installments.installment2Amount ?? 0;
+  const a3 = installments.installment3Amount ?? 0;
+
+  return {
+    has_installments: true,
+    installment_1_amount: a1 || 0,
+    installment_2_amount: a2 || 0,
+    installment_3_amount: a3 || 0,
+    installment_1_payment_method: installments.installment1PaymentMethod || 'cash',
+    installment_2_payment_method: installments.installment2PaymentMethod || 'cash',
+    installment_3_payment_method: installments.installment3PaymentMethod || 'cash',
+    installment_1_due_date: installments.installment1DueDate || today,
+    installment_2_due_date: installments.installment2DueDate || today,
+    installment_3_due_date: installments.installment3DueDate || today,
+    installment_1_locked: a1 > 0,
+    installment_2_locked: a2 > 0,
+    installment_3_locked: a3 > 0,
+    third_installment_deleted: false,
+    all_installments_paid: false
+  };
+};
+
+// Helper: create active membership immediately
+const ensureActiveMembership = async ({
+  userId,
+  packageId,
+  durationType
+}: {
+  userId: string;
+  packageId: string;
+  durationType: string;
+}): Promise<{ startDate: string; endDate: string }> => {
+  try {
+    // Normalize duration to satisfy DB constraint (Ultimate Medium -> ultimate_1year)
+    const normalizedDurationType =
+      durationType === 'ultimate_medium_1year' ? 'ultimate_1year' : durationType;
+
+    // Get package name to detect Ultimate / Medium
+    const { data: pkgRow } = await supabase
+      .from('membership_packages')
+      .select('name')
+      .eq('id', packageId)
+      .single();
+    const pkgName = (pkgRow?.name || '').toLowerCase();
+    const isUltimate = pkgName.includes('ultimate');
+
+    const { data: durationRow, error: durationError } = await supabase
+      .from('membership_package_durations')
+      .select('duration_days')
+      .eq('package_id', packageId)
+      .eq('duration_type', normalizedDurationType)
+      .single();
+
+    if (durationError) {
+      console.warn('[MembershipAPI] Duration row not found for immediate membership insert:', durationError);
+    }
+
+    // Fallback: Ultimate/Medium => 365 days, else 30 if missing
+    const durationDays = durationRow?.duration_days ?? (isUltimate ? 365 : 30);
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + durationDays);
+
+    const { data: authUser } = await supabase.auth.getUser();
+    const insertMembership: any = {
+      user_id: userId,
+      package_id: packageId,
+      start_date: formatDateLocal(start),
+      end_date: formatDateLocal(end),
+      is_active: true,
+      status: 'active',
+      duration_type: normalizedDurationType,
+      approved_by: authUser?.user?.id || null,
+      approved_at: new Date().toISOString()
+    };
+
+    const { error: membershipError } = await supabase.from('memberships').insert(insertMembership);
+    if (membershipError) {
+      console.error('[MembershipAPI] Error inserting active membership:', membershipError);
+      throw membershipError;
+    }
+    return { startDate: formatDateLocal(start), endDate: formatDateLocal(end) };
+  } catch (err) {
+    console.error('[MembershipAPI] ensureActiveMembership failed:', err);
+    throw err;
+  }
+};
+
+// Helper: add cash/pos transaction
+const addCashTransaction = async ({
+  userId,
+  amount,
+  transactionType,
+  notes
+}: {
+  userId: string;
+  amount: number;
+  transactionType: 'cash' | 'pos';
+  notes?: string;
+}): Promise<void> => {
+  if (!amount || Number.isNaN(amount)) return;
+  const formatted = amount.toFixed(2);
+  try {
+    const { data: authUser } = await supabase.auth.getUser();
+    const createdBy = authUser?.user?.id || '00000000-0000-0000-0000-000000000001';
+    const { error } = await supabase.from('user_cash_transactions').insert({
+      user_id: userId,
+      amount: formatted,
+      transaction_type: transactionType,
+      program_id: null,
+      notes: notes || 'Cash/POS transaction from secretary subscription',
+      created_by: createdBy
+    });
+    if (error) {
+      console.error('[MembershipAPI] Error inserting cash transaction:', error);
+      throw error;
+    }
+  } catch (err) {
+    console.error('[MembershipAPI] addCashTransaction failed:', err);
+    throw err;
+  }
+};
+
+// Helper: add kettlebell points
+const addKettlebellPoints = async ({
+  userId,
+  points
+}: {
+  userId: string;
+  points: number;
+}): Promise<void> => {
+  if (!points || Number.isNaN(points) || points === 0) return;
+  try {
+    const { data: authUser } = await supabase.auth.getUser();
+    const createdBy = authUser?.user?.id || null;
+    const { error } = await supabase.from('user_kettlebell_points').insert({
+      user_id: userId,
+      points,
+      program_id: null,
+      created_by: createdBy
+    });
+    if (error) {
+      console.error('[MembershipAPI] Error inserting kettlebell points:', error);
+      throw error;
+    }
+  } catch (err) {
+    console.error('[MembershipAPI] addKettlebellPoints failed:', err);
+    throw err;
+  }
+};
+
+// Helper: compute Pilates deposit count
+const computePilatesDepositCount = async ({
+  packageId,
+  durationType,
+  classesCountOverride
+}: {
+  packageId: string;
+  durationType: string;
+  classesCountOverride?: number;
+}): Promise<number> => {
+  const pilatesDurationToDeposit: Record<string, number> = {
+    pilates_trial: 1,
+    pilates_1month: 4,
+    pilates_2months: 8,
+    pilates_3months: 16,
+    pilates_6months: 25,
+    pilates_1year: 50,
+    ultimate_1year: 3, // Ultimate weekly cap: 3 per εβδομάδα, αρχικό deposit 3
+    ultimate_medium_1year: 1
+  };
+
+  if (typeof classesCountOverride === 'number' && classesCountOverride > 0) {
+    return classesCountOverride;
+  }
+
+  try {
+    const { data: durRow } = await supabase
+      .from('membership_package_durations')
+      .select('classes_count, price, duration_type')
+      .eq('package_id', packageId)
+      .eq('duration_type', durationType)
+      .single();
+
+    if (durRow?.classes_count) return durRow.classes_count as number;
+
+    const mapped = pilatesDurationToDeposit[(durRow?.duration_type || durationType) as keyof typeof pilatesDurationToDeposit];
+    if (mapped) return mapped;
+
+    if (typeof durRow?.price === 'number') {
+      const price = Math.round(durRow.price);
+      const priceMap: Record<number, number> = { 0: 1, 44: 4, 80: 8, 144: 16, 190: 25, 350: 50 };
+      const fromPrice = priceMap[price];
+      if (fromPrice) return fromPrice;
+    }
+  } catch (e) {
+    console.warn('[MembershipAPI] computePilatesDepositCount fallback:', e);
+  }
+
+  return pilatesDurationToDeposit[durationType as keyof typeof pilatesDurationToDeposit] || 0;
+};
+
+// Helper: credit Pilates deposit via RPC
+const addPilatesDeposit = async ({
+  userId,
+  packageId,
+  durationType,
+  classesCount,
+  endDateStr
+}: {
+  userId: string;
+  packageId: string;
+  durationType: string;
+  classesCount?: number;
+  endDateStr: string;
+}): Promise<void> => {
+  const depositCount = await computePilatesDepositCount({
+    packageId,
+    durationType,
+    classesCountOverride: classesCount
+  });
+
+  if (!depositCount) return;
+
+  const expiresAt = new Date(endDateStr + 'T23:59:59Z').toISOString();
+  const { data: authUser } = await supabase.auth.getUser();
+  const createdBy = authUser?.user?.id || '00000000-0000-0000-0000-000000000001';
+
+  const { error: rpcError } = await supabase.rpc('credit_pilates_deposit', {
+    p_created_by: createdBy,
+    p_user_id: userId,
+    p_package_id: packageId,
+    p_deposit_remaining: depositCount,
+    p_expires_at: expiresAt
+  });
+  if (rpcError) {
+    console.error('[MembershipAPI] Error creating pilates deposit via RPC:', rpcError);
+    throw rpcError;
+  }
+};
+
 // ===== MEMBERSHIP REQUESTS API =====
 
 export const createMembershipRequest = async (
   packageId: string,
   durationType: string,
   requestedPrice: number,
-  hasInstallments: boolean = false
+  hasInstallments: boolean = false,
+  userIdOverride?: string,
+  paymentMethod: 'cash' | 'pos' = 'cash',
+  kettlebellPoints?: number,
+  installments?: InstallmentInput
 ): Promise<boolean> => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    let targetUserId = userIdOverride;
+    if (!targetUserId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      targetUserId = user.id;
+    }
 
     const insertData: any = {
-      user_id: user.id,
+      user_id: targetUserId,
       package_id: packageId,
       duration_type: durationType,
       requested_price: requestedPrice,
-      status: 'pending'
+      status: 'approved'
     };
 
     if (hasInstallments) {
-      insertData.has_installments = true;
-      insertData.installment_1_amount = 0;
-      insertData.installment_2_amount = 0;
-      insertData.installment_3_amount = 0;
-      insertData.installment_1_payment_method = 'cash';
-      insertData.installment_2_payment_method = 'cash';
-      insertData.installment_3_payment_method = 'cash';
+      Object.assign(insertData, buildInstallmentPayload(installments));
     }
 
     const { error } = await supabase
@@ -92,6 +378,28 @@ export const createMembershipRequest = async (
       .insert(insertData);
 
     if (error) throw error;
+
+    await ensureActiveMembership({
+      userId: targetUserId,
+      packageId,
+      durationType
+    });
+
+    if (requestedPrice && !Number.isNaN(requestedPrice)) {
+      await addCashTransaction({
+        userId: targetUserId,
+        amount: requestedPrice,
+        transactionType: paymentMethod,
+        notes: 'Payment from secretary subscription (auto-approved)'
+      });
+    }
+
+    if (kettlebellPoints && !Number.isNaN(kettlebellPoints)) {
+      await addKettlebellPoints({
+        userId: targetUserId,
+        points: kettlebellPoints
+      });
+    }
     return true;
   } catch (error) {
     console.error('Error creating membership request:', error);
@@ -189,8 +497,6 @@ export const getMembershipRequestsWithLockedInstallments = async (): Promise<Mem
     if (error) throw error;
 
     // Load locked installments for each request (fallback to old system if new fields don't exist)
-    console.log('[MembershipAPI] Processing requests with locked installments...');
-    
     const requestsWithLockedInstallments = await Promise.all(
       (data || []).map(async (request) => {
         try {
@@ -200,7 +506,6 @@ export const getMembershipRequestsWithLockedInstallments = async (): Promise<Mem
                               request.installment_3_locked !== undefined;
           
           if (hasNewFields) {
-            console.log(`[MembershipAPI] Request ${request.id} - Using new fields`);
             return {
               ...request,
               installment_1_locked: request.installment_1_locked || false,
@@ -213,7 +518,6 @@ export const getMembershipRequestsWithLockedInstallments = async (): Promise<Mem
           }
           
           // Fallback to old system
-          console.log(`[MembershipAPI] Request ${request.id} - Using old system (fields not found)`);
           
           const { data: lockedData, error: lockedError } = await supabase
             .rpc('get_locked_installments_for_request', { request_id: request.id });
@@ -413,11 +717,11 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
         const expiresAt = new Date(endDateStr + 'T23:59:59Z').toISOString();
         // Use SECURITY DEFINER RPC to bypass RLS safely
         const { error: rpcError } = await supabase.rpc('credit_pilates_deposit', {
+          p_created_by: user.id,
           p_user_id: request.user_id,
           p_package_id: request.package_id,
           p_deposit_remaining: depositCount,
-          p_expires_at: expiresAt,
-          p_created_by: user.id
+          p_expires_at: expiresAt
         });
         if (rpcError) {
           console.error('[MembershipAPI] Error creating pilates deposit via RPC:', rpcError);
@@ -593,8 +897,8 @@ export const getDurationLabel = (durationType: string): string => {
     'pilates_3months': '16 Μαθημάτων (3 μήνες)',
     'pilates_6months': '25 Μαθημάτων (6 μήνες)',
     'pilates_1year': '50 Μαθημάτων (1 έτος)',
-    'ultimate_1year': '1 Έτος Ultimate',
-    'ultimate_medium_1year': '1 Έτος Ultimate Medium'
+    'ultimate_1year': '1 Έτος Ultimate (3/εβδ)',
+    'ultimate_medium_1year': '1 Έτος Ultimate Medium (1/εβδ)'
   };
   return labels[durationType as keyof typeof labels] || durationType;
 };
@@ -730,7 +1034,10 @@ export const createPilatesMembershipRequest = async (
   classesCount: number,
   requestedPrice: number,
   userId?: string,
-  hasInstallments: boolean = false
+  hasInstallments: boolean = false,
+  paymentMethod: 'cash' | 'pos' = 'cash',
+  kettlebellPoints?: number,
+  installments?: InstallmentInput
 ): Promise<boolean> => {
   try {
     let actualUserId = userId;
@@ -786,17 +1093,11 @@ export const createPilatesMembershipRequest = async (
       duration_type: durationType,
       requested_price: requestedPrice,
       classes_count: classesCount,
-      status: 'pending'
+      status: 'approved'
     };
 
     if (hasInstallments) {
-      insertData.has_installments = true;
-      insertData.installment_1_amount = 0;
-      insertData.installment_2_amount = 0;
-      insertData.installment_3_amount = 0;
-      insertData.installment_1_payment_method = 'cash';
-      insertData.installment_2_payment_method = 'cash';
-      insertData.installment_3_payment_method = 'cash';
+    Object.assign(insertData, buildInstallmentPayload(installments));
     }
     
     console.log('[MembershipAPI] Inserting membership request with data:', insertData);
@@ -809,6 +1110,7 @@ export const createPilatesMembershipRequest = async (
       .limit(1);
     console.log('[MembershipAPI] Test access result:', { testData, testError });
     
+    let insertResult: any = null;
     const { data, error } = await supabase
       .from('membership_requests')
       .insert(insertData)
@@ -838,14 +1140,46 @@ export const createPilatesMembershipRequest = async (
         }
         
         console.log('[MembershipAPI] Retry successful:', retryData);
-        toast.success(`Αίτημα Pilates δημιουργήθηκε: ${classesCount} μαθήματα για ${formatPrice(requestedPrice)}`);
-        return true;
+        insertResult = retryData;
+      } else {
+        throw error;
       }
-      
-      throw error;
+    } else {
+      insertResult = data;
     }
 
-    console.log('[MembershipAPI] Pilates request created successfully:', data);
+    console.log('[MembershipAPI] Pilates request created successfully:', insertResult);
+
+    const membershipDates = await ensureActiveMembership({
+      userId: actualUserId,
+      packageId: actualPackageId,
+      durationType
+    });
+
+    await addPilatesDeposit({
+      userId: actualUserId,
+      packageId: actualPackageId,
+      durationType,
+      classesCount,
+      endDateStr: membershipDates.endDate
+    });
+
+    if (requestedPrice && !Number.isNaN(requestedPrice)) {
+      await addCashTransaction({
+        userId: actualUserId,
+        amount: requestedPrice,
+        transactionType: paymentMethod,
+        notes: 'Pilates payment from secretary subscription (auto-approved)'
+      });
+    }
+
+    if (kettlebellPoints && !Number.isNaN(kettlebellPoints)) {
+      await addKettlebellPoints({
+        userId: actualUserId,
+        points: kettlebellPoints
+      });
+    }
+
     toast.success(`Αίτημα Pilates δημιουργήθηκε: ${classesCount} μαθήματα για ${formatPrice(requestedPrice)}`);
     
     return true;
@@ -982,12 +1316,15 @@ export const createUltimateMembershipRequest = async (
   durationType: string,
   requestedPrice: number,
   hasInstallments: boolean = false,
-  userId?: string
+  userId?: string,
+  paymentMethod: 'cash' | 'pos' = 'cash',
+  kettlebellPoints?: number,
+  installments?: InstallmentInput
 ): Promise<boolean> => {
   try {
     let actualUserId = userId;
     if (!actualUserId) {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       actualUserId = user.id;
     }
@@ -1000,12 +1337,13 @@ export const createUltimateMembershipRequest = async (
       userId: actualUserId
     });
 
-    // If packageId is not a UUID, find the actual package ID
+    // If packageId is not a UUID, find the actual package ID and name
     let actualPackageId = packageId;
+    let actualPackageName = '';
     if (packageId === 'Ultimate' || packageId === 'ultimate-package') {
       const { data: ultimatePackage, error: packageError } = await supabase
         .from('membership_packages')
-        .select('id')
+        .select('id, name')
         .eq('name', 'Ultimate')
         .eq('is_active', true)
         .single();
@@ -1015,10 +1353,11 @@ export const createUltimateMembershipRequest = async (
         throw new Error('Ultimate package not found');
       }
       actualPackageId = ultimatePackage.id;
+      actualPackageName = ultimatePackage.name || 'Ultimate';
     } else if (packageId === 'Ultimate Medium' || packageId === 'ultimate-medium-package') {
       const { data: ultimateMediumPackage, error: packageError } = await supabase
         .from('membership_packages')
-        .select('id')
+        .select('id, name')
         .eq('name', 'Ultimate Medium')
         .eq('is_active', true)
         .single();
@@ -1028,26 +1367,38 @@ export const createUltimateMembershipRequest = async (
         throw new Error('Ultimate Medium package not found');
       }
       actualPackageId = ultimateMediumPackage.id;
+      actualPackageName = ultimateMediumPackage.name || 'Ultimate Medium';
+    } else {
+      const { data: pkgRow } = await supabase
+        .from('membership_packages')
+        .select('name')
+        .eq('id', packageId)
+        .single();
+      actualPackageName = pkgRow?.name || '';
     }
+
+    // Normalize duration type for Ultimate packages
+    // Σημείωση: λόγω constraint στον πίνακα memberships, αποθηκεύουμε ultimate_medium ως ultimate_1year
+    const normalizedDurationType =
+      packageId === 'Ultimate' || packageId === 'ultimate-package'
+        ? 'ultimate_1year'
+        : packageId === 'Ultimate Medium' || packageId === 'ultimate-medium-package'
+        ? 'ultimate_1year'
+        : durationType;
+    const isUltimateMedium = actualPackageName.toLowerCase().includes('ultimate medium');
 
     // Prepare the insert data
     const insertData: any = {
       user_id: actualUserId,
       package_id: actualPackageId,
-      duration_type: durationType,
+      duration_type: normalizedDurationType,
       requested_price: requestedPrice,
       has_installments: hasInstallments,
-      status: 'pending'
+      status: 'approved'
     };
 
-    // For installments, we don't set amounts - admin will set them later
     if (hasInstallments) {
-      insertData.installment_1_amount = 0;
-      insertData.installment_2_amount = 0;
-      insertData.installment_3_amount = 0;
-      insertData.installment_1_payment_method = 'cash';
-      insertData.installment_2_payment_method = 'cash';
-      insertData.installment_3_payment_method = 'cash';
+    Object.assign(insertData, buildInstallmentPayload(installments));
     }
 
     const { data, error } = await supabase
@@ -1062,6 +1413,71 @@ export const createUltimateMembershipRequest = async (
     }
 
     console.log('[MembershipAPI] Ultimate request created successfully:', data);
+    const membershipDates = await ensureActiveMembership({
+      userId: actualUserId,
+      packageId: actualPackageId,
+      durationType: normalizedDurationType
+    });
+
+    if (requestedPrice && !Number.isNaN(requestedPrice)) {
+      await addCashTransaction({
+        userId: actualUserId,
+        amount: requestedPrice,
+        transactionType: paymentMethod,
+        notes: 'Ultimate payment from secretary subscription (auto-approved)'
+      });
+    }
+
+    if (kettlebellPoints && !Number.isNaN(kettlebellPoints)) {
+      await addKettlebellPoints({
+        userId: actualUserId,
+        points: kettlebellPoints
+      });
+    }
+
+    // ==== Ensure Pilates deposit is credited (3 for Ultimate, 1 for Ultimate Medium) ====
+    try {
+      // Find Pilates package id
+      const { data: pilatesPkg, error: pilatesPkgErr } = await supabase
+        .from('membership_packages')
+        .select('id')
+        .eq('name', 'Pilates')
+        .eq('is_active', true)
+        .single();
+
+      if (pilatesPkgErr || !pilatesPkg) {
+        console.error('[Ultimate] Pilates package not found for deposit in createUltimateMembershipRequest:', pilatesPkgErr);
+      } else {
+        const initialDeposit = isUltimateMedium ? 1 : 3;
+
+        // Deactivate all previous deposits for this user
+        await supabase
+          .from('pilates_deposits')
+          .update({ is_active: false })
+          .eq('user_id', actualUserId);
+
+        // Compute expires_at
+        const endDate = membershipDates?.endDate || calculateEndDate(new Date().toISOString().split('T')[0], getDurationDays(normalizedDurationType));
+        const expiresIso = new Date(endDate + 'T23:59:59Z').toISOString();
+
+        const { error: depositErr } = await supabase
+          .from('pilates_deposits')
+          .insert({
+            user_id: actualUserId,
+            package_id: pilatesPkg.id,
+            deposit_remaining: initialDeposit,
+            expires_at: expiresIso,
+            is_active: true,
+            created_by: null
+          });
+
+        if (depositErr) {
+          console.error('[Ultimate] manual insert pilates_deposits failed (createUltimateMembershipRequest):', depositErr);
+        }
+      }
+    } catch (depErr) {
+      console.error('[Ultimate] Error handling Pilates deposit (createUltimateMembershipRequest):', depErr);
+    }
     
     if (hasInstallments) {
       toast.success(`Αίτημα Ultimate δημιουργήθηκε με επιλογή δόσεων. Ο διαχειριστής θα καθορίσει τα ποσά.`);
@@ -1241,6 +1657,123 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
       freeGymMembershipId: dualResult.free_gym_membership_id,
       startDate: dualResult.start_date,
       endDate: dualResult.end_date
+    });
+
+    // --- Normalize memberships to 1-year Ultimate duration & weekly refill preset ---
+    const startDate = dualResult.start_date || new Date().toISOString().split('T')[0];
+    const endDate = dualResult.end_date || calculateEndDate(startDate, 365);
+
+    // Update Pilates membership to reflect Ultimate 1-year duration
+    // Για αποφυγή constraint στο memberships, αποθηκεύουμε και για Medium το ultimate_1year
+    const durationTypeForPackage = 'ultimate_1year';
+
+    // Update Pilates membership to reflect Ultimate duration
+    if (dualResult.pilates_membership_id) {
+      await supabase
+        .from('memberships')
+        .update({
+          start_date: startDate,
+          end_date: endDate,
+          duration_type: durationTypeForPackage,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', dualResult.pilates_membership_id);
+    }
+
+    // Update Free Gym membership to reflect Ultimate duration
+    if (dualResult.free_gym_membership_id) {
+      await supabase
+        .from('memberships')
+        .update({
+          start_date: startDate,
+          end_date: endDate,
+          duration_type: durationTypeForPackage,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', dualResult.free_gym_membership_id);
+    }
+
+    // Helper to compute the current weekly window (Δευτέρα–Σάββατο)
+    const computeWeekWindow = () => {
+      const today = new Date();
+      const day = today.getDay(); // 0 Κυριακή, 1 Δευτέρα, ... 6 Σάββατο
+      let weekStart: Date;
+      if (day === 0) {
+        weekStart = new Date(today);
+        weekStart.setDate(today.getDate() + 1); // επόμενη Δευτέρα
+      } else {
+        weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - (day - 1));
+      }
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 5); // Σάββατο
+      weekEnd.setHours(23, 59, 59, 999);
+      return { weekStart, weekEnd };
+    };
+
+    // Reset weekly refill preset for Ultimate users (target 3 lessons/week, max 3)
+    const { weekEnd } = computeWeekWindow();
+    const nextRefillDate = weekEnd.toISOString().split('T')[0];
+
+    // Clean existing refill presets for this user
+    await supabase.from('ultimate_weekly_refills').delete().eq('user_id', requestData.user_id);
+
+    const initialDeposit = requestData.membership_packages?.name === 'Ultimate Medium' ? 1 : 3;
+
+    // Always credit deposit under Pilates package so calendar reads correctly
+    const { data: pilatesPkg, error: pilatesPkgErr } = await supabase
+      .from('membership_packages')
+      .select('id')
+      .eq('name', 'Pilates')
+      .eq('is_active', true)
+      .single();
+    if (pilatesPkgErr || !pilatesPkg) {
+      console.error('[Ultimate] Pilates package not found for deposit:', pilatesPkgErr);
+      throw pilatesPkgErr || new Error('Pilates package missing');
+    }
+
+    // Manual upsert to ensure active Pilates deposit (bypass RPC uncertainty)
+    const expiresIso = new Date(endDate + 'T23:59:59Z').toISOString();
+
+    // Deactivate ALL previous deposits for this user (any package) to avoid stale Ultimate package deposits
+    await supabase
+      .from('pilates_deposits')
+      .update({ is_active: false })
+      .eq('user_id', requestData.user_id);
+
+    const { data: depositCreated, error: depositErr } = await supabase
+      .from('pilates_deposits')
+      .insert({
+        user_id: requestData.user_id,
+        package_id: pilatesPkg.id,
+        deposit_remaining: initialDeposit,
+        expires_at: expiresIso,
+        is_active: true,
+        created_by: null
+      })
+      .select('id')
+      .single();
+
+    if (depositErr) {
+      console.error('[Ultimate] manual insert pilates_deposits failed:', depositErr);
+      throw depositErr;
+    }
+
+    const pilatesDepositId = depositCreated?.id || null;
+
+    await supabase.from('ultimate_weekly_refills').insert({
+      user_id: requestData.user_id,
+      membership_id: dualResult.pilates_membership_id || dualResult.free_gym_membership_id,
+      source_request_id: requestId,
+      package_name: requestData.membership_packages?.name || 'Ultimate',
+      activation_date: startDate,
+      refill_date: nextRefillDate,
+      refill_week_number: 1,
+      target_deposit_amount: initialDeposit,
+      previous_deposit_amount: 0,
+      new_deposit_amount: initialDeposit,
+      pilates_deposit_id: pilatesDepositId
     });
 
     return true;

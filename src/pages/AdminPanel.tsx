@@ -17,7 +17,8 @@ import {
   DollarSign,
   Loader2,
   AlertTriangle,
-  Lock
+  Lock,
+  Image
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
@@ -40,6 +41,7 @@ import UsersInformation from '@/components/admin/UsersInformation';
 import ErrorFixing from '@/components/admin/ErrorFixing';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { isInstallmentsEligible } from '@/utils/installmentsEligibility';
+import AdminBannersManager from '@/components/admin/AdminBannersManager';
 
 import { 
   getMembershipPackages, 
@@ -109,7 +111,7 @@ const getValidUserId = async (userId: string | undefined) => {
 
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'ultimate-subscriptions' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register' | 'users-information' | 'error-fixing'>('personal-training');
+  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'ultimate-subscriptions' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register' | 'users-information' | 'error-fixing' | 'banners'>('personal-training');
   const [allUsers, setAllUsers] = useState<UserWithPersonalTraining[]>([]);
   const [programStatuses, setProgramStatuses] = useState<Array<{
     user: UserWithPersonalTraining;
@@ -130,7 +132,8 @@ const AdminPanel: React.FC = () => {
     'kettlebell-points': false,
     'cash-register': false,
     'users-information': false,
-    'error-fixing': false
+    'error-fixing': false,
+    'banners': false
   });
   
   // Memoized pagination logic
@@ -175,6 +178,8 @@ const AdminPanel: React.FC = () => {
   
   // Feature flags
   const [groupCalendarEnabled] = useState(true); // Feature flag for Group Training Calendar
+  // Hide admin subscription requests UI while keeping code for potential reuse
+  const showAdminSubscriptionRequests = false;
   
   // New panel state variables
   const [usedOldMembers, setUsedOldMembers] = useState<Set<string>>(new Set());
@@ -441,14 +446,17 @@ const AdminPanel: React.FC = () => {
   const [pilatesDurations, setPilatesDurations] = useState<MembershipPackageDuration[]>([]);
   
 
+  // Feature toggle: hide Ultimate tab while keeping code for potential reuse
+  const showUltimateTab = false;
   const tabs = [
     { id: 'personal-training', name: 'Personal Training Πρόγραμμα', icon: Calendar },
     { id: 'membership-packages', name: 'Πακέτα Συνδρομών', icon: Settings },
-    { id: 'ultimate-subscriptions', name: '👑 Ultimate Συνδρομές', icon: User },
+    ...(showUltimateTab ? [{ id: 'ultimate-subscriptions', name: '👑 Ultimate Συνδρομές', icon: User }] : []),
     { id: 'pilates-schedule', name: 'Πρόγραμμα Pilates', icon: Clock },
     { id: 'kettlebell-points', name: 'Kettlebell Points', icon: Award },
     { id: 'cash-register', name: 'Ταμείο', icon: DollarSign },
     { id: 'users-information', name: 'Χρήστες-Πληροφορίες', icon: Users },
+    { id: 'banners', name: 'Banners Αρχικής', icon: Image },
     { id: 'error-fixing', name: 'Διόρθωση Σφαλμάτων', icon: AlertTriangle }
   ];
 
@@ -3074,7 +3082,7 @@ const AdminPanel: React.FC = () => {
 
   // Load ultimate requests when tab is active
   useEffect(() => {
-    if (activeTab === 'ultimate-subscriptions' && !dataLoaded['ultimate-subscriptions']) {
+    if (showUltimateTab && activeTab === 'ultimate-subscriptions' && !dataLoaded['ultimate-subscriptions']) {
       console.log('[AdminPanel] Loading Ultimate Subscriptions data...');
       loadUltimateRequests();
     }
@@ -3082,7 +3090,7 @@ const AdminPanel: React.FC = () => {
 
   // Additional effect to ensure data is loaded for ultimate subscriptions
   useEffect(() => {
-    if (activeTab === 'ultimate-subscriptions' && ultimateRequests.length === 0 && !ultimateLoading) {
+    if (showUltimateTab && activeTab === 'ultimate-subscriptions' && ultimateRequests.length === 0 && !ultimateLoading) {
       console.log('[AdminPanel] Ultimate Subscriptions tab active but no data, reloading...');
       loadUltimateRequests();
     }
@@ -3910,6 +3918,7 @@ const AdminPanel: React.FC = () => {
               )}
 
               {/* Membership Requests */}
+              {showAdminSubscriptionRequests && (
               <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
                 {/* Enhanced Header with Gradient */}
                 <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-8 py-6">
@@ -4857,6 +4866,7 @@ const AdminPanel: React.FC = () => {
                   )}
                 </div>
               </div>
+              )}
             </div>
           )}
 
@@ -4876,6 +4886,11 @@ const AdminPanel: React.FC = () => {
           {/* Users Information Tab */}
           {activeTab === 'users-information' && !loading && (
             <UsersInformation />
+          )}
+
+          {/* Banners Tab */}
+          {activeTab === 'banners' && !loading && (
+            <AdminBannersManager />
           )}
 
           {/* Error Fixing Tab */}
@@ -5071,7 +5086,6 @@ const AdminPanel: React.FC = () => {
           {/* Other tabs placeholder */}
           {activeTab !== 'personal-training' && activeTab !== 'membership-packages' && activeTab !== 'ultimate-subscriptions' && activeTab !== 'pilates-schedule' && activeTab !== 'kettlebell-points' && activeTab !== 'cash-register' && !loading && (
             <div className="text-center py-8 text-gray-500">
-              <p>Αυτή η κατηγορία θα υλοποιηθεί σύντομα.</p>
             </div>
           )}
         </div>
@@ -6619,7 +6633,7 @@ const AdminPanel: React.FC = () => {
       )}
 
       {/* Ultimate Subscriptions Tab */}
-      {activeTab === 'ultimate-subscriptions' && !loading && (
+      {showUltimateTab && activeTab === 'ultimate-subscriptions' && !loading && (
         <ErrorBoundary
           fallback={
             <div className="text-center py-16">

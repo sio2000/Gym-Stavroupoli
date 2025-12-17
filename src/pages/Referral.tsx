@@ -215,7 +215,7 @@ const Referral: React.FC = () => {
           Σύστημα Παραπομπών
         </h1>
         <p className="text-gray-300 text-sm sm:text-base lg:text-lg px-4">
-          Κερδίστε πιστώσεις παρακαλώντας φίλους να εγγραφούν
+          Κερδίστε πόντους προσκαλώντας φίλους στο GetFit!
         </p>
         
         {/* Display current referral points */}
@@ -244,7 +244,7 @@ const Referral: React.FC = () => {
               <Star className="h-8 w-8 text-yellow-300" />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold">Στορ Πιστώσεις</h2>
+              <h2 className="text-xl sm:text-2xl font-bold">Πιστώσεις</h2>
               <p className="text-purple-100 text-sm">Κερδίστε 10 kettlebell points για κάθε φίλο!</p>
             </div>
           </div>

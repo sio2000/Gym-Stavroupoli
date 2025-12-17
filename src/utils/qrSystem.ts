@@ -97,7 +97,7 @@ export function validateQRToken(token: string, _qrId: string, userId: string, _c
 // Generate QR code for user
 export async function generateQRCode(
   userId: string, 
-  category: 'free_gym' | 'pilates' | 'personal',
+  _category: 'free_gym' | 'pilates' | 'personal' = 'free_gym',
   expiresAt?: Date
 ): Promise<{ qrCode: QRCode; qrData: string }> {
   try {
@@ -114,11 +114,24 @@ export async function generateQRCode(
       throw new Error('User ID mismatch');
     }
 
-    // IMPORTANT: Eligibility rules per category
-    console.log(`[QR-Generator] Checking user permissions for category: ${category}`);
+    const actualCategory: 'free_gym' = 'free_gym';
 
-    if (category === 'personal') {
-      // For Personal Training: eligibility comes from accepted personal_training_schedules
+    // Eligibility: απαιτείται οποιαδήποτε ενεργή συνδρομή ή εγκεκριμένο personal schedule
+    const { data: memberships, error: membershipError } = await supabase
+      .from('memberships')
+      .select('id, is_active, end_date')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .gte('end_date', new Date().toISOString().split('T')[0]);
+
+    if (membershipError) {
+      console.log(`[QR-Generator] Error fetching memberships:`, membershipError);
+      throw new Error(`Σφάλμα κατά τη φόρτωση των συνδρομών.`);
+    }
+
+    let hasEligibility = (memberships || []).length > 0;
+
+    if (!hasEligibility) {
       const { data: schedule, error: scheduleError } = await supabase
         .from('personal_training_schedules')
         .select('id,status')
@@ -127,66 +140,20 @@ export async function generateQRCode(
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (scheduleError || !schedule || schedule.length === 0) {
-        console.log('[QR-Generator] No accepted personal schedule found.');
-        throw new Error("Δεν έχετε εγκεκριμένο πρόγραμμα Personal.");
+      if (!scheduleError && schedule && schedule.length > 0) {
+        hasEligibility = true;
       }
-      console.log('[QR-Generator] Found accepted personal schedule.');
-    } else {
-      // For Free Gym & Pilates: require active membership record
-      const categoryToPackageTypes: Record<string, string[]> = {
-        'free_gym': ['free_gym', 'standard'],
-        'pilates': ['pilates'],
-        'personal': ['personal_training', 'personal']
-      };
-      const packageTypes = categoryToPackageTypes[category];
-      if (!packageTypes) {
-        throw new Error(`Invalid QR category: ${category}`);
-      }
-
-      const { data: memberships, error: membershipError } = await supabase
-        .from('memberships')
-        .select(`
-          id,
-          is_active,
-          end_date,
-          membership_packages(package_type, name)
-        `)
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .gte('end_date', new Date().toISOString().split('T')[0]);
-
-      if (membershipError) {
-        console.log(`[QR-Generator] Error fetching memberships:`, membershipError);
-        throw new Error(`Σφάλμα κατά τη φόρτωση των συνδρομών.`);
-      }
-
-      // Check if any membership has the required package type or name
-      const membership = memberships?.find(m => {
-        // Handle membership_packages as either array or single object
-        const packages = Array.isArray(m.membership_packages) 
-          ? m.membership_packages 
-          : m.membership_packages ? [m.membership_packages] : [];
-        
-        return packages.some(pkg => 
-          packageTypes.includes(pkg.package_type) || 
-          (category === 'free_gym' && pkg.name === 'Free Gym')
-        );
-      });
-
-      if (!membership) {
-        console.log(`[QR-Generator] No active membership found for category: ${category}, packageTypes: ${packageTypes.join(', ')}`);
-        throw new Error(`Δεν έχετε ενεργή συνδρομή για την κατηγορία ${category}.`);
-      }
-      console.log(`[QR-Generator] User has active membership for ${category}:`, membership);
     }
 
-    // Check if user already has active QR code for this specific category
+    if (!hasEligibility) {
+      throw new Error('Δεν βρέθηκε ενεργή συνδρομή για είσοδο στο γυμναστήριο.');
+    }
+
+    // Check if user already has active QR code (μοναδικό QR εισόδου)
     const { data: existingQR, error: existingError } = await supabase
       .from('qr_codes')
       .select('*')
       .eq('user_id', userId)
-      .eq('category', category)
       .eq('status', 'active')
       .maybeSingle();
 
@@ -201,14 +168,13 @@ export async function generateQRCode(
     }
 
     // Create new QR code with ultra-simple approach
-    const qrToken = generateQRToken('', userId, category);
+    const qrToken = generateQRToken('', userId, actualCategory);
     
-    // First, try to deactivate any existing QR codes for this category
+    // First, try to deactivate any existing QR codes for this user
     await supabase
       .from('qr_codes')
       .update({ status: 'inactive' })
       .eq('user_id', userId)
-      .eq('category', category)
       .eq('status', 'active');
     
     // Insert new QR code with RLS bypass for INSERT
@@ -216,7 +182,7 @@ export async function generateQRCode(
       .from('qr_codes')
       .insert({
         user_id: userId,
-        category,
+        category: actualCategory,
         status: 'active',
         qr_token: qrToken,
         issued_at: new Date().toISOString(),
@@ -333,6 +299,37 @@ export async function validateQRCode(
   }
 }
 
+// Compute current occupancy (unique users whose last scan today είναι είσοδος)
+export async function getCurrentGymOccupancy(): Promise<number> {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const { data, error } = await supabase
+      .from('scan_audit_logs')
+      .select('user_id, scan_type, created_at, result')
+      .eq('result', 'approved')
+      .gte('created_at', startOfDay.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[QR] Error fetching occupancy scans:', error);
+      return 0;
+    }
+
+    const lastScanByUser: Record<string, 'entrance' | 'exit'> = {};
+    (data || []).forEach((row: any) => {
+      lastScanByUser[row.user_id] = row.scan_type;
+    });
+
+    const insideCount = Object.values(lastScanByUser).filter(type => type === 'entrance').length;
+    return insideCount;
+  } catch (err) {
+    console.error('[QR] Occupancy error:', err);
+    return 0;
+  }
+}
+
 // Log scan attempt
 async function logScanAttempt(logData: Omit<ScanAuditLog, 'id' | 'scanned_at' | 'created_at'>): Promise<void> {
   try {
@@ -340,7 +337,8 @@ async function logScanAttempt(logData: Omit<ScanAuditLog, 'id' | 'scanned_at' | 
       .from('scan_audit_logs')
       .insert({
         ...logData,
-        scanned_at: new Date().toISOString(),
+        // rely on created_at default; keep legacy field if exists
+        scanned_at: undefined
       });
   } catch (error) {
     console.error('Error logging scan attempt:', error);
@@ -385,7 +383,7 @@ export async function getScanAuditLogs(
         qr_codes(user_id, category),
         user_profiles(first_name, last_name)
       `)
-      .order('scanned_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (secretaryId) {

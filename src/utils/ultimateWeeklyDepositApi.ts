@@ -1,5 +1,6 @@
 import { supabase } from '@/config/supabase';
 import { WeeklyRefillStatus } from './weeklyRefillApi';
+import { addDaysLocal, toLocalDateKey } from '@/utils/date';
 
 export interface UltimateWeeklyDepositInfo {
   current_deposit: number;
@@ -67,27 +68,36 @@ export const getUltimateWeeklyDepositInfo = async (): Promise<UltimateWeeklyDepo
       };
     }
 
-    // Calculate additional info for Ultimate users
-    const activationDate = new Date(refillStatus.activation_date);
+    // Calculate weekly cycle: Δευτέρα έως Σάββατο, rollover μετά το Σάββατο
     const today = new Date();
-    const nextRefillDate = new Date(refillStatus.next_refill_date);
-    
-    // Calculate total weeks in subscription (365 days / 7 days)
-    const totalWeeksInSubscription = 52; // Exactly 52 weeks
+    const day = today.getDay(); // 0 Κυριακή, 1 Δευτέρα, ... 6 Σάββατο
+    let weekStart: Date;
+    if (day === 0) {
+      // Κυριακή -> επόμενη Δευτέρα
+      weekStart = addDaysLocal(today, 1);
+    } else {
+      const daysToMonday = 1 - day;
+      weekStart = addDaysLocal(today, daysToMonday);
+    }
+    weekStart.setHours(0, 0, 0, 0);
+    let weekEnd = addDaysLocal(weekStart, 5); // Σάββατο
+    weekEnd.setHours(23, 59, 59, 999);
+
+    // Αν σήμερα είναι μετά το Σάββατο (θεωρητικά μόνο Κυριακή), μετακινούμε στην επόμενη εβδομάδα
+    if (today > weekEnd) {
+      weekStart = addDaysLocal(weekStart, 7);
+      weekEnd = addDaysLocal(weekStart, 5);
+      weekEnd.setHours(23, 59, 59, 999);
+    }
+
+    const nextRefillDate = weekEnd;
+    const canBookFromDate = addDaysLocal(nextRefillDate, 1); // Κυριακή -> νέα εβδομάδα
+
+    // Calculate total weeks remaining (διατηρούμε 52 εβδομάδες συνολικά από activation)
+    const activationDate = new Date(refillStatus.activation_date);
+    const totalWeeksInSubscription = 52;
     const weeksElapsed = Math.floor((today.getTime() - activationDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
     const totalWeeksRemaining = Math.max(0, totalWeeksInSubscription - weeksElapsed);
-
-    // Calculate next refill based on activation date + 7 days cycles
-    const daysSinceActivation = Math.floor((today.getTime() - activationDate.getTime()) / (24 * 60 * 60 * 1000));
-    const weeksSinceActivation = Math.floor(daysSinceActivation / 7);
-    const nextRefillDays = (weeksSinceActivation + 1) * 7;
-    
-    // Update the existing nextRefillDate with new calculation
-    nextRefillDate.setTime(activationDate.getTime() + (nextRefillDays * 24 * 60 * 60 * 1000));
-    
-    // Calculate when user can book from (next day after refill)
-    const canBookFromDate = new Date(nextRefillDate);
-    canBookFromDate.setDate(nextRefillDate.getDate() + 1); // Next day after refill
 
     // Determine weekly allocation based on package name
     const weeklyAllocation = refillStatus.target_deposit_amount > 0 
@@ -97,12 +107,12 @@ export const getUltimateWeeklyDepositInfo = async (): Promise<UltimateWeeklyDepo
     return {
       current_deposit: currentDeposit,
       weekly_allocation: weeklyAllocation,
-      next_refill_date: nextRefillDate.toISOString().split('T')[0], // Use activation-based calculation
+      next_refill_date: nextRefillDate.toISOString().split('T')[0],
       refill_week: refillStatus.next_refill_week,
       total_weeks_remaining: totalWeeksRemaining,
       can_book_from_date: canBookFromDate.toISOString().split('T')[0],
-      current_week_start: refillStatus.current_week_start || '',
-      current_week_end: refillStatus.current_week_end || '',
+      current_week_start: toLocalDateKey(weekStart),
+      current_week_end: toLocalDateKey(weekEnd),
       is_ultimate_user: true,
       package_name: refillStatus.package_name
     };

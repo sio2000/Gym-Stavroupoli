@@ -1,0 +1,588 @@
+import React, { useEffect, useState } from 'react';
+import {
+  Search,
+  UserCheck,
+  CreditCard,
+  Calendar,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Package,
+  Euro,
+  ListChecks,
+  Zap,
+  Coins
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import {
+  getMembershipPackages,
+  getMembershipPackageDurations,
+  getPilatesPackageDurations,
+  getUltimatePackageDurations,
+  createMembershipRequest,
+  createPilatesMembershipRequest,
+  createUltimateMembershipRequest
+} from '@/utils/membershipApi';
+import { searchUsers, UserInfo } from '@/utils/userInfoApi';
+import { MembershipPackage, MembershipPackageDuration } from '@/types';
+
+type PackageKind = 'open_gym' | 'pilates' | 'ultimate' | 'personal' | 'custom';
+
+const detectPackageKind = (pkg: MembershipPackage): PackageKind => {
+  const name = (pkg.name || '').toLowerCase();
+  if (name.includes('ultimate')) return 'ultimate';
+  if (name.includes('pilates')) return 'pilates';
+  if (name.includes('personal')) return 'personal';
+  if (name.includes('free gym') || name.includes('open gym')) return 'open_gym';
+  return 'custom';
+};
+
+interface SelectedPackage {
+  pkg: MembershipPackage;
+  durations: MembershipPackageDuration[];
+}
+
+const NewSubscriptionTab: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [users, setUsers] = useState<UserInfo[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserInfo | null>(null);
+
+  const [packages, setPackages] = useState<MembershipPackage[]>([]);
+  const [selectedPackage, setSelectedPackage] = useState<SelectedPackage | null>(null);
+  const [selectedDurationId, setSelectedDurationId] = useState<string>('');
+  const [customPrice, setCustomPrice] = useState<string>('');
+  const [kettlebellPoints, setKettlebellPoints] = useState<string>('');
+  const [hasInstallments, setHasInstallments] = useState(false);
+  const [installment1Amount, setInstallment1Amount] = useState<string>('');
+  const [installment1DueDate, setInstallment1DueDate] = useState<string>('');
+  const [installment1Method, setInstallment1Method] = useState<'cash' | 'pos'>('cash');
+  const [installment2Amount, setInstallment2Amount] = useState<string>('');
+  const [installment2DueDate, setInstallment2DueDate] = useState<string>('');
+  const [installment2Method, setInstallment2Method] = useState<'cash' | 'pos'>('cash');
+  const [installment3Amount, setInstallment3Amount] = useState<string>('');
+  const [installment3DueDate, setInstallment3DueDate] = useState<string>('');
+  const [installment3Method, setInstallment3Method] = useState<'cash' | 'pos'>('cash');
+  const [customClasses, setCustomClasses] = useState<string>('');
+  const [loadingPackages, setLoadingPackages] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'pos'>('cash');
+
+  // Load packages once
+  useEffect(() => {
+    const loadPkgs = async () => {
+      try {
+        setLoadingPackages(true);
+        const pkgs = await getMembershipPackages();
+        const filtered = pkgs.filter((p) => {
+          const name = (p.name || '').toLowerCase();
+          return !(
+            name.includes('personal') ||
+            name.includes('premium') ||
+            name.includes('vip') ||
+            name.includes('βασικ')
+          );
+        });
+        setPackages(filtered);
+      } catch (err) {
+        console.error('Error loading packages', err);
+        toast.error('Σφάλμα φόρτωσης πακέτων');
+      } finally {
+        setLoadingPackages(false);
+      }
+    };
+    loadPkgs();
+  }, []);
+
+  const handleSearch = async (term: string) => {
+    setSearchTerm(term);
+    if (!term.trim()) {
+      setUsers([]);
+      setSelectedUser(null);
+      return;
+    }
+    try {
+      setSearchLoading(true);
+      const results = await searchUsers(term);
+      setUsers(results);
+    } catch (err) {
+      console.error('Search error', err);
+      toast.error('Σφάλμα αναζήτησης χρήστη');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const loadDurations = async (pkg: MembershipPackage) => {
+    try {
+      let durations: MembershipPackageDuration[] = [];
+      const kind = detectPackageKind(pkg);
+      if (kind === 'pilates') {
+        durations = await getPilatesPackageDurations();
+      } else if (kind === 'ultimate') {
+        durations = await getUltimatePackageDurations();
+        const name = (pkg.name || '').toLowerCase();
+        if (name.includes('ultimate medium')) {
+          // Δεχόμαστε είτε labeled είτε fallback στο common ultimate_1year
+          durations = durations.filter(
+            (d) =>
+              (d.duration_type || '') === 'ultimate_medium_1year' ||
+              (d.duration_type || '') === 'ultimate_1year'
+          );
+          // Override price/lessons to correct values (52, €400) και κρατάμε μόνο ένα
+          durations = durations
+            .map((d) => ({
+              ...d,
+              price: 400,
+              classes_count: 52
+            }))
+            .slice(0, 1);
+        } else if (name.includes('ultimate')) {
+          durations = durations.filter((d) => (d.duration_type || '') === 'ultimate_1year');
+        }
+      } else {
+        durations = await getMembershipPackageDurations(pkg.id);
+      }
+      setSelectedPackage({ pkg, durations });
+      setSelectedDurationId('');
+      setCustomPrice('');
+      setCustomClasses('');
+      setKettlebellPoints('');
+      setHasInstallments(false);
+      setInstallment1Amount('');
+      setInstallment1DueDate('');
+      setInstallment1Method('cash');
+      setInstallment2Amount('');
+      setInstallment2DueDate('');
+      setInstallment2Method('cash');
+      setInstallment3Amount('');
+      setInstallment3DueDate('');
+      setInstallment3Method('cash');
+    } catch (err) {
+      console.error('Error loading durations', err);
+      toast.error('Σφάλμα φόρτωσης διάρκειας');
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedUser) {
+      toast.error('Επίλεξε χρήστη');
+      return;
+    }
+    if (!selectedPackage || !selectedDurationId) {
+      toast.error('Επίλεξε πακέτο και διάρκεια');
+      return;
+    }
+    const duration = selectedPackage.durations.find(d => d.id === selectedDurationId);
+    if (!duration) {
+      toast.error('Η διάρκεια δεν βρέθηκε');
+      return;
+    }
+
+    if (hasInstallments) {
+      const amount1 = Number(installment1Amount || 0);
+      if (!amount1 || Number.isNaN(amount1)) {
+        toast.error('Συμπλήρωσε ποσό για την 1η δόση');
+        return;
+      }
+      if (!installment1DueDate) {
+        toast.error('Συμπλήρωσε ημερομηνία για την 1η δόση');
+        return;
+      }
+    }
+
+    const kind = detectPackageKind(selectedPackage.pkg);
+    const isUltimateMedium =
+      (duration.duration_type || '') === 'ultimate_medium_1year' ||
+      ((duration.duration_type || '') === 'ultimate_1year' &&
+        (selectedPackage?.pkg.name || '').toLowerCase().includes('medium'));
+    const price = customPrice
+      ? Number(customPrice)
+      : isUltimateMedium
+      ? 400
+      : duration.price || 0;
+
+    const classesCount = customClasses
+      ? Number(customClasses)
+      : isUltimateMedium
+      ? 52
+      : duration.classes_count || 0;
+
+    const installments = hasInstallments
+      ? {
+          installment1Amount: Number(installment1Amount || 0) || undefined,
+          installment1DueDate: installment1DueDate || undefined,
+          installment1PaymentMethod: installment1Method,
+          installment2Amount: Number(installment2Amount || 0) || undefined,
+          installment2DueDate: installment2DueDate || undefined,
+          installment2PaymentMethod: installment2Method,
+          installment3Amount: Number(installment3Amount || 0) || undefined,
+          installment3DueDate: installment3DueDate || undefined,
+          installment3PaymentMethod: installment3Method,
+        }
+      : undefined;
+
+    setSubmitting(true);
+    try {
+      if (kind === 'pilates') {
+        await createPilatesMembershipRequest(
+          selectedPackage.pkg.id,
+          duration.duration_type,
+          classesCount,
+          price,
+          selectedUser.user_id,
+          hasInstallments,
+          paymentMethod,
+          Number(kettlebellPoints || 0),
+          installments
+        );
+      } else if (kind === 'ultimate') {
+        await createUltimateMembershipRequest(
+          selectedPackage.pkg.id,
+          duration.duration_type,
+          price,
+          hasInstallments,
+          selectedUser.user_id,
+          paymentMethod,
+          Number(kettlebellPoints || 0),
+          installments
+        );
+      } else if (kind === 'personal') {
+        toast.error('Το Personal Training καταχωρείται από admin');
+        setSubmitting(false);
+        return;
+      } else {
+        await createMembershipRequest(
+          selectedPackage.pkg.id,
+          duration.duration_type,
+          price,
+          hasInstallments,
+          selectedUser.user_id,
+          paymentMethod,
+          Number(kettlebellPoints || 0),
+          installments
+        );
+      }
+
+      toast.success('Η νέα συνδρομή καταχωρήθηκε (approved)');
+      setSelectedDurationId('');
+      setSelectedPackage(null);
+      setCustomPrice('');
+      setCustomClasses('');
+      setKettlebellPoints('');
+      setHasInstallments(false);
+      setInstallment1Amount('');
+      setInstallment1DueDate('');
+      setInstallment1Method('cash');
+      setInstallment2Amount('');
+      setInstallment2DueDate('');
+      setInstallment2Method('cash');
+      setInstallment3Amount('');
+      setInstallment3DueDate('');
+      setInstallment3Method('cash');
+    } catch (err) {
+      console.error('Submit error', err);
+      toast.error('Σφάλμα καταχώρησης συνδρομής');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const renderDurationLabel = (d: MembershipPackageDuration) => {
+    if ((d.duration_type || '') === 'ultimate_medium_1year') return '52 μαθήματα';
+    if ((d.duration_type || '') === 'ultimate_1year' && (selectedPackage?.pkg.name || '').toLowerCase().includes('medium')) {
+      return '52 μαθήματα';
+    }
+    if (d.classes_count) return `${d.classes_count} μαθήματα`;
+    return d.duration_type || `${d.duration_days} ημέρες`;
+  };
+
+  return (
+    <div className="bg-gray-900 text-white rounded-2xl border border-gray-700 p-6 mb-8">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-xl font-bold">Νέα Συνδρομή</h3>
+          <p className="text-gray-300 text-sm">
+            Αναζήτησε χρήστη (επώνυμο ή τηλέφωνο) και επίλεξε υπηρεσίες.
+          </p>
+        </div>
+        <div className="flex items-center space-x-2 px-3 py-1.5 bg-blue-900/40 rounded-lg border border-blue-700 text-blue-100 text-sm">
+          <Zap className="h-4 w-4" />
+          <span>Γραμματεία</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-4">
+        {/* Search */}
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+          <div className="flex items-center space-x-3">
+            <div className="relative flex-1">
+              <Search className="h-4 w-4 text-gray-400 absolute left-3 top-3" />
+              <input
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="Επώνυμο ή τηλέφωνο (π.χ. 69...)"
+                className="w-full pl-10 pr-3 py-2.5 rounded-lg bg-gray-900 border border-gray-700 text-white focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div className="mt-3 space-y-2 max-h-56 overflow-y-auto">
+            {searchLoading && (
+              <div className="flex items-center text-gray-400 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Αναζήτηση...
+              </div>
+            )}
+            {!searchLoading && users.length === 0 && searchTerm.trim() && (
+              <div className="text-sm text-gray-400">Δεν βρέθηκαν χρήστες</div>
+            )}
+            {users.map((u) => (
+              <button
+                key={u.user_id}
+                onClick={() => setSelectedUser(u)}
+                className={`w-full text-left px-3 py-2 rounded-lg border text-sm ${
+                  selectedUser?.user_id === u.user_id
+                    ? 'border-blue-500 bg-blue-900/40 text-white'
+                    : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-blue-500'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold">{u.first_name} {u.last_name}</div>
+                    <div className="text-xs text-gray-400">{u.email}</div>
+                    {u.phone && <div className="text-xs text-gray-400">📞 {u.phone}</div>}
+                  </div>
+                  <UserCheck className="h-4 w-4 text-blue-400" />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Package Selection */}
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 space-y-4">
+          <div className="flex items-center space-x-2">
+            <Package className="h-4 w-4 text-blue-300" />
+            <h4 className="font-semibold text-white">Επιλογή υπηρεσιών</h4>
+          </div>
+          <div className="space-y-2 max-h-56 overflow-y-auto">
+            {loadingPackages ? (
+              <div className="flex items-center text-gray-400 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Φόρτωση πακέτων...
+              </div>
+            ) : packages.length === 0 ? (
+              <div className="text-sm text-gray-400">Δεν υπάρχουν διαθέσιμα πακέτα</div>
+            ) : (
+              packages.map((pkg) => {
+                const kind = detectPackageKind(pkg);
+                if (kind === 'personal') {
+                  return (
+                    <div key={pkg.id} className="px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-gray-300 text-sm flex items-center justify-between">
+                      <span>{pkg.name} (μόνο admin)</span>
+                      <AlertCircle className="h-4 w-4 text-amber-400" />
+                    </div>
+                  );
+                }
+                return (
+                  <button
+                    key={pkg.id}
+                    onClick={() => loadDurations(pkg)}
+                    className={`w-full text-left px-3 py-2 rounded-lg border text-sm ${
+                      selectedPackage?.pkg.id === pkg.id
+                        ? 'border-green-500 bg-green-900/30 text-white'
+                        : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold">{pkg.name}</div>
+                        <div className="text-xs text-gray-400">{pkg.description}</div>
+                      </div>
+                      <Euro className="h-4 w-4 text-green-400" />
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Durations */}
+          {selectedPackage && (
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4 text-blue-300" />
+                <h5 className="font-semibold text-white">Διάρκεια</h5>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {selectedPackage.durations.map((d) => (
+                  <label
+                    key={d.id}
+                    className={`border rounded-lg px-3 py-2 cursor-pointer text-sm ${
+                      selectedDurationId === d.id
+                        ? 'border-blue-500 bg-blue-900/30 text-white'
+                        : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-blue-500'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="duration"
+                      className="mr-2"
+                      checked={selectedDurationId === d.id}
+                      onChange={() => setSelectedDurationId(d.id)}
+                    />
+                    <div className="font-semibold">{renderDurationLabel(d)}</div>
+                    <div className="text-xs text-gray-400">Τιμή: €{(d.price || 0).toFixed(2)}</div>
+                  </label>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-300">Προσαρμοσμένη τιμή (€)</label>
+                  <input
+                    type="number"
+                    value={customPrice}
+                    onChange={(e) => setCustomPrice(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="προαιρετικό"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-300">Kettlebell points</label>
+                  <input
+                    type="text"
+                    value={kettlebellPoints}
+                    onChange={(e) => setKettlebellPoints(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="π.χ. 10"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <label className="text-xs text-gray-300 mb-2 block">Τρόπος πληρωμής</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['cash', 'pos'] as const).map(method => (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => setPaymentMethod(method)}
+                      className={`w-full px-3 py-2 rounded-lg border ${
+                        paymentMethod === method
+                          ? 'bg-blue-600 border-blue-400 text-white'
+                          : 'bg-gray-900 border-gray-700 text-gray-200 hover:border-blue-500'
+                      }`}
+                    >
+                      {method === 'cash' ? 'Μετρητά' : 'POS'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {detectPackageKind(selectedPackage.pkg) === 'pilates' && (
+                <div>
+                  <label className="text-xs text-gray-300">Μαθήματα (αντικατάσταση του default)</label>
+                  <input
+                    type="number"
+                    value={customClasses}
+                    onChange={(e) => setCustomClasses(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="π.χ. 25"
+                  />
+                </div>
+              )}
+
+              <label className="flex items-center space-x-2 text-sm text-gray-200">
+                <input
+                  type="checkbox"
+                  checked={hasInstallments}
+                  onChange={(e) => setHasInstallments(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-500 bg-gray-900"
+                />
+                <Coins className="h-4 w-4 text-amber-300" />
+                <span>Πληρωμή με δόσεις</span>
+              </label>
+
+              {hasInstallments && (
+                <div className="mt-3 space-y-3 bg-gray-900 border border-amber-400/40 rounded-xl p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-amber-200 font-semibold">Στοιχεία Δόσεων</span>
+                    <span className="text-xs text-gray-400">Συμπλήρωσε ποσά & ημερομηνίες πριν το κλείδωμα</span>
+                  </div>
+
+                  {[1, 2, 3].map((idx) => {
+                    const amount = idx === 1 ? installment1Amount : idx === 2 ? installment2Amount : installment3Amount;
+                    const dueDate = idx === 1 ? installment1DueDate : idx === 2 ? installment2DueDate : installment3DueDate;
+                    const method = idx === 1 ? installment1Method : idx === 2 ? installment2Method : installment3Method;
+                    const setAmount = idx === 1 ? setInstallment1Amount : idx === 2 ? setInstallment2Amount : setInstallment3Amount;
+                    const setDueDate = idx === 1 ? setInstallment1DueDate : idx === 2 ? setInstallment2DueDate : setInstallment3DueDate;
+                    const setMethod = idx === 1 ? setInstallment1Method : idx === 2 ? setInstallment2Method : setInstallment3Method;
+                    return (
+                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-300">Ποσό δόσης {idx} (€){idx === 1 ? ' *' : ''}</label>
+                          <input
+                            type="number"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white focus:ring-2 focus:ring-amber-400"
+                            placeholder="π.χ. 100"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-300">Ημερομηνία {idx}ης δόσης{idx === 1 ? ' *' : ''}</label>
+                          <input
+                            type="date"
+                            value={dueDate}
+                            onChange={(e) => setDueDate(e.target.value)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white focus:ring-2 focus:ring-amber-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-300">Τρόπος πληρωμής {idx}ης</label>
+                          <div className="grid grid-cols-2 gap-1 mt-1">
+                            {(['cash', 'pos'] as const).map((m) => (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => setMethod(m)}
+                                className={`w-full px-3 py-2 rounded-lg border text-sm ${
+                                  method === m
+                                    ? 'bg-amber-500 border-amber-300 text-black'
+                                    : 'bg-gray-800 border-gray-700 text-gray-200 hover:border-amber-400'
+                                }`}
+                              >
+                                {m === 'cash' ? 'Μετρητά' : 'POS'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-xs text-gray-400">
+                    * Υποχρεωτικά τουλάχιστον η 1η δόση. Οι επόμενες είναι προαιρετικές.
+                  </p>
+                </div>
+              )}
+
+              <button
+                disabled={submitting || !selectedUser}
+                onClick={handleSubmit}
+                className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold transition-colors disabled:opacity-60"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                Καταχώρηση συνδρομής
+              </button>
+              <p className="text-xs text-gray-400">
+                Η καταχώρηση δημιουργεί αίτημα συνδρομής σε κατάσταση pending.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default NewSubscriptionTab;
+

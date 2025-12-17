@@ -105,19 +105,35 @@ export const getPilatesAvailableSlots = async (startDate?: string, endDate?: str
 };
 
 // Active pilates deposit for a user
-export const getActivePilatesDeposit = async (userId: string): Promise<{ deposit_remaining: number, is_active: boolean } | null> => {
+export const getActivePilatesDeposit = async (
+  userId: string
+): Promise<{ deposit_remaining: number; is_active: boolean; expires_at?: string; package_id?: string; id?: string } | null> => {
   const { data, error } = await supabase
     .from('pilates_deposits')
-    .select('deposit_remaining, is_active')
+    .select('id, deposit_remaining, is_active, expires_at, credited_at, package_id')
     .eq('user_id', userId)
     .eq('is_active', true)
+    .gt('deposit_remaining', 0)
     .order('credited_at', { ascending: false })
     .limit(1);
+
   if (error) {
-    console.error('Error fetching active pilates deposit:', error);
+    console.error('[PilatesScheduleAPI] Error fetching active pilates deposit:', error);
     return null;
   }
-  return data && data.length > 0 ? data[0] : null;
+  if (!data || data.length === 0) {
+    // Fallback: log last 3 deposits to debug
+    const { data: lastDeposits } = await supabase
+      .from('pilates_deposits')
+      .select('id, deposit_remaining, is_active, expires_at, credited_at, package_id')
+      .eq('user_id', userId)
+      .order('credited_at', { ascending: false })
+      .limit(3);
+    console.warn('[PilatesScheduleAPI] No active pilates deposit found for user:', userId, 'recent:', lastDeposits);
+    return null;
+  }
+  console.log('[PilatesScheduleAPI] Active deposit for user', userId, data[0]);
+  return data[0];
 };
 
 // Realtime subscriptions helpers

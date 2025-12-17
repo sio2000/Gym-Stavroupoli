@@ -21,11 +21,11 @@ import {
 } from 'lucide-react';
 import { 
   searchUsers, 
-  getRandomUsers, 
-  getUserCount, 
+  getUsersWithFilter, 
   getUserDetailedInfo,
   UserInfo,
-  UserDetailedInfo
+  UserDetailedInfo,
+  UserFilter
 } from '@/utils/userInfoApi';
 import toast from 'react-hot-toast';
 
@@ -43,19 +43,17 @@ const UsersInformation: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const USERS_PER_PAGE = 10;
+  const [userFilter, setUserFilter] = useState<UserFilter>('all');
 
   // Load random users and total count
-  const loadRandomUsers = async (page: number = 1) => {
+  const loadRandomUsers = async (page: number = 1, filter: UserFilter = userFilter) => {
     try {
       setLoading(true);
-      const [users, count] = await Promise.all([
-        getRandomUsers(page, USERS_PER_PAGE),
-        getUserCount()
-      ]);
+      const [users, count] = await getUsersWithFilter(page, USERS_PER_PAGE, filter);
       
       setRandomUsers(users);
       setTotalUsers(count);
-      setTotalPages(Math.ceil(count / USERS_PER_PAGE));
+      setTotalPages(Math.max(1, Math.ceil(count / USERS_PER_PAGE)));
       setCurrentPage(page);
     } catch (error) {
       console.error('Error loading random users:', error);
@@ -67,8 +65,8 @@ const UsersInformation: React.FC = () => {
 
   // Load data on component mount
   useEffect(() => {
-    loadRandomUsers(1);
-  }, []);
+    loadRandomUsers(1, userFilter);
+  }, [userFilter]);
 
   // Search functionality
   const handleSearch = async (term: string) => {
@@ -81,7 +79,7 @@ const UsersInformation: React.FC = () => {
 
     try {
       setSearchLoading(true);
-      const results = await searchUsers(term);
+      const results = await searchUsers(term, userFilter);
       setSearchResults(results);
     } catch (error) {
       console.error('Error searching users:', error);
@@ -165,27 +163,88 @@ const UsersInformation: React.FC = () => {
 
       {/* Search Bar */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-        <div className="flex items-center space-x-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-              <input
-                type="text"
-                placeholder="🔍 Αναζήτηση με όνομα, email ή ID χρήστη..."
-                value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 placeholder-gray-500"
-              />
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center space-x-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <input
+                  type="text"
+                  placeholder="🔍 Αναζήτηση με όνομα, email ή ID χρήστη..."
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 placeholder-gray-500"
+                />
+              </div>
             </div>
+            {searchTerm && (
+              <button
+                onClick={clearSearch}
+                className="px-4 py-3 text-gray-400 hover:text-gray-600 transition-colors bg-gray-100 rounded-xl hover:bg-gray-200"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
           </div>
-          {searchTerm && (
+
+          {/* Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-gray-600 mr-1">Φίλτρα:</span>
             <button
-              onClick={clearSearch}
-              className="px-4 py-3 text-gray-400 hover:text-gray-600 transition-colors bg-gray-100 rounded-xl hover:bg-gray-200"
+              onClick={() => {
+                setUserFilter('all');
+                setCurrentPage(1);
+                if (searchTerm) {
+                  handleSearch(searchTerm);
+                } else {
+                  loadRandomUsers(1, 'all');
+                }
+              }}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                userFilter === 'all'
+                  ? 'bg-gray-800 text-white border-gray-700'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200'
+              }`}
             >
-              <X className="h-5 w-5" />
+              Όλοι οι χρήστες
             </button>
-          )}
+            <button
+              onClick={() => {
+                setUserFilter('active');
+                setCurrentPage(1);
+                if (searchTerm) {
+                  handleSearch(searchTerm);
+                } else {
+                  loadRandomUsers(1, 'active');
+                }
+              }}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                userFilter === 'active'
+                  ? 'bg-green-700 text-white border-green-600'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200'
+              }`}
+            >
+              Ενεργές συνδρομές
+            </button>
+            <button
+              onClick={() => {
+                setUserFilter('expired');
+                setCurrentPage(1);
+                if (searchTerm) {
+                  handleSearch(searchTerm);
+                } else {
+                  loadRandomUsers(1, 'expired');
+                }
+              }}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                userFilter === 'expired'
+                  ? 'bg-red-700 text-white border-red-600'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200'
+              }`}
+            >
+              Ληγμένες συνδρομές
+            </button>
+          </div>
         </div>
       </div>
 

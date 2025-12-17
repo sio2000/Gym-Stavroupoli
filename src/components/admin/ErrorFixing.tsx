@@ -25,6 +25,8 @@ const ErrorFixing: React.FC = () => {
   const [fixing, setFixing] = useState(false);
   const [usersWithoutProfiles, setUsersWithoutProfiles] = useState<UserWithoutProfile[]>([]);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  // Feature toggle: hide Users Without Profile section while keeping code for reuse
+  const showUsersWithoutProfileSection = false;
 
   // State για unconfirmed emails
   const [emailLoading, setEmailLoading] = useState(false);
@@ -304,6 +306,7 @@ const ErrorFixing: React.FC = () => {
       </div>
 
       {/* Main Content */}
+      {showUsersWithoutProfileSection && (
       <div className="bg-gray-800 rounded-lg p-6">
         {/* Title Row with Example Image on the RIGHT */}
         <div className="flex items-start justify-between gap-6 mb-6">
@@ -491,6 +494,7 @@ const ErrorFixing: React.FC = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* UNCONFIRMED EMAILS SECTION */}
       <div className="bg-gray-800 rounded-lg p-6 border-t-4 border-orange-500">

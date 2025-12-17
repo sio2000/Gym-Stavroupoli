@@ -205,7 +205,7 @@ export const hasOverdueInstallment = async (userId: string): Promise<boolean> =>
       `)
       .eq('user_id', userId)
       .eq('status', 'approved')
-      .eq('has_installments', true)
+      // ορισμένα schema δεν έχουν has_installments - αφαιρούμε το filter για συμβατότητα
       .order('created_at', { ascending: false })
       .limit(1)
       .single();

@@ -7,6 +7,7 @@ import {
   Clock, 
   Calendar,
   User,
+  Users,
   RefreshCw,
   AlertCircle,
   ZoomIn,
@@ -15,7 +16,7 @@ import {
   Receipt
 } from 'lucide-react';
 import { formatDate } from '@/utils';
-import { getUserQRCodes, generateQRCode, isQRSystemEnabled } from '@/utils/qrSystem';
+import { getUserQRCodes, generateQRCode, getCurrentGymOccupancy } from '@/utils/qrSystem';
 import { getAvailableQRCategories, QRCodeCategory } from '@/utils/activeMemberships';
 import QRCodeLib from 'qrcode';
 import toast from 'react-hot-toast';
@@ -240,7 +241,7 @@ const QRCodes: React.FC = () => {
   const [selectedQR, setSelectedQR] = useState<string | null>(null);
   const [qrCodes, setQrCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSystemEnabled, setIsSystemEnabled] = useState(false);
+  // Πάντα εμφανίζουμε τη σελίδα, χωρίς flag απενεργοποίησης
   const [generating, setGenerating] = useState(false);
   const [availableCategories, setAvailableCategories] = useState<QRCodeCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -249,13 +250,29 @@ const QRCodes: React.FC = () => {
   const [selectedQRData, setSelectedQRData] = useState<{ qrData: string; category: string } | null>(null);
   const [hasOverdueInstallment, setHasOverdueInstallment] = useState(false);
   const [checkingOverdue, setCheckingOverdue] = useState(true);
+  const [occupancy, setOccupancy] = useState<number>(0);
+  const [occupancyLoading, setOccupancyLoading] = useState(false);
 
   // Load user's QR codes and available categories
   useEffect(() => {
     loadQRCodes();
     loadAvailableCategories();
     checkOverdueStatus();
+    loadOccupancy();
   }, [user?.id]);
+
+  const loadOccupancy = async () => {
+    try {
+      setOccupancyLoading(true);
+      const count = await getCurrentGymOccupancy();
+      setOccupancy(count);
+    } catch (error) {
+      console.error('[QRCodes] Error loading occupancy:', error);
+      setOccupancy(0);
+    } finally {
+      setOccupancyLoading(false);
+    }
+  };
 
   const checkOverdueStatus = async () => {
     if (!user?.id) return;
@@ -277,22 +294,14 @@ const QRCodes: React.FC = () => {
     
     try {
       setLoading(true);
-      const isEnabled = await isQRSystemEnabled();
-      setIsSystemEnabled(isEnabled);
-      
-      if (isEnabled) {
-        const codes = await getUserQRCodes(user.id);
-        console.log('Loaded QR codes:', codes);
-        // Add qrData field from qr_token for rendering
-        const codesWithData = codes.map(code => ({
-          ...code,
-          qrData: code.qr_token
-        }));
-        setQrCodes(codesWithData);
-      }
+      const codes = await getUserQRCodes(user.id);
+      const codesWithData = codes.map(code => ({
+        ...code,
+        qrData: code.qr_token
+      }));
+      setQrCodes(codesWithData);
     } catch (error) {
       console.error('Error loading QR codes:', error);
-      // Don't show error toast for empty results, just log it
       if (error instanceof Error && error.message && !error.message.includes('No rows found')) {
         toast.error('Σφάλμα φόρτωσης QR codes');
       }
@@ -315,7 +324,17 @@ const QRCodes: React.FC = () => {
       setLoadingCategories(true);
       const categories = await getAvailableQRCategories(user.id);
       console.log('Loaded available QR categories:', categories);
-      setAvailableCategories(categories);
+      // Ενιαίο QR εισόδου: προβάλλουμε μόνο μία επιλογή όταν υπάρχει οποιαδήποτε ενεργή συνδρομή
+      if (categories.length > 0) {
+        setAvailableCategories([{
+          key: 'free_gym',
+          label: 'QR Εισόδου Γυμναστηρίου',
+          icon: '🎟️',
+          packageType: 'free_gym'
+        }]);
+      } else {
+        setAvailableCategories([]);
+      }
     } catch (error) {
       console.error('Error loading available categories:', error);
       setAvailableCategories([]);
@@ -325,20 +344,20 @@ const QRCodes: React.FC = () => {
   };
 
   // Generate new QR code
-  const handleGenerateQR = async (category: 'free_gym' | 'pilates' | 'personal') => {
+  const handleGenerateQR = async () => {
     if (!user?.id) return;
     
     try {
       setGenerating(true);
-      console.log('[QR-Generator] payload before encoding:', { userId: user.id, category });
-      const { qrCode, qrData } = await generateQRCode(user.id, category);
+      console.log('[QR-Generator] payload before encoding:', { userId: user.id, category: 'free_gym' });
+      const { qrCode, qrData } = await generateQRCode(user.id, 'free_gym');
       console.log('[QR-Generator] generated', { tokenLen: qrData.length, sample: qrData.slice(0, 60) });
       
       // Add qrData to the qrCode object for display
       const qrCodeWithData = { ...qrCode, qrData };
       
       setQrCodes(prev => [qrCodeWithData, ...prev]);
-      toast.success('QR Code δημιουργήθηκε επιτυχώς');
+      toast.success('QR εισόδου δημιουργήθηκε επιτυχώς');
       
       // Refresh available categories in case membership status changed
       await loadAvailableCategories();
@@ -455,37 +474,15 @@ const QRCodes: React.FC = () => {
     return 'Άγνωστο';
   };
 
-  // Show system disabled message
-  if (!isSystemEnabled) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">QR Codes</h1>
-            <p className="text-gray-600">Διαχειριστείτε τα QR codes για τα μαθήματά σας</p>
-          </div>
-        </div>
-
-        <div className="card bg-yellow-50 border-yellow-200">
-          <div className="flex items-center space-x-3">
-            <AlertCircle className="h-6 w-6 text-yellow-600" />
-            <div>
-              <h3 className="text-lg font-semibold text-yellow-800">Σύστημα QR Codes Απενεργοποιημένο</h3>
-              <p className="text-yellow-700">Το σύστημα QR codes δεν είναι ενεργό αυτή τη στιγμή.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Αφαιρούμε το μήνυμα απενεργοποίησης: εμφανίζουμε πάντα τη σελίδα
 
   return (
     <div className="space-y-4 md:space-y-6 mobile-container">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex-1">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">QR Codes</h1>
-          <p className="text-sm md:text-base text-gray-600">Διαχειριστείτε τα QR codes για τα μαθήματά σας</p>
+          <h1 className="text-xl md:text-2xl font-bold text-white">QR Codes</h1>
+          <p className="text-sm md:text-base text-gray-100">Διαχειριστείτε τα QR codes για τα μαθήματά σας</p>
         </div>
         <button
           onClick={() => {
@@ -499,6 +496,71 @@ const QRCodes: React.FC = () => {
           <span>Ανανέωση</span>
         </button>
       </div>
+
+      {/* Open Gym occupancy moved from Membership */}
+      {availableCategories.length > 0 && (
+        <div className="relative overflow-hidden rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 shadow-xl">
+          <div className="absolute right-6 top-6 h-20 w-20 rounded-full bg-white/30 blur-2xl" />
+          <div className="absolute left-6 bottom-6 h-28 w-28 rounded-full bg-cyan-300/30 blur-3xl" />
+
+          <div className="relative p-5 sm:p-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between text-white">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 rounded-2xl bg-white/15 backdrop-blur shadow-sm border border-white/20">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <div className="inline-flex items-center space-x-2">
+                    <h3 className="text-lg font-semibold">Πληρότητα Open Gym (τώρα)</h3>
+                    <span className="text-xs px-2 py-1 rounded-full bg-white/90 text-blue-700 font-semibold shadow-sm">
+                      live
+                    </span>
+                  </div>
+                  <p className="text-sm text-white/80">Με βάση τα τελευταία QR check-in/checkout</p>
+                </div>
+              </div>
+              <button
+                onClick={loadOccupancy}
+                disabled={occupancyLoading}
+                className="inline-flex items-center px-3 py-2 rounded-xl border border-white/60 text-white bg-white/10 hover:bg-white/20 shadow-sm text-sm disabled:opacity-60 transition"
+              >
+                Ανανέωση
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] gap-4 sm:gap-6 items-center">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white text-blue-800 flex items-center justify-center text-4xl sm:text-5xl font-extrabold shadow-2xl border border-white/60">
+                    {occupancyLoading ? '…' : Number.isFinite(occupancy) ? occupancy : 0}
+                  </div>
+                  <div className="absolute -right-4 -bottom-4 w-14 h-14 rounded-xl bg-white/90 border border-blue-100 flex items-center justify-center text-xs font-semibold text-blue-700 shadow-md">
+                    τώρα
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 text-white">
+                  <div className="text-sm sm:text-base font-semibold">Άτομα μέσα στο γυμναστήριο αυτή τη στιγμή</div>
+                  <div className="text-xs text-white/80">Ενημέρωση με βάση σημερινές σαρώσεις</div>
+                  <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-white/15 border border-white/20 text-xs font-semibold w-fit">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Real-time</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 sm:justify-end text-xs sm:text-sm text-white/90">
+                <div className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-white/15 border border-white/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
+                  <span>Live μέτρηση</span>
+                </div>
+                <div className="hidden sm:flex items-center space-x-2 px-3 py-2 rounded-xl bg-white/15 border border-white/20">
+                  <span className="w-2 h-2 rounded-full bg-sky-200" />
+                  <span>QR check-in/out</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Generate QR Code */}
       <div className="card">
@@ -514,7 +576,7 @@ const QRCodes: React.FC = () => {
             {availableCategories.map((category) => (
               <button
                 key={category.key}
-                onClick={() => handleGenerateQR(category.key)}
+                onClick={() => handleGenerateQR()}
                 disabled={generating}
                 className="p-3 md:p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow disabled:opacity-50 hover:border-blue-300 hover:bg-blue-50 min-h-[120px] flex items-center justify-center"
               >
@@ -571,95 +633,84 @@ const QRCodes: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            {qrCodes
-              .filter(qr => isQRActive(qr.status, qr.expires_at))
-              .map((qr, index) => {
-                return (
-                  <div key={`${qr.id}-${index}`} className="border border-gray-200 rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow">
-                    {/* QR Code Display */}
-                    <div className="text-center mb-3 md:mb-4">
-                      <div 
-                        className="inline-block p-2 md:p-4 bg-white rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors"
-                        onClick={() => handlePreviewQR(qr.qrData || qr.qr_token, qr.category)}
-                        title="Προβολή και zoom QR Code"
-                      >
-                        {qr.qrData ? (
-                          <QRCodeCanvas qrData={qr.qrData} category={qr.category} />
-                        ) : (
-                          <QrCode className="h-16 md:h-24 w-16 md:w-24 text-gray-600" />
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        {qr.qrData ? 'Ενεργό QR Code' : 'QR Code Preview'}
-                      </p>
-                    </div>
+          (() => {
+            const primaryQR = qrCodes.find(qr => isQRActive(qr.status, qr.expires_at)) || qrCodes[0];
+            if (!primaryQR) {
+              return (
+                <div className="text-center py-8 text-gray-500">
+                  <QrCode className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p>Δεν έχετε ενεργό QR εισόδου</p>
+                  <p className="text-sm">Δημιουργήστε ένα νέο QR εισόδου παραπάνω</p>
+                </div>
+              );
+            }
 
-                    {/* QR Info */}
-                    <div className="space-y-2 mb-4">
-                      <h3 className="font-medium text-gray-900 text-center">
-                        {qr.category === 'free_gym' && 'Ελεύθερο Gym'}
-                        {qr.category === 'pilates' && 'Pilates'}
-                        {qr.category === 'personal' && 'Personal Training'}
-                      </h3>
-                      
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          {formatDate(qr.issued_at)}
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-2" />
-                          {qr.last_scanned_at ? formatDate(qr.last_scanned_at) : 'Ποτέ'}
-                        </div>
-                        <div className="flex items-center">
-                          <User className="h-4 w-4 mr-2" />
-                          {qr.scan_count} σαρώσεις
-                        </div>
-                      </div>
-                    </div>
+            return (
+              <div className="border border-gray-200 rounded-lg p-4 md:p-6 hover:shadow-md transition-shadow">
+                <div className="text-center mb-4">
+                  <div 
+                    className="inline-block p-4 bg-white rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors"
+                    onClick={() => handlePreviewQR(primaryQR.qrData || primaryQR.qr_token, 'free_gym')}
+                    title="Προβολή και zoom QR Code"
+                  >
+                    {primaryQR.qrData ? (
+                      <QRCodeCanvas qrData={primaryQR.qrData} category="free_gym" />
+                    ) : (
+                      <QrCode className="h-24 w-24 text-gray-600" />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    QR Εισόδου Γυμναστηρίου
+                  </p>
+                </div>
 
-                    {/* Status */}
-                    <div className="flex items-center justify-center mb-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(qr.status, qr.expires_at)}`}>
-                        {getStatusText(qr.status, qr.expires_at)}
-                      </span>
+                <div className="space-y-2 mb-4 text-center">
+                  <h3 className="font-medium text-gray-900">Είσοδος Γυμναστηρίου</h3>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <div className="flex items-center justify-center">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Εκδόθηκε: {formatDate(primaryQR.issued_at)}
                     </div>
-
-                    {/* Actions */}
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <button
-                        onClick={() => handleDownloadQR(qr.qrData || qr.qr_token, qr.category)}
-                        className="btn-secondary flex-1 flex items-center justify-center text-xs md:text-sm py-2 px-3"
-                      >
-                        <Download className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-                        Download
-                      </button>
-                      <button
-                        onClick={() => handleShareQR(qr.qrData || qr.qr_token, qr.category)}
-                        className="btn-primary flex-1 flex items-center justify-center text-xs md:text-sm py-2 px-3"
-                      >
-                        <Share2 className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-                        Share
-                      </button>
+                    <div className="flex items-center justify-center">
+                      <Clock className="h-4 w-4 mr-2" />
+                      Τελευταία σάρωση: {primaryQR.last_scanned_at ? formatDate(primaryQR.last_scanned_at) : 'Ποτέ'}
                     </div>
-
-                    {/* QR Code Data */}
-                    <div className="mt-3 p-2 bg-gray-50 rounded text-xs text-gray-600 font-mono break-all hidden sm:block">
-                      {qr.qr_token.substring(0, 50)}...
+                    <div className="flex items-center justify-center">
+                      <User className="h-4 w-4 mr-2" />
+                      {primaryQR.scan_count} σαρώσεις
                     </div>
                   </div>
-                );
-              })}
-            
-            {qrCodes.filter(qr => isQRActive(qr.status, qr.expires_at)).length === 0 && (
-              <div className="col-span-full text-center py-8 text-gray-500">
-                <QrCode className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p>Δεν έχετε ενεργά QR codes</p>
-                <p className="text-sm">Δημιουργήστε ένα νέο QR code παραπάνω</p>
+                </div>
+
+                <div className="flex items-center justify-center mb-4">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(primaryQR.status, primaryQR.expires_at)}`}>
+                    {getStatusText(primaryQR.status, primaryQR.expires_at)}
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={() => handleDownloadQR(primaryQR.qrData || primaryQR.qr_token, 'free_gym')}
+                    className="btn-secondary flex-1 flex items-center justify-center text-xs md:text-sm py-2 px-3"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    Λήψη
+                  </button>
+                  <button
+                    onClick={() => handleShareQR(primaryQR.qrData || primaryQR.qr_token, 'free_gym')}
+                    className="btn-primary flex-1 flex items-center justify-center text-xs md:text-sm py-2 px-3"
+                  >
+                    <Share2 className="h-4 w-4 mr-1" />
+                    Κοινοποίηση
+                  </button>
+                </div>
+
+                <div className="mt-3 p-2 bg-gray-50 rounded text-xs text-gray-600 font-mono break-all hidden sm:block">
+                  {primaryQR.qr_token.substring(0, 50)}...
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })()
         )}
       </div>
 
@@ -688,52 +739,6 @@ const QRCodes: React.FC = () => {
         </div>
       )}
 
-      {/* Inactive/Expired QR Codes */}
-      <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Ιστορικό QR Codes</h2>
-        
-        <div className="space-y-3">
-          {qrCodes
-            .filter(qr => !isQRActive(qr.status, qr.expires_at))
-            .map((qr, index) => {
-              return (
-                <div key={`${qr.id}-history-${index}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-gray-200 rounded-lg">
-                      <QrCode className="h-5 w-5 text-gray-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">
-                        {qr.category === 'free_gym' && 'Ελεύθερο Gym'}
-                        {qr.category === 'pilates' && 'Pilates'}
-                        {qr.category === 'personal' && 'Personal Training'}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {formatDate(qr.issued_at)} • {qr.scan_count} σαρώσεις
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(qr.status, qr.expires_at)}`}>
-                      {getStatusText(qr.status, qr.expires_at)}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {formatDate(qr.updated_at)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          
-          {qrCodes.filter(qr => !isQRActive(qr.status, qr.expires_at)).length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <Clock className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p>Δεν έχετε ληγμένα QR codes</p>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* QR Code Instructions */}
       <div className="card bg-blue-50 border-blue-200">

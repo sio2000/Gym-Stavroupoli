@@ -3,15 +3,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   CreditCard,
   Calendar,
-  Euro,
-  Check,
-  Clock,
   AlertCircle,
   Loader2,
   ArrowLeft,
   ChevronDown,
-  ChevronUp,
-  Smartphone
+  ChevronUp
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -68,7 +64,6 @@ const InstallmentPlanPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedInstallments, setExpandedInstallments] = useState<Set<number>>(new Set());
-  const [showMobileSummary, setShowMobileSummary] = useState(false);
 
   useEffect(() => {
     const loadInstallmentPlan = async () => {
@@ -106,10 +101,6 @@ const InstallmentPlanPage: React.FC = () => {
       newExpanded.add(installmentNumber);
     }
     setExpandedInstallments(newExpanded);
-  };
-
-  const toggleMobileSummary = () => {
-    setShowMobileSummary(!showMobileSummary);
   };
 
   if (loading) {
@@ -180,29 +171,6 @@ const InstallmentPlanPage: React.FC = () => {
 
       {/* Main Content - Mobile Optimized */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Mobile Summary Toggle */}
-        <div className="block sm:hidden mb-4">
-          <button
-            onClick={toggleMobileSummary}
-            className="w-full bg-white rounded-2xl shadow-lg border border-gray-200 p-5 flex items-center justify-between hover:shadow-xl transition-all duration-200 min-h-[56px]"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-2 rounded-xl">
-                <Smartphone className="h-5 w-5 text-white" />
-              </div>
-              <div className="text-left">
-                <h3 className="font-semibold text-gray-900">Σύνοψη Πλάνου</h3>
-                <p className="text-sm text-gray-500">Πατήστε για λεπτομέρειες</p>
-              </div>
-            </div>
-            {showMobileSummary ? (
-              <ChevronUp className="h-5 w-5 text-gray-500" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-gray-500" />
-            )}
-          </button>
-        </div>
-
         {/* Payment Alert - Mobile Optimized */}
         <div className="mb-4 sm:mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-400 p-4 sm:p-5 rounded-2xl shadow-lg">
           <div className="flex items-start space-x-3">
@@ -219,79 +187,8 @@ const InstallmentPlanPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Summary Cards - Responsive */}
+        {/* Installments Section */}
         <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden mb-6">
-          {/* Desktop Summary - Hidden on mobile */}
-          <div className="hidden sm:block bg-gradient-to-r from-blue-600 to-blue-700 p-6 lg:p-8">
-            <h2 className="text-2xl lg:text-3xl font-bold text-white mb-6 lg:mb-8">Σύνοψη Πλάνου Δόσεων</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 lg:p-6 hover:bg-white/20 transition-all duration-200">
-                <div className="flex items-center space-x-3 lg:space-x-4">
-                  <Euro className="h-8 w-8 lg:h-10 lg:w-10 text-white" />
-                  <div>
-                    <p className="text-white/80 text-sm lg:text-base">Συνολικό Ποσό</p>
-                    <p className="text-white text-xl lg:text-2xl font-bold">{formatPrice(planData.total_amount)}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 lg:p-6 hover:bg-white/20 transition-all duration-200">
-                <div className="flex items-center space-x-3 lg:space-x-4">
-                  <Check className="h-8 w-8 lg:h-10 lg:w-10 text-green-300" />
-                  <div>
-                    <p className="text-white/80 text-sm lg:text-base">Πληρωμένο</p>
-                    <p className="text-white text-xl lg:text-2xl font-bold">{formatPrice(planData.total_paid)}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 lg:p-6 hover:bg-white/20 transition-all duration-200">
-                <div className="flex items-center space-x-3 lg:space-x-4">
-                  <Clock className="h-8 w-8 lg:h-10 lg:w-10 text-yellow-300" />
-                  <div>
-                    <p className="text-white/80 text-sm lg:text-base">Υπόλοιπο</p>
-                    <p className="text-white text-xl lg:text-2xl font-bold">{formatPrice(planData.remaining)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile Summary - Expandable */}
-          <div className={`sm:hidden ${showMobileSummary ? 'block' : 'hidden'}`}>
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6">
-              <h2 className="text-xl font-bold text-white mb-6">Σύνοψη Πλάνου Δόσεων</h2>
-              <div className="space-y-4">
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-                  <div className="flex items-center space-x-3">
-                    <Euro className="h-8 w-8 text-white" />
-                    <div className="flex-1">
-                      <p className="text-white/80 text-sm">Συνολικό Ποσό</p>
-                      <p className="text-white text-xl font-bold">{formatPrice(planData.total_amount)}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-                  <div className="flex items-center space-x-3">
-                    <Check className="h-8 w-8 text-green-300" />
-                    <div className="flex-1">
-                      <p className="text-white/80 text-sm">Πληρωμένο</p>
-                      <p className="text-white text-xl font-bold">{formatPrice(planData.total_paid)}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-                  <div className="flex items-center space-x-3">
-                    <Clock className="h-8 w-8 text-yellow-300" />
-                    <div className="flex-1">
-                      <p className="text-white/80 text-sm">Υπόλοιπο</p>
-                      <p className="text-white text-xl font-bold">{formatPrice(planData.remaining)}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Installments Section */}
           <div className="p-4 sm:p-6 lg:p-8">
             <h3 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 mb-4 sm:mb-6">Λεπτομέρειες Δόσεων</h3>
             

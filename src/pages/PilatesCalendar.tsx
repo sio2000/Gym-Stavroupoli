@@ -16,8 +16,8 @@ import {
 } from '@/utils/ultimateWeeklyDepositApi';
 import { debugWeeklyLogic } from '@/utils/debugWeeklyLogic';
 import { PilatesAvailableSlot, PilatesBooking } from '@/types';
-import { Calendar, CheckCircle, XCircle, Loader2, ChevronLeft, ChevronRight, Wallet, Sparkles } from 'lucide-react';
-import { toLocalDateKey, addDaysLocal, parseDateKeyLocal, getGreekMondayOfCurrentWeek } from '@/utils/date';
+import { Calendar, CheckCircle, XCircle, Loader2, ChevronLeft, ChevronRight, Wallet, Sparkles, X } from 'lucide-react';
+import { toLocalDateKey, addDaysLocal, parseDateKeyLocal } from '@/utils/date';
 
 const PilatesCalendar: React.FC = () => {
   const { user } = useAuth();
@@ -28,28 +28,19 @@ const PilatesCalendar: React.FC = () => {
   const [weeklyDepositInfo, setWeeklyDepositInfo] = useState<UltimateWeeklyDepositInfo | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [pendingSlot, setPendingSlot] = useState<PilatesAvailableSlot | null>(null);
-  const [currentWeek, setCurrentWeek] = useState(() => {
-    // Use Greek timezone Monday of current week for synchronization with admin
-    const greekMonday = getGreekMondayOfCurrentWeek();
-    console.log('🔥🔥🔥 USER FORCE REFRESH: Using NEW Greek Monday function - Monday:', greekMonday.toISOString(), 'TIMESTAMP:', Date.now());
-    console.log('🔥🔥🔥 USER FORCE REFRESH: Day of week (should be 1 for Monday):', greekMonday.getUTCDay());
-    return greekMonday;
-  });
+  const [currentWeek, setCurrentWeek] = useState(() => new Date());
 
 
-  // Generate 2-week dates (current week + next week) - Use same logic as admin panel
+  // Generate dates από σήμερα + 15 ημέρες
   const getWeekDates = (): string[] => {
     const dates: string[] = [];
     const startDate = new Date(currentWeek);
-    
-    console.log('User: getWeekDates - currentWeek:', startDate);
-    
-    // Generate 14 days (2 εβδομάδες) - same as admin panel
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 16; i++) {
       const date = addDaysLocal(startDate, i);
       const key = toLocalDateKey(date);
-      dates.push(key);
-      console.log(`User: Day ${i}: ${key}`);
+      if (key >= toLocalDateKey(new Date())) {
+        dates.push(key);
+      }
     }
     
     return dates;
@@ -156,9 +147,15 @@ const PilatesCalendar: React.FC = () => {
   const navigateWeek = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentWeek);
     if (direction === 'prev') {
-      newDate.setDate(newDate.getDate() - 14); // βήμα 2 εβδομάδων προς τα πίσω
+      newDate.setDate(newDate.getDate() - 16); // βήμα 15 ημερών προς τα πίσω
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (newDate < today) {
+        setCurrentWeek(today);
+        return;
+      }
     } else {
-      newDate.setDate(newDate.getDate() + 14); // βήμα 2 εβδομάδων προς τα εμπρός
+      newDate.setDate(newDate.getDate() + 16); // βήμα 15 ημερών προς τα εμπρός
     }
     setCurrentWeek(newDate);
     console.log('Navigated to week:', newDate);
@@ -222,6 +219,9 @@ const PilatesCalendar: React.FC = () => {
   const weekDates = getWeekDates();
   const timeSlots = getTimeSlots();
   const todayKey = toLocalDateKey(new Date());
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const prevDisabled = currentWeek <= todayStart;
   
 
   const openConfirm = (slot: PilatesAvailableSlot) => {
@@ -274,7 +274,12 @@ const PilatesCalendar: React.FC = () => {
             <div className="flex items-center gap-1.5 py-1 min-w-0">
               <button
                 onClick={() => navigateWeek('prev')}
-                className="flex items-center px-2 sm:px-3 py-1.5 sm:py-2 text-[12px] sm:text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
+                disabled={prevDisabled}
+                className={`flex items-center px-2 sm:px-3 py-1.5 sm:py-2 text-[12px] sm:text-sm rounded-lg transition-colors whitespace-nowrap ${
+                  prevDisabled
+                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                }`}
               >
                 <ChevronLeft size={16} className="mr-1.5" />
                 Προηγούμενη
@@ -354,7 +359,12 @@ const PilatesCalendar: React.FC = () => {
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => navigateWeek('prev')}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-white bg-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-700 active:scale-[0.99]"
+              disabled={prevDisabled}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm border rounded-lg shadow-sm active:scale-[0.99] ${
+                prevDisabled
+                  ? 'text-gray-400 bg-gray-200 border-gray-200 cursor-not-allowed'
+                  : 'text-white bg-blue-600 border-blue-600 hover:bg-blue-700'
+              }`}
               aria-label="Προηγούμενη εβδομάδα"
             >
               <ChevronLeft size={16} />
@@ -429,12 +439,16 @@ const PilatesCalendar: React.FC = () => {
                       const hasSlots = hasSlotsForDateTime(dateStr, time);
                       const isToday = dateStr === todayKey;
                       const isPastDate = dateStr < todayKey; // Έλεγχος αν η ημερομηνία είναι στο παρελθόν
+                      const now = new Date();
+                      const slotMinutes = parseInt(time.split(':')[0], 10) * 60 + parseInt(time.split(':')[1], 10);
+                      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                      const isPastTime = isToday && slotMinutes <= nowMinutes;
                       
                       return (
                         <td key={`${dateStr}-${time}`} className={`px-2.5 sm:px-4 py-1.5 sm:py-3 text-center align-middle relative ${
                           isToday ? 'bg-gradient-to-r from-orange-50/60 via-pink-50/60 to-purple-50/60 border-l-2 border-orange-400' : ''
-                        } ${isPastDate ? 'bg-gray-100' : ''}`}>
-                          {isPastDate ? (
+                        } ${isPastDate || isPastTime ? 'bg-gray-100' : ''}`}>
+                          {isPastDate || isPastTime ? (
                             // Κλειδωμένες ημερομηνίες παρελθόντος
                             <div className="bg-gray-200 text-gray-500 border-gray-300 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium cursor-not-allowed opacity-60">
                               <div className="flex items-center justify-center gap-1">
@@ -501,7 +515,7 @@ const PilatesCalendar: React.FC = () => {
                             <div className="bg-red-100 text-red-800 border-red-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium cursor-not-allowed">
                               <div className="flex items-center justify-center gap-1">
                                 <XCircle size={12} className="text-red-600" />
-                                <span>Μη διαθέσιμο</span>
+                                <span>Πλήρες/Μη διαθέσιμο</span>
                               </div>
                             </div>
                           )}
@@ -529,11 +543,11 @@ const PilatesCalendar: React.FC = () => {
             </div>
             <div className="flex items-center space-x-3">
               <div className="w-4 h-4 bg-rose-50 border border-rose-200 rounded"></div>
-              <span className="text-sm text-gray-700">Πλήρες/Ακυρωμένο</span>
+              <span className="text-sm text-gray-700">Πλήρες/Μη διαθέσιμο</span>
             </div>
             <div className="flex items-center space-x-3">
               <div className="w-4 h-4 bg-neutral-100 border border-neutral-200 rounded"></div>
-              <span className="text-sm text-gray-700">Μη διαθέσιμο</span>
+              <span className="text-sm text-gray-700">Πλήρες/Μη διαθέσιμο</span>
             </div>
             <div className="flex items-center space-x-3">
               <div className="w-4 h-4 bg-gray-200 border border-gray-300 rounded opacity-60"></div>
@@ -553,9 +567,19 @@ const PilatesCalendar: React.FC = () => {
           >
             <div className="absolute inset-0 bg-black/40" onClick={closeConfirm} />
             <div className="relative bg-white w-full sm:w-[90%] max-w-md rounded-t-2xl sm:rounded-xl shadow-lg border p-5 sm:p-6 animate-in fade-in slide-in-from-bottom-4 sm:zoom-in">
-              <h4 id="confirm-title" className="text-base sm:text-lg font-semibold text-gray-800 flex items-center">
-                <XCircle size={18} className="text-rose-600 mr-2" /> Επιβεβαίωση κράτησης
-              </h4>
+              <div className="flex items-start justify-between gap-3">
+                <h4 id="confirm-title" className="text-base sm:text-lg font-semibold text-gray-800 flex items-center">
+                  <XCircle size={18} className="text-rose-600 mr-2" /> Επιβεβαίωση κράτησης
+                </h4>
+                <button
+                  type="button"
+                  onClick={closeConfirm}
+                  className="text-gray-500 hover:text-gray-800 transition-colors p-1 rounded-full"
+                  aria-label="Κλείσιμο"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
               <p id="confirm-desc" className="text-sm text-gray-700 mt-2 sm:mt-3">
                 Αν προχωρήσετε σε κράτηση, δεν θα μπορείτε να ακυρώσετε το μάθημα μετά.
               </p>

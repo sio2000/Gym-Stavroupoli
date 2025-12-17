@@ -12,13 +12,11 @@ import {
   X,
   Camera,
   Key,
-  Shield,
   Check,
   Eye,
   EyeOff,
   Upload,
   Star,
-  Clock,
   UserCheck
 } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
@@ -928,64 +926,6 @@ const Profile: React.FC = () => {
 
           {/* Modern Sidebar */}
           <div className="lg:col-span-1 space-y-8">
-            {/* Account Status Card */}
-            <div className="bg-dark-800/70 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-dark-600/20">
-              <h3 className="text-xl font-bold text-white mb-6 flex items-center">
-                <Shield className="h-6 w-6 mr-3 text-green-600" />
-                Κατάσταση Λογαριασμού
-              </h3>
-              
-              <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 rounded-2xl border border-blue-600/30">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                      <User className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-300">Ρόλος</p>
-                      <p className="text-lg font-bold text-white capitalize">{user?.role}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-2xl border border-purple-600/30">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-                      <Star className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-300">Κωδικός Παραπομπής</p>
-                      <p className="text-lg font-bold text-white font-mono">{user?.referralCode || 'Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.'}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-2xl border border-green-600/30">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                      <Calendar className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-300">Εγγραφή</p>
-                      <p className="text-lg font-bold text-white">{formatDate(user?.createdAt || '')}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-600/20 to-red-600/20 rounded-2xl border border-orange-600/30">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-300">Τελευταία Ενημέρωση</p>
-                      <p className="text-lg font-bold text-white">{formatDate(user?.updatedAt || '')}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Quick Actions Card */}
             <div className="bg-dark-800/70 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-dark-600/20">
               <h3 className="text-xl font-bold text-white mb-6 flex items-center">
@@ -994,6 +934,28 @@ const Profile: React.FC = () => {
               </h3>
               
               <div className="space-y-4">
+                <button
+                  onClick={async () => {
+                    try {
+                      if (user?.referralCode) {
+                        await navigator.clipboard.writeText(user.referralCode);
+                        toast.success('Ο κωδικός αντιγράφηκε!');
+                      } else {
+                        toast.error('Δεν βρέθηκε κωδικός παραπομπής');
+                      }
+                    } catch (err) {
+                      toast.error('Αποτυχία αντιγραφής');
+                    }
+                  }}
+                  className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-2xl font-medium hover:from-indigo-700 hover:to-purple-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <Star className="h-5 w-5" />
+                  <div className="flex flex-col items-start">
+                    <span>Προσκάλεσε φίλους</span>
+                    <span className="text-xs font-mono opacity-80">{user?.referralCode || '—'}</span>
+                  </div>
+                </button>
+
                 <button
                   onClick={() => setShowPasswordModal(true)}
                   className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-2xl font-medium hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"

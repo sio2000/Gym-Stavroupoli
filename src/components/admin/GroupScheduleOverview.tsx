@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Users, Clock, MapPin } from 'lucide-react';
-import { getAvailableGroupSlots, getGroupSlotAssignments, getDayName, formatTime } from '@/utils/groupAssignmentApi';
+import { getAvailableGroupSlots, getGroupSlotAssignments } from '@/utils/groupAssignmentApi';
 import { GroupScheduleTemplate, GroupAssignment } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -245,7 +245,7 @@ const GroupScheduleOverview: React.FC = () => {
                             
                             {!slot && (
                               <div className="text-xs text-gray-400 italic">
-                                Μη διαθέσιμο
+                                Πλήρες/Μη διαθέσιμο
                               </div>
                             )}
                           </div>
