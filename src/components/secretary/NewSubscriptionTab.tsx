@@ -64,6 +64,7 @@ const NewSubscriptionTab: React.FC = () => {
   const [installment3DueDate, setInstallment3DueDate] = useState<string>('');
   const [installment3Method, setInstallment3Method] = useState<'cash' | 'pos'>('cash');
   const [customClasses, setCustomClasses] = useState<string>('');
+  const [customDuration, setCustomDuration] = useState<string>('');
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'pos'>('cash');
@@ -147,6 +148,7 @@ const NewSubscriptionTab: React.FC = () => {
       setSelectedDurationId('');
       setCustomPrice('');
       setCustomClasses('');
+      setCustomDuration('');
       setKettlebellPoints('');
       setHasInstallments(false);
       setInstallment1Amount('');
@@ -222,6 +224,11 @@ const NewSubscriptionTab: React.FC = () => {
         }
       : undefined;
 
+    // Parse custom duration if provided (only for FreeGym and Pilates)
+    const customDurationDays = (kind === 'open_gym' || kind === 'pilates') && customDuration 
+      ? Number(customDuration) 
+      : undefined;
+
     setSubmitting(true);
     try {
       if (kind === 'pilates') {
@@ -234,7 +241,8 @@ const NewSubscriptionTab: React.FC = () => {
           hasInstallments,
           paymentMethod,
           Number(kettlebellPoints || 0),
-          installments
+          installments,
+          customDurationDays
         );
       } else if (kind === 'ultimate') {
         await createUltimateMembershipRequest(
@@ -260,7 +268,8 @@ const NewSubscriptionTab: React.FC = () => {
           selectedUser.user_id,
           paymentMethod,
           Number(kettlebellPoints || 0),
-          installments
+          installments,
+          customDurationDays
         );
       }
 
@@ -269,6 +278,7 @@ const NewSubscriptionTab: React.FC = () => {
       setSelectedPackage(null);
       setCustomPrice('');
       setCustomClasses('');
+      setCustomDuration('');
       setKettlebellPoints('');
       setHasInstallments(false);
       setInstallment1Amount('');
@@ -457,6 +467,27 @@ const NewSubscriptionTab: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {/* Custom Duration Override - Only for FreeGym and Pilates */}
+              {(detectPackageKind(selectedPackage.pkg) === 'open_gym' || detectPackageKind(selectedPackage.pkg) === 'pilates') && (
+                <div className="mt-3 bg-amber-900/20 border border-amber-600/30 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-4 w-4 text-amber-400" />
+                    <label className="text-xs text-amber-300 font-semibold">Προσαρμοσμένη διάρκεια (ημέρες)</label>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    value={customDuration}
+                    onChange={(e) => setCustomDuration(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-amber-600/50 text-white focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
+                    placeholder="π.χ. 45, 60, 90 (αφήστε κενό για default)"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Εάν συμπληρωθεί, η συνδρομή θα έχει αυτή τη διάρκεια αντί της προεπιλεγμένης.
+                  </p>
+                </div>
+              )}
 
               <div className="mt-3">
                 <label className="text-xs text-gray-300 mb-2 block">Τρόπος πληρωμής</label>

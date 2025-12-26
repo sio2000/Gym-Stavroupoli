@@ -12,10 +12,16 @@ import {
   Save,
   Sparkles,
   X,
-  Activity
+  Activity,
+  Camera,
+  Image,
+  Trash2,
+  Zap,
+  Lock,
+  TrendingUp
 } from 'lucide-react';
 // import { getAvailableQRCategories } from '@/utils/activeMemberships';
-import { addUserMetric, getUserMetrics, getUserGoals, upsertUserGoal } from '@/utils/profileUtils';
+import { addUserMetric, getUserMetrics, getUserGoals, upsertUserGoal, uploadBeforeAfterPhoto, getBeforeAfterPhotos, deleteBeforeAfterPhoto } from '@/utils/profileUtils';
 import { trackPageVisit } from '@/utils/appVisits';
 import Toast from '@/components/Toast';
 
@@ -890,7 +896,263 @@ const MobileCollapsibleSection: React.FC<{
   );
 });
 
+// Before/After Photos Component
+const BeforeAfterPhotos: React.FC<{ userId: string }> = React.memo(({ userId }) => {
+  const [beforePhoto, setBeforePhoto] = useState<string | null>(null);
+  const [afterPhoto, setAfterPhoto] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState<'before' | 'after' | null>(null);
 
+  // Load photos on mount
+  useEffect(() => {
+    const loadPhotos = async () => {
+      if (!userId) return;
+      try {
+        const photos = await getBeforeAfterPhotos(userId);
+        setBeforePhoto(photos.before || null);
+        setAfterPhoto(photos.after || null);
+      } catch (error) {
+        console.error('Error loading photos:', error);
+      }
+    };
+    loadPhotos();
+  }, [userId]);
+
+  const handleFileUpload = async (file: File | null, type: 'before' | 'after') => {
+    if (!file || !userId) return;
+
+    setUploading(type);
+    try {
+      // First, delete old photo to avoid cache issues
+      try {
+        await deleteBeforeAfterPhoto(userId, type);
+      } catch (deleteError) {
+        // Ignore delete errors (file might not exist)
+        console.log(`No existing ${type} photo to delete`);
+      }
+
+      // Clear the current photo state to avoid showing stale image
+      if (type === 'before') {
+        setBeforePhoto(null);
+      } else {
+        setAfterPhoto(null);
+      }
+
+      // Small delay to ensure state update and cache clear
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Upload new photo
+      const url = await uploadBeforeAfterPhoto(file, userId, type);
+      if (type === 'before') {
+        setBeforePhoto(url);
+      } else {
+        setAfterPhoto(url);
+      }
+    } catch (error) {
+      console.error(`Error uploading ${type} photo:`, error);
+      alert(error instanceof Error ? error.message : 'Σφάλμα κατά την ανέβασμα της φωτογραφίας');
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const handleDelete = async (type: 'before' | 'after') => {
+    if (!userId) return;
+    
+    if (!confirm(`Θέλετε να διαγράψετε τη φωτογραφία "${type === 'before' ? 'Πριν' : 'Μετά'}"?`)) {
+      return;
+    }
+    
+    try {
+      await deleteBeforeAfterPhoto(userId, type);
+      if (type === 'before') {
+        setBeforePhoto(null);
+      } else {
+        setAfterPhoto(null);
+      }
+    } catch (error) {
+      console.error(`Error deleting ${type} photo:`, error);
+      alert('Σφάλμα κατά τη διαγραφή της φωτογραφίας');
+    }
+  };
+
+  const PhotoCard: React.FC<{
+    type: 'before' | 'after';
+    photo: string | null;
+    label: string;
+    onUpload: (file: File) => void;
+    onDelete: () => void;
+    uploading: boolean;
+  }> = ({ type, photo, label, onUpload, onDelete, uploading }) => {
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const isSelectingRef = React.useRef(false);
+
+    const handleFileSelect = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!isSelectingRef.current && fileInputRef.current && !uploading) {
+        isSelectingRef.current = true;
+        fileInputRef.current.click();
+        // Reset flag after a short delay
+        setTimeout(() => {
+          isSelectingRef.current = false;
+        }, 300);
+      }
+    };
+
+    return (
+      <div className="flex-1 space-y-3">
+        <h4 className="text-sm md:text-base font-semibold text-white text-center">{label}</h4>
+        <div 
+          className="relative bg-dark-700 rounded-xl border-2 border-dashed border-dark-600 hover:border-primary-500 transition-all duration-300 overflow-hidden"
+          style={{ minHeight: '200px', aspectRatio: '3/4' }}
+        >
+          {photo ? (
+            <>
+              <img 
+                key={photo}
+                src={photo}
+                alt={label}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // If image fails to load, try to reload with fresh cache bust
+                  const img = e.target as HTMLImageElement;
+                  const currentSrc = img.src.split('?')[0];
+                  img.src = `${currentSrc}?t=${Date.now()}`;
+                }}
+              />
+              <div className="absolute bottom-2 right-2 flex items-center gap-2">
+                <button
+                  onClick={handleFileSelect}
+                  className="p-2 md:p-2.5 bg-primary-600 rounded-lg hover:bg-primary-700 active:bg-primary-800 transition-colors shadow-lg"
+                  disabled={uploading}
+                  title="Αλλαγή φωτογραφίας"
+                >
+                  <Camera className="h-4 w-4 md:h-5 md:w-5 text-white" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  className="p-2 md:p-2.5 bg-red-600 rounded-lg hover:bg-red-700 active:bg-red-800 transition-colors shadow-lg"
+                  disabled={uploading}
+                  title="Διαγραφή φωτογραφίας"
+                >
+                  <Trash2 className="h-4 w-4 md:h-5 md:w-5 text-white" />
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center p-4">
+              {uploading ? (
+                <div className="text-white text-sm">Ανέβασμα...</div>
+              ) : (
+                <>
+                  <Image className="h-12 w-12 md:h-16 md:w-16 text-gray-400 mb-3" />
+                  <button
+                    onClick={handleFileSelect}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium flex items-center gap-2"
+                    disabled={uploading}
+                  >
+                    <Camera className="h-4 w-4" />
+                    Προσθήκη Φωτογραφίας
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                onUpload(file);
+                // Reset input value to allow selecting the same file again if needed
+                e.target.value = '';
+              }
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4 md:space-y-6">
+      {/* Header with animated icon */}
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 mb-6">
+        <div className="p-4 md:p-5 bg-gradient-to-br from-purple-600/30 via-pink-500/30 to-purple-500/30 rounded-2xl md:rounded-3xl shadow-xl border border-purple-500/30 hover:scale-110 transition-transform duration-300 animate-pulse">
+          <Camera className="h-6 w-6 md:h-8 md:w-8 text-purple-300" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 md:gap-3 mb-3">
+            <h2 className="text-xl md:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 via-pink-300 to-purple-300 bg-clip-text text-transparent">
+              Φωτογραφίες Πριν & Μετά
+            </h2>
+            <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-yellow-400 animate-pulse" />
+          </div>
+          
+          {/* Beautiful info card */}
+          <div className="relative bg-gradient-to-r from-purple-600/20 via-pink-600/20 to-purple-600/20 rounded-xl md:rounded-2xl p-4 md:p-5 border border-purple-500/30 backdrop-blur-sm overflow-hidden">
+            {/* Decorative gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none"></div>
+            
+            {/* Content */}
+            <div className="relative z-10">
+              <div className="flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
+                {/* Left side with icons */}
+                <div className="flex items-center md:items-start gap-3 flex-shrink-0">
+                  <div className="p-2 bg-purple-500/30 rounded-lg">
+                    <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-purple-300" />
+                  </div>
+                  <div className="p-2 bg-pink-500/30 rounded-lg">
+                    <Zap className="h-5 w-5 md:h-6 md:w-6 text-pink-300" />
+                  </div>
+                </div>
+                
+                {/* Text content */}
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm md:text-base text-white font-medium leading-relaxed">
+                    <span className="text-purple-300 font-semibold">✨ Καταγράψε τη μεταμόρφωσή σου!</span> 
+                    <br className="hidden md:block" /> 
+                    Ανέβασε φωτογραφίες <span className="text-pink-300 font-semibold">πριν ξεκινήσεις</span> και καθώς προχωράς για να βλέπεις <span className="text-yellow-300 font-semibold">οπτικά την πρόοδό σου</span>.
+                  </p>
+                  <div className="flex items-center gap-2 text-xs md:text-sm text-gray-300 bg-dark-700/50 rounded-lg px-3 py-2 w-fit border border-dark-600/50">
+                    <Lock className="h-3 w-3 md:h-4 md:w-4 text-purple-400" />
+                    <span>Οι φωτογραφίες είναι <span className="text-purple-300 font-semibold">ιδιωτικές</span> και ορατές <span className="text-purple-300 font-semibold">μόνο από εσένα</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <PhotoCard
+          type="before"
+          photo={beforePhoto}
+          label="Πριν"
+          onUpload={(file) => handleFileUpload(file, 'before')}
+          onDelete={() => handleDelete('before')}
+          uploading={uploading === 'before'}
+        />
+        <PhotoCard
+          type="after"
+          photo={afterPhoto}
+          label="Μετά"
+          onUpload={(file) => handleFileUpload(file, 'after')}
+          onDelete={() => handleDelete('after')}
+          uploading={uploading === 'after'}
+        />
+      </div>
+    </div>
+  );
+});
 
 const Dashboard: React.FC = React.memo(() => {
   const { user } = useAuth();
@@ -1339,6 +1601,22 @@ const Dashboard: React.FC = React.memo(() => {
             <StatCard key={index} {...stat} index={index} />
         ))}
       </div>
+
+        {/* Before/After Photos Section */}
+        <div 
+          className="mb-8 md:mb-12"
+          style={{
+            animation: 'fadeInUp 0.8s ease-out 0.3s forwards',
+            opacity: 0,
+            transform: 'translateY(30px)'
+          }}
+        >
+          <div 
+            className="bg-dark-800 rounded-2xl md:rounded-3xl shadow-2xl border border-dark-600 p-4 md:p-8 hover:shadow-3xl hover:-translate-y-1 transition-all duration-500"
+          >
+            <BeforeAfterPhotos userId={user?.id || ''} />
+          </div>
+        </div>
 
         {/* Progress Towards Goals - Enhanced */}
         <div 

@@ -28,7 +28,8 @@ import {
   getDurationDisplayText,
   formatPrice,
   createPilatesMembershipRequest,
-  createUltimateMembershipRequest
+  createUltimateMembershipRequest,
+  getSmartDurationLabel
 } from '@/utils/membershipApi';
 import { getActiveBanners, Banner } from '@/utils/bannersApi';
 import { isInstallmentsEligible } from '@/utils/installmentsEligibility';
@@ -481,7 +482,7 @@ const MembershipPage: React.FC = React.memo(() => {
                         {membership.package?.name}
                       </h3>
                       <p className="text-primary-700">
-                        {getDurationLabel(membership.duration_type)}
+                        {getSmartDurationLabel(membership.duration_type, membership.start_date, membership.end_date)}
                       </p>
                     </div>
                   </div>

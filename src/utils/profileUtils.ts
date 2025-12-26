@@ -390,3 +390,136 @@ export async function getChallenges(userId: string) {
   if (error) throw error;
   return data || [];
 }
+
+// ===== Before/After Photos API =====
+export const uploadBeforeAfterPhoto = async (
+  file: File, 
+  userId: string, 
+  type: 'before' | 'after'
+): Promise<string> => {
+  try {
+    console.log(`[ProfileUtils] Uploading ${type} photo:`, file.name, 'Size:', file.size);
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Παρακαλώ επιλέξτε ένα αρχείο εικόνας');
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Το αρχείο είναι πολύ μεγάλο. Μέγιστο μέγεθος: 5MB');
+    }
+    
+    // Validate user ID
+    if (!userId) {
+      throw new Error('Λάθος αναγνωριστικό χρήστη');
+    }
+    
+    // Upload to Supabase Storage (using profile-photos bucket for consistency)
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileName = `${userId}/${type}_photo.${fileExt}`;
+    
+    console.log(`[ProfileUtils] Uploading to:`, fileName);
+    
+    const { data: uploadData, error } = await supabase.storage
+      .from('profile-photos')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+    if (error) {
+      console.error(`[ProfileUtils] Upload error:`, error);
+      throw new Error(`Σφάλμα αποθήκευσης: ${error.message}`);
+    }
+
+    console.log(`[ProfileUtils] Upload successful, data:`, uploadData);
+
+    // Get public URL with cache busting to ensure fresh image
+    const { data: { publicUrl } } = supabase.storage
+      .from('profile-photos')
+      .getPublicUrl(fileName);
+
+    // Add cache busting parameter to force browser to reload the image
+    const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
+
+    console.log(`[ProfileUtils] Public URL:`, cacheBustedUrl);
+    return cacheBustedUrl;
+  } catch (error) {
+    console.error(`[ProfileUtils] Error uploading ${type} photo:`, error);
+    if (error instanceof Error && (error.message.startsWith('Παρακαλώ') || error.message.startsWith('Το αρχείο') || error.message.startsWith('Σφάλμα'))) {
+      throw error;
+    }
+    throw new Error(`Σφάλμα κατά την αποθήκευση της φωτογραφίας`);
+  }
+};
+
+export const getBeforeAfterPhotos = async (userId: string): Promise<{ before?: string; after?: string }> => {
+  try {
+    // Try to get before photo
+    const beforeExts = ['jpg', 'jpeg', 'png', 'webp'];
+    const afterExts = ['jpg', 'jpeg', 'png', 'webp'];
+    
+    let beforeUrl: string | undefined;
+    let afterUrl: string | undefined;
+    
+    // Try to find before photo
+    for (const ext of beforeExts) {
+      const fileName = `${userId}/before_photo.${ext}`;
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile-photos')
+        .getPublicUrl(fileName);
+      
+      // Check if file exists by trying to fetch it
+      const response = await fetch(publicUrl, { method: 'HEAD' });
+      if (response.ok) {
+        // Add cache busting parameter
+        beforeUrl = `${publicUrl}?t=${Date.now()}`;
+        break;
+      }
+    }
+    
+    // Try to find after photo
+    for (const ext of afterExts) {
+      const fileName = `${userId}/after_photo.${ext}`;
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile-photos')
+        .getPublicUrl(fileName);
+      
+      // Check if file exists by trying to fetch it
+      const response = await fetch(publicUrl, { method: 'HEAD' });
+      if (response.ok) {
+        // Add cache busting parameter
+        afterUrl = `${publicUrl}?t=${Date.now()}`;
+        break;
+      }
+    }
+    
+    return { before: beforeUrl, after: afterUrl };
+  } catch (error) {
+    console.error('[ProfileUtils] Error getting before/after photos:', error);
+    return {};
+  }
+};
+
+export const deleteBeforeAfterPhoto = async (userId: string, type: 'before' | 'after'): Promise<void> => {
+  try {
+    const exts = ['jpg', 'jpeg', 'png', 'webp'];
+    const filesToDelete = exts.map(ext => `${userId}/${type}_photo.${ext}`);
+    
+    const { error } = await supabase.storage
+      .from('profile-photos')
+      .remove(filesToDelete);
+
+    if (error) {
+      console.error(`[ProfileUtils] Error deleting ${type} photo:`, error);
+      // Don't throw if file doesn't exist
+      if (!error.message.includes('not found')) {
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error(`[ProfileUtils] Error deleting ${type} photo:`, error);
+    throw error;
+  }
+};

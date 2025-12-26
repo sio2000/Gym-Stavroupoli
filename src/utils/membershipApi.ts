@@ -125,11 +125,13 @@ const buildInstallmentPayload = (installments?: InstallmentInput) => {
 const ensureActiveMembership = async ({
   userId,
   packageId,
-  durationType
+  durationType,
+  customDurationDays
 }: {
   userId: string;
   packageId: string;
   durationType: string;
+  customDurationDays?: number;
 }): Promise<{ startDate: string; endDate: string }> => {
   try {
     // Normalize duration to satisfy DB constraint (Ultimate Medium -> ultimate_1year)
@@ -156,8 +158,9 @@ const ensureActiveMembership = async ({
       console.warn('[MembershipAPI] Duration row not found for immediate membership insert:', durationError);
     }
 
+    // Use custom duration if provided, otherwise fallback to default logic
     // Fallback: Ultimate/Medium => 365 days, else 30 if missing
-    const durationDays = durationRow?.duration_days ?? (isUltimate ? 365 : 30);
+    const durationDays = customDurationDays || durationRow?.duration_days || (isUltimate ? 365 : 30);
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     const end = new Date(start);
@@ -351,7 +354,8 @@ export const createMembershipRequest = async (
   userIdOverride?: string,
   paymentMethod: 'cash' | 'pos' = 'cash',
   kettlebellPoints?: number,
-  installments?: InstallmentInput
+  installments?: InstallmentInput,
+  customDurationDays?: number
 ): Promise<boolean> => {
   try {
     let targetUserId = userIdOverride;
@@ -382,7 +386,8 @@ export const createMembershipRequest = async (
     await ensureActiveMembership({
       userId: targetUserId,
       packageId,
-      durationType
+      durationType,
+      customDurationDays
     });
 
     if (requestedPrice && !Number.isNaN(requestedPrice)) {
@@ -959,6 +964,31 @@ export const getDurationDisplayText = (durationType: string, durationDays: numbe
   }
 };
 
+// Get smart duration label that shows actual days if custom, otherwise default label
+export const getSmartDurationLabel = (durationType: string, startDate?: string, endDate?: string): string => {
+  // If we don't have dates, return the default label
+  if (!startDate || !endDate) {
+    return getDurationLabel(durationType);
+  }
+
+  // Calculate actual duration in days
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const actualDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Get the expected default duration for this duration type
+  const defaultDays = getDurationDays(durationType);
+
+  // If actual days differ significantly from default (more than 3 days difference), show actual days
+  if (Math.abs(actualDays - defaultDays) > 3) {
+    // It's a custom duration - show the actual days
+    return `${actualDays} ημέρες`;
+  }
+
+  // Otherwise return the standard label
+  return getDurationLabel(durationType);
+};
+
 export const updateMembershipPackageDuration = async (
   durationId: string, 
   price: number
@@ -1037,7 +1067,8 @@ export const createPilatesMembershipRequest = async (
   hasInstallments: boolean = false,
   paymentMethod: 'cash' | 'pos' = 'cash',
   kettlebellPoints?: number,
-  installments?: InstallmentInput
+  installments?: InstallmentInput,
+  customDurationDays?: number
 ): Promise<boolean> => {
   try {
     let actualUserId = userId;
@@ -1153,7 +1184,8 @@ export const createPilatesMembershipRequest = async (
     const membershipDates = await ensureActiveMembership({
       userId: actualUserId,
       packageId: actualPackageId,
-      durationType
+      durationType,
+      customDurationDays
     });
 
     await addPilatesDeposit({
