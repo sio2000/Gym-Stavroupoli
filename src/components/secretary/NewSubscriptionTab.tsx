@@ -11,7 +11,8 @@ import {
   Euro,
   ListChecks,
   Zap,
-  Coins
+  Coins,
+  Dumbbell
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -21,7 +22,8 @@ import {
   getUltimatePackageDurations,
   createMembershipRequest,
   createPilatesMembershipRequest,
-  createUltimateMembershipRequest
+  createUltimateMembershipRequest,
+  createPersonalTrainingSubscription
 } from '@/utils/membershipApi';
 import { searchUsers, UserInfo } from '@/utils/userInfoApi';
 import { MembershipPackage, MembershipPackageDuration } from '@/types';
@@ -69,6 +71,13 @@ const NewSubscriptionTab: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'pos'>('cash');
 
+  // Personal Training states
+  const [isPersonalTraining, setIsPersonalTraining] = useState(false);
+  const [ptPrice, setPtPrice] = useState<string>('');
+  const [ptKettlebellPoints, setPtKettlebellPoints] = useState<string>('');
+  const [ptClasses, setPtClasses] = useState<string>('');
+  const [ptPaymentMethod, setPtPaymentMethod] = useState<'cash' | 'pos'>('cash');
+
   // Load packages once
   useEffect(() => {
     const loadPkgs = async () => {
@@ -114,7 +123,28 @@ const NewSubscriptionTab: React.FC = () => {
     }
   };
 
+  const selectPersonalTraining = () => {
+    setIsPersonalTraining(true);
+    setSelectedPackage(null);
+    setSelectedDurationId('');
+    setCustomPrice('');
+    setCustomClasses('');
+    setCustomDuration('');
+    setKettlebellPoints('');
+    setHasInstallments(false);
+  };
+
+  const deselectPersonalTraining = () => {
+    setIsPersonalTraining(false);
+    setPtPrice('');
+    setPtKettlebellPoints('');
+    setPtClasses('');
+    setPtPaymentMethod('cash');
+  };
+
   const loadDurations = async (pkg: MembershipPackage) => {
+    // Deselect PT when selecting a regular package
+    deselectPersonalTraining();
     try {
       let durations: MembershipPackageDuration[] = [];
       const kind = detectPackageKind(pkg);
@@ -382,38 +412,167 @@ const NewSubscriptionTab: React.FC = () => {
             ) : packages.length === 0 ? (
               <div className="text-sm text-gray-400">Δεν υπάρχουν διαθέσιμα πακέτα</div>
             ) : (
-              packages.map((pkg) => {
-                const kind = detectPackageKind(pkg);
-                if (kind === 'personal') {
+              <>
+                {packages.map((pkg) => {
+                  const kind = detectPackageKind(pkg);
+                  if (kind === 'personal') {
+                    return null; // Hide from regular packages, we have separate PT option
+                  }
                   return (
-                    <div key={pkg.id} className="px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-gray-300 text-sm flex items-center justify-between">
-                      <span>{pkg.name} (μόνο admin)</span>
-                      <AlertCircle className="h-4 w-4 text-amber-400" />
-                    </div>
-                  );
-                }
-                return (
-                  <button
-                    key={pkg.id}
-                    onClick={() => loadDurations(pkg)}
-                    className={`w-full text-left px-3 py-2 rounded-lg border text-sm ${
-                      selectedPackage?.pkg.id === pkg.id
-                        ? 'border-green-500 bg-green-900/30 text-white'
-                        : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold">{pkg.name}</div>
-                        <div className="text-xs text-gray-400">{pkg.description}</div>
+                    <button
+                      key={pkg.id}
+                      onClick={() => loadDurations(pkg)}
+                      className={`w-full text-left px-3 py-2 rounded-lg border text-sm ${
+                        selectedPackage?.pkg.id === pkg.id && !isPersonalTraining
+                          ? 'border-green-500 bg-green-900/30 text-white'
+                          : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-green-500'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-semibold">{pkg.name}</div>
+                          <div className="text-xs text-gray-400">{pkg.description}</div>
+                        </div>
+                        <Euro className="h-4 w-4 text-green-400" />
                       </div>
-                      <Euro className="h-4 w-4 text-green-400" />
+                    </button>
+                  );
+                })}
+                
+                {/* Personal Training Option */}
+                <button
+                  onClick={selectPersonalTraining}
+                  className={`w-full text-left px-3 py-2 rounded-lg border text-sm ${
+                    isPersonalTraining
+                      ? 'border-purple-500 bg-purple-900/30 text-white'
+                      : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-purple-500'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold">Personal Training</div>
+                      <div className="text-xs text-gray-400">Ατομικά μαθήματα με προπονητή</div>
                     </div>
-                  </button>
-                );
-              })
+                    <Dumbbell className="h-4 w-4 text-purple-400" />
+                  </div>
+                </button>
+              </>
             )}
           </div>
+
+          {/* Personal Training Fields */}
+          {isPersonalTraining && (
+            <div className="space-y-4 mt-4 bg-purple-900/20 border border-purple-600/30 rounded-xl p-4">
+              <div className="flex items-center space-x-2">
+                <Dumbbell className="h-5 w-5 text-purple-400" />
+                <h5 className="font-semibold text-white">Personal Training - Στοιχεία</h5>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs text-purple-200 font-medium">Τιμή (€) *</label>
+                  <input
+                    type="number"
+                    value={ptPrice}
+                    onChange={(e) => setPtPrice(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 rounded-lg bg-gray-900 border border-purple-600/50 text-white focus:ring-2 focus:ring-purple-500"
+                    placeholder="π.χ. 150"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-purple-200 font-medium">Μαθήματα *</label>
+                  <input
+                    type="number"
+                    value={ptClasses}
+                    onChange={(e) => setPtClasses(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 rounded-lg bg-gray-900 border border-purple-600/50 text-white focus:ring-2 focus:ring-purple-500"
+                    placeholder="π.χ. 10"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-purple-200 font-medium">Kettlebell Points</label>
+                  <input
+                    type="number"
+                    value={ptKettlebellPoints}
+                    onChange={(e) => setPtKettlebellPoints(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 rounded-lg bg-gray-900 border border-purple-600/50 text-white focus:ring-2 focus:ring-purple-500"
+                    placeholder="π.χ. 20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-purple-200 font-medium mb-2 block">Τρόπος πληρωμής</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['cash', 'pos'] as const).map(method => (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => setPtPaymentMethod(method)}
+                      className={`w-full px-3 py-2 rounded-lg border ${
+                        ptPaymentMethod === method
+                          ? 'bg-purple-600 border-purple-400 text-white'
+                          : 'bg-gray-900 border-gray-700 text-gray-200 hover:border-purple-500'
+                      }`}
+                    >
+                      {method === 'cash' ? 'Μετρητά' : 'POS'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                disabled={submitting || !selectedUser || !ptPrice || !ptClasses}
+                onClick={async () => {
+                  if (!selectedUser) {
+                    toast.error('Επίλεξε χρήστη');
+                    return;
+                  }
+                  const price = Number(ptPrice || 0);
+                  const classes = Number(ptClasses || 0);
+                  const kbPoints = Number(ptKettlebellPoints || 0);
+                  
+                  if (!price || price <= 0) {
+                    toast.error('Συμπλήρωσε έγκυρη τιμή');
+                    return;
+                  }
+                  if (!classes || classes <= 0) {
+                    toast.error('Συμπλήρωσε αριθμό μαθημάτων');
+                    return;
+                  }
+                  
+                  setSubmitting(true);
+                  try {
+                    const success = await createPersonalTrainingSubscription({
+                      userId: selectedUser.user_id,
+                      price,
+                      classes,
+                      kettlebellPoints: kbPoints || undefined,
+                      paymentMethod: ptPaymentMethod
+                    });
+                    
+                    if (success) {
+                      // Reset PT fields
+                      setPtPrice('');
+                      setPtClasses('');
+                      setPtKettlebellPoints('');
+                      setPtPaymentMethod('cash');
+                      setIsPersonalTraining(false);
+                    }
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+                className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors disabled:opacity-60"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                Καταχώρηση Personal Training
+              </button>
+              <p className="text-xs text-gray-400">
+                * Υποχρεωτικά πεδία. Η καταχώρηση γίνεται άμεσα χωρίς δόσεις/διάρκεια.
+              </p>
+            </div>
+          )}
 
           {/* Durations */}
           {selectedPackage && (

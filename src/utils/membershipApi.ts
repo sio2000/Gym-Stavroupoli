@@ -1816,3 +1816,74 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
     return false;
   }
 };
+
+// ===== PERSONAL TRAINING SUBSCRIPTION (Secretary) =====
+
+export const createPersonalTrainingSubscription = async ({
+  userId,
+  price,
+  classes,
+  kettlebellPoints,
+  paymentMethod
+}: {
+  userId: string;
+  price: number;
+  classes: number;
+  kettlebellPoints?: number;
+  paymentMethod: 'cash' | 'pos';
+}): Promise<boolean> => {
+  try {
+    console.log('[MembershipAPI] Creating Personal Training subscription:', {
+      userId,
+      price,
+      classes,
+      kettlebellPoints,
+      paymentMethod
+    });
+
+    // 1. Add cash/pos transaction for payment
+    if (price && !Number.isNaN(price) && price > 0) {
+      const { data: authUser } = await supabase.auth.getUser();
+      const createdBy = authUser?.user?.id || '00000000-0000-0000-0000-000000000001';
+      
+      const { error: cashError } = await supabase.from('user_cash_transactions').insert({
+        user_id: userId,
+        amount: price.toFixed(2),
+        transaction_type: paymentMethod,
+        program_id: null,
+        notes: `Personal Training - ${classes} μαθήματα`,
+        created_by: createdBy
+      });
+      
+      if (cashError) {
+        console.error('[MembershipAPI] Error inserting PT cash transaction:', cashError);
+        throw cashError;
+      }
+    }
+
+    // 2. Add kettlebell points if provided
+    if (kettlebellPoints && !Number.isNaN(kettlebellPoints) && kettlebellPoints > 0) {
+      const { data: authUser } = await supabase.auth.getUser();
+      const createdBy = authUser?.user?.id || null;
+      
+      const { error: kbError } = await supabase.from('user_kettlebell_points').insert({
+        user_id: userId,
+        points: kettlebellPoints,
+        program_id: null,
+        created_by: createdBy
+      });
+      
+      if (kbError) {
+        console.error('[MembershipAPI] Error inserting kettlebell points for PT:', kbError);
+        throw kbError;
+      }
+    }
+
+    toast.success(`Personal Training καταχωρήθηκε: ${classes} μαθήματα για €${price.toFixed(2)}`);
+    return true;
+  } catch (error) {
+    console.error('[MembershipAPI] Error creating Personal Training subscription:', error);
+    toast.error('Σφάλμα κατά την καταχώρηση Personal Training');
+    return false;
+  }
+};

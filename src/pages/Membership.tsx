@@ -588,11 +588,11 @@ const MembershipPage: React.FC = React.memo(() => {
           <div className="text-center text-gray-500 py-6">Δεν υπάρχουν διαθέσιμα banners.</div>
         ) : (
           <div className="px-4 py-5">
-            <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
+            <div className="flex flex-col gap-4">
               {banners.map((banner, index) => (
                 <div
                   key={banner.id}
-                  className="group relative rounded-3xl border border-gray-100 shadow-2xl bg-white min-w-[260px] sm:min-w-[320px] md:min-w-[340px] snap-start overflow-hidden hover:-translate-y-1 hover:shadow-3xl transition-all duration-300"
+                  className="group relative rounded-3xl border border-gray-100 shadow-2xl bg-white w-full overflow-hidden hover:-translate-y-1 hover:shadow-3xl transition-all duration-300"
                   style={{ animation: 'fadeInUp 0.5s ease', animationDelay: `${index * 80}ms` }}
                 >
                   <button
