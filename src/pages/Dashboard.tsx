@@ -7,6 +7,7 @@ import {
   Ruler,
   Heart,
   ChevronDown,
+  ChevronRight,
   Moon,
   Dumbbell,
   Save,
@@ -896,12 +897,12 @@ const MobileCollapsibleSection: React.FC<{
   );
 });
 
-// Before/After Photos Component
+// Before/After Photos Component - Clean & Minimal
 const BeforeAfterPhotos: React.FC<{ userId: string }> = React.memo(({ userId }) => {
   const [beforePhoto, setBeforePhoto] = useState<string | null>(null);
   const [afterPhoto, setAfterPhoto] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState<'before' | 'after' | null>(null);
+  const [fullscreenImage, setFullscreenImage] = useState<{ url: string; label: string } | null>(null);
 
   // Load photos on mount
   useEffect(() => {
@@ -923,25 +924,20 @@ const BeforeAfterPhotos: React.FC<{ userId: string }> = React.memo(({ userId }) 
 
     setUploading(type);
     try {
-      // First, delete old photo to avoid cache issues
       try {
         await deleteBeforeAfterPhoto(userId, type);
       } catch (deleteError) {
-        // Ignore delete errors (file might not exist)
         console.log(`No existing ${type} photo to delete`);
       }
 
-      // Clear the current photo state to avoid showing stale image
       if (type === 'before') {
         setBeforePhoto(null);
       } else {
         setAfterPhoto(null);
       }
 
-      // Small delay to ensure state update and cache clear
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Upload new photo
       const url = await uploadBeforeAfterPhoto(file, userId, type);
       if (type === 'before') {
         setBeforePhoto(url);
@@ -976,6 +972,40 @@ const BeforeAfterPhotos: React.FC<{ userId: string }> = React.memo(({ userId }) 
     }
   };
 
+  // Fullscreen Modal Component
+  const FullscreenModal = () => {
+    if (!fullscreenImage) return null;
+    
+    return (
+      <div 
+        className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center"
+        onClick={() => setFullscreenImage(null)}
+      >
+        {/* Close button */}
+        <button
+          onClick={() => setFullscreenImage(null)}
+          className="absolute top-4 right-4 z-10 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+        >
+          <X className="h-6 w-6 text-white" />
+        </button>
+        
+        {/* Label */}
+        <div className="absolute top-4 left-4 z-10 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full">
+          <span className="text-white font-medium">{fullscreenImage.label}</span>
+        </div>
+        
+        {/* Image */}
+        <img
+          src={fullscreenImage.url}
+          alt={fullscreenImage.label}
+          className="max-w-full max-h-full object-contain p-4"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+    );
+  };
+
+  // Photo Card Component
   const PhotoCard: React.FC<{
     type: 'before' | 'after';
     photo: string | null;
@@ -993,75 +1023,113 @@ const BeforeAfterPhotos: React.FC<{ userId: string }> = React.memo(({ userId }) 
       if (!isSelectingRef.current && fileInputRef.current && !uploading) {
         isSelectingRef.current = true;
         fileInputRef.current.click();
-        // Reset flag after a short delay
         setTimeout(() => {
           isSelectingRef.current = false;
         }, 300);
       }
     };
 
+    const openFullscreen = () => {
+      if (photo) {
+        setFullscreenImage({ url: photo, label });
+      }
+    };
+
     return (
-      <div className="flex-1 space-y-3">
-        <h4 className="text-sm md:text-base font-semibold text-white text-center">{label}</h4>
+      <div className="flex-1 min-w-0">
+        {/* Label */}
+        <div className="text-center mb-2">
+          <span className={`text-xs font-bold uppercase tracking-wider ${
+            type === 'before' ? 'text-blue-400' : 'text-green-400'
+          }`}>
+            {label}
+          </span>
+        </div>
+        
+        {/* Photo Container */}
         <div 
-          className="relative bg-dark-700 rounded-xl border-2 border-dashed border-dark-600 hover:border-primary-500 transition-all duration-300 overflow-hidden"
-          style={{ minHeight: '200px', aspectRatio: '3/4' }}
+          className={`relative bg-dark-700 rounded-xl overflow-hidden border-2 ${
+            type === 'before' 
+              ? 'border-blue-500/30 hover:border-blue-500/50' 
+              : 'border-green-500/30 hover:border-green-500/50'
+          } transition-all duration-200`}
+          style={{ aspectRatio: '3/4' }}
         >
           {photo ? (
             <>
+              {/* Image */}
               <img 
                 key={photo}
                 src={photo}
                 alt={label}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  // If image fails to load, try to reload with fresh cache bust
                   const img = e.target as HTMLImageElement;
                   const currentSrc = img.src.split('?')[0];
                   img.src = `${currentSrc}?t=${Date.now()}`;
                 }}
               />
-              <div className="absolute bottom-2 right-2 flex items-center gap-2">
+              
+              {/* Gradient overlay - pointer-events-none so clicks pass through */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none"></div>
+              
+              {/* Fullscreen button - Top right */}
+              <button
+                onClick={openFullscreen}
+                className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 rounded-lg transition-colors active:scale-95"
+                title="Προβολή σε πλήρη οθόνη"
+              >
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+              </button>
+              
+              {/* Action Buttons at bottom */}
+              <div className="absolute bottom-2 left-2 right-2 flex justify-center gap-2">
                 <button
                   onClick={handleFileSelect}
-                  className="p-2 md:p-2.5 bg-primary-600 rounded-lg hover:bg-primary-700 active:bg-primary-800 transition-colors shadow-lg"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-white/20 backdrop-blur-sm rounded-lg text-white text-xs font-medium hover:bg-white/30 active:scale-95 transition-all"
                   disabled={uploading}
-                  title="Αλλαγή φωτογραφίας"
                 >
-                  <Camera className="h-4 w-4 md:h-5 md:w-5 text-white" />
+                  <Camera className="h-3.5 w-3.5" />
+                  Αλλαγή
                 </button>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                  }}
-                  className="p-2 md:p-2.5 bg-red-600 rounded-lg hover:bg-red-700 active:bg-red-800 transition-colors shadow-lg"
+                  onClick={onDelete}
+                  className="py-2 px-3 bg-red-500/40 backdrop-blur-sm rounded-lg text-red-200 hover:bg-red-500/60 active:scale-95 transition-all"
                   disabled={uploading}
-                  title="Διαγραφή φωτογραφίας"
                 >
-                  <Trash2 className="h-4 w-4 md:h-5 md:w-5 text-white" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             </>
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center p-4">
+            <div 
+              className="w-full h-full flex flex-col items-center justify-center p-3 cursor-pointer"
+              onClick={handleFileSelect}
+            >
               {uploading ? (
-                <div className="text-white text-sm">Ανέβασμα...</div>
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 border-2 border-gray-500 border-t-white rounded-full animate-spin"></div>
+                  <span className="text-gray-400 text-xs">Ανέβασμα...</span>
+                </div>
               ) : (
                 <>
-                  <Image className="h-12 w-12 md:h-16 md:w-16 text-gray-400 mb-3" />
-                  <button
-                    onClick={handleFileSelect}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium flex items-center gap-2"
-                    disabled={uploading}
-                  >
-                    <Camera className="h-4 w-4" />
-                    Προσθήκη Φωτογραφίας
-                  </button>
+                  <div className={`p-3 mb-2 rounded-xl border-2 border-dashed ${
+                    type === 'before' 
+                      ? 'border-blue-500/40 bg-blue-500/10' 
+                      : 'border-green-500/40 bg-green-500/10'
+                  }`}>
+                    <Image className="h-6 w-6 md:h-8 md:w-8 text-gray-500" />
+                  </div>
+                  <span className="text-gray-400 text-xs text-center">
+                    Πάτα για προσθήκη
+                  </span>
                 </>
               )}
             </div>
           )}
+          
           <input
             ref={fileInputRef}
             type="file"
@@ -1071,7 +1139,6 @@ const BeforeAfterPhotos: React.FC<{ userId: string }> = React.memo(({ userId }) 
               const file = e.target.files?.[0];
               if (file) {
                 onUpload(file);
-                // Reset input value to allow selecting the same file again if needed
                 e.target.value = '';
               }
             }}
@@ -1082,75 +1149,74 @@ const BeforeAfterPhotos: React.FC<{ userId: string }> = React.memo(({ userId }) 
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Header with animated icon */}
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 mb-6">
-        <div className="p-4 md:p-5 bg-gradient-to-br from-purple-600/30 via-pink-500/30 to-purple-500/30 rounded-2xl md:rounded-3xl shadow-xl border border-purple-500/30 hover:scale-110 transition-transform duration-300 animate-pulse">
-          <Camera className="h-6 w-6 md:h-8 md:w-8 text-purple-300" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 md:gap-3 mb-3">
-            <h2 className="text-xl md:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 via-pink-300 to-purple-300 bg-clip-text text-transparent">
-              Φωτογραφίες Πριν & Μετά
+    <>
+      {/* Fullscreen Modal */}
+      <FullscreenModal />
+      
+      <div className="space-y-4">
+        {/* Simple Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Camera className="h-5 w-5 text-purple-400" />
+            <h2 className="text-lg font-bold text-white">
+              Πριν & Μετά
             </h2>
-            <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-yellow-400 animate-pulse" />
           </div>
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <Lock className="h-3 w-3" />
+            <span className="hidden sm:inline">Ιδιωτικό</span>
+          </div>
+        </div>
+
+        {/* Side by Side Photos - Always visible */}
+        <div className="flex gap-3">
+          <PhotoCard
+            type="before"
+            photo={beforePhoto}
+            label="Πριν"
+            onUpload={(file) => handleFileUpload(file, 'before')}
+            onDelete={() => handleDelete('before')}
+            uploading={uploading === 'before'}
+          />
           
-          {/* Beautiful info card */}
-          <div className="relative bg-gradient-to-r from-purple-600/20 via-pink-600/20 to-purple-600/20 rounded-xl md:rounded-2xl p-4 md:p-5 border border-purple-500/30 backdrop-blur-sm overflow-hidden">
-            {/* Decorative gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none"></div>
-            
-            {/* Content */}
-            <div className="relative z-10">
-              <div className="flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
-                {/* Left side with icons */}
-                <div className="flex items-center md:items-start gap-3 flex-shrink-0">
-                  <div className="p-2 bg-purple-500/30 rounded-lg">
-                    <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-purple-300" />
-                  </div>
-                  <div className="p-2 bg-pink-500/30 rounded-lg">
-                    <Zap className="h-5 w-5 md:h-6 md:w-6 text-pink-300" />
-                  </div>
-                </div>
-                
-                {/* Text content */}
-                <div className="flex-1 space-y-2">
-                  <p className="text-sm md:text-base text-white font-medium leading-relaxed">
-                    <span className="text-purple-300 font-semibold">✨ Καταγράψε τη μεταμόρφωσή σου!</span> 
-                    <br className="hidden md:block" /> 
-                    Ανέβασε φωτογραφίες <span className="text-pink-300 font-semibold">πριν ξεκινήσεις</span> και καθώς προχωράς για να βλέπεις <span className="text-yellow-300 font-semibold">οπτικά την πρόοδό σου</span>.
-                  </p>
-                  <div className="flex items-center gap-2 text-xs md:text-sm text-gray-300 bg-dark-700/50 rounded-lg px-3 py-2 w-fit border border-dark-600/50">
-                    <Lock className="h-3 w-3 md:h-4 md:w-4 text-purple-400" />
-                    <span>Οι φωτογραφίες είναι <span className="text-purple-300 font-semibold">ιδιωτικές</span> και ορατές <span className="text-purple-300 font-semibold">μόνο από εσένα</span></span>
-                  </div>
-                </div>
-              </div>
+          {/* Arrow/Divider */}
+          <div className="flex items-center justify-center">
+            <div className="flex flex-col items-center gap-1">
+              <ChevronRight className="h-5 w-5 text-gray-600" />
             </div>
           </div>
+          
+          <PhotoCard
+            type="after"
+            photo={afterPhoto}
+            label="Μετά"
+            onUpload={(file) => handleFileUpload(file, 'after')}
+            onDelete={() => handleDelete('after')}
+            uploading={uploading === 'after'}
+          />
+        </div>
+
+        {/* Caption/Info Box */}
+        <div className="bg-gradient-to-r from-purple-900/20 via-pink-900/20 to-purple-900/20 rounded-xl p-3 border border-purple-500/20">
+          <p className="text-xs text-gray-300 text-center leading-relaxed">
+            <span className="text-lg">💪✨</span> <span className="text-white font-medium">Ετοιμαστείτε να εντυπωσιαστείτε!</span> Ανεβάστε τις φωτογραφίες σας και παρακολουθήστε τη μεταμόρφωσή σας βήμα-βήμα. 
+            <span className="text-pink-300">Κάθε φωτογραφία είναι μια νίκη! </span>
+            <span className="text-yellow-400">🏆</span>
+          </p>
+          <div className="flex items-center justify-center gap-1.5 mt-2 pt-2 border-t border-purple-500/20">
+            <span className="text-green-400">🔒</span>
+            <span className="text-xs text-green-300/80">100% Απόρρητο - Οι φωτογραφίες σας είναι ορατές <span className="text-green-300 font-medium">μόνο σε εσάς!</span></span>
+          </div>
+          <p className="text-xs text-gray-400 text-center mt-2">
+            <span className="text-purple-300/70">Tip: Πατήστε το </span>
+            <svg className="inline w-3 h-3 text-purple-300/70 mx-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+            <span className="text-purple-300/70"> για προβολή σε πλήρη οθόνη</span>
+          </p>
         </div>
       </div>
-      
-      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-        <PhotoCard
-          type="before"
-          photo={beforePhoto}
-          label="Πριν"
-          onUpload={(file) => handleFileUpload(file, 'before')}
-          onDelete={() => handleDelete('before')}
-          uploading={uploading === 'before'}
-        />
-        <PhotoCard
-          type="after"
-          photo={afterPhoto}
-          label="Μετά"
-          onUpload={(file) => handleFileUpload(file, 'after')}
-          onDelete={() => handleDelete('after')}
-          uploading={uploading === 'after'}
-        />
-      </div>
-    </div>
+    </>
   );
 });
 

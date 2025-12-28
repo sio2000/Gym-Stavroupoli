@@ -1,6 +1,6 @@
 // Service για την επικοινωνία με το installment plan API
 
-import { InstallmentPlanResponse, getUserInstallmentPlan, hasOverdueInstallment } from '@/api/userInstallmentPlan';
+import { InstallmentPlanResponse, getUserInstallmentPlan, getUserInstallmentPlans, hasOverdueInstallment } from '@/api/userInstallmentPlan';
 import { supabase } from '@/config/supabase';
 
 export type InstallmentPlanData = InstallmentPlanResponse;
@@ -11,7 +11,7 @@ export interface InstallmentPlanError {
 }
 
 /**
- * Λαμβάνει το πλάνο δόσεων για τον τρέχοντα χρήστη
+ * Λαμβάνει το πλάνο δόσεων για τον τρέχοντα χρήστη (το πρώτο αν υπάρχουν πολλά)
  * @returns Promise με τα δεδομένα του πλάνου δόσεων ή null αν δεν υπάρχει
  */
 export const getInstallmentPlan = async (): Promise<InstallmentPlanData | null> => {
@@ -38,6 +38,34 @@ export const getInstallmentPlan = async (): Promise<InstallmentPlanData | null> 
       return null;
     }
     throw error;
+  }
+};
+
+/**
+ * Λαμβάνει ΟΛΑ τα πλάνα δόσεων για τον τρέχοντα χρήστη (Pilates + Free Gym)
+ * @returns Promise με array από πλάνα δόσεων
+ */
+export const getAllInstallmentPlans = async (): Promise<InstallmentPlanData[]> => {
+  try {
+    console.log('[InstallmentAPI] getAllInstallmentPlans called');
+    
+    // Λαμβάνουμε τον τρέχοντα χρήστη
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.log('[InstallmentAPI] User not authenticated');
+      throw new Error('User not authenticated');
+    }
+
+    console.log('[InstallmentAPI] Authenticated user:', user.id);
+
+    // Καλούμε το backend function για όλα τα πλάνα
+    const plans = await getUserInstallmentPlans(user.id);
+    console.log('[InstallmentAPI] getUserInstallmentPlans result:', plans.length, 'plans found');
+    
+    return plans;
+  } catch (error) {
+    console.error('[InstallmentAPI] Error fetching installment plans:', error);
+    return [];
   }
 };
 

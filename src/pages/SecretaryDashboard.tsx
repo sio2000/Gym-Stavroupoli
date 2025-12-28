@@ -3151,18 +3151,6 @@ const SecretaryDashboard: React.FC = () => {
                           >
                             Καταχώρηση πληρωμής
                           </button>
-                          <button
-                            onClick={() =>
-                              setDismissedOverdue((prev) => {
-                                const next = new Set(prev);
-                                next.add(`${inst.requestId}-${inst.installmentNumber}`);
-                                return next;
-                              })
-                            }
-                            className="px-3 py-2 bg-gray-800 text-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-700 transition border border-gray-700"
-                          >
-                            Διαγραφή
-                          </button>
                         </div>
                       </div>
                     ))}
