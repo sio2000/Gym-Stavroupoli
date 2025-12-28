@@ -24,7 +24,8 @@ import {
   AlertTriangle,
   UserPlus,
   Wallet,
-  ListChecks
+  ListChecks,
+  Mail
 } from 'lucide-react';
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
@@ -1558,8 +1559,8 @@ const SecretaryDashboard: React.FC = () => {
     // Get user profile data manually
     const { data: userProfile, error: userError } = await supabase
       .from('user_profiles')
-      .select('id, email, first_name, last_name')
-      .eq('id', qrCode.user_id)
+      .select('id, user_id, email, first_name, last_name')
+      .eq('user_id', qrCode.user_id)
       .maybeSingle();
 
     console.log('🔍 [Ultra Simple QR] User profile query result:', userProfile ? 'Found' : 'Not found', userError ? 'Error' : 'No error');
@@ -6106,13 +6107,9 @@ const SecretaryDashboard: React.FC = () => {
                     <User className="h-4 w-4 text-gray-600" />
                     <span className="font-medium">{scanResult.userData.name}</span>
                   </div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Calendar className="h-4 w-4 text-gray-600" />
-                    <span className="text-sm text-gray-600">{scanResult.userData.email}</span>
-                  </div>
                   <div className="flex items-center space-x-2">
-                    <QrCode className="h-4 w-4 text-gray-600" />
-                    <span className="text-sm text-gray-600">{getCategoryLabel(scanResult.userData.category)}</span>
+                    <Mail className="h-4 w-4 text-gray-600" />
+                    <span className="text-sm text-gray-600">{scanResult.userData.email}</span>
                   </div>
                 </div>
               )}
