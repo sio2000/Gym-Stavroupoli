@@ -328,13 +328,51 @@ const NewSubscriptionTab: React.FC = () => {
     }
   };
 
+  // Helper για μετάφραση duration types στα ελληνικά (ΜΟΝΟ UI)
+  const getDurationTypeLabel = (durationType: string): string => {
+    const labels: Record<string, string> = {
+      'lesson': 'Μάθημα',
+      'month': 'Μήνας',
+      'semester': 'Εξάμηνο',
+      'year': 'Έτος',
+      '3 Μήνες': '3 Μήνες',
+      'pilates_trial': '1 Μάθημα (Δοκιμαστικό)',
+      'pilates_1month': '4 Μαθήματα (1 μήνας)',
+      'pilates_2months': '8 Μαθήματα (2 μήνες)',
+      'pilates_3months': '16 Μαθήματα (3 μήνες)',
+      'pilates_6months': '25 Μαθήματα (6 μήνες)',
+      'pilates_1year': '50 Μαθήματα (1 έτος)',
+      'ultimate_1year': '1 Έτος Ultimate',
+      'ultimate_medium_1year': '1 Έτος Ultimate Medium'
+    };
+    return labels[durationType] || durationType;
+  };
+
   const renderDurationLabel = (d: MembershipPackageDuration) => {
     if ((d.duration_type || '') === 'ultimate_medium_1year') return '52 μαθήματα';
     if ((d.duration_type || '') === 'ultimate_1year' && (selectedPackage?.pkg.name || '').toLowerCase().includes('medium')) {
       return '52 μαθήματα';
     }
-    if (d.classes_count) return `${d.classes_count} μαθήματα`;
-    return d.duration_type || `${d.duration_days} ημέρες`;
+    // Για Pilates: προσθέτουμε τους μήνες στην παρένθεση
+    if (d.classes_count) {
+      const isPilates = (selectedPackage?.pkg.name || '').toLowerCase().includes('pilates');
+      if (isPilates) {
+        // Αντιστοίχιση μαθημάτων σε μήνες
+        const monthsMap: Record<number, string> = {
+          1: '(Δοκιμαστικό)',
+          4: '(1 μήνας)',
+          8: '(2 μήνες)',
+          16: '(3 μήνες)',
+          25: '(6 μήνες)',
+          50: '(1 έτος)'
+        };
+        const monthsLabel = monthsMap[d.classes_count] || '';
+        return `${d.classes_count} μαθήματα ${monthsLabel}`.trim();
+      }
+      return `${d.classes_count} μαθήματα`;
+    }
+    // Μετάφραση στα ελληνικά για το UI
+    return getDurationTypeLabel(d.duration_type || '') || `${d.duration_days} ημέρες`;
   };
 
   return (
