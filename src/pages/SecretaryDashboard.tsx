@@ -1579,20 +1579,77 @@ const SecretaryDashboard: React.FC = () => {
       return;
     }
 
-    // Success! Use the manually fetched user profile data
+    // Check if user has active memberships
+    const currentDate = new Date().toISOString().split('T')[0];
+    console.log('🔍 [Ultra Simple QR] Checking active memberships for user:', qrCode.user_id);
+    
+    const { data: activeMemberships, error: membershipError } = await supabase
+      .from('memberships')
+      .select(`
+        id,
+        is_active,
+        end_date,
+        package:membership_packages(
+          id,
+          name,
+          package_type
+        )
+      `)
+      .eq('user_id', qrCode.user_id)
+      .eq('is_active', true)
+      .gte('end_date', currentDate);
+
+    console.log('🔍 [Ultra Simple QR] Active memberships query result:', activeMemberships, 'Error:', membershipError);
+
+    // Also check for approved personal training schedules
+    let hasPersonalTraining = false;
+    const { data: personalSchedule, error: scheduleError } = await supabase
+      .from('personal_training_schedules')
+      .select('id, status')
+      .eq('user_id', qrCode.user_id)
+      .eq('status', 'accepted')
+      .limit(1);
+    
+    if (!scheduleError && personalSchedule && personalSchedule.length > 0) {
+      hasPersonalTraining = true;
+      console.log('🔍 [Ultra Simple QR] User has approved personal training schedule');
+    }
+
+    const hasActiveMembership = (activeMemberships && activeMemberships.length > 0) || hasPersonalTraining;
+    
+    // Prepare user data for display
+    const userData = {
+      id: userProfile?.id || 'unknown',
+      email: userProfile?.email || 'unknown@email.com',
+      name: `${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim() || 'Άγνωστος',
+      category: qrCode.category
+    };
+
+    // If user has NO active membership, show RED warning with user details
+    if (!hasActiveMembership) {
+      console.log('⚠️ [Ultra Simple QR] User has NO active memberships!');
+      setScanResult({
+        success: false,
+        message: '⚠️ Δεν έχει ενεργή συνδρομή!',
+        reason: 'Ο χρήστης δεν έχει ενεργή συνδρομή. Παρακαλώ επικοινωνήστε μαζί του για να ανανεώσει.',
+        userData: userData
+      });
+      setShowResult(true);
+      stopScanning();
+      loadRecentScans();
+      return;
+    }
+
+    // Success! User has active membership
     console.log('✅ [Ultra Simple QR] QR code validated successfully for user:', userProfile?.first_name, userProfile?.last_name);
     console.log('✅ [Ultra Simple QR] Full user profile data:', userProfile);
     console.log('✅ [Ultra Simple QR] QR code data:', qrCode);
+    console.log('✅ [Ultra Simple QR] Active memberships:', activeMemberships);
     
     setScanResult({
       success: true,
       message: 'Επιτυχής είσοδος!',
-      userData: {
-        id: userProfile?.id || 'unknown',
-        email: userProfile?.email || 'unknown@email.com',
-        name: `${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim() || 'Άγνωστος',
-        category: qrCode.category
-      }
+      userData: userData
     });
     setShowResult(true);
     stopScanning();
