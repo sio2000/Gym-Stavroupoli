@@ -117,9 +117,20 @@ export async function generateQRCode(
     const actualCategory: 'free_gym' = 'free_gym';
 
     // Eligibility: απαιτείται οποιαδήποτε ενεργή συνδρομή ή εγκεκριμένο personal schedule
+    // BUT: Αν έχει Pilates membership, πρέπει να έχει deposit > 0
     const { data: memberships, error: membershipError } = await supabase
       .from('memberships')
-      .select('id, is_active, end_date')
+      .select(`
+        id, 
+        is_active, 
+        end_date,
+        package_id,
+        membership_packages!inner(
+          id,
+          name,
+          package_type
+        )
+      `)
       .eq('user_id', userId)
       .eq('is_active', true)
       .gte('end_date', new Date().toISOString().split('T')[0]);
@@ -129,7 +140,72 @@ export async function generateQRCode(
       throw new Error(`Σφάλμα κατά τη φόρτωση των συνδρομών.`);
     }
 
-    let hasEligibility = (memberships || []).length > 0;
+    let hasEligibility = false;
+    let hasPilatesMembership = false;
+
+    if (memberships && memberships.length > 0) {
+      // Check if user has Pilates membership OR Ultimate/Ultimate Medium (which include Pilates)
+      let hasNonPilatesMembership = false;
+      
+      for (const membership of memberships) {
+        const packages = Array.isArray(membership.membership_packages) 
+          ? membership.membership_packages 
+          : membership.membership_packages ? [membership.membership_packages] : [];
+        
+        const pkg = packages[0];
+        if (pkg) {
+          const pkgName = pkg.name?.toLowerCase() || '';
+          const pkgType = pkg.package_type?.toLowerCase() || '';
+          
+          // Check if this is Pilates-related membership
+          if (pkgType === 'pilates' || pkgName.includes('pilates') || 
+              pkgName.includes('ultimate')) {
+            hasPilatesMembership = true;
+          } else {
+            // Free Gym or other non-Pilates membership
+            hasNonPilatesMembership = true;
+          }
+        }
+      }
+
+      // If user has Pilates membership (or Ultimate/Ultimate Medium), MUST check deposit
+      if (hasPilatesMembership) {
+        // Check deposit WITHOUT filtering by > 0, to see exact value
+        const { data: pilatesDeposit, error: depositError } = await supabase
+          .from('pilates_deposits')
+          .select('deposit_remaining, is_active')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .order('credited_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (depositError) {
+          console.log(`[QR-Generator] Error fetching Pilates deposit:`, depositError);
+          throw new Error(`Σφάλμα κατά τη φόρτωση του Pilates deposit.`);
+        }
+
+        // If Pilates membership but deposit = 0 or doesn't exist, no eligibility
+        // UNLESS user also has non-Pilates membership (e.g., Free Gym)
+        if (!pilatesDeposit || !pilatesDeposit.deposit_remaining || pilatesDeposit.deposit_remaining <= 0) {
+          if (!hasNonPilatesMembership) {
+            // Only Pilates membership with 0 deposit = no QR code
+            console.log(`[QR-Generator] User has Pilates/Ultimate membership but deposit is ${pilatesDeposit?.deposit_remaining || 0}, and no Free Gym membership`);
+            throw new Error('Δεν έχετε διαθέσιμα μαθήματα Pilates. Το QR code δεν μπορεί να δημιουργηθεί.');
+          } else {
+            // Has Pilates (with 0 deposit) BUT also has Free Gym membership
+            // Allow QR code for Free Gym access
+            hasEligibility = true;
+          }
+        } else {
+          // Has Pilates membership and deposit > 0
+          hasEligibility = true;
+        }
+      } else if (hasNonPilatesMembership) {
+        // Has non-Pilates membership (Free Gym, etc.) - eligible
+        hasEligibility = true;
+      }
+    }
 
     if (!hasEligibility) {
       const { data: schedule, error: scheduleError } = await supabase

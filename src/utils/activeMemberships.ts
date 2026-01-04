@@ -125,7 +125,85 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
 export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCategory[]> => {
   try {
     // Ενιαίο QR: αν υπάρχει οποιαδήποτε ενεργή συνδρομή ή accepted personal training, δίνουμε μόνο free_gym
+    // BUT: Αν έχει Pilates membership (ή Ultimate/Ultimate Medium που περιλαμβάνουν Pilates), πρέπει να έχει deposit > 0
     const activeMemberships = await getUserActiveMembershipsForQR(userId);
+
+    if (!activeMemberships || activeMemberships.length === 0) {
+      // Check for personal training
+      let hasPersonalTraining = false;
+      try {
+        const { data: personalSchedule } = await supabase
+          .from('personal_training_schedules')
+          .select('id,status')
+          .eq('user_id', userId)
+          .eq('status', 'accepted')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        hasPersonalTraining = !!(personalSchedule && personalSchedule.length > 0);
+      } catch (e) {
+        console.warn('[ActiveMemberships] Could not check personal schedule acceptance:', e);
+      }
+
+      if (hasPersonalTraining) {
+        const freeGymCategory = PACKAGE_TYPE_TO_QR_CATEGORY['free_gym'];
+        return freeGymCategory ? [freeGymCategory] : [];
+      }
+
+      return [];
+    }
+
+    // Check if user has Pilates membership OR Ultimate/Ultimate Medium (which include Pilates)
+    const hasPilatesMembership = activeMemberships.some(m => {
+      const pkgName = m.packageName?.toLowerCase() || '';
+      return m.packageType === 'pilates' || 
+             pkgName === 'pilates' || 
+             pkgName.includes('ultimate');
+    });
+
+    // Check for non-Pilates memberships (Free Gym, etc.)
+    const hasNonPilatesMembership = activeMemberships.some(m => {
+      const pkgName = m.packageName?.toLowerCase() || '';
+      const pkgType = m.packageType?.toLowerCase() || '';
+      return pkgType !== 'pilates' && 
+             pkgName !== 'pilates' && 
+             !pkgName.includes('ultimate') &&
+             (pkgType === 'free_gym' || pkgName.includes('free gym') || pkgName.includes('free'));
+    });
+
+    // If user has Pilates membership (or Ultimate/Ultimate Medium), MUST check deposit
+    if (hasPilatesMembership) {
+      const { data: pilatesDeposit, error: depositError } = await supabase
+        .from('pilates_deposits')
+        .select('deposit_remaining, is_active')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .order('credited_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (depositError) {
+        console.warn('[ActiveMemberships] Error fetching Pilates deposit:', depositError);
+        // If error, don't show QR option to be safe
+        return [];
+      }
+
+      // If Pilates membership but deposit = 0 or doesn't exist, no QR eligibility
+      // UNLESS user also has non-Pilates membership (e.g., Free Gym)
+      if (!pilatesDeposit || !pilatesDeposit.deposit_remaining || pilatesDeposit.deposit_remaining <= 0) {
+        console.log(`[ActiveMemberships] User has Pilates/Ultimate membership but deposit is ${pilatesDeposit?.deposit_remaining || 0}`);
+        
+        // If ONLY Pilates membership (no Free Gym), no QR code
+        if (!hasNonPilatesMembership) {
+          console.log('[ActiveMemberships] Only Pilates membership with 0 deposit = no QR eligibility');
+          return [];
+        }
+        
+        // If has Pilates (with 0 deposit) BUT also has Free Gym membership
+        // Allow QR code for Free Gym access only
+        console.log('[ActiveMemberships] Has Pilates with 0 deposit BUT also has Free Gym - allowing QR for Free Gym');
+        // Continue below to return Free Gym category
+      }
+    }
 
     let hasPersonalTraining = false;
     try {
@@ -141,6 +219,8 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
       console.warn('[ActiveMemberships] Could not check personal schedule acceptance:', e);
     }
 
+    // If has Pilates membership, we already checked deposit > 0 above (or has Free Gym fallback)
+    // If has other memberships or personal training, eligible
     if ((activeMemberships && activeMemberships.length > 0) || hasPersonalTraining) {
       const freeGymCategory = PACKAGE_TYPE_TO_QR_CATEGORY['free_gym'];
       return freeGymCategory ? [freeGymCategory] : [];

@@ -18,7 +18,8 @@ import {
   Loader2,
   AlertTriangle,
   Lock,
-  Image
+  Image,
+  Activity
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
@@ -42,6 +43,7 @@ import ErrorFixing from '@/components/admin/ErrorFixing';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { isInstallmentsEligible } from '@/utils/installmentsEligibility';
 import AdminBannersManager from '@/components/admin/AdminBannersManager';
+import WorkoutProgramsManager from '@/components/admin/WorkoutProgramsManager';
 
 import { 
   getMembershipPackages, 
@@ -111,7 +113,7 @@ const getValidUserId = async (userId: string | undefined) => {
 
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'ultimate-subscriptions' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register' | 'users-information' | 'error-fixing' | 'banners'>('personal-training');
+  const [activeTab, setActiveTab] = useState<'personal-training' | 'membership-packages' | 'ultimate-subscriptions' | 'pilates-schedule' | 'kettlebell-points' | 'cash-register' | 'users-information' | 'error-fixing' | 'banners' | 'workout-programs'>('personal-training');
   const [allUsers, setAllUsers] = useState<UserWithPersonalTraining[]>([]);
   const [programStatuses, setProgramStatuses] = useState<Array<{
     user: UserWithPersonalTraining;
@@ -133,7 +135,8 @@ const AdminPanel: React.FC = () => {
     'cash-register': false,
     'users-information': false,
     'error-fixing': false,
-    'banners': false
+    'banners': false,
+    'workout-programs': false
   });
   
   // Memoized pagination logic
@@ -457,6 +460,7 @@ const AdminPanel: React.FC = () => {
     { id: 'cash-register', name: 'Ταμείο', icon: DollarSign },
     { id: 'users-information', name: 'Χρήστες-Πληροφορίες', icon: Users },
     { id: 'banners', name: 'Banners Αρχικής', icon: Image },
+    { id: 'workout-programs', name: 'Προγράμματα Προπόνησης', icon: Activity },
     { id: 'error-fixing', name: 'Διόρθωση Σφαλμάτων', icon: AlertTriangle }
   ];
 
@@ -4891,6 +4895,11 @@ const AdminPanel: React.FC = () => {
           {/* Banners Tab */}
           {activeTab === 'banners' && !loading && (
             <AdminBannersManager />
+          )}
+
+          {/* Workout Programs Tab */}
+          {activeTab === 'workout-programs' && !loading && (
+            <WorkoutProgramsManager />
           )}
 
           {/* Error Fixing Tab */}

@@ -127,7 +127,7 @@ export const getUltimateWeeklyDepositInfo = async (): Promise<UltimateWeeklyDepo
  * Format the deposit display text for Ultimate users
  */
 export const formatUltimateDepositText = (info: UltimateWeeklyDepositInfo): string => {
-  return `${info.current_deposit} μαθήματα απομένουν`;
+    return `${info.current_deposit} μαθήματα απομένουν`;
 };
 
 /**

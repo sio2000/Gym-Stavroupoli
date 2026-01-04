@@ -330,18 +330,6 @@ const PilatesCalendar: React.FC = () => {
             </span>
           </div>
           
-          {/* Weekly info for Ultimate users */}
-          {weeklyDepositInfo?.is_ultimate_user && (
-            <div className="mt-3 p-3 bg-white/50 rounded-lg border border-rose-100">
-              <p className="text-xs text-rose-600 font-medium">
-                {getWeeklyInfoText(weeklyDepositInfo)}
-              </p>
-              <p className="text-xs text-rose-500 mt-1">
-                Εβδομαδιαία ανανέωση: {weeklyDepositInfo.weekly_allocation} μαθήματα | 
-                Εβδομάδες που απομένουν: {weeklyDepositInfo.total_weeks_remaining}
-              </p>
-            </div>
-          )}
           
           {deposit <= 0 && (
             <p className="text-red-600 mt-3 text-xs sm:text-sm">Τα μαθήματά σας τελείωσαν. Για ανανέωση, απευθυνθείτε στη ρεσεψιόν.</p>

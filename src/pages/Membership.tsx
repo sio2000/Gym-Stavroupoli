@@ -36,6 +36,14 @@ import { isInstallmentsEligible } from '@/utils/installmentsEligibility';
 import { MembershipPackage, MembershipPackageDuration, MembershipRequest, Membership as MembershipType } from '@/types';
 import toast from 'react-hot-toast';
 import SuccessPopup from '@/components/SuccessPopup';
+import {
+  WorkoutCategory,
+  WorkoutExercise,
+  CombinedWorkoutProgram,
+  getWorkoutCategories,
+  getWorkoutExercises,
+  getCombinedWorkoutPrograms
+} from '@/utils/workoutProgramsApi';
 
 const MembershipPage: React.FC = React.memo(() => {
   const { user } = useAuth();
@@ -54,6 +62,12 @@ const MembershipPage: React.FC = React.memo(() => {
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   
+  // Workout programs state
+  const [workoutCategories, setWorkoutCategories] = useState<WorkoutCategory[]>([]);
+  const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
+  const [combinedPrograms, setCombinedPrograms] = useState<CombinedWorkoutProgram[]>([]);
+  const [workoutProgramsLoading, setWorkoutProgramsLoading] = useState(false);
+  
   // Installments state
   const [hasInstallments, setHasInstallments] = useState(false);
 
@@ -63,165 +77,109 @@ const MembershipPage: React.FC = React.memo(() => {
   // Get user's payments
   const userPayments = mockPayments.filter(p => p.userId === user?.id);
 
-  // Workout program data
-  const workoutPrograms = {
-    'upper-body': {
-      title: 'Άνω Μέρος Σώματος',
-      icon: '💪',
-      exercises: [
-        {
-          name: 'Push-ups',
-          description: 'Κλασικές push-ups για ενδυνάμωση στήθους και τρικεφάλων',
-          youtubeUrl: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
-          sets: '3 x 10-15'
-        },
-        {
-          name: 'Pull-ups',
-          description: 'Pull-ups για ενδυνάμωση ράχης και δικεφάλων',
-          youtubeUrl: 'https://www.youtube.com/watch?v=eGo4IYlbE5g',
-          sets: '3 x 5-10'
-        },
-        {
-          name: 'Dumbbell Press',
-          description: 'Κάθισμα με dumbells για στήθος',
-          youtubeUrl: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
-          sets: '3 x 8-12'
-        },
-        {
-          name: 'Lateral Raises',
-          description: 'Πλαγίες ανυψώσεις για ώμους',
-          youtubeUrl: 'https://www.youtube.com/watch?v=eGo4IYlbE5g',
-          sets: '3 x 10-15'
+  // Transform database data to workout programs format
+  const workoutPrograms = useMemo(() => {
+    const programs: Record<string, {
+      title: string;
+      icon: string;
+      exercises: Array<{
+        name: string;
+        description: string;
+        youtubeUrl: string;
+        sets: string;
+      }>;
+    }> = {};
+
+    // Group exercises by category
+    workoutCategories.forEach(category => {
+      const categoryExercises = workoutExercises
+        .filter(ex => ex.category_id === category.id)
+        .map(ex => {
+          const setConfig = ex.set_config;
+          let setsText = '';
+          if (setConfig) {
+            if (setConfig.reps_text) {
+              setsText = `${setConfig.sets} x ${setConfig.reps_text}`;
+            } else if (setConfig.reps_min && setConfig.reps_max) {
+              setsText = `${setConfig.sets} x ${setConfig.reps_min}-${setConfig.reps_max}`;
+            } else if (setConfig.reps_min) {
+              setsText = `${setConfig.sets} x ${setConfig.reps_min}`;
+            } else {
+              setsText = `${setConfig.sets} sets`;
+            }
+            if (setConfig.rest_seconds) {
+              setsText += ` (${setConfig.rest_seconds}s rest)`;
+            }
+          }
+          
+          return {
+            name: ex.name,
+            description: ex.description || '',
+            youtubeUrl: ex.youtube_url || 'https://www.youtube.com',
+            sets: setsText
+          };
+        });
+
+      if (categoryExercises.length > 0) {
+        programs[category.id] = {
+          title: category.name,
+          icon: category.icon || '💪',
+          exercises: categoryExercises
+        };
+      }
+    });
+
+    // NO HARDCODED FALLBACK - Only use database data
+    return programs;
+  }, [workoutCategories, workoutExercises]);
+
+  // Transform combined programs
+  const combinedProgramsFormatted = useMemo(() => {
+    return combinedPrograms.map(program => ({
+      id: program.id,
+      title: program.name || (program.program_type === 'upper-body' ? 'Άνω μέρος σώματος (Up body)' :
+                              program.program_type === 'lower-body' ? 'Κάτω μέρος σώματος (Down body)' :
+                              program.program_type === 'full-body' ? 'Όλο το σώμα (Full body)' :
+                              'Ελεύθερα βάρη (Free weights)'),
+      description: program.description || (
+        program.program_type === 'upper-body' ? 'Συνδυασμός ασκήσεων για άνω μέρος σώματος' :
+        program.program_type === 'lower-body' ? 'Συνδυασμός ασκήσεων για κάτω μέρος σώματος' :
+        program.program_type === 'full-body' ? 'Συνδυασμός ασκήσεων για όλο το σώμα' :
+        'Συνδυασμός ασκήσεων με ελεύθερα βάρη'
+      ),
+      icon: '🔲',
+      exercises: (program.exercises || []).map(progEx => {
+        const ex = progEx.exercise;
+        let setsText = '';
+        if (progEx.reps_text) {
+          setsText = `${progEx.sets} x ${progEx.reps_text}`;
+        } else if (progEx.reps_min && progEx.reps_max) {
+          setsText = `${progEx.sets} x ${progEx.reps_min}-${progEx.reps_max}`;
+        } else if (progEx.reps_min) {
+          setsText = `${progEx.sets} x ${progEx.reps_min}`;
+        } else {
+          setsText = `${progEx.sets} sets`;
         }
-      ]
-    },
-    'lower-body': {
-      title: 'Κάτω Μέρος Σώματος',
-      icon: '🦵',
-      exercises: [
-        {
-          name: 'Squats',
-          description: 'Κλασικές squats για ενδυνάμωση μηρών και γλουτών',
-          youtubeUrl: 'https://www.youtube.com/watch?v=YaXPRqUwItQ',
-          sets: '3 x 15-20'
-        },
-        {
-          name: 'Lunges',
-          description: 'Lunges για ενδυνάμωση μηρών και ισορροπία',
-          youtubeUrl: 'https://www.youtube.com/watch?v=QOVaHwm-Q6U',
-          sets: '3 x 10-12 κάθε πόδι'
-        },
-        {
-          name: 'Deadlifts',
-          description: 'Deadlifts για ενδυνάμωση ράχης και μηρών',
-          youtubeUrl: 'https://www.youtube.com/watch?v=op9kVnSso6Q',
-          sets: '3 x 8-10'
-        },
-        {
-          name: 'Calf Raises',
-          description: 'Ανυψώσεις αστραγάλων για ενδυνάμωση μοσχών',
-          youtubeUrl: 'https://www.youtube.com/watch?v=YaXPRqUwItQ',
-          sets: '3 x 15-20'
+        if (progEx.rest_seconds) {
+          setsText += ` (${progEx.rest_seconds}s rest)`;
         }
-      ]
-    },
-    'full-body': {
-      title: 'Πλήρες Σώμα',
-      icon: '🔥',
-      exercises: [
-        {
-          name: 'Burpees',
-          description: 'Burpees για πλήρη ενδυνάμωση και καρδιαγγειακό',
-          youtubeUrl: 'https://www.youtube.com/watch?v=TU8QYVW0gDU',
-          sets: '3 x 8-12'
-        },
-        {
-          name: 'Mountain Climbers',
-          description: 'Mountain climbers για καρδιαγγειακό και πυρήνα',
-          youtubeUrl: 'https://www.youtube.com/watch?v=nmwgirgXLYM',
-          sets: '3 x 20-30 δευτερόλεπτα'
-        },
-        {
-          name: 'Plank',
-          description: 'Plank για ενδυνάμωση πυρήνα',
-          youtubeUrl: 'https://www.youtube.com/watch?v=pSHjTRCQxIw',
-          sets: '3 x 30-60 δευτερόλεπτα'
-        },
-        {
-          name: 'Jumping Jacks',
-          description: 'Jumping jacks για καρδιαγγειακό',
-          youtubeUrl: 'https://www.youtube.com/watch?v=1b98WrRrmUs',
-          sets: '3 x 30-60 δευτερόλεπτα'
-        }
-      ]
-    },
-    'cardio': {
-      title: 'Καρδιαγγειακή Προπόνηση',
-      icon: '❤️',
-      exercises: [
-        {
-          name: 'High Knees',
-          description: 'Υψηλά γόνατα για καρδιαγγειακό και ενδυνάμωση μηρών',
-          youtubeUrl: 'https://www.youtube.com/watch?v=TU8QYVW0gDU',
-          sets: '3 x 30-45 δευτερόλεπτα'
-        },
-        {
-          name: 'Jump Rope',
-          description: 'Σκοινάκι για καρδιαγγειακό και συντονισμό',
-          youtubeUrl: 'https://www.youtube.com/watch?v=1b98WrRrmUs',
-          sets: '3 x 1-2 λεπτά'
-        },
-        {
-          name: 'Box Jumps',
-          description: 'Πηδήματα σε κουτί για δύναμη και καρδιαγγειακό',
-          youtubeUrl: 'https://www.youtube.com/watch?v=nmwgirgXLYM',
-          sets: '3 x 8-12'
-        },
-        {
-          name: 'Battle Ropes',
-          description: 'Σχοινιά μάχης για καρδιαγγειακό και αντοχή',
-          youtubeUrl: 'https://www.youtube.com/watch?v=pSHjTRCQxIw',
-          sets: '3 x 20-30 δευτερόλεπτα'
-        }
-      ]
-    },
-    'flexibility': {
-      title: 'Ευλυγισία & Χάλαση',
-      icon: '🧘',
-      exercises: [
-        {
-          name: 'Yoga Flow',
-          description: 'Βασική ακολουθία yoga για ευλυγισία και χαλάρωση',
-          youtubeUrl: 'https://www.youtube.com/watch?v=v7AYKMP6rOE',
-          sets: '1 x 15-20 λεπτά'
-        },
-        {
-          name: 'Hip Flexor Stretch',
-          description: 'Τέντωμα μυών ισχίου για ευλυγισία',
-          youtubeUrl: 'https://www.youtube.com/watch?v=QOVaHwm-Q6U',
-          sets: '2 x 30 δευτερόλεπτα κάθε πόδι'
-        },
-        {
-          name: 'Shoulder Stretch',
-          description: 'Τέντωμα ώμων για ευλυγισία και χαλάρωση',
-          youtubeUrl: 'https://www.youtube.com/watch?v=op9kVnSso6Q',
-          sets: '2 x 20 δευτερόλεπτα κάθε χέρι'
-        },
-        {
-          name: 'Spinal Twist',
-          description: 'Στριφογυρισμός σπονδυλικής στήλης για ευλυγισία',
-          youtubeUrl: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
-          sets: '2 x 30 δευτερόλεπτα κάθε πλευρά'
-        }
-      ]
-    }
-  };
+        
+        return {
+          name: ex?.name || 'Unknown Exercise',
+          description: progEx.notes || ex?.description || '',
+          youtubeUrl: ex?.youtube_url || 'https://www.youtube.com',
+          sets: setsText
+        };
+      })
+    }));
+  }, [combinedPrograms]);
 
   useEffect(() => {
     loadPackages();
     loadUserRequests();
     loadUserMemberships();
     loadBanners();
+    loadWorkoutPrograms();
   }, []);
 
 
@@ -245,6 +203,24 @@ const MembershipPage: React.FC = React.memo(() => {
       console.error('[Membership] Error loading banners:', error);
     } finally {
       setBannersLoading(false);
+    }
+  };
+
+  const loadWorkoutPrograms = async () => {
+    try {
+      setWorkoutProgramsLoading(true);
+      const [categories, exercises, combined] = await Promise.all([
+        getWorkoutCategories(),
+        getWorkoutExercises(),
+        getCombinedWorkoutPrograms()
+      ]);
+      setWorkoutCategories(categories);
+      setWorkoutExercises(exercises);
+      setCombinedPrograms(combined);
+    } catch (error) {
+      console.error('[Membership] Error loading workout programs:', error);
+    } finally {
+      setWorkoutProgramsLoading(false);
     }
   };
 
@@ -612,10 +588,10 @@ const MembershipPage: React.FC = React.memo(() => {
                   </button>
                   <div className="p-4 space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-base font-semibold text-gray-900 truncate">
+                      <h3 className="text-base font-semibold text-gray-900 break-words flex-1">
                         {banner.title || 'Προσφορά'}
                       </h3>
-                      <span className="text-[11px] px-2 py-1 rounded-full bg-primary-50 text-primary-700">
+                      <span className="text-[11px] px-2 py-1 rounded-full bg-primary-50 text-primary-700 shrink-0">
                         Promo
                       </span>
                     </div>
@@ -685,6 +661,16 @@ const MembershipPage: React.FC = React.memo(() => {
           </div>
           
           <div className="p-4 sm:p-6 lg:p-8">
+            {workoutProgramsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-gray-600">Φόρτωση προγραμμάτων...</span>
+              </div>
+            ) : Object.keys(workoutPrograms).length === 0 && combinedProgramsFormatted.length === 0 ? (
+              <div className="text-center text-gray-500 py-12">
+                <p>Δεν υπάρχουν διαθέσιμα προγράμματα προπόνησης.</p>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
               {Object.entries(workoutPrograms).map(([key, program], index) => (
                 <div
@@ -708,8 +694,8 @@ const MembershipPage: React.FC = React.memo(() => {
                         >
                           <span className="text-2xl sm:text-3xl">{program.icon}</span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors duration-300 truncate">
+                        <div className="flex-1 w-full">
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors duration-300 break-words">
                             {program.title}
                           </h3>
                           <p className="text-xs sm:text-sm text-gray-600 mt-1">
@@ -747,32 +733,145 @@ const MembershipPage: React.FC = React.memo(() => {
                               }}
                             >
                               <div className="flex items-start justify-between mb-3 sm:mb-4">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-bold text-gray-900 mb-2 text-base sm:text-lg group-hover/exercise:text-blue-700 transition-colors duration-300 truncate">
+                                <div className="flex-1 w-full">
+                                  <h4 className="font-bold text-gray-900 mb-2 text-base sm:text-lg group-hover/exercise:text-blue-700 transition-colors duration-300 break-words">
                                     {exercise.name}
                                   </h4>
-                                  <p className="text-xs sm:text-sm text-gray-600 mb-3 leading-relaxed">
-                                    {exercise.description}
-                                  </p>
-                                  <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    {exercise.sets}
-                                  </div>
+                                  {exercise.description && (
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-3 leading-relaxed break-words whitespace-normal">
+                                      {exercise.description}
+                                    </p>
+                                  )}
+                                  {exercise.sets && (
+                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      {exercise.sets}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               
-                              <a
-                                href={exercise.youtubeUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center space-x-2 text-red-600 hover:text-red-700 transition-all duration-300 text-xs sm:text-sm font-semibold group-hover/exercise:bg-red-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:scale-105 w-full sm:w-auto justify-center sm:justify-start"
-                              >
-                                <div className="p-1 sm:p-1.5 bg-red-100 rounded-lg group-hover/exercise:bg-red-200 transition-colors duration-300 group-hover/exercise:rotate-360">
-                                  <Play className="h-3 w-3 sm:h-4 sm:w-4" />
+                              {exercise.youtubeUrl && exercise.youtubeUrl !== 'https://www.youtube.com' && (
+                                <a
+                                  href={exercise.youtubeUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center space-x-2 text-red-600 hover:text-red-700 transition-all duration-300 text-xs sm:text-sm font-semibold group-hover/exercise:bg-red-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:scale-105 w-full sm:w-auto justify-center sm:justify-start"
+                                >
+                                  <div className="p-1 sm:p-1.5 bg-red-100 rounded-lg group-hover/exercise:bg-red-200 transition-colors duration-300 group-hover/exercise:rotate-360">
+                                    <Play className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  </div>
+                                  <span>Δες το βίντεο</span>
+                                  <ExternalLink className="h-3 w-3 group-hover/exercise:translate-x-1 transition-transform duration-300" />
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {/* Combined Programs */}
+              {combinedProgramsFormatted.map((program, index) => (
+                <div
+                  key={program.id}
+                  className="group relative bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 overflow-hidden hover:scale-105 hover:-translate-y-2"
+                  style={{
+                    animationDelay: `${(Object.keys(workoutPrograms).length + index) * 100}ms`,
+                    animation: 'fadeInUp 0.6s ease-out forwards',
+                    opacity: 0
+                  }}
+                >
+                  {/* Card Header */}
+                  <button
+                    onClick={() => setExpandedWorkout(expandedWorkout === program.id ? null : program.id)}
+                    className="w-full p-4 sm:p-6 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-2xl hover:bg-blue-50/50 transition-all duration-300"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
+                        <div 
+                          className="p-3 sm:p-4 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 flex-shrink-0"
+                        >
+                          <span className="text-2xl sm:text-3xl">{program.icon}</span>
+                        </div>
+                        <div className="flex-1 w-full">
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-purple-700 transition-colors duration-300 break-words">
+                            {program.title}
+                          </h3>
+                          <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">
+                            {program.description}
+                          </p>
+                          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                            {program.exercises.length} ασκήσεις διαθέσιμες
+                          </p>
+                        </div>
+                      </div>
+                      <div
+                        className={`transition-transform duration-300 flex-shrink-0 ${expandedWorkout === program.id ? 'rotate-180' : 'rotate-0'}`}
+                      >
+                        <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400 group-hover:text-purple-500 transition-colors duration-300" />
+                      </div>
+                    </div>
+                  </button>
+                  
+                  {/* Expanded Content */}
+                  {expandedWorkout === program.id && (
+                    <div
+                      className="overflow-hidden transition-all duration-400 ease-in-out"
+                      style={{
+                        animation: 'slideDown 0.4s ease-out forwards',
+                        opacity: 0
+                      }}
+                    >
+                      <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-4 sm:pt-6">
+                          {program.exercises.map((exercise, exerciseIndex) => (
+                            <div
+                              key={exerciseIndex}
+                              className="group/exercise bg-white rounded-xl p-4 sm:p-5 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-purple-200 hover:scale-105 hover:-translate-y-1"
+                              style={{
+                                animationDelay: `${exerciseIndex * 100}ms`,
+                                animation: 'fadeInScale 0.4s ease-out forwards',
+                                opacity: 0
+                              }}
+                            >
+                              <div className="flex items-start justify-between mb-3 sm:mb-4">
+                                <div className="flex-1 w-full">
+                                  <h4 className="font-bold text-gray-900 mb-2 text-base sm:text-lg group-hover/exercise:text-purple-700 transition-colors duration-300 break-words">
+                                    {exercise.name}
+                                  </h4>
+                                  {exercise.description && (
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-3 leading-relaxed break-words whitespace-normal">
+                                      {exercise.description}
+                                    </p>
+                                  )}
+                                  {exercise.sets && (
+                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      {exercise.sets}
+                                    </div>
+                                  )}
                                 </div>
-                                <span>Δες το βίντεο</span>
-                                <ExternalLink className="h-3 w-3 group-hover/exercise:translate-x-1 transition-transform duration-300" />
-                              </a>
+                              </div>
+                              
+                              {exercise.youtubeUrl && exercise.youtubeUrl !== 'https://www.youtube.com' && (
+                                <a
+                                  href={exercise.youtubeUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center space-x-2 text-red-600 hover:text-red-700 transition-all duration-300 text-xs sm:text-sm font-semibold group-hover/exercise:bg-red-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:scale-105 w-full sm:w-auto justify-center sm:justify-start"
+                                >
+                                  <div className="p-1 sm:p-1.5 bg-red-100 rounded-lg group-hover/exercise:bg-red-200 transition-colors duration-300 group-hover/exercise:rotate-360">
+                                    <Play className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  </div>
+                                  <span>Δες το βίντεο</span>
+                                  <ExternalLink className="h-3 w-3 group-hover/exercise:translate-x-1 transition-transform duration-300" />
+                                </a>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -783,6 +882,7 @@ const MembershipPage: React.FC = React.memo(() => {
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
       )}
