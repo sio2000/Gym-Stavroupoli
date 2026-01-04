@@ -9,35 +9,24 @@ on:
 jobs:
   refill-pilates-deposits:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: 🔄 Trigger Weekly Pilates Refill
         run: |
           echo "🕐 Starting weekly Pilates deposit refill..."
-<<<<<<< HEAD
           
-=======
-
->>>>>>> 26b80920e18fee57590e0129523032c7678356e8
           response=$(curl -s -w "\n%{http_code}" -X POST \
             'https://nolqodpfaqdnprixaqlo.supabase.co/rest/v1/rpc/process_weekly_pilates_refills' \
             -H 'apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}' \
             -H 'Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}' \
             -H 'Content-Type: application/json')
-
+          
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
-<<<<<<< HEAD
           
           echo "📋 Response: $body"
           echo "📊 HTTP Code: $http_code"
           
-=======
-
-          echo "📋 Response: $body"
-          echo "📊 HTTP Code: $http_code"
-
->>>>>>> 26b80920e18fee57590e0129523032c7678356e8
           if [ "$http_code" -eq 200 ]; then
             echo "✅ Weekly Pilates refill completed successfully!"
           else
@@ -50,7 +39,3 @@ jobs:
           echo "🎉 Weekly Pilates deposit refill job completed at $(date)"
           echo "Ultimate users: Reset to 3 lessons"
           echo "Ultimate Medium users: Reset to 1 lesson"
-<<<<<<< HEAD
-=======
-
->>>>>>> 26b80920e18fee57590e0129523032c7678356e8
