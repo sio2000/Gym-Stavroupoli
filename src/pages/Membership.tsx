@@ -391,6 +391,34 @@ const MembershipPage: React.FC = React.memo(() => {
     return false;
   }, [userMemberships, userMembership, allPackages]);
 
+  // Έλεγχος αν υπάρχει ενεργή συνδρομή Free Gym, Ultimate ή Ultimate Medium (για να εμφανιστεί το section Προγράμματα Προπόνησης)
+  const hasWorkoutProgramsEligibleMembership = useMemo(() => {
+    const checkPkg = (pkg?: MembershipPackage | null) => {
+      if (!pkg) return false;
+      const name = (pkg.name || '').toLowerCase();
+      const type = (pkg as any)?.package_type?.toLowerCase?.() || '';
+      // Free Gym, Ultimate, ή Ultimate Medium
+      return type === 'free_gym' || 
+             name.includes('open gym') || 
+             name.includes('free gym') ||
+             name.includes('ultimate');
+    };
+
+    if (userMemberships.length > 0) {
+      return userMemberships.some((m) => {
+        const pkg = m.package || allPackages.find(p => p.id === m.package_id) || null;
+        return checkPkg(pkg);
+      });
+    }
+
+    if (userMembership) {
+      const pkg = allPackages.find(p => p.id === userMembership.package_id) || null;
+      return checkPkg(pkg);
+    }
+
+    return false;
+  }, [userMemberships, userMembership, allPackages]);
+
   // Debug logging - REMOVED TO PREVENT UNNECESSARY RENDERS
   // console.log('[Membership] All packages:', allPackages);
   // console.log('[Membership] Filtered database packages:', filteredDatabasePackages);
@@ -640,7 +668,7 @@ const MembershipPage: React.FC = React.memo(() => {
         </div>
       )}
 
-      {hasOpenGymMembership && (
+      {hasWorkoutProgramsEligibleMembership && (
         <div 
           className="bg-white rounded-3xl shadow-2xl border border-blue-100 overflow-hidden"
           style={{
@@ -751,20 +779,7 @@ const MembershipPage: React.FC = React.memo(() => {
                                 </div>
                               </div>
                               
-                              {exercise.youtubeUrl && exercise.youtubeUrl !== 'https://www.youtube.com' && (
-                                <a
-                                  href={exercise.youtubeUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center space-x-2 text-red-600 hover:text-red-700 transition-all duration-300 text-xs sm:text-sm font-semibold group-hover/exercise:bg-red-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:scale-105 w-full sm:w-auto justify-center sm:justify-start"
-                                >
-                                  <div className="p-1 sm:p-1.5 bg-red-100 rounded-lg group-hover/exercise:bg-red-200 transition-colors duration-300 group-hover/exercise:rotate-360">
-                                    <Play className="h-3 w-3 sm:h-4 sm:w-4" />
-                                  </div>
-                                  <span>Δες το βίντεο</span>
-                                  <ExternalLink className="h-3 w-3 group-hover/exercise:translate-x-1 transition-transform duration-300" />
-                                </a>
-                              )}
+                              {/* No YouTube link for combined programs */}
                             </div>
                           ))}
                         </div>
@@ -858,20 +873,7 @@ const MembershipPage: React.FC = React.memo(() => {
                                 </div>
                               </div>
                               
-                              {exercise.youtubeUrl && exercise.youtubeUrl !== 'https://www.youtube.com' && (
-                                <a
-                                  href={exercise.youtubeUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center space-x-2 text-red-600 hover:text-red-700 transition-all duration-300 text-xs sm:text-sm font-semibold group-hover/exercise:bg-red-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:scale-105 w-full sm:w-auto justify-center sm:justify-start"
-                                >
-                                  <div className="p-1 sm:p-1.5 bg-red-100 rounded-lg group-hover/exercise:bg-red-200 transition-colors duration-300 group-hover/exercise:rotate-360">
-                                    <Play className="h-3 w-3 sm:h-4 sm:w-4" />
-                                  </div>
-                                  <span>Δες το βίντεο</span>
-                                  <ExternalLink className="h-3 w-3 group-hover/exercise:translate-x-1 transition-transform duration-300" />
-                                </a>
-                              )}
+                              {/* No YouTube link for combined programs - removed as per request */}
                             </div>
                           ))}
                         </div>
