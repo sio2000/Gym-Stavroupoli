@@ -39,4 +39,3 @@ jobs:
           echo "🎉 Weekly Pilates deposit refill job completed at $(date)"
           echo "Ultimate users: Reset to 3 lessons"
           echo "Ultimate Medium users: Reset to 1 lesson"
-
