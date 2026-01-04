@@ -1,0 +1,34 @@
+name: Weekly Pilates Deposit Refill
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  refill-pilates-deposits:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger Weekly Pilates Refill
+        run: |
+          echo "Starting weekly Pilates deposit refill..."
+          
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            'https://nolqodpfaqdnprixaqlo.supabase.co/rest/v1/rpc/process_weekly_pilates_refills' \
+            -H 'apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}' \
+            -H 'Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}' \
+            -H 'Content-Type: application/json')
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "Weekly Pilates refill completed successfully!"
+          else
+            echo "Error during refill"
+            exit 1
+          fi
