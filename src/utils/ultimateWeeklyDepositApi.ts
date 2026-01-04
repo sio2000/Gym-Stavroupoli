@@ -127,21 +127,7 @@ export const getUltimateWeeklyDepositInfo = async (): Promise<UltimateWeeklyDepo
  * Format the deposit display text for Ultimate users
  */
 export const formatUltimateDepositText = (info: UltimateWeeklyDepositInfo): string => {
-  if (!info.is_ultimate_user) {
-    return `${info.current_deposit} μαθήματα απομένουν`;
-  }
-
-  // Calculate weeks until next refill
-  const today = new Date();
-  const nextRefillDate = new Date(info.next_refill_date);
-  const daysUntilRefill = Math.ceil((nextRefillDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
-  const weeksUntilRefill = Math.ceil(daysUntilRefill / 7);
-  
-  if (weeksUntilRefill === 1) {
-    return `${info.current_deposit} μαθήματα απομένουν για την τρέχουσα εβδομάδα`;
-  } else {
-    return `${info.current_deposit} μαθήματα απομένουν για ${weeksUntilRefill} εβδομάδες`;
-  }
+  return `${info.current_deposit} μαθήματα απομένουν`;
 };
 
 /**
@@ -153,7 +139,6 @@ export const getWeeklyInfoText = (info: UltimateWeeklyDepositInfo): string => {
   }
 
   const nextRefillDate = new Date(info.next_refill_date).toLocaleDateString('el-GR');
-  const canBookFromDate = new Date(info.can_book_from_date).toLocaleDateString('el-GR');
   
-  return `Επόμενη ανανέωση: ${nextRefillDate} | Κλείσιμο μαθημάτων από: ${canBookFromDate}`;
+  return `Επόμενη ανανέωση: ${nextRefillDate}`;
 };
