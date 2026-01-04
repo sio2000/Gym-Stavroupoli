@@ -60,7 +60,7 @@ const MembershipPage: React.FC = React.memo(() => {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [bannersLoading, setBannersLoading] = useState(false);
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<Banner | null>(null);
   
   // Workout programs state
   const [workoutCategories, setWorkoutCategories] = useState<WorkoutCategory[]>([]);
@@ -602,7 +602,7 @@ const MembershipPage: React.FC = React.memo(() => {
                   <button
                     type="button"
                     className="w-full h-64 sm:h-72 relative"
-                    onClick={() => setBannerPreview(banner.image_url)}
+                    onClick={() => setBannerPreview(banner)}
                   >
                     <img
                       src={banner.image_url}
@@ -649,7 +649,7 @@ const MembershipPage: React.FC = React.memo(() => {
           onClick={() => setBannerPreview(null)}
         >
           <div
-            className="relative max-w-5xl w-full bg-black rounded-2xl overflow-hidden shadow-2xl"
+            className="relative max-w-5xl w-full bg-black rounded-2xl overflow-hidden shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -660,10 +660,17 @@ const MembershipPage: React.FC = React.memo(() => {
               <X className="h-5 w-5" />
             </button>
             <img
-              src={bannerPreview}
-              alt="Banner Preview"
-              className="w-full h-full object-contain max-h-[80vh] bg-black"
+              src={bannerPreview.image_url}
+              alt={bannerPreview.title || 'Banner Preview'}
+              className="w-full object-contain max-h-[75vh] bg-black"
             />
+            {bannerPreview.title && (
+              <div className="bg-black/90 px-6 py-4 border-t border-gray-700">
+                <p className="text-white text-center text-lg font-medium">
+                  {bannerPreview.title}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
