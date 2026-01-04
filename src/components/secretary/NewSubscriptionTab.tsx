@@ -27,6 +27,8 @@ import {
 } from '@/utils/membershipApi';
 import { searchUsers, UserInfo } from '@/utils/userInfoApi';
 import { MembershipPackage, MembershipPackageDuration } from '@/types';
+import { saveSecretaryCashTransaction, saveSecretaryKettlebellPoints } from '@/utils/secretaryProgramOptionsApi';
+import { useAuth } from '@/contexts/AuthContext';
 
 type PackageKind = 'open_gym' | 'pilates' | 'ultimate' | 'personal' | 'custom';
 
@@ -45,6 +47,7 @@ interface SelectedPackage {
 }
 
 const NewSubscriptionTab: React.FC = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [users, setUsers] = useState<UserInfo[]>([]);
@@ -75,7 +78,6 @@ const NewSubscriptionTab: React.FC = () => {
   const [isPersonalTraining, setIsPersonalTraining] = useState(false);
   const [ptPrice, setPtPrice] = useState<string>('');
   const [ptKettlebellPoints, setPtKettlebellPoints] = useState<string>('');
-  const [ptClasses, setPtClasses] = useState<string>('');
   const [ptPaymentMethod, setPtPaymentMethod] = useState<'cash' | 'pos'>('cash');
 
   // Load packages once
@@ -138,7 +140,6 @@ const NewSubscriptionTab: React.FC = () => {
     setIsPersonalTraining(false);
     setPtPrice('');
     setPtKettlebellPoints('');
-    setPtClasses('');
     setPtPaymentMethod('cash');
   };
 
@@ -506,7 +507,7 @@ const NewSubscriptionTab: React.FC = () => {
                 <h5 className="font-semibold text-white">Personal Training - Στοιχεία</h5>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-purple-200 font-medium">Τιμή (€) *</label>
                   <input
@@ -515,16 +516,6 @@ const NewSubscriptionTab: React.FC = () => {
                     onChange={(e) => setPtPrice(e.target.value)}
                     className="w-full mt-1 px-3 py-2 rounded-lg bg-gray-900 border border-purple-600/50 text-white focus:ring-2 focus:ring-purple-500"
                     placeholder="π.χ. 150"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-purple-200 font-medium">Μαθήματα *</label>
-                  <input
-                    type="number"
-                    value={ptClasses}
-                    onChange={(e) => setPtClasses(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 rounded-lg bg-gray-900 border border-purple-600/50 text-white focus:ring-2 focus:ring-purple-500"
-                    placeholder="π.χ. 10"
                   />
                 </div>
                 <div>
@@ -560,43 +551,69 @@ const NewSubscriptionTab: React.FC = () => {
               </div>
 
               <button
-                disabled={submitting || !selectedUser || !ptPrice || !ptClasses}
+                disabled={submitting || !selectedUser || !ptPrice}
                 onClick={async () => {
                   if (!selectedUser) {
                     toast.error('Επίλεξε χρήστη');
                     return;
                   }
                   const price = Number(ptPrice || 0);
-                  const classes = Number(ptClasses || 0);
                   const kbPoints = Number(ptKettlebellPoints || 0);
                   
                   if (!price || price <= 0) {
                     toast.error('Συμπλήρωσε έγκυρη τιμή');
                     return;
                   }
-                  if (!classes || classes <= 0) {
-                    toast.error('Συμπλήρωσε αριθμό μαθημάτων');
-                    return;
-                  }
                   
                   setSubmitting(true);
                   try {
-                    const success = await createPersonalTrainingSubscription({
-                      userId: selectedUser.user_id,
-                      price,
-                      classes,
-                      kettlebellPoints: kbPoints || undefined,
-                      paymentMethod: ptPaymentMethod
-                    });
+                    const createdBy = user?.id || '';
                     
-                    if (success) {
-                      // Reset PT fields
-                      setPtPrice('');
-                      setPtClasses('');
-                      setPtKettlebellPoints('');
-                      setPtPaymentMethod('cash');
-                      setIsPersonalTraining(false);
+                    // 1. Save cash/POS transaction
+                    const cashSuccess = await saveSecretaryCashTransaction(
+                      selectedUser.user_id,
+                      price,
+                      ptPaymentMethod,
+                      undefined, // program_id
+                      createdBy,
+                      'Personal Training - Πληρωμή'
+                    );
+                    
+                    if (!cashSuccess) {
+                      toast.error('Σφάλμα κατά την αποθήκευση της πληρωμής');
+                      setSubmitting(false);
+                      return;
                     }
+                    
+                    // 2. Save kettlebell points if provided
+                    if (kbPoints > 0) {
+                      const kbSuccess = await saveSecretaryKettlebellPoints(
+                        selectedUser.user_id,
+                        kbPoints,
+                        undefined, // program_id
+                        createdBy
+                      );
+                      
+                      if (!kbSuccess) {
+                        toast.error('Σφάλμα κατά την αποθήκευση των Kettlebell Points');
+                        setSubmitting(false);
+                        return;
+                      }
+                    }
+                    
+                    toast.success(`Personal Training καταχωρήθηκε: €${price.toFixed(2)}${kbPoints > 0 ? ` με ${kbPoints} Kettlebell Points` : ''}`);
+                    
+                    // Reset PT fields
+                    setPtPrice('');
+                    setPtKettlebellPoints('');
+                    setPtPaymentMethod('cash');
+                    setIsPersonalTraining(false);
+                    setSelectedUser(null);
+                    setSearchTerm('');
+                    setUsers([]);
+                  } catch (error) {
+                    console.error('Error submitting Personal Training:', error);
+                    toast.error('Σφάλμα κατά την καταχώρηση Personal Training');
                   } finally {
                     setSubmitting(false);
                   }
@@ -607,7 +624,7 @@ const NewSubscriptionTab: React.FC = () => {
                 Καταχώρηση Personal Training
               </button>
               <p className="text-xs text-gray-400">
-                * Υποχρεωτικά πεδία. Η καταχώρηση γίνεται άμεσα χωρίς δόσεις/διάρκεια.
+                * Υποχρεωτικό πεδίο: Τιμή. Η καταχώρηση ενημερώνει το ταμείο και τα Kettlebell Points.
               </p>
             </div>
           )}

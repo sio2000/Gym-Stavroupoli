@@ -4417,167 +4417,6 @@ const SecretaryDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* Open Gym Section - Between Create Program and Calendar */}
-            <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl shadow-lg border-2 border-orange-200">
-              <div className="p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
-                  <div>
-                    <h3 className="text-lg sm:text-2xl font-bold text-orange-800 mb-2">🏋️‍♂️ Open Gym</h3>
-                    <p className="text-orange-600 text-sm sm:text-base">Διαχείριση εξτρα υπηρεσιών και Free Gym συνδρομών</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {/* User Selection */}
-                  <div className="bg-white rounded-lg p-4 border border-orange-200">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">
-                      👤 Επιλογή Χρήστη
-                      <span className="ml-2 text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">
-                        Selected: {openGymSelectedUserId ? '✅' : '❌'}
-                      </span>
-                    </label>
-                    
-                    {/* Mode Selection */}
-                    <div className="flex space-x-3 mb-4">
-                      <button
-                        type="button"
-                        onClick={() => setOpenGymUserSearchMode('dropdown')}
-                        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                          openGymUserSearchMode === 'dropdown' 
-                            ? 'bg-orange-600 text-white shadow-lg' 
-                            : 'bg-white text-orange-600 border-2 border-orange-200 hover:border-orange-400'
-                        }`}
-                      >
-                        📋 Dropdown
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setOpenGymUserSearchMode('search')}
-                        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                          openGymUserSearchMode === 'search' 
-                            ? 'bg-orange-600 text-white shadow-lg' 
-                            : 'bg-white text-orange-600 border-2 border-orange-200 hover:border-orange-400'
-                        }`}
-                      >
-                        🔍 Αναζήτηση
-                      </button>
-                    </div>
-
-                    {/* User Selection based on mode */}
-                    {openGymUserSearchMode === 'dropdown' ? (
-                      <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        value={openGymSelectedUserId}
-                        onChange={(e) => setOpenGymSelectedUserId(e.target.value)}
-                      >
-                        <option value="">-- Επιλέξτε χρήστη --</option>
-                        {allUsers.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.firstName} {user.lastName} ({user.email})
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="space-y-3">
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400"
-                          placeholder="🔍 Αναζήτηση με όνομα ή email..."
-                          value={openGymUserSearchTerm}
-                          onChange={(e) => setOpenGymUserSearchTerm(e.target.value)}
-                        />
-                        {openGymUserSearchTerm && (
-                          <div className="max-h-48 overflow-y-auto border-2 border-orange-200 rounded-xl bg-white shadow-lg">
-                            {openGymFilteredUsers.length > 0 ? (
-                              openGymFilteredUsers.map((user) => (
-                                <div
-                                  key={user.id}
-                                  className={`p-4 hover:bg-orange-50 cursor-pointer border-b border-orange-100 last:border-b-0 transition-all duration-200 ${
-                                    openGymSelectedUserId === user.id ? 'bg-orange-100 border-l-4 border-l-orange-500' : ''
-                                  }`}
-                                  onClick={() => {
-                                    setOpenGymSelectedUserId(user.id);
-                                    setOpenGymUserSearchTerm(''); // Clear search after selection
-                                  }}
-                                >
-                                  <div className="font-semibold text-gray-900">{user.firstName} {user.lastName}</div>
-                                  <div className="text-sm text-gray-600">{user.email}</div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="p-4 text-gray-500 text-sm text-center">Δεν βρέθηκαν χρήστες</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Selected User Display */}
-                    {openGymSelectedUserId && (
-                      <div className="mt-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
-                            <span className="text-white text-sm font-bold">✓</span>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-900">
-                              {allUsers.find(u => u.id === openGymSelectedUserId)?.firstName} {allUsers.find(u => u.id === openGymSelectedUserId)?.lastName}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {allUsers.find(u => u.id === openGymSelectedUserId)?.email}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => setOpenGymSelectedUserId('')}
-                            className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Value Input */}
-                  <div className="bg-white rounded-lg p-4 border border-orange-200">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">
-                      Εξτρά Υπηρεσία
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="Εισάγετε αριθμό..."
-                      value={openGymKettlebellPoints}
-                      onChange={(e) => setOpenGymKettlebellPoints(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Action Button */}
-                  <div className="flex justify-center">
-                    <button
-                      onClick={handleOpenGymAction}
-                      disabled={!openGymSelectedUserId || !openGymKettlebellPoints || parseInt(openGymKettlebellPoints) <= 0}
-                      className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl hover:from-orange-600 hover:to-red-600 transition-all duration-200 font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-orange-500 disabled:hover:to-red-500"
-                    >
-                      🏋️‍♂️ Εφαρμογή Open Gym
-                    </button>
-                  </div>
-
-                  {/* Status Display */}
-                  {openGymStatus && (
-                    <div className={`p-3 rounded-lg text-sm font-medium ${
-                      openGymStatus.type === 'success' 
-                        ? 'bg-green-100 text-green-800 border border-green-200' 
-                        : 'bg-red-100 text-red-800 border border-red-200'
-                    }`}>
-                      {openGymStatus.message}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
 
             {/* Group Training Calendar Section - ΜΟΝΟ στην καρτέλα Personal Training */}
             {groupCalendarEnabled && (
@@ -4615,48 +4454,6 @@ const SecretaryDashboard: React.FC = () => {
             
             <div className="p-4 sm:p-8">
               <div className="space-y-6 sm:space-y-8">
-                {/* Mobile-First Training Type Selection */}
-                {/* Mobile-First Training Type Selection */}
-                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 sm:p-6 border border-indigo-200">
-                  <label className="block text-base sm:text-lg font-bold text-indigo-800 mb-3 sm:mb-4 flex items-center">
-                    🏋️‍♂️ Τύπος Προπόνησης
-                  </label>
-                  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-                    <button
-                      type="button"
-                      onClick={() => setTrainingType('individual')}
-                      className={`px-4 sm:px-6 py-2 sm:py-3 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                        trainingType === 'individual' 
-                          ? 'bg-indigo-600 text-white shadow-lg' 
-                          : 'bg-white text-indigo-600 border-2 border-indigo-200 hover:border-indigo-400'
-                      }`}
-                    >
-                      👤 Ατομικό
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTrainingType('group')}
-                      className={`px-4 sm:px-6 py-2 sm:py-3 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                        trainingType === 'group' 
-                          ? 'bg-indigo-600 text-white shadow-lg' 
-                          : 'bg-white text-indigo-600 border-2 border-indigo-200 hover:border-indigo-400'
-                      }`}
-                    >
-                      👥 Group
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTrainingType('combination')}
-                      className={`px-4 sm:px-6 py-2 sm:py-3 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                        trainingType === 'combination' 
-                          ? 'bg-indigo-600 text-white shadow-lg' 
-                          : 'bg-white text-indigo-600 border-2 border-indigo-200 hover:border-indigo-400'
-                      }`}
-                    >
-                      🔀 Συνδυασμός
-                    </button>
-                  </div>
-                </div>
 
                 {/* Mobile-First User Type Selection */}
                 <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 sm:p-6 border border-blue-200">
@@ -4700,57 +4497,14 @@ const SecretaryDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Combination Configuration - Only show for combination type */}
-                {trainingType === 'combination' && (
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200">
-                    <label className="block text-base sm:text-lg font-bold text-purple-800 mb-3 sm:mb-4 flex items-center">
-                      🔀 Διαμόρφωση Συνδυασμού
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="bg-white rounded-lg p-4 border border-purple-200">
-                        <label className="block text-sm font-bold text-purple-700 mb-2">
-                          👤 Ατομικές Σεσίες
-                        </label>
-                        <select
-                          value={combinationPersonalSessions}
-                          onChange={(e) => setCombinationPersonalSessions(parseInt(e.target.value))}
-                          className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                        >
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                            <option key={num} value={num}>{num} σεσίες</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="bg-white rounded-lg p-4 border border-purple-200">
-                        <label className="block text-sm font-bold text-purple-700 mb-2">
-                          👥 Ομαδικές Σεσίες
-                        </label>
-                        <select
-                          value={combinationGroupSessions}
-                          onChange={(e) => setCombinationGroupSessions(parseInt(e.target.value))}
-                          className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                        >
-                          {[1, 2, 3, 4, 5].map(num => (
-                            <option key={num} value={num}>{num} {num === 1 ? 'φορά' : 'φορές'}/εβδομάδα</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="mt-3 text-sm text-purple-700 bg-purple-100 p-3 rounded-lg">
-                      <strong>📊 Σύνολο:</strong> {combinationPersonalSessions} ατομικές σεσίες + {combinationGroupSessions} {combinationGroupSessions === 1 ? 'φορά' : 'φορές'}/εβδομάδα ομαδικές
-                    </div>
-                  </div>
-                )}
 
                 {/* Enhanced User Selection */}
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
                   <label className="block text-lg font-bold text-blue-800 mb-4 flex items-center">
-                    👤 {trainingType === 'individual' ? 'Επιλογή Χρήστη' : trainingType === 'combination' ? 'Επιλογή Χρήστη (Συνδυασμός)' : 'Επιλογή Χρηστών (Group)'}
-                    {(trainingType === 'individual' || trainingType === 'combination') && (
-                      <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
-                        Selected: {newCode.selectedUserId ? '✅' : '❌'}
-                      </span>
-                    )}
+                    👤 Επιλογή Χρήστη
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                      Selected: {newCode.selectedUserId ? '✅' : '❌'}
+                    </span>
                   </label>
                  
                  {/* Enhanced Mode Selection */}
@@ -4781,61 +4535,24 @@ const SecretaryDashboard: React.FC = () => {
 
                  {/* User Selection based on mode */}
                  {userSearchMode === 'dropdown' ? (
-                   (trainingType === 'individual' || trainingType === 'combination') ? (
-                     <select
-                       className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-700"
-                       value={newCode.selectedUserId}
-                       onChange={(e) => {
-                         setNewCode({ ...newCode, selectedUserId: e.target.value });
-                       }}
-                     >
-                       <option value="">-- Επιλέξτε χρήστη --</option>
-                       {allUsers.length > 0 ? (
-                         allUsers.map((user) => (
-                           <option key={user.id} value={user.id}>
-                             {user.firstName} {user.lastName} ({user.email})
-                           </option>
-                         ))
-                       ) : (
-                         <option value="" disabled>Δεν υπάρχουν χρήστες</option>
-                       )}
-                     </select>
-                   ) : (
-                     <div className="max-h-48 overflow-y-auto border-2 border-blue-200 rounded-xl bg-white">
-                       {allUsers.length > 0 ? (
-                         allUsers.map((user) => (
-                           <div
-                             key={user.id}
-                             className={`p-3 hover:bg-blue-50 cursor-pointer border-b border-blue-100 last:border-b-0 transition-all duration-200 ${
-                               selectedUserIds.includes(user.id) ? 'bg-blue-100 border-l-4 border-l-blue-500' : ''
-                             }`}
-                             onClick={() => {
-                               if (selectedUserIds.includes(user.id)) {
-                                 setSelectedUserIds(prev => prev.filter(id => id !== user.id));
-                               } else {
-                                 setSelectedUserIds(prev => [...prev, user.id]);
-                               }
-                             }}
-                           >
-                             <div className="flex items-center">
-                               <input
-                                 type="checkbox"
-                                 checked={selectedUserIds.includes(user.id)}
-                                 onChange={() => {}}
-                                 className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                               />
-                               <div>
-                                 <div className="font-semibold text-gray-900">{user.firstName} {user.lastName}</div>
-                                 <div className="text-sm text-gray-600">{user.email}</div>
-                               </div>
-                             </div>
-                           </div>
-                         ))
-                       ) : (
-                         <div className="p-4 text-gray-500 text-sm text-center">Δεν υπάρχουν χρήστες</div>
-                       )}
-                     </div>
-                   )
+                   <select
+                     className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-700"
+                     value={newCode.selectedUserId}
+                     onChange={(e) => {
+                       setNewCode({ ...newCode, selectedUserId: e.target.value });
+                     }}
+                   >
+                     <option value="">-- Επιλέξτε χρήστη --</option>
+                     {allUsers.length > 0 ? (
+                       allUsers.map((user) => (
+                         <option key={user.id} value={user.id}>
+                           {user.firstName} {user.lastName} ({user.email})
+                         </option>
+                       ))
+                     ) : (
+                       <option value="" disabled>Δεν υπάρχουν χρήστες</option>
+                     )}
+                   </select>
                  ) : (
                    <div className="space-y-3">
                      <input
@@ -4857,30 +4574,12 @@ const SecretaryDashboard: React.FC = () => {
                              <div
                                key={user.id}
                                className={`p-4 hover:bg-blue-50 cursor-pointer border-b border-blue-100 last:border-b-0 transition-all duration-200 ${
-                                 (trainingType === 'individual' || trainingType === 'combination')
-                                   ? (newCode.selectedUserId === user.id ? 'bg-blue-100 border-l-4 border-l-blue-500' : '')
-                                   : (selectedUserIds.includes(user.id) ? 'bg-blue-100 border-l-4 border-l-blue-500' : '')
+                                 newCode.selectedUserId === user.id ? 'bg-blue-100 border-l-4 border-l-blue-500' : ''
                                }`}
                                onClick={() => {
-                                 if (trainingType === 'individual' || trainingType === 'combination') {
-                                   setNewCode({ ...newCode, selectedUserId: user.id });
-                                 } else {
-                                   if (selectedUserIds.includes(user.id)) {
-                                     setSelectedUserIds(prev => prev.filter(id => id !== user.id));
-                                   } else {
-                                     setSelectedUserIds(prev => [...prev, user.id]);
-                                   }
-                                 }
+                                 setNewCode({ ...newCode, selectedUserId: user.id });
                                }}
                              >
-                               {trainingType === 'group' && (
-                                 <input
-                                   type="checkbox"
-                                   checked={selectedUserIds.includes(user.id)}
-                                   onChange={() => {}}
-                                   className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                 />
-                               )}
                                <div className="font-semibold text-gray-900">{user.firstName} {user.lastName}</div>
                                <div className="text-sm text-gray-600">{user.email}</div>
                              </div>
@@ -4891,7 +4590,7 @@ const SecretaryDashboard: React.FC = () => {
                  )}
                 
                  {/* Selected User Display */}
-                 {((trainingType === 'individual' || trainingType === 'combination') ? newCode.selectedUserId : selectedUserIds.length > 0) && (
+                 {newCode.selectedUserId && (
                    <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
                      <div className="flex items-center">
                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
@@ -4899,28 +4598,19 @@ const SecretaryDashboard: React.FC = () => {
                        </div>
                        <div>
                          <div className="text-sm font-bold text-green-800">
-                           ✅ {(trainingType === 'individual' || trainingType === 'combination') ? 'Επιλεγμένος:' : 'Επιλεγμένοι:'}
+                           ✅ Επιλεγμένος:
                          </div>
-                         {(trainingType === 'individual' || trainingType === 'combination') ? (
-                           <div className="text-xs text-green-600">
-                             {allUsers.find(u => u.id === newCode.selectedUserId)?.firstName} {allUsers.find(u => u.id === newCode.selectedUserId)?.lastName} ({allUsers.find(u => u.id === newCode.selectedUserId)?.email})
-                           </div>
-                         ) : (
-                           <div className="text-xs text-green-600">
-                             {selectedUserIds.map(id => {
-                               const user = allUsers.find(u => u.id === id);
-                               return user ? `${user.firstName} ${user.lastName}` : 'Άγνωστος';
-                             }).join(', ')} ({selectedUserIds.length} χρήστες)
-                           </div>
-                         )}
+                         <div className="text-xs text-green-600">
+                           {allUsers.find(u => u.id === newCode.selectedUserId)?.firstName} {allUsers.find(u => u.id === newCode.selectedUserId)?.lastName} ({allUsers.find(u => u.id === newCode.selectedUserId)?.email})
+                         </div>
                        </div>
                      </div>
                    </div>
                  )}
                </div>
 
-               {/* New Options Panel */}
-               {((trainingType === 'individual' || trainingType === 'combination') ? newCode.selectedUserId : selectedUserIds.length > 0) && (
+               {/* Removed Program Options Panel - Simplified UI */}
+               {false && (
                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200 mt-4">
                    <h4 className="text-lg sm:text-xl font-bold text-purple-800 mb-4 sm:mb-6 flex items-center">
                      ⚙️ Επιλογές Προγράμματος
@@ -5611,8 +5301,8 @@ const SecretaryDashboard: React.FC = () => {
               </div>
                )}
 
-               {/* Group Room Options - For Group Training and Combination */}
-               {((trainingType === 'group' && selectedUserIds.length > 0) || (trainingType === 'combination' && newCode.selectedUserId)) && (
+               {/* Removed Group Room Options - Simplified UI */}
+               {false && (
                  <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-4 sm:p-6 border border-orange-200 mt-4">
                    <h4 className="text-lg sm:text-xl font-bold text-orange-800 mb-4 sm:mb-6 flex items-center">
                      🏠 {trainingType === 'combination' ? 'Επιλογές Ομαδικής Αίθουσας (για Group Sessions)' : 'Επιλογές Ομαδικής Αίθουσας'}
@@ -5678,36 +5368,17 @@ const SecretaryDashboard: React.FC = () => {
                  </div>
                )}
 
-               {/* Excel-Style Προσωποποιημένο Πρόγραμμα - HIDE WHEN GROUP IS SELECTED */}
-               {trainingType !== 'group' && (
+               {/* Excel-Style Προσωποποιημένο Πρόγραμμα */}
+               {newCode.selectedUserId && (
                  <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-4 sm:p-6 border border-orange-200">
-                  <div className="flex items-center justify-between mb-4 sm:mb-6">
-                    <h4 className="text-lg sm:text-xl font-bold text-orange-800 flex items-center">
-                    🏋️‍♂️ Προσωποποιημένο Πρόγραμμα 
-                    {trainingType === 'combination' && (
-                      <span className="ml-2 text-sm bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
-                        Personal Sessions
-                      </span>
-                    )}
-                  </h4>
-                    <div className={`text-sm px-3 py-2 rounded-lg ${
-                      trainingType === 'combination' && getCurrentSessions().length > combinationPersonalSessions
-                        ? 'bg-red-100 text-red-700 border border-red-300'
-                        : 'text-gray-600 bg-gray-100'
-                    }`}>
-                      📊 Σύνολο: {getCurrentSessions().length} σεσίας
-                      {trainingType === 'combination' && (
-                        <span className={`ml-2 ${
-                          getCurrentSessions().length > combinationPersonalSessions ? 'text-red-600' : 'text-purple-600'
-                        }`}>
-                          ({combinationPersonalSessions} θα χρησιμοποιηθούν)
-                          {getCurrentSessions().length > combinationPersonalSessions && (
-                            <span className="ml-1 font-bold">⚠️ Περισσότερες από όσες θα χρησιμοποιηθούν!</span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                 <div className="flex items-center justify-between mb-4 sm:mb-6">
+                   <h4 className="text-lg sm:text-xl font-bold text-orange-800 flex items-center">
+                   🏋️‍♂️ Προσωποποιημένο Πρόγραμμα 
+                 </h4>
+                   <div className="text-sm px-3 py-2 rounded-lg text-gray-600 bg-gray-100">
+                     📊 Σύνολο: {getCurrentSessions().length} σεσίας
+                   </div>
+                 </div>
 
                   {/* Session Filter Toggle Buttons */}
                   <div className="mb-4 sm:mb-6">
@@ -5745,7 +5416,7 @@ const SecretaryDashboard: React.FC = () => {
                           onClick={() => {
                             setSessionFilter('existing');
                             // Load existing sessions when switching to existing
-                            if ((trainingType === 'individual' || trainingType === 'combination') && newCode.selectedUserId) {
+                            if (newCode.selectedUserId) {
                               loadExistingSessions(newCode.selectedUserId);
                             }
                           }}
