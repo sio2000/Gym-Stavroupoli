@@ -152,12 +152,19 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
       return [];
     }
 
-    // Check if user has Pilates membership OR Ultimate/Ultimate Medium (which include Pilates)
-    const hasPilatesMembership = activeMemberships.some(m => {
+    // Check if user has ONLY Pilates membership (NOT Ultimate/Ultimate Medium)
+    const hasOnlyPilatesMembership = activeMemberships.some(m => {
       const pkgName = m.packageName?.toLowerCase() || '';
-      return m.packageType === 'pilates' || 
-             pkgName === 'pilates' || 
-             pkgName.includes('ultimate');
+      const pkgType = m.packageType?.toLowerCase() || '';
+      // Pilates membership but NOT Ultimate/Ultimate Medium
+      return (pkgType === 'pilates' || pkgName === 'pilates') && 
+             !pkgName.includes('ultimate');
+    });
+
+    // Check if user has Ultimate/Ultimate Medium (exclude from deposit check)
+    const hasUltimateMembership = activeMemberships.some(m => {
+      const pkgName = m.packageName?.toLowerCase() || '';
+      return pkgName.includes('ultimate');
     });
 
     // Check for non-Pilates memberships (Free Gym, etc.)
@@ -170,8 +177,9 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
              (pkgType === 'free_gym' || pkgName.includes('free gym') || pkgName.includes('free'));
     });
 
-    // If user has Pilates membership (or Ultimate/Ultimate Medium), MUST check deposit
-    if (hasPilatesMembership) {
+    // If user has ONLY Pilates membership (NOT Ultimate), MUST check deposit
+    // Ultimate/Ultimate Medium are EXCLUDED from this check (they can enter gym even with 0 deposit)
+    if (hasOnlyPilatesMembership && !hasUltimateMembership) {
       const { data: pilatesDeposit, error: depositError } = await supabase
         .from('pilates_deposits')
         .select('deposit_remaining, is_active')
@@ -187,14 +195,14 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
         return [];
       }
 
-      // If Pilates membership but deposit = 0 or doesn't exist, no QR eligibility
+      // If ONLY Pilates membership (NOT Ultimate) but deposit = 0 or doesn't exist, no QR eligibility
       // UNLESS user also has non-Pilates membership (e.g., Free Gym)
       if (!pilatesDeposit || !pilatesDeposit.deposit_remaining || pilatesDeposit.deposit_remaining <= 0) {
-        console.log(`[ActiveMemberships] User has Pilates/Ultimate membership but deposit is ${pilatesDeposit?.deposit_remaining || 0}`);
+        console.log(`[ActiveMemberships] User has ONLY Pilates membership (NOT Ultimate) but deposit is ${pilatesDeposit?.deposit_remaining || 0}`);
         
-        // If ONLY Pilates membership (no Free Gym), no QR code
+        // If ONLY Pilates membership (NOT Ultimate) with 0 deposit (no Free Gym), no QR code
         if (!hasNonPilatesMembership) {
-          console.log('[ActiveMemberships] Only Pilates membership with 0 deposit = no QR eligibility');
+          console.log('[ActiveMemberships] Only Pilates membership (NOT Ultimate) with 0 deposit = no QR eligibility');
           return [];
         }
         

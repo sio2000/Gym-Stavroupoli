@@ -144,7 +144,9 @@ export async function generateQRCode(
     let hasPilatesMembership = false;
 
     if (memberships && memberships.length > 0) {
-      // Check if user has Pilates membership OR Ultimate/Ultimate Medium (which include Pilates)
+      // Check if user has ONLY Pilates membership (NOT Ultimate/Ultimate Medium)
+      let hasOnlyPilatesMembership = false;
+      let hasUltimateMembership = false;
       let hasNonPilatesMembership = false;
       
       for (const membership of memberships) {
@@ -157,19 +159,26 @@ export async function generateQRCode(
           const pkgName = pkg.name?.toLowerCase() || '';
           const pkgType = pkg.package_type?.toLowerCase() || '';
           
-          // Check if this is Pilates-related membership
-          if (pkgType === 'pilates' || pkgName.includes('pilates') || 
-              pkgName.includes('ultimate')) {
+          // Check if this is Ultimate/Ultimate Medium (exclude from deposit check)
+          if (pkgName.includes('ultimate')) {
+            hasUltimateMembership = true;
+            hasEligibility = true; // Ultimate always allows QR code (even with 0 deposit for gym access)
+          }
+          // Check if this is ONLY Pilates (NOT Ultimate)
+          else if (pkgType === 'pilates' || pkgName === 'pilates') {
+            hasOnlyPilatesMembership = true;
             hasPilatesMembership = true;
-          } else {
-            // Free Gym or other non-Pilates membership
+          } 
+          // Free Gym or other non-Pilates membership
+          else {
             hasNonPilatesMembership = true;
           }
         }
       }
 
-      // If user has Pilates membership (or Ultimate/Ultimate Medium), MUST check deposit
-      if (hasPilatesMembership) {
+      // If user has ONLY Pilates membership (NOT Ultimate), MUST check deposit
+      // Ultimate/Ultimate Medium are EXCLUDED from this check (they can enter gym even with 0 deposit)
+      if (hasOnlyPilatesMembership && !hasUltimateMembership) {
         // Check deposit WITHOUT filtering by > 0, to see exact value
         const { data: pilatesDeposit, error: depositError } = await supabase
           .from('pilates_deposits')
@@ -185,12 +194,12 @@ export async function generateQRCode(
           throw new Error(`Σφάλμα κατά τη φόρτωση του Pilates deposit.`);
         }
 
-        // If Pilates membership but deposit = 0 or doesn't exist, no eligibility
+        // If ONLY Pilates membership (NOT Ultimate) but deposit = 0 or doesn't exist, no eligibility
         // UNLESS user also has non-Pilates membership (e.g., Free Gym)
         if (!pilatesDeposit || !pilatesDeposit.deposit_remaining || pilatesDeposit.deposit_remaining <= 0) {
           if (!hasNonPilatesMembership) {
-            // Only Pilates membership with 0 deposit = no QR code
-            console.log(`[QR-Generator] User has Pilates/Ultimate membership but deposit is ${pilatesDeposit?.deposit_remaining || 0}, and no Free Gym membership`);
+            // Only Pilates membership (NOT Ultimate) with 0 deposit = no QR code
+            console.log(`[QR-Generator] User has ONLY Pilates membership (NOT Ultimate) but deposit is ${pilatesDeposit?.deposit_remaining || 0}, no QR eligibility`);
             throw new Error('Δεν έχετε διαθέσιμα μαθήματα Pilates. Το QR code δεν μπορεί να δημιουργηθεί.');
           } else {
             // Has Pilates (with 0 deposit) BUT also has Free Gym membership
@@ -198,13 +207,14 @@ export async function generateQRCode(
             hasEligibility = true;
           }
         } else {
-          // Has Pilates membership and deposit > 0
+          // Has ONLY Pilates membership and deposit > 0
           hasEligibility = true;
         }
-      } else if (hasNonPilatesMembership) {
-        // Has non-Pilates membership (Free Gym, etc.) - eligible
+      } else if (hasNonPilatesMembership && !hasOnlyPilatesMembership) {
+        // Has non-Pilates membership (Free Gym, etc.) and NO Pilates membership - eligible
         hasEligibility = true;
       }
+      // If has Ultimate membership, already set hasEligibility = true above
     }
 
     if (!hasEligibility) {
