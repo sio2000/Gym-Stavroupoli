@@ -1,34 +1,42 @@
 name: Weekly Pilates Deposit Refill
 
+# Τρέχει κάθε Κυριακή στις 02:00 UTC (04:00 ώρα Ελλάδας)
 on:
   schedule:
-    - cron: '0 2 * * 0'
-  workflow_dispatch:
+    - cron: '0 2 * * 0'  # Κάθε Κυριακή στις 02:00 UTC
+  workflow_dispatch:  # Επιτρέπει χειροκίνητη εκτέλεση
 
 jobs:
   refill-pilates-deposits:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Trigger Weekly Pilates Refill
+      - name: 🔄 Trigger Weekly Pilates Refill
         run: |
-          echo "Starting weekly Pilates deposit refill..."
-          
+          echo "🕐 Starting weekly Pilates deposit refill..."
+
           response=$(curl -s -w "\n%{http_code}" -X POST \
             'https://nolqodpfaqdnprixaqlo.supabase.co/rest/v1/rpc/process_weekly_pilates_refills' \
             -H 'apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}' \
             -H 'Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}' \
             -H 'Content-Type: application/json')
-          
+
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
-          
-          echo "Response: $body"
-          echo "HTTP Code: $http_code"
-          
+
+          echo "📋 Response: $body"
+          echo "📊 HTTP Code: $http_code"
+
           if [ "$http_code" -eq 200 ]; then
-            echo "Weekly Pilates refill completed successfully!"
+            echo "✅ Weekly Pilates refill completed successfully!"
           else
-            echo "Error during refill"
+            echo "❌ Error during refill. HTTP Code: $http_code"
             exit 1
           fi
+
+      - name: 📧 Log Result
+        run: |
+          echo "🎉 Weekly Pilates deposit refill job completed at $(date)"
+          echo "Ultimate users: Reset to 3 lessons"
+          echo "Ultimate Medium users: Reset to 1 lesson"
+
