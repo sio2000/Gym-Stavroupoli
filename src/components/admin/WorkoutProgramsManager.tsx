@@ -30,7 +30,6 @@ import {
   getExerciseSetConfig,
   upsertExerciseSetConfig,
   getCombinedWorkoutPrograms,
-  createCombinedWorkoutProgram,
   updateCombinedWorkoutProgram,
   deleteCombinedWorkoutProgram,
   addExerciseToCombinedProgram,
@@ -70,13 +69,6 @@ const WorkoutProgramsManager: React.FC = () => {
   
   // Combined Programs
   const [combinedPrograms, setCombinedPrograms] = useState<CombinedWorkoutProgram[]>([]);
-  const [selectedCombinedProgram, setSelectedCombinedProgram] = useState<CombinedWorkoutProgram | null>(null);
-  const [editingCombinedProgram, setEditingCombinedProgram] = useState<CombinedWorkoutProgram | null>(null);
-  const [combinedProgramForm, setCombinedProgramForm] = useState({
-    name: '',
-    description: '',
-    program_type: 'upper-body' as 'upper-body' | 'lower-body' | 'full-body' | 'free-weights'
-  });
   
   // Load data
   useEffect(() => {
@@ -223,20 +215,6 @@ const WorkoutProgramsManager: React.FC = () => {
   };
   
   // Combined Program handlers
-  const handleCreateCombinedProgram = async () => {
-    try {
-      await createCombinedWorkoutProgram({
-        ...combinedProgramForm,
-        display_order: combinedPrograms.length
-      });
-      toast.success('Το συνδυαστικό πρόγραμμα δημιουργήθηκε');
-      setCombinedProgramForm({ name: '', description: '', program_type: 'upper-body' });
-      await loadData();
-    } catch (error) {
-      console.error('Error creating combined program:', error);
-      toast.error('Σφάλμα δημιουργίας προγράμματος');
-    }
-  };
   
   const handleAddExerciseToCombinedProgram = async (programId: string, exerciseId: string) => {
     const program = combinedPrograms.find(p => p.id === programId);
