@@ -783,10 +783,21 @@ const MembershipPage: React.FC = React.memo(() => {
                                       {exercise.sets}
                                     </div>
                                   )}
+                                  {exercise.youtubeUrl && exercise.youtubeUrl !== 'https://www.youtube.com' && (
+                                    <a
+                                      href={exercise.youtubeUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-2 inline-flex items-center text-xs sm:text-sm text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors duration-200"
+                                    >
+                                      <span>Δες το βίντεο</span>
+                                      <svg className="ml-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                      </svg>
+                                    </a>
+                                  )}
                                 </div>
                               </div>
-                              
-                              {/* No YouTube link for combined programs */}
                             </div>
                           ))}
                         </div>
