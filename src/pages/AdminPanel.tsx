@@ -321,7 +321,7 @@ const AdminPanel: React.FC = () => {
       }
     }
   }, [newCode.selectedUserId]);
-
+  
   // Load deposit for Paspartu user when selected
   useEffect(() => {
     const loadUserDeposit = async () => {
@@ -1701,14 +1701,14 @@ const AdminPanel: React.FC = () => {
                 .from('lesson_deposits')
                 .update({ used_lessons: currentUsedLessons })
                 .eq('user_id', selectedUser.id);
-              
+                
               if (updateError) {
                 console.error('[ADMIN] Failed to update used_lessons:', updateError);
               }
             }
-          } else {
+              } else {
             console.log(`[ADMIN] Lesson deposit updated: ${totalDeposits} total, ${currentUsedLessons} used (before bookings)`);
-          }
+        }
 
           // Auto-create lesson_bookings for all sessions
           // The trigger will automatically increment used_lessons for each booking created
@@ -1728,7 +1728,7 @@ const AdminPanel: React.FC = () => {
                 p_schedule_id: scheduleData.id,
                 p_sessions: sessionsArray
               });
-
+            
             if (bookingsError) {
               console.error('[ADMIN] Error creating auto-bookings:', bookingsError);
               console.warn('[ADMIN] Failed to create auto-bookings, but schedule and deposit were created successfully');
@@ -5263,8 +5263,8 @@ const AdminPanel: React.FC = () => {
                            {userType === 'paspartu' && selectedUserDeposit !== null && (
                              <div className="mt-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded border border-purple-300">
                                💰 Deposit: <strong>{selectedUserDeposit.remaining}</strong> μαθήματα διαθέσιμα (Σύνολο: {selectedUserDeposit.total}, Χρησιμοποιημένα: {selectedUserDeposit.used})
-                             </div>
-                           )}
+                           </div>
+                         )}
                        </div>
                      </div>
                    </div>
