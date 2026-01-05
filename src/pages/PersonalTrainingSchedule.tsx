@@ -913,9 +913,6 @@ const PersonalTrainingSchedulePage: React.FC = () => {
                           <div className="flex items-center justify-between mb-4">
                             <h3 className="font-bold text-gray-900 text-lg flex items-center gap-3">
                               {getSessionTypeName(session.type)}
-                              <span className="inline-flex items-center text-sm px-3 py-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold shadow-md animate-pulse">
-                                💡 Πρόταση για κράτηση
-                              </span>
                             </h3>
                             <span className="px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-bold rounded-full shadow-md">
                               🕐 {session.startTime}

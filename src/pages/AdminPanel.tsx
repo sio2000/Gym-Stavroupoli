@@ -157,6 +157,7 @@ const AdminPanel: React.FC = () => {
   });
   const [trainingType, setTrainingType] = useState<'individual' | 'group' | 'combination'>('individual');
   const [userType, setUserType] = useState<'personal' | 'paspartu'>('personal'); // New state for user type selection
+  const [selectedUserDeposit, setSelectedUserDeposit] = useState<{ remaining: number; total: number; used: number } | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   
   // Group Room Options state
@@ -320,6 +321,67 @@ const AdminPanel: React.FC = () => {
       }
     }
   }, [newCode.selectedUserId]);
+
+  // Load deposit for Paspartu user when selected
+  useEffect(() => {
+    const loadUserDeposit = async () => {
+      if (!newCode.selectedUserId || userType !== 'paspartu') {
+        setSelectedUserDeposit(null);
+        return;
+      }
+
+      try {
+        console.log('[ADMIN] Loading deposit for user:', newCode.selectedUserId);
+        
+        // Try RPC function first (bypasses RLS)
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('get_user_lesson_deposit', { p_user_id: newCode.selectedUserId });
+        
+        if (!rpcError && rpcData && rpcData.length > 0) {
+          const deposit = rpcData[0];
+          console.log('[ADMIN] Deposit loaded via RPC:', deposit);
+          setSelectedUserDeposit({
+            total: deposit.total_lessons || 0,
+            used: deposit.used_lessons || 0,
+            remaining: deposit.remaining_lessons || 0
+          });
+          return;
+        }
+
+        // Fallback to direct query if RPC doesn't exist or fails
+        const { data: deposit, error } = await supabase
+          .from('lesson_deposits')
+          .select('total_lessons, used_lessons, remaining_lessons')
+          .eq('user_id', newCode.selectedUserId)
+          .maybeSingle();
+
+        console.log('[ADMIN] Deposit query result:', { deposit, error, userId: newCode.selectedUserId });
+
+        if (error) {
+          console.error('[ADMIN] Error loading deposit:', error);
+          setSelectedUserDeposit({ total: 0, used: 0, remaining: 0 });
+          return;
+        }
+
+        if (deposit) {
+          console.log('[ADMIN] Deposit loaded successfully:', deposit);
+          setSelectedUserDeposit({
+            total: deposit.total_lessons || 0,
+            used: deposit.used_lessons || 0,
+            remaining: deposit.remaining_lessons || 0
+          });
+        } else {
+          console.log('[ADMIN] No deposit found for user:', newCode.selectedUserId);
+          setSelectedUserDeposit({ total: 0, used: 0, remaining: 0 });
+        }
+      } catch (error) {
+        console.error('[ADMIN] Exception loading deposit:', error);
+        setSelectedUserDeposit({ total: 0, used: 0, remaining: 0 });
+      }
+    };
+
+    loadUserDeposit();
+  }, [newCode.selectedUserId, userType]);
 
   const itemsPerPage = 10;
   // Προσωποποιημένο πρόγραμμα που θα σταλεί μαζί με τον κωδικό
@@ -1408,17 +1470,17 @@ const AdminPanel: React.FC = () => {
         console.log('[ADMIN] Admin user ID:', user?.id);
 
         // Δημιουργούμε το πρόγραμμα Personal Training
-        // Individual training - όλες οι σεσίες
-        const currentSessions = getCurrentSessions();
+          // Individual training - όλες οι σεσίες
+          const currentSessions = getCurrentSessions();
         const scheduleSessions: PersonalTrainingSession[] = currentSessions.map((s) => ({
-          id: s.id,
-          date: s.date,
-          startTime: s.startTime,
-          type: s.type,
-          trainer: s.trainer || 'Mike',
-          room: s.room,
-          notes: s.notes
-        }));
+            id: s.id,
+            date: s.date,
+            startTime: s.startTime,
+            type: s.type,
+            trainer: s.trainer || 'Mike',
+            room: s.room,
+            notes: s.notes
+          }));
 
         const schedulePayload = {
           user_id: selectedUser.id,
@@ -1551,7 +1613,7 @@ const AdminPanel: React.FC = () => {
           }
         }
 
-        // Special logic for Paspartu users - replace old schedule and reset deposit
+        // Special logic for Paspartu users - replace old schedule and manage deposit
         if (userType === 'paspartu') {
           console.log('[ADMIN] Handling Paspartu user - replacing old schedule and managing deposits...');
           
@@ -1569,92 +1631,120 @@ const AdminPanel: React.FC = () => {
             console.log('[ADMIN] Old Paspartu schedule replaced successfully for user:', selectedUser.email);
           }
           
-          // Calculate deposit based on training type
-          let totalDeposits = 5; // Paspartu users always start with 5 deposits
-          let usedDeposits = 0;
+          // Count sessions to deduct from deposit
+          const sessionsCount = scheduleSessions.length;
+          console.log(`[ADMIN] Paspartu user: ${sessionsCount} sessions will be deducted from deposit`);
           
-          if (trainingType === 'combination') {
-            // For combination: used_deposits = personal_sessions + group_sessions
-            usedDeposits = combinationPersonalSessions + combinationGroupSessions;
-            console.log(`[ADMIN] Combination Paspartu: ${combinationPersonalSessions} personal + ${combinationGroupSessions} group = ${usedDeposits} used deposits`);
-          } else if (trainingType === 'individual') {
-            // For individual: credit 5 lessons, no deduction (original behavior preserved)
-            usedDeposits = 0;
-            console.log(`[ADMIN] Individual Paspartu: Credit 5 lessons, no deduction (original behavior)`);
-          } else if (trainingType === 'group') {
-            // For group Paspartu: same logic as individual (credit 5 lessons, no deduction)
-            usedDeposits = 0;
-            console.log(`[ADMIN] Group Paspartu: Credit 5 lessons, no deduction (same as Individual)`);
+          // Get current deposit status AFTER replace_paspartu_schedule (which may have deleted old bookings and updated used_lessons via trigger)
+          // Use RPC function to avoid RLS issues
+          const { data: depositData, error: depositFetchError } = await supabase
+            .rpc('get_user_lesson_deposit', {
+              p_user_id: selectedUser.id
+            });
+
+          let totalDeposits: number;
+          let currentUsedLessons: number;
+
+          if (depositFetchError) {
+            // Error fetching deposit - log and use default
+            console.error('[ADMIN] Error fetching current deposit via RPC:', depositFetchError);
+            totalDeposits = 5;
+            currentUsedLessons = 0;
+          } else if (!depositData || depositData.length === 0 || (depositData[0].total_lessons === 0 && depositData[0].used_lessons === 0 && depositData[0].remaining_lessons === 0)) {
+            // No deposit exists - credit 5 and start with 0 used
+            totalDeposits = 5;
+            currentUsedLessons = 0;
+            console.log(`[ADMIN] Deposit doesn't exist - crediting 5 lessons, starting with 0 used`);
+          } else {
+            // Deposit exists - check if remaining is 0 (need to credit 5 new lessons)
+            const deposit = depositData[0];
+            if (deposit.remaining_lessons === 0) {
+              // Deposit is exhausted - credit 5 new lessons and reset used to 0
+              totalDeposits = 5;
+              currentUsedLessons = 0;
+              console.log(`[ADMIN] Deposit exhausted (remaining: 0) - crediting 5 new lessons, resetting used to 0`);
+            } else {
+              // Deposit has remaining lessons - use current values (already updated by trigger after old bookings were deleted)
+              totalDeposits = deposit.total_lessons;
+              currentUsedLessons = deposit.used_lessons;
+              console.log(`[ADMIN] Deposit exists (total: ${totalDeposits}, used: ${currentUsedLessons}, remaining: ${deposit.remaining_lessons}) - will add ${sessionsCount} new bookings`);
+            }
           }
-          
-          // Ensure we don't exceed available deposits
-          if (usedDeposits > totalDeposits) {
-            console.warn(`[ADMIN] Warning: Used deposits (${usedDeposits}) exceeds total deposits (${totalDeposits}). Setting to max.`);
-            usedDeposits = totalDeposits;
-          }
-          
-          // Reset lesson deposit with calculated values
+
+          // IMPORTANT: Set used_lessons to current used (not including new sessions) because
+          // the trigger will automatically increment it when bookings are created
+          // The currentUsedLessons is already correct (after old bookings were deleted by replace_paspartu_schedule)
+
+          // Update or create lesson deposit using RPC function (set used_lessons to current, not including new sessions)
           const { error: depositError } = await supabase
-            .rpc('reset_lesson_deposit_for_new_program', {
+            .rpc('update_paspartu_deposit', {
               p_user_id: selectedUser.id,
               p_total_lessons: totalDeposits,
-              p_created_by: user?.id
+              p_used_lessons: currentUsedLessons, // Set to current used, trigger will add sessionsCount
+              p_created_by: user?.id || null
             });
 
           if (depositError) {
-            console.error('[ADMIN] Lesson deposit reset error:', depositError);
-            console.warn('[ADMIN] Failed to reset lesson deposit, but schedule was created successfully');
-          } else {
-            console.log(`[ADMIN] Lesson deposit reset successfully for Paspartu user: ${selectedUser.email}`);
-            console.log(`[ADMIN] Deposits: ${totalDeposits} total, ${usedDeposits} will be used, ${totalDeposits - usedDeposits} remaining`);
-            
-            // If we have used deposits, update the used count
-            if (usedDeposits > 0) {
-              const { error: updateError } = await supabase
-                .from('lesson_deposits')
-                .update({ 
-                  used_lessons: usedDeposits,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('user_id', selectedUser.id);
-                
-              if (updateError) {
-                console.error('[ADMIN] Error updating used deposits:', updateError);
-              } else {
-                console.log(`[ADMIN] Updated used deposits to ${usedDeposits} for user: ${selectedUser.email}`);
-              }
-            }
-          }
-        }
-
-        // ✅ CRITICAL FIX: Ensure lesson deposit exists for ALL Paspartu users
-        if (userType === 'paspartu') {
-          console.log('[ADMIN] Ensuring lesson deposit exists for Paspartu user:', selectedUser.email);
-          
-          // Check if deposit already exists
-          const { data: existingDeposit } = await supabase
-            .from('lesson_deposits')
-            .select('id')
-            .eq('user_id', selectedUser.id)
-            .single();
-          
-          if (!existingDeposit) {
-            // Create lesson deposit if it doesn't exist
-            const { error: depositError } = await supabase
-              .from('lesson_deposits')
-              .insert({
-                user_id: selectedUser.id,
-                total_lessons: 5,
-                used_lessons: 0
+            console.error('[ADMIN] Lesson deposit update error:', depositError);
+            // Fallback: try using reset function and then update
+            console.log('[ADMIN] Trying fallback: reset then manual update...');
+            const { error: resetError } = await supabase
+              .rpc('reset_lesson_deposit_for_new_program', {
+                p_user_id: selectedUser.id,
+                p_total_lessons: totalDeposits,
+                p_created_by: user?.id || null
               });
             
-            if (depositError) {
-              console.error('[ADMIN] Error creating lesson deposit:', depositError);
-            } else {
-              console.log('[ADMIN] Lesson deposit created successfully for Paspartu user:', selectedUser.email);
+            if (!resetError) {
+              // Set used_lessons to current (trigger will add sessionsCount)
+              const { error: updateError } = await supabase
+                .from('lesson_deposits')
+                .update({ used_lessons: currentUsedLessons })
+                .eq('user_id', selectedUser.id);
+              
+              if (updateError) {
+                console.error('[ADMIN] Failed to update used_lessons:', updateError);
+              }
             }
           } else {
-            console.log('[ADMIN] Lesson deposit already exists for Paspartu user:', selectedUser.email);
+            console.log(`[ADMIN] Lesson deposit updated: ${totalDeposits} total, ${currentUsedLessons} used (before bookings)`);
+          }
+
+          // Auto-create lesson_bookings for all sessions
+          // The trigger will automatically increment used_lessons for each booking created
+          if (scheduleSessions.length > 0) {
+            console.log(`[ADMIN] Auto-creating ${scheduleSessions.length} lesson bookings for Paspartu user...`);
+            const sessionsArray = scheduleSessions.map(s => ({
+              id: s.id,
+              date: s.date,
+              startTime: s.startTime,
+              trainer: s.trainer || 'Mike',
+              room: s.room || null
+            }));
+            
+            const { data: bookingsCreated, error: bookingsError } = await supabase
+              .rpc('create_paspartu_bookings', {
+                p_user_id: selectedUser.id,
+                p_schedule_id: scheduleData.id,
+                p_sessions: sessionsArray
+              });
+
+            if (bookingsError) {
+              console.error('[ADMIN] Error creating auto-bookings:', bookingsError);
+              console.warn('[ADMIN] Failed to create auto-bookings, but schedule and deposit were created successfully');
+            } else {
+              console.log(`[ADMIN] Auto-created ${bookingsCreated || 0} lesson bookings for Paspartu user: ${selectedUser.email}`);
+              // Verify final deposit after bookings (trigger should have updated it)
+              const { data: finalDeposit } = await supabase
+                .from('lesson_deposits')
+                .select('total_lessons, used_lessons, remaining_lessons')
+                .eq('user_id', selectedUser.id)
+                .maybeSingle();
+              
+              if (finalDeposit) {
+                console.log(`[ADMIN] Final deposit after bookings: ${finalDeposit.total_lessons} total, ${finalDeposit.used_lessons} used, ${finalDeposit.remaining_lessons} remaining`);
+              }
+            }
           }
         }
 
@@ -5070,9 +5160,9 @@ const AdminPanel: React.FC = () => {
                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
                  <label className="block text-lg font-bold text-blue-800 mb-4 flex items-center">
                    👤 Επιλογή Χρήστη
-                   <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
-                     Selected: {newCode.selectedUserId ? '✅' : '❌'}
-                   </span>
+                     <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                       Selected: {newCode.selectedUserId ? '✅' : '❌'}
+                     </span>
                  </label>
                 
                 {/* Enhanced Mode Selection */}
@@ -5103,25 +5193,25 @@ const AdminPanel: React.FC = () => {
 
                                  {/* Enhanced User Selection based on mode */}
                  {userSearchMode === 'dropdown' ? (
-                   <select
-                     className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-700"
-                     value={newCode.selectedUserId}
-                     onChange={(e) => {
-                       console.log('[AdminPanel] User selected:', e.target.value);
-                       setNewCode({ ...newCode, selectedUserId: e.target.value });
-                     }}
-                   >
-                     <option value="">-- Επιλέξτε χρήστη --</option>
-                     {allUsers.length > 0 ? (
-                       allUsers.map((user) => (
-                         <option key={user.id} value={user.id}>
-                           {user.firstName} {user.lastName} ({user.email})
-                         </option>
-                       ))
-                     ) : (
-                       <option value="" disabled>Δεν υπάρχουν χρήστες</option>
-                     )}
-                   </select>
+                     <select
+                       className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-700"
+                       value={newCode.selectedUserId}
+                       onChange={(e) => {
+                         console.log('[AdminPanel] User selected:', e.target.value);
+                         setNewCode({ ...newCode, selectedUserId: e.target.value });
+                       }}
+                     >
+                       <option value="">-- Επιλέξτε χρήστη --</option>
+                       {allUsers.length > 0 ? (
+                         allUsers.map((user) => (
+                           <option key={user.id} value={user.id}>
+                             {user.firstName} {user.lastName} ({user.email})
+                           </option>
+                         ))
+                       ) : (
+                         <option value="" disabled>Δεν υπάρχουν χρήστες</option>
+                       )}
+                     </select>
                  ) : (
                    <div className="space-y-3">
                      <input
@@ -5141,7 +5231,7 @@ const AdminPanel: React.FC = () => {
                                  newCode.selectedUserId === user.id ? 'bg-blue-100 border-l-4 border-l-blue-500' : ''
                                }`}
                                onClick={() => {
-                                 setNewCode({ ...newCode, selectedUserId: user.id });
+                                   setNewCode({ ...newCode, selectedUserId: user.id });
                                }}
                              >
                                <div className="font-semibold text-gray-900">{user.firstName} {user.lastName}</div>
@@ -5163,13 +5253,18 @@ const AdminPanel: React.FC = () => {
                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
                          <span className="text-white text-sm">✓</span>
                        </div>
-                       <div>
+                       <div className="flex-1">
                          <div className="text-sm font-bold text-green-800">
                            ✅ Επιλεγμένος:
                          </div>
-                         <div className="text-xs text-green-600">
-                           {allUsers.find(u => u.id === newCode.selectedUserId)?.firstName} {allUsers.find(u => u.id === newCode.selectedUserId)?.lastName} ({allUsers.find(u => u.id === newCode.selectedUserId)?.email})
-                         </div>
+                           <div className="text-xs text-green-600">
+                             {allUsers.find(u => u.id === newCode.selectedUserId)?.firstName} {allUsers.find(u => u.id === newCode.selectedUserId)?.lastName} ({allUsers.find(u => u.id === newCode.selectedUserId)?.email})
+                           </div>
+                           {userType === 'paspartu' && selectedUserDeposit !== null && (
+                             <div className="mt-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded border border-purple-300">
+                               💰 Deposit: <strong>{selectedUserDeposit.remaining}</strong> μαθήματα διαθέσιμα (Σύνολο: {selectedUserDeposit.total}, Χρησιμοποιημένα: {selectedUserDeposit.used})
+                             </div>
+                           )}
                        </div>
                      </div>
                    </div>
@@ -5386,7 +5481,7 @@ const AdminPanel: React.FC = () => {
                        type="button" 
                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium flex items-center justify-center"
                        onClick={() => {
-                        const currentSessions = getCurrentSessions();
+                         const currentSessions = getCurrentSessions();
                         updateCurrentSessions([...currentSessions, {
                           id: `tmp-${Date.now()}`,
                           date: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`, 
