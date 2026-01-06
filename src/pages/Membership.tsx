@@ -168,7 +168,12 @@ const MembershipPage: React.FC = React.memo(() => {
           name: ex?.name || 'Unknown Exercise',
           description: progEx.notes || ex?.description || '',
           youtubeUrl: ex?.youtube_url || 'https://www.youtube.com',
-          sets: setsText
+          sets: setsText,
+          weight_kg: progEx.weight_kg,
+          rm_percentage: progEx.rm_percentage,
+          rpe: progEx.rpe,
+          time_seconds: progEx.time_seconds,
+          rest_seconds: progEx.rest_seconds
         };
       })
     }));
@@ -882,12 +887,36 @@ const MembershipPage: React.FC = React.memo(() => {
                                       {exercise.description}
                                     </p>
                                   )}
-                                  {exercise.sets && (
-                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                                      <Clock className="h-3 w-3 mr-1" />
-                                      {exercise.sets}
-                                    </div>
-                                  )}
+                                  <div className="flex flex-wrap gap-2 items-center">
+                                    {exercise.sets && (
+                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        {exercise.sets}
+                                      </div>
+                                    )}
+                                    {exercise.weight_kg && (
+                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                                        Kg: {exercise.weight_kg}
+                                      </div>
+                                    )}
+                                    {exercise.rm_percentage && (
+                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                        RM: {exercise.rm_percentage}%
+                                      </div>
+                                    )}
+                                    {exercise.rpe && (
+                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">
+                                        RPE: {exercise.rpe}
+                                      </div>
+                                    )}
+                                    {exercise.time_seconds && (
+                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-cyan-100 text-cyan-700 rounded-full text-xs font-semibold">
+                                        Time: {exercise.time_seconds >= 60 
+                                          ? `${Math.floor(exercise.time_seconds / 60)}:${String(exercise.time_seconds % 60).padStart(2, '0')}`
+                                          : `${exercise.time_seconds}s`}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               

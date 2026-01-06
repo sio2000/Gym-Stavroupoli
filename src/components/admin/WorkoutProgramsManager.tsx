@@ -798,7 +798,7 @@ const CombinedProgramCard: React.FC<{
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <h4 className="font-medium">{progExercise.exercise?.name}</h4>
-                    <div className="mt-2 flex items-center space-x-4 text-sm text-gray-600">
+                    <div className="mt-2 flex items-center flex-wrap gap-2 text-sm text-gray-600">
                       <span>{progExercise.sets} sets</span>
                       {progExercise.reps_text && <span>{progExercise.reps_text}</span>}
                       {(progExercise.reps_min || progExercise.reps_max) && (
@@ -808,10 +808,26 @@ const CombinedProgramCard: React.FC<{
                         <Clock className="h-4 w-4" />
                         <span>{progExercise.rest_seconds}s rest</span>
                       </span>
+                      {progExercise.weight_kg && (
+                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Kg: {progExercise.weight_kg}</span>
+                      )}
+                      {progExercise.rm_percentage && (
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded">RM: {progExercise.rm_percentage}%</span>
+                      )}
+                      {progExercise.rpe && (
+                        <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded">RPE: {progExercise.rpe}</span>
+                      )}
+                      {progExercise.time_seconds && (
+                        <span className="px-2 py-1 bg-cyan-100 text-cyan-700 rounded">
+                          Time: {progExercise.time_seconds >= 60 
+                            ? `${Math.floor(progExercise.time_seconds / 60)}:${String(progExercise.time_seconds % 60).padStart(2, '0')}`
+                            : `${progExercise.time_seconds}s`}
+                        </span>
+                      )}
                     </div>
                     {progExercise.notes && <p className="text-sm text-gray-500 mt-1">{progExercise.notes}</p>}
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => {
                         const newSets = prompt('Νέο αριθμό sets:', progExercise.sets.toString());
@@ -833,6 +849,82 @@ const CombinedProgramCard: React.FC<{
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded text-sm"
                     >
                       Edit Rest
+                    </button>
+                    <button
+                      onClick={() => {
+                        const currentValue = progExercise.weight_kg?.toString() || '';
+                        const newWeight = prompt('Κιλά (Kg):', currentValue);
+                        if (newWeight !== null) {
+                          const weightValue = newWeight.trim() === '' ? undefined : parseFloat(newWeight);
+                          onUpdateExercise(progExercise.id, { weight_kg: weightValue });
+                        }
+                      }}
+                      className="p-2 text-green-600 hover:bg-green-50 rounded text-sm"
+                      title="Επεξεργασία κιλών"
+                    >
+                      Edit Kg
+                    </button>
+                    <button
+                      onClick={() => {
+                        const currentValue = progExercise.rm_percentage?.toString() || '';
+                        const newRM = prompt('RM Ποσοστό (π.χ. 60 για 60%):', currentValue);
+                        if (newRM !== null) {
+                          const rmValue = newRM.trim() === '' ? undefined : parseFloat(newRM);
+                          onUpdateExercise(progExercise.id, { rm_percentage: rmValue });
+                        }
+                      }}
+                      className="p-2 text-purple-600 hover:bg-purple-50 rounded text-sm"
+                      title="Επεξεργασία RM ποσοστού"
+                    >
+                      Edit RM
+                    </button>
+                    <button
+                      onClick={() => {
+                        const currentValue = progExercise.rpe?.toString() || '';
+                        const newRPE = prompt('RPE (Rate of Perceived Exertion, π.χ. 8.5):', currentValue);
+                        if (newRPE !== null) {
+                          const rpeValue = newRPE.trim() === '' ? undefined : parseFloat(newRPE);
+                          onUpdateExercise(progExercise.id, { rpe: rpeValue });
+                        }
+                      }}
+                      className="p-2 text-orange-600 hover:bg-orange-50 rounded text-sm"
+                      title="Επεξεργασία RPE"
+                    >
+                      Edit RPE
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Convert current time_seconds to minutes:seconds for display
+                        const currentSeconds = progExercise.time_seconds || 0;
+                        const currentMinutes = Math.floor(currentSeconds / 60);
+                        const currentSecs = currentSeconds % 60;
+                        const currentDisplay = currentSeconds > 0 
+                          ? `${currentMinutes}:${String(currentSecs).padStart(2, '0')}`
+                          : '';
+                        const newTime = prompt('Χρόνος (π.χ. "5:30" για 5 λεπτά 30 δευτερόλεπτα ή "180" για 180 δευτερόλεπτα):', currentDisplay || '');
+                        if (newTime !== null) {
+                          let timeValue: number | undefined;
+                          if (newTime.trim() === '') {
+                            timeValue = undefined;
+                          } else {
+                            // Check if input contains colon (MM:SS format)
+                            if (newTime.includes(':')) {
+                              const parts = newTime.split(':');
+                              const minutes = parseInt(parts[0]) || 0;
+                              const seconds = parseInt(parts[1]) || 0;
+                              timeValue = minutes * 60 + seconds;
+                            } else {
+                              // Just seconds
+                              timeValue = parseInt(newTime) || undefined;
+                            }
+                          }
+                          onUpdateExercise(progExercise.id, { time_seconds: timeValue });
+                        }
+                      }}
+                      className="p-2 text-cyan-600 hover:bg-cyan-50 rounded text-sm"
+                      title="Επεξεργασία χρόνου (για ασκήσεις με χρόνο όπως διαδρομή)"
+                    >
+                      Edit Time
                     </button>
                     <button
                       onClick={() => onDeleteExercise(progExercise.id)}

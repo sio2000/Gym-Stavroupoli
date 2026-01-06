@@ -66,6 +66,10 @@ export interface CombinedProgramExercise {
   rest_seconds: number;
   weight_notes?: string;
   notes?: string;
+  weight_kg?: number; // Weight in kilograms (e.g., 20.5)
+  rm_percentage?: number; // Percentage of 1RM (e.g., 60.00 for 60%)
+  rpe?: number; // Rate of Perceived Exertion (e.g., 8.5)
+  time_seconds?: number; // Time duration in seconds (e.g., 1800 for 30 minutes) - for cardio/time-based exercises
   created_at: string;
   updated_at: string;
   exercise?: WorkoutExercise;
