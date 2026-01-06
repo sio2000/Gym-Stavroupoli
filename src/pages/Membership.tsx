@@ -150,18 +150,23 @@ const MembershipPage: React.FC = React.memo(() => {
       icon: '🔲',
       exercises: (program.exercises || []).map(progEx => {
         const ex = progEx.exercise;
+        const setsValue = (progEx.sets !== null && progEx.sets !== undefined && !isNaN(Number(progEx.sets))) ? progEx.sets : '-';
+        const restValue = (progEx.rest_seconds !== null && progEx.rest_seconds !== undefined && !isNaN(Number(progEx.rest_seconds))) ? progEx.rest_seconds : '-';
+        
         let setsText = '';
         if (progEx.reps_text) {
-          setsText = `${progEx.sets} x ${progEx.reps_text}`;
+          setsText = `${setsValue} x ${progEx.reps_text}`;
         } else if (progEx.reps_min && progEx.reps_max) {
-          setsText = `${progEx.sets} x ${progEx.reps_min}-${progEx.reps_max}`;
+          setsText = `${setsValue} x ${progEx.reps_min}-${progEx.reps_max}`;
         } else if (progEx.reps_min) {
-          setsText = `${progEx.sets} x ${progEx.reps_min}`;
+          setsText = `${setsValue} x ${progEx.reps_min}`;
         } else {
-          setsText = `${progEx.sets} sets`;
+          setsText = `${setsValue} sets`;
         }
-        if (progEx.rest_seconds) {
-          setsText += ` (${progEx.rest_seconds}s rest)`;
+        if (restValue !== '-') {
+          setsText += ` (${restValue}s rest)`;
+        } else {
+          setsText += ` (- rest)`;
         }
         
         return {
@@ -894,28 +899,28 @@ const MembershipPage: React.FC = React.memo(() => {
                                         {exercise.sets}
                                       </div>
                                     )}
-                                    {exercise.weight_kg && (
-                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                                        Kg: {exercise.weight_kg}
-                                      </div>
-                                    )}
-                                    {exercise.rm_percentage && (
-                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                                        RM: {exercise.rm_percentage}%
-                                      </div>
-                                    )}
-                                    {exercise.rpe && (
-                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">
-                                        RPE: {exercise.rpe}
-                                      </div>
-                                    )}
-                                    {exercise.time_seconds && (
-                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-cyan-100 text-cyan-700 rounded-full text-xs font-semibold">
-                                        Time: {exercise.time_seconds >= 60 
-                                          ? `${Math.floor(exercise.time_seconds / 60)}:${String(exercise.time_seconds % 60).padStart(2, '0')}`
-                                          : `${exercise.time_seconds}s`}
-                                      </div>
-                                    )}
+                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                                      Kg: {(exercise.weight_kg !== null && exercise.weight_kg !== undefined && !isNaN(Number(exercise.weight_kg))) 
+                                        ? exercise.weight_kg 
+                                        : '-'}
+                                    </div>
+                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                      RM: {(exercise.rm_percentage !== null && exercise.rm_percentage !== undefined && !isNaN(Number(exercise.rm_percentage))) 
+                                        ? `${exercise.rm_percentage}%` 
+                                        : '-'}
+                                    </div>
+                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">
+                                      RPE: {(exercise.rpe !== null && exercise.rpe !== undefined && !isNaN(Number(exercise.rpe))) 
+                                        ? exercise.rpe 
+                                        : '-'}
+                                    </div>
+                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-cyan-100 text-cyan-700 rounded-full text-xs font-semibold">
+                                      Time: {(exercise.time_seconds !== null && exercise.time_seconds !== undefined && !isNaN(Number(exercise.time_seconds))) 
+                                        ? (Number(exercise.time_seconds) >= 60 
+                                          ? `${Math.floor(Number(exercise.time_seconds) / 60)}:${String(Number(exercise.time_seconds) % 60).padStart(2, '0')}`
+                                          : `${exercise.time_seconds}s`)
+                                        : '-'}
+                                    </div>
                                   </div>
                                 </div>
                               </div>

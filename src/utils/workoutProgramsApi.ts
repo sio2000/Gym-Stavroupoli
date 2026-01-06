@@ -359,9 +359,20 @@ export const addExerciseToCombinedProgram = async (exercise: Partial<CombinedPro
 
 export const updateCombinedProgramExercise = async (id: string, updates: Partial<CombinedProgramExercise>): Promise<CombinedProgramExercise> => {
   try {
+    // Filter out undefined values and convert them to null for database
+    const cleanUpdates: Record<string, any> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        cleanUpdates[key] = value;
+      } else {
+        // Convert undefined to null for database
+        cleanUpdates[key] = null;
+      }
+    }
+
     const { data, error } = await supabase
       .from('combined_program_exercises')
-      .update(updates)
+      .update(cleanUpdates)
       .eq('id', id)
       .select(`
         *,
