@@ -103,6 +103,7 @@ interface ScanResult {
     email: string;
     name: string;
     category: string;
+    membershipName?: string;
   };
   reason?: string;
 }
@@ -1680,12 +1681,22 @@ const SecretaryDashboard: React.FC = () => {
 
     const hasActiveMembership = (activeMemberships && activeMemberships.length > 0) || hasPersonalTraining;
     
+    // Get membership name for display
+    let membershipName = 'Άγνωστη συνδρομή';
+    if (hasPersonalTraining) {
+      membershipName = 'Personal Training';
+    } else if (activeMemberships && activeMemberships.length > 0) {
+      const firstMembership = activeMemberships[0];
+      membershipName = firstMembership.package?.name || 'Άγνωστη συνδρομή';
+    }
+    
     // Prepare user data for display
     const userData = {
       id: userProfile?.id || 'unknown',
       email: userProfile?.email || 'unknown@email.com',
       name: `${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim() || 'Άγνωστος',
-      category: qrCode.category
+      category: qrCode.category,
+      membershipName: membershipName
     };
 
     // If user has NO active membership, show RED warning with user details
@@ -1708,6 +1719,79 @@ const SecretaryDashboard: React.FC = () => {
     console.log('✅ [Ultra Simple QR] Full user profile data:', userProfile);
     console.log('✅ [Ultra Simple QR] QR code data:', qrCode);
     console.log('✅ [Ultra Simple QR] Active memberships:', activeMemberships);
+    
+    // Log successful entrance scan to scan_audit_logs
+    // Try schema from FIX_SCAN_AUDIT_LOGS.sql first (qr_code_id, status, scanned_by, category)
+    // Note: In FIX schema, user_id references user_profiles(user_id), not user_profiles(id)
+    try {
+      // Use userProfile.user_id for FIX schema (references user_profiles.user_id)
+      // Fallback to qrCode.user_id which should also be the user_profiles.user_id
+      const userIdForLog = userProfile?.user_id || qrCode.user_id;
+      
+      if (!userIdForLog) {
+        console.error('⚠️ [Ultra Simple QR] Cannot log scan: user ID is missing');
+        console.error('⚠️ [Ultra Simple QR] userProfile:', userProfile);
+        console.error('⚠️ [Ultra Simple QR] qrCode.user_id:', qrCode.user_id);
+      } else {
+        // Try FIX_SCAN_AUDIT_LOGS schema first: qr_code_id, status, scanned_by, category
+        // user_id should be user_profiles.user_id (which is auth.users.id)
+        let logData: any = {
+          qr_code_id: qrCode.id,
+          user_id: userIdForLog,
+          scan_type: 'entrance',
+          status: 'approved',
+          reason: 'active_membership',
+          category: qrCode.category || 'free_gym'
+        };
+        
+        // scanned_by should also be user_profiles.user_id (auth.users.id)
+        if (user?.id) {
+          logData.scanned_by = user.id;
+        }
+        
+        let { error: logError } = await supabase
+          .from('scan_audit_logs')
+          .insert(logData);
+        
+        // If that fails, try alternative schema (qr_id, result, secretary_id, user_profiles.id)
+        if (logError && (logError.message?.includes('column') || logError.code === '42703' || logError.code === '23503')) {
+          console.log('⚠️ [Ultra Simple QR] First insert attempt failed, trying alternative schema...');
+          console.log('⚠️ [Ultra Simple QR] Error:', logError);
+          
+          // Alternative schema uses user_profiles.id
+          const userIdForAlternativeSchema = userProfile?.id || userIdForLog;
+          logData = {
+            qr_id: qrCode.id,
+            user_id: userIdForAlternativeSchema,
+            scan_type: 'entrance',
+            result: 'approved',
+            reason: 'active_membership'
+          };
+          
+          if (user?.id) {
+            logData.secretary_id = user.id;
+          }
+          
+          const retryResult = await supabase
+            .from('scan_audit_logs')
+            .insert(logData);
+          
+          logError = retryResult.error;
+          if (!logError) {
+            console.log('✅ [Ultra Simple QR] Scan logged successfully with alternative schema');
+          }
+        }
+        
+        if (logError) {
+          console.error('⚠️ [Ultra Simple QR] Error logging scan to audit logs:', logError);
+          console.error('⚠️ [Ultra Simple QR] Attempted log data:', logData);
+        } else {
+          console.log('✅ [Ultra Simple QR] Scan logged successfully to audit logs');
+        }
+      }
+    } catch (logErr) {
+      console.error('⚠️ [Ultra Simple QR] Exception logging scan:', logErr);
+    }
     
     setScanResult({
       success: true,
@@ -5905,10 +5989,16 @@ const SecretaryDashboard: React.FC = () => {
                     <User className="h-4 w-4 text-gray-600" />
                     <span className="font-medium">{scanResult.userData.name}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 mb-2">
                     <Mail className="h-4 w-4 text-gray-600" />
                     <span className="text-sm text-gray-600">{scanResult.userData.email}</span>
                   </div>
+                  {scanResult.userData.membershipName && (
+                    <div className="flex items-center space-x-2">
+                      <CreditCard className="h-4 w-4 text-gray-600" />
+                      <span className="text-sm text-gray-600">{scanResult.userData.membershipName}</span>
+                    </div>
+                  )}
                 </div>
               )}
               

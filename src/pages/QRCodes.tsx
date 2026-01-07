@@ -259,6 +259,15 @@ const QRCodes: React.FC = () => {
     loadAvailableCategories();
     checkOverdueStatus();
     loadOccupancy();
+    
+    // Refresh occupancy every 30 seconds for real-time updates
+    const occupancyInterval = setInterval(() => {
+      loadOccupancy();
+    }, 30000); // 30 seconds
+    
+    return () => {
+      clearInterval(occupancyInterval);
+    };
   }, [user?.id]);
 
   const loadOccupancy = async () => {

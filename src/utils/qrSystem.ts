@@ -385,30 +385,55 @@ export async function validateQRCode(
   }
 }
 
-// Compute current occupancy (unique users whose last scan today είναι είσοδος)
+// Compute current occupancy (unique users whose last scan in last 90 minutes is entrance)
 export async function getCurrentGymOccupancy(): Promise<number> {
   try {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    // Calculate timestamp 90 minutes ago (1.5 hours)
+    const ninetyMinutesAgo = new Date();
+    ninetyMinutesAgo.setMinutes(ninetyMinutesAgo.getMinutes() - 90);
 
-    const { data, error } = await supabase
+    // Try to query with status first (FIX_SCAN_AUDIT_LOGS schema), fallback to result
+    let { data, error } = await supabase
       .from('scan_audit_logs')
-      .select('user_id, scan_type, created_at, result')
-      .eq('result', 'approved')
-      .gte('created_at', startOfDay.toISOString())
+      .select('user_id, scan_type, created_at, status')
+      .eq('status', 'approved')
+      .gte('created_at', ninetyMinutesAgo.toISOString())
       .order('created_at', { ascending: true });
+
+    // If that fails, try with result column
+    if (error && error.message?.includes('column') && error.message?.includes('status')) {
+      const retry = await supabase
+        .from('scan_audit_logs')
+        .select('user_id, scan_type, created_at, result')
+        .eq('result', 'approved')
+        .gte('created_at', ninetyMinutesAgo.toISOString())
+        .order('created_at', { ascending: true });
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('[QR] Error fetching occupancy scans:', error);
       return 0;
     }
 
-    const lastScanByUser: Record<string, 'entrance' | 'exit'> = {};
+    // Keep only the most recent scan per user (within last 90 minutes)
+    const lastScanByUser: Record<string, { scan_type: 'entrance' | 'exit'; created_at: string }> = {};
     (data || []).forEach((row: any) => {
-      lastScanByUser[row.user_id] = row.scan_type;
+      const existing = lastScanByUser[row.user_id];
+      if (!existing || new Date(row.created_at) > new Date(existing.created_at)) {
+        lastScanByUser[row.user_id] = {
+          scan_type: row.scan_type,
+          created_at: row.created_at
+        };
+      }
     });
 
-    const insideCount = Object.values(lastScanByUser).filter(type => type === 'entrance').length;
+    // Count only users whose last scan (within 90 minutes) was entrance
+    const insideCount = Object.values(lastScanByUser).filter(
+      scan => scan.scan_type === 'entrance'
+    ).length;
+    
     return insideCount;
   } catch (err) {
     console.error('[QR] Occupancy error:', err);
