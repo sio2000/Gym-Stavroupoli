@@ -2536,12 +2536,12 @@ const SecretaryDashboard: React.FC = () => {
                 .from('lesson_deposits')
                 .update({ used_lessons: currentUsedLessons })
                 .eq('user_id', selectedUser.id);
-              
+
               if (updateError) {
                 console.error('[SECRETARY] Failed to update used_lessons:', updateError);
               }
             }
-          } else {
+              } else {
             console.log(`[SECRETARY] Lesson deposit updated: ${totalDeposits} total, ${currentUsedLessons} used (before bookings)`);
           }
 
@@ -4624,9 +4624,9 @@ const SecretaryDashboard: React.FC = () => {
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
                   <label className="block text-lg font-bold text-blue-800 mb-4 flex items-center">
                     👤 Επιλογή Χρήστη
-                    <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
-                      Selected: {newCode.selectedUserId ? '✅' : '❌'}
-                    </span>
+                      <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                        Selected: {newCode.selectedUserId ? '✅' : '❌'}
+                      </span>
                   </label>
                  
                  {/* Enhanced Mode Selection */}
@@ -4657,24 +4657,24 @@ const SecretaryDashboard: React.FC = () => {
 
                  {/* User Selection based on mode */}
                  {userSearchMode === 'dropdown' ? (
-                   <select
-                     className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-700"
-                     value={newCode.selectedUserId}
-                     onChange={(e) => {
-                       setNewCode({ ...newCode, selectedUserId: e.target.value });
-                     }}
-                   >
-                     <option value="">-- Επιλέξτε χρήστη --</option>
-                     {allUsers.length > 0 ? (
-                       allUsers.map((user) => (
-                         <option key={user.id} value={user.id}>
-                           {user.firstName} {user.lastName} ({user.email})
-                         </option>
-                       ))
-                     ) : (
-                       <option value="" disabled>Δεν υπάρχουν χρήστες</option>
-                     )}
-                   </select>
+                     <select
+                       className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-700"
+                       value={newCode.selectedUserId}
+                       onChange={(e) => {
+                         setNewCode({ ...newCode, selectedUserId: e.target.value });
+                       }}
+                     >
+                       <option value="">-- Επιλέξτε χρήστη --</option>
+                       {allUsers.length > 0 ? (
+                         allUsers.map((user) => (
+                           <option key={user.id} value={user.id}>
+                             {user.firstName} {user.lastName} ({user.email})
+                           </option>
+                         ))
+                       ) : (
+                         <option value="" disabled>Δεν υπάρχουν χρήστες</option>
+                       )}
+                     </select>
                  ) : (
                    <div className="space-y-3">
                      <input
@@ -4699,7 +4699,7 @@ const SecretaryDashboard: React.FC = () => {
                                  newCode.selectedUserId === user.id ? 'bg-blue-100 border-l-4 border-l-blue-500' : ''
                                }`}
                                onClick={() => {
-                                 setNewCode({ ...newCode, selectedUserId: user.id });
+                                   setNewCode({ ...newCode, selectedUserId: user.id });
                                }}
                              >
                                <div className="font-semibold text-gray-900">{user.firstName} {user.lastName}</div>
@@ -4722,9 +4722,9 @@ const SecretaryDashboard: React.FC = () => {
                          <div className="text-sm font-bold text-green-800">
                            ✅ Επιλεγμένος:
                          </div>
-                         <div className="text-xs text-green-600">
-                           {allUsers.find(u => u.id === newCode.selectedUserId)?.firstName} {allUsers.find(u => u.id === newCode.selectedUserId)?.lastName} ({allUsers.find(u => u.id === newCode.selectedUserId)?.email})
-                         </div>
+                           <div className="text-xs text-green-600">
+                             {allUsers.find(u => u.id === newCode.selectedUserId)?.firstName} {allUsers.find(u => u.id === newCode.selectedUserId)?.lastName} ({allUsers.find(u => u.id === newCode.selectedUserId)?.email})
+                           </div>
                          {userType === 'paspartu' && selectedUserDeposit !== null && (
                            <div className="mt-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded border border-purple-300">
                              💰 Deposit: <strong>{selectedUserDeposit.remaining}</strong> μαθήματα διαθέσιμα (Σύνολο: {selectedUserDeposit.total}, Χρησιμοποιημένα: {selectedUserDeposit.used})
@@ -5498,14 +5498,14 @@ const SecretaryDashboard: React.FC = () => {
                {/* Excel-Style Προσωποποιημένο Πρόγραμμα */}
                {newCode.selectedUserId && (
                  <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-4 sm:p-6 border border-orange-200">
-                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                   <h4 className="text-lg sm:text-xl font-bold text-orange-800 flex items-center">
-                   🏋️‍♂️ Προσωποποιημένο Πρόγραμμα 
-                 </h4>
+                  <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    <h4 className="text-lg sm:text-xl font-bold text-orange-800 flex items-center">
+                    🏋️‍♂️ Προσωποποιημένο Πρόγραμμα 
+                  </h4>
                    <div className="text-sm px-3 py-2 rounded-lg text-gray-600 bg-gray-100">
-                     📊 Σύνολο: {getCurrentSessions().length} σεσίας
-                   </div>
-                 </div>
+                      📊 Σύνολο: {getCurrentSessions().length} σεσίας
+                    </div>
+                  </div>
 
                   {/* Session Filter Toggle Buttons */}
                   <div className="mb-4 sm:mb-6">

@@ -178,7 +178,10 @@ const MembershipPage: React.FC = React.memo(() => {
           rm_percentage: progEx.rm_percentage,
           rpe: progEx.rpe,
           time_seconds: progEx.time_seconds,
-          rest_seconds: progEx.rest_seconds
+          rest_seconds: progEx.rest_seconds,
+          method: progEx.method,
+          level: progEx.level,
+          tempo: progEx.tempo
         };
       })
     }));
@@ -685,6 +688,11 @@ const MembershipPage: React.FC = React.memo(() => {
         </div>
       )}
 
+      {/* Μεθοδολογίες Προπονησης Section */}
+      {hasWorkoutProgramsEligibleMembership && (
+        <TrainingMethodologiesSection />
+      )}
+
       {hasWorkoutProgramsEligibleMembership && (
         <div 
           className="bg-white rounded-3xl shadow-2xl border border-blue-100 overflow-hidden"
@@ -921,6 +929,21 @@ const MembershipPage: React.FC = React.memo(() => {
                                           : `${exercise.time_seconds}s`)
                                         : '-'}
                                     </div>
+                                    {exercise.method && (
+                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">
+                                        Method: {exercise.method}
+                                      </div>
+                                    )}
+                                    {exercise.level && (
+                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-teal-100 text-teal-700 rounded-full text-xs font-semibold">
+                                        Level: {exercise.level}
+                                      </div>
+                                    )}
+                                    {exercise.tempo && (
+                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-pink-100 text-pink-700 rounded-full text-xs font-semibold">
+                                        Tempo: {exercise.tempo}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -1404,5 +1427,644 @@ const MembershipPage: React.FC = React.memo(() => {
     </>
   );
 });
+
+// Training Methodologies Component
+const TrainingMethodologiesSection: React.FC = () => {
+  const [selectedMethodology, setSelectedMethodology] = useState<'circuit' | 'rm' | 'anti-extension' | 'density' | 'strength' | 'cluster-sets' | 'max-load' | 'drop-set' | 'mechanical-drop' | 'load-focus' | 'superset' | 'straight-sets' | 'pump' | 'isolation' | 'tempo-control' | 'neural' | 'core' | 'alternating' | 'stability' | null>(null);
+
+  const methodologies = [
+    {
+      id: 'circuit' as const,
+      title: 'Circuit',
+      icon: '⚡',
+      color: 'from-purple-500 to-pink-500',
+      hoverColor: 'hover:from-purple-600 hover:to-pink-600'
+    },
+    {
+      id: 'rm' as const,
+      title: 'Βασικό Πλαίσιο RM',
+      icon: '📊',
+      color: 'from-blue-500 to-indigo-500',
+      hoverColor: 'hover:from-blue-600 hover:to-indigo-600'
+    },
+    {
+      id: 'anti-extension' as const,
+      title: 'Anti-Extension',
+      icon: '🛡️',
+      color: 'from-green-500 to-teal-500',
+      hoverColor: 'hover:from-green-600 hover:to-teal-600'
+    },
+    {
+      id: 'density' as const,
+      title: 'Density',
+      icon: '⏱️',
+      color: 'from-orange-500 to-red-500',
+      hoverColor: 'hover:from-orange-600 hover:to-red-600'
+    },
+    {
+      id: 'strength' as const,
+      title: 'Strength',
+      icon: '💪',
+      color: 'from-indigo-500 to-purple-500',
+      hoverColor: 'hover:from-indigo-600 hover:to-purple-600'
+    },
+    {
+      id: 'cluster-sets' as const,
+      title: 'Cluster Sets',
+      icon: '🔗',
+      color: 'from-cyan-500 to-blue-500',
+      hoverColor: 'hover:from-cyan-600 hover:to-blue-600'
+    },
+    {
+      id: 'max-load' as const,
+      title: 'Max Load',
+      icon: '🏋️',
+      color: 'from-amber-500 to-yellow-500',
+      hoverColor: 'hover:from-amber-600 hover:to-yellow-600'
+    },
+    {
+      id: 'drop-set' as const,
+      title: 'Drop Set',
+      icon: '⬇️',
+      color: 'from-red-500 to-pink-500',
+      hoverColor: 'hover:from-red-600 hover:to-pink-600'
+    },
+    {
+      id: 'mechanical-drop' as const,
+      title: 'Mechanical Drop',
+      icon: '⚙️',
+      color: 'from-slate-500 to-gray-500',
+      hoverColor: 'hover:from-slate-600 hover:to-gray-600'
+    },
+    {
+      id: 'load-focus' as const,
+      title: 'Load Focus',
+      icon: '🎯',
+      color: 'from-violet-500 to-purple-500',
+      hoverColor: 'hover:from-violet-600 hover:to-purple-600'
+    },
+    {
+      id: 'superset' as const,
+      title: 'Superset A / B',
+      icon: '🔄',
+      color: 'from-emerald-500 to-green-500',
+      hoverColor: 'hover:from-emerald-600 hover:to-green-600'
+    },
+    {
+      id: 'straight-sets' as const,
+      title: 'Straight Sets',
+      icon: '📏',
+      color: 'from-rose-500 to-red-500',
+      hoverColor: 'hover:from-rose-600 hover:to-red-600'
+    },
+    {
+      id: 'pump' as const,
+      title: 'Pump',
+      icon: '💉',
+      color: 'from-fuchsia-500 to-pink-500',
+      hoverColor: 'hover:from-fuchsia-600 hover:to-pink-600'
+    },
+    {
+      id: 'isolation' as const,
+      title: 'Isolation',
+      icon: '🎯',
+      color: 'from-sky-500 to-blue-500',
+      hoverColor: 'hover:from-sky-600 hover:to-blue-600'
+    },
+    {
+      id: 'tempo-control' as const,
+      title: 'Tempo Control',
+      icon: '⏱️',
+      color: 'from-lime-500 to-green-500',
+      hoverColor: 'hover:from-lime-600 hover:to-green-600'
+    },
+    {
+      id: 'neural' as const,
+      title: 'Neural',
+      icon: '🧠',
+      color: 'from-indigo-500 to-blue-500',
+      hoverColor: 'hover:from-indigo-600 hover:to-blue-600'
+    },
+    {
+      id: 'core' as const,
+      title: 'Core',
+      icon: '💪',
+      color: 'from-orange-500 to-amber-500',
+      hoverColor: 'hover:from-orange-600 hover:to-amber-600'
+    },
+    {
+      id: 'alternating' as const,
+      title: 'Alternating',
+      icon: '🔄',
+      color: 'from-teal-500 to-cyan-500',
+      hoverColor: 'hover:from-teal-600 hover:to-cyan-600'
+    },
+    {
+      id: 'stability' as const,
+      title: 'Stability',
+      icon: '⚖️',
+      color: 'from-stone-500 to-neutral-500',
+      hoverColor: 'hover:from-stone-600 hover:to-neutral-600'
+    }
+  ];
+
+  const getMethodologyContent = (id: 'circuit' | 'rm' | 'anti-extension' | 'density' | 'strength' | 'cluster-sets' | 'max-load' | 'drop-set' | 'mechanical-drop' | 'load-focus' | 'superset' | 'straight-sets' | 'pump' | 'isolation' | 'tempo-control' | 'neural' | 'core' | 'alternating' | 'stability') => {
+    if (id === 'circuit') {
+      return {
+        title: '🔹 Circuit',
+        content: [
+          { type: 'section', text: 'Τι είναι:' },
+          { type: 'text', text: 'Σειρά ασκήσεων που εκτελούνται η μία μετά την άλλη χωρίς διάλειμμα.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: 'Leg Press → Chest Press → Lat Pulldown → Plank' },
+          { type: 'text', text: '(διάλειμμα μόνο στο τέλος του κύκλου)', className: 'text-sm text-gray-500 italic' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'αύξηση καρδιοαναπνευστικής επιβάρυνσης',
+            'γενική φυσική κατάσταση',
+            'beginner-friendly'
+          ]}
+        ]
+      };
+    } else if (id === 'rm') {
+      return {
+        title: 'Βασικό Πλαίσιο RM (σταθερό για όλα τα προγράμματα)',
+        content: [
+          { type: 'section', text: 'Τεχνική / βάση' },
+          { type: 'text', text: '55–65% του 1RM, 12–15 επαναλήψεις, RIR 3–4.' },
+          { type: 'section', text: 'Υπερτροφία' },
+          { type: 'text', text: '65–75% του 1RM, 8–12 επαναλήψεις, RIR 2.' },
+          { type: 'section', text: 'Δύναμη – υπερτροφία' },
+          { type: 'text', text: '75–85% του 1RM, 5–8 επαναλήψεις, RIR 1.' },
+          { type: 'section', text: 'Μέγιστη δύναμη' },
+          { type: 'text', text: '85–90% του 1RM, 3–5 επαναλήψεις, RIR 0–1.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Διάλειμμα 📌' },
+          { type: 'text', text: 'Πολυαρθρικές ασκήσεις: 90–150 δευτερόλεπτα.' },
+          { type: 'text', text: 'Μονοαρθρικές ασκήσεις: 45–75 δευτερόλεπτα' },
+          { type: 'divider' },
+          { type: 'section', text: 'RIR σημαίνει Reps In Reserve.' },
+          { type: 'text', text: 'Δηλαδή: πόσες επαναλήψεις "σου μένουν" πριν την αποτυχία.' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'list', items: [
+            'RIR 3 → σταματάς το σετ ενώ θα μπορούσες να κάνεις άλλες 3 επαναλήψεις',
+            'RIR 2 → σου μένουν 2 επαναλήψεις',
+            'RIR 1 → σου μένει 1 επανάληψη',
+            'RIR 0 → καμία επανάληψη, είσαι στην αποτυχία'
+          ]},
+          { type: 'section', text: 'Με απλά λόγια:' },
+          { type: 'text', text: 'το RIR δείχνει πόσο κοντά στη μυϊκή αποτυχία δουλεύεις.' }
+        ]
+      };
+    } else if (id === 'anti-extension') {
+      return {
+        title: '🔹 Anti-Extension',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Ο κορμός αντιστέκεται στο «σπάσιμο» της μέσης.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'list', items: ['Plank', 'Ab Wheel'] },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'προστασία μέσης',
+            'καλύτερα squat / deadlift',
+            'σταθερότητα υπό φορτίο'
+          ]}
+        ]
+      };
+    } else if (id === 'density') {
+      return {
+        title: '🔹 Density',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Ίδιος όγκος δουλειάς, λιγότερος χρόνος.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: '4×10 με 60" αντί για 90" rest' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'μυϊκή αντοχή',
+            'conditioning',
+            'time efficiency'
+          ]}
+        ]
+      };
+    } else if (id === 'strength') {
+      return {
+        title: '🔹 Strength (ως Method)',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει εδώ:' },
+          { type: 'text', text: 'Καθαρή προπόνηση δύναμης, χωρίς τεχνικά tricks.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Χαρακτηριστικά:' },
+          { type: 'list', items: [
+            'compound lifts',
+            '4–6 επαναλήψεις',
+            '75–85% 1RM'
+          ]}
+        ]
+      };
+    } else if (id === 'cluster-sets') {
+      return {
+        title: '🔹 Cluster Sets (π.χ. 3+3)',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Το σετ «σπάει» σε μικρά κομμάτια με μίνι παύσεις.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: '3 reps → 15–20″ → 3 reps' },
+          { type: 'text', text: '(ίδιο βάρος)', className: 'text-sm text-gray-500 italic' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'περισσότερες ποιοτικές επαναλήψεις',
+            'διατήρηση τεχνικής',
+            'υψηλή νευρική διέγερση'
+          ]}
+        ]
+      };
+    } else if (id === 'max-load') {
+      return {
+        title: '🔹 Max Load',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Σετ με πολύ βαρύ φορτίο, αλλά χωρίς αποτυχία.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Χαρακτηριστικά:' },
+          { type: 'list', items: [
+            '80–90% 1RM',
+            'λίγες επαναλήψεις',
+            'μεγάλο διάλειμμα'
+          ]},
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'κορύφωση δύναμης',
+            'νευρική προσαρμογή',
+            'confidence under load'
+          ]}
+        ]
+      };
+    } else if (id === 'drop-set') {
+      return {
+        title: '🔹 Drop Set',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Εκτελείς:' },
+          { type: 'list', items: [
+            'σετ μέχρι κοντά στην αποτυχία',
+            'μειώνεις βάρος',
+            'συνεχίζεις ΧΩΡΙΣ διάλειμμα'
+          ]},
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: '8 reps → −20% βάρος → 8 reps' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'έντονο metabolic stress',
+            '«κάψιμο» μυός',
+            'advanced hypertrophy'
+          ]}
+        ]
+      };
+    } else if (id === 'mechanical-drop') {
+      return {
+        title: '🔹 Mechanical Drop',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Μείωση της μηχανικής δυσκολίας της άσκησης, όχι του βάρους.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'list', items: [
+            'Push Press → Strict Press',
+            'Pull-Up → Chin-Up'
+          ]},
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'παράταση του σετ',
+            'περισσότερες επαναλήψεις',
+            'έντονη υπερτροφία'
+          ]}
+        ]
+      };
+    } else if (id === 'load-focus') {
+      return {
+        title: '🔹 Load Focus',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Η άσκηση εκτελείται με προτεραιότητα στο βάρος, όχι στον όγκο.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Χαρακτηριστικά:' },
+          { type: 'list', items: [
+            'λιγότερες επαναλήψεις',
+            'μεγαλύτερο διάλειμμα',
+            'υψηλό %1RM'
+          ]},
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'προοδευτική υπερφόρτωση',
+            'αύξηση δύναμης'
+          ]}
+        ]
+      };
+    } else if (id === 'superset') {
+      return {
+        title: '🔹 Superset A / Superset B',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Δύο ασκήσεις εκτελούνται η μία αμέσως μετά την άλλη, χωρίς διάλειμμα.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Superset A' },
+          { type: 'text', text: 'Συνήθως:' },
+          { type: 'list', items: [
+            'μεγάλοι μύες',
+            'ανταγωνιστικές κινήσεις'
+          ]},
+          { type: 'text', text: 'π.χ. Squat → Row', className: 'text-sm text-gray-500 italic' },
+          { type: 'divider' },
+          { type: 'section', text: 'Superset B' },
+          { type: 'text', text: 'Συνήθως:' },
+          { type: 'list', items: [
+            'μικρότεροι μύες',
+            'arms / shoulders'
+          ]},
+          { type: 'text', text: 'π.χ. Curl → Triceps Extension', className: 'text-sm text-gray-500 italic' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'εξοικονόμηση χρόνου',
+            'αυξημένη ένταση',
+            'καλύτερο conditioning'
+          ]}
+        ]
+      };
+    } else if (id === 'straight-sets') {
+      return {
+        title: '🔹 Straight Sets',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Κλασικά σετ:' },
+          { type: 'list', items: [
+            'ίδιο βάρος',
+            'ίδιες επαναλήψεις',
+            'κανονικό διάλειμμα'
+          ]},
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: '4×10 @ 70% με 90" rest' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'σταθερή πρόοδος',
+            'εύκολη παρακολούθηση φορτίου',
+            'βάση κάθε προγράμματος'
+          ]}
+        ]
+      };
+    } else if (id === 'pump') {
+      return {
+        title: '🔹 Pump',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Σετ με:' },
+          { type: 'list', items: [
+            'μέτριο φορτίο',
+            'πολλές επαναλήψεις',
+            'μικρά διαλείμματα'
+          ]},
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'αυξημένη αιμάτωση',
+            'metabolic stress',
+            '«γεμάτη» αίσθηση μυός'
+          ]},
+          { type: 'text', text: '📌 Δεν είναι δύναμη, είναι υπερτροφία & αντοχή', className: 'text-sm text-gray-500 italic mt-2' }
+        ]
+      };
+    } else if (id === 'isolation') {
+      return {
+        title: '🔹 Isolation',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Άσκηση που απομονώνει έναν βασικό μυ, χωρίς μεγάλη συμμετοχή άλλων.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: 'Leg Extension, Lateral Raises, Cable Curl' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'μυϊκή ενεργοποίηση',
+            'διόρθωση αδυναμιών',
+            'προετοιμασία για compound lifts'
+          ]}
+        ]
+      };
+    } else if (id === 'tempo-control') {
+      return {
+        title: '🔹 Tempo Control',
+        content: [
+          { type: 'section', text: 'Τι σημαίνει:' },
+          { type: 'text', text: 'Η άσκηση εκτελείται με συγκεκριμένο, ελεγχόμενο ρυθμό (tempo).' },
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: 'Tempo 3–1–1' },
+          { type: 'list', items: [
+            '3″ κατέβασμα',
+            '1″ παύση',
+            '1″ ανέβασμα'
+          ]},
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'τεχνική ακρίβεια',
+            'μυϊκός έλεγχος',
+            'ασφάλεια (ιδανικό για beginners)'
+          ]}
+        ]
+      };
+    } else if (id === 'neural') {
+      return {
+        title: '🔹 Neural',
+        content: [
+          { type: 'section', text: 'Τι είναι:' },
+          { type: 'text', text: 'Μέθοδοι που στοχεύουν στο νευρικό σύστημα, όχι στον μυϊκό όγκο.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Χαρακτηριστικά:' },
+          { type: 'list', items: [
+            'πολύ βαριά φορτία',
+            'χαμηλές επαναλήψεις',
+            'μεγάλα διαλείμματα'
+          ]},
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: 'Deadlift 5×3 @ 90%' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'μέγιστη δύναμη',
+            'ταχύτητα ενεργοποίησης κινητικών μονάδων'
+          ]}
+        ]
+      };
+    } else if (id === 'core') {
+      return {
+        title: '🔹 Core',
+        content: [
+          { type: 'section', text: 'Τι είναι:' },
+          { type: 'text', text: 'Ασκήσεις που στοχεύουν κεντρικά στον κορμό (κοιλιακοί, ραχιαίοι, σταθεροποιητές).' },
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: 'Plank, Hanging Knee Raises, Ab Wheel' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'σταθερότητα',
+            'μεταφορά δύναμης',
+            'προστασία σπονδυλικής στήλης'
+          ]}
+        ]
+      };
+    } else if (id === 'alternating') {
+      return {
+        title: '🔹 Alternating',
+        content: [
+          { type: 'section', text: 'Τι είναι:' },
+          { type: 'text', text: 'Εναλλαγή άνω–κάτω σώματος ή ανταγωνιστικών μυών, με διάλειμμα ενδιάμεσα.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: 'Squat → Rest → Bench Press → Rest → Row' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'καλύτερη διαχείριση κόπωσης',
+            'εξοικονόμηση χρόνου',
+            'ιδανικό για Full Body'
+          ]}
+        ]
+      };
+    } else if (id === 'stability') {
+      return {
+        title: '🔹 Stability',
+        content: [
+          { type: 'section', text: 'Τι είναι:' },
+          { type: 'text', text: 'Ασκήσεις που στοχεύουν στη σταθεροποίηση αρθρώσεων και κορμού, όχι στη μέγιστη δύναμη.' },
+          { type: 'divider' },
+          { type: 'section', text: 'Παράδειγμα:' },
+          { type: 'text', text: 'Plank, single-leg holds, slow controlled movements' },
+          { type: 'divider' },
+          { type: 'section', text: 'Στόχος:' },
+          { type: 'list', items: [
+            'έλεγχος σώματος',
+            'πρόληψη τραυματισμών',
+            'βελτίωση τεχνικής σε compound lifts'
+          ]}
+        ]
+      };
+    }
+  };
+
+  return (
+    <>
+      <div 
+        className="bg-white rounded-3xl shadow-2xl border border-purple-100 overflow-hidden mb-6"
+        style={{
+          animation: 'fadeInUp 0.6s ease-out forwards',
+          opacity: 0
+        }}
+      >
+        <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+            <div className="p-2 sm:p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+              <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">Μεθοδολογίες Προπονησης</h2>
+              <p className="text-purple-100 text-sm sm:text-base lg:text-lg">Εξερευνήστε διάφορες προπονητικές μεθοδολογίες</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            {methodologies.map((methodology) => (
+              <button
+                key={methodology.id}
+                onClick={() => setSelectedMethodology(methodology.id)}
+                className={`group relative bg-gradient-to-br ${methodology.color} ${methodology.hoverColor} rounded-xl p-4 sm:p-5 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 text-left`}
+              >
+                <div className="text-2xl sm:text-3xl mb-2">{methodology.icon}</div>
+                <h3 className="text-base sm:text-lg font-bold text-white mb-1">{methodology.title}</h3>
+                <p className="text-white/90 text-xs sm:text-sm">Κάντε κλικ</p>
+                <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ExternalLink className="h-4 w-4 text-white" />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Methodology Modal */}
+      {selectedMethodology && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl my-auto">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-white">
+                  {getMethodologyContent(selectedMethodology)?.title || ''}
+                </h2>
+                <button
+                  onClick={() => setSelectedMethodology(null)}
+                  className="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white/20 rounded-lg"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 sm:p-8 overflow-y-auto max-h-[calc(90vh-100px)]">
+              <div className="space-y-4">
+                {getMethodologyContent(selectedMethodology)?.content.map((item, index) => {
+                  if (item.type === 'section') {
+                    return (
+                      <h3 key={index} className="text-xl font-bold text-gray-900 mt-6 first:mt-0">
+                        {item.text}
+                      </h3>
+                    );
+                  } else if (item.type === 'text') {
+                    return (
+                      <p key={index} className={`text-gray-700 leading-relaxed ${item.className || ''}`}>
+                        {item.text}
+                      </p>
+                    );
+                  } else if (item.type === 'divider') {
+                    return <hr key={index} className="my-4 border-gray-300" />;
+                  } else if (item.type === 'list' && item.items) {
+                    return (
+                      <ul key={index} className="list-disc list-inside space-y-2 text-gray-700 ml-4">
+                        {item.items.map((listItem, i) => (
+                          <li key={i}>{listItem}</li>
+                        ))}
+                      </ul>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
 export default MembershipPage;

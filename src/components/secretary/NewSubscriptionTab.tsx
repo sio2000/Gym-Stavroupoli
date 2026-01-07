@@ -593,7 +593,7 @@ const NewSubscriptionTab: React.FC = () => {
                         undefined, // program_id
                         createdBy
                       );
-                      
+                    
                       if (!kbSuccess) {
                         toast.error('Σφάλμα κατά την αποθήκευση των Kettlebell Points');
                         setSubmitting(false);
@@ -603,11 +603,11 @@ const NewSubscriptionTab: React.FC = () => {
                     
                     toast.success(`Personal Training καταχωρήθηκε: €${price.toFixed(2)}${kbPoints > 0 ? ` με ${kbPoints} Kettlebell Points` : ''}`);
                     
-                    // Reset PT fields
-                    setPtPrice('');
-                    setPtKettlebellPoints('');
-                    setPtPaymentMethod('cash');
-                    setIsPersonalTraining(false);
+                      // Reset PT fields
+                      setPtPrice('');
+                      setPtKettlebellPoints('');
+                      setPtPaymentMethod('cash');
+                      setIsPersonalTraining(false);
                     setSelectedUser(null);
                     setSearchTerm('');
                     setUsers([]);

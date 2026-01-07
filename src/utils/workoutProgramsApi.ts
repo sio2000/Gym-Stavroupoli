@@ -70,6 +70,9 @@ export interface CombinedProgramExercise {
   rm_percentage?: number; // Percentage of 1RM (e.g., 60.00 for 60%)
   rpe?: number; // Rate of Perceived Exertion (e.g., 8.5)
   time_seconds?: number; // Time duration in seconds (e.g., 1800 for 30 minutes) - for cardio/time-based exercises
+  method?: string; // Method description (free text)
+  level?: string; // Level: Αρχάριο, Προχωρημένο, or Επαγγελματικό
+  tempo?: string; // Tempo description (free text)
   created_at: string;
   updated_at: string;
   exercise?: WorkoutExercise;

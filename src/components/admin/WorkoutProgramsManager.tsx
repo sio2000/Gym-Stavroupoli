@@ -69,6 +69,8 @@ const WorkoutProgramsManager: React.FC = () => {
   
   // Combined Programs
   const [combinedPrograms, setCombinedPrograms] = useState<CombinedWorkoutProgram[]>([]);
+  const [showLevelModal, setShowLevelModal] = useState(false);
+  const [editingExerciseForLevel, setEditingExerciseForLevel] = useState<{ id: string; currentLevel?: string } | null>(null);
   
   // Load data
   useEffect(() => {
@@ -537,8 +539,80 @@ const WorkoutProgramsManager: React.FC = () => {
                 onUpdateExercise={handleUpdateCombinedProgramExercise}
                 onDeleteExercise={handleDeleteCombinedProgramExercise}
                 onDeleteProgram={() => handleDeleteCombinedProgram(program.id)}
+                onEditLevel={(exerciseId, currentLevel) => {
+                  setEditingExerciseForLevel({ id: exerciseId, currentLevel });
+                  setShowLevelModal(true);
+                }}
               />
             ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Level Selection Modal */}
+      {showLevelModal && editingExerciseForLevel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Επίλεξε Level</h3>
+              <button 
+                onClick={() => {
+                  setShowLevelModal(false);
+                  setEditingExerciseForLevel(null);
+                }} 
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {['Αρχάριο', 'Προχωρημένο', 'Επαγγελματικό'].map((level) => (
+                <button
+                  key={level}
+                  onClick={async () => {
+                    try {
+                      await handleUpdateCombinedProgramExercise(editingExerciseForLevel.id, { level: level });
+                      setShowLevelModal(false);
+                      setEditingExerciseForLevel(null);
+                    } catch (error) {
+                      console.error('Error updating level:', error);
+                    }
+                  }}
+                  className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
+                    editingExerciseForLevel.currentLevel === level
+                      ? 'border-teal-500 bg-teal-50 text-teal-700 font-semibold'
+                      : 'border-gray-200 hover:border-teal-300 hover:bg-teal-50 text-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg">{level}</span>
+                    {editingExerciseForLevel.currentLevel === level && (
+                      <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-white"></div>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+              <button
+                onClick={async () => {
+                  try {
+                    await handleUpdateCombinedProgramExercise(editingExerciseForLevel.id, { level: undefined });
+                    setShowLevelModal(false);
+                    setEditingExerciseForLevel(null);
+                  } catch (error) {
+                    console.error('Error clearing level:', error);
+                  }
+                }}
+                className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
+                  !editingExerciseForLevel.currentLevel
+                    ? 'border-gray-400 bg-gray-100 text-gray-600 font-semibold'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'
+                }`}
+              >
+                <span className="text-lg">Καθαρισμός (Αφαίρεση Level)</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -723,7 +797,8 @@ const CombinedProgramCard: React.FC<{
   onUpdateExercise: (id: string, updates: Partial<CombinedProgramExercise>) => void;
   onDeleteExercise: (id: string) => void;
   onDeleteProgram: () => void;
-}> = ({ program, allExercises, onAddExercise, onUpdateExercise, onDeleteExercise, onDeleteProgram }) => {
+  onEditLevel: (exerciseId: string, currentLevel?: string) => void;
+}> = ({ program, allExercises, onAddExercise, onUpdateExercise, onDeleteExercise, onDeleteProgram, onEditLevel }) => {
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
   
@@ -834,6 +909,15 @@ const CombinedProgramCard: React.FC<{
                             : `${progExercise.time_seconds}s`)
                           : '-'}
                       </span>
+                      {progExercise.method && (
+                        <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded">Method: {progExercise.method}</span>
+                      )}
+                      {progExercise.level && (
+                        <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded">Level: {progExercise.level}</span>
+                      )}
+                      {progExercise.tempo && (
+                        <span className="px-2 py-1 bg-pink-100 text-pink-700 rounded">Tempo: {progExercise.tempo}</span>
+                      )}
                     </div>
                     {progExercise.notes && <p className="text-sm text-gray-500 mt-1">{progExercise.notes}</p>}
                   </div>
@@ -956,6 +1040,43 @@ const CombinedProgramCard: React.FC<{
                       title="Επεξεργασία χρόνου (για ασκήσεις με χρόνο όπως διαδρομή)"
                     >
                       Edit Time
+                    </button>
+                    <button
+                      onClick={() => {
+                        const currentValue = progExercise.method || '';
+                        const newMethod = prompt('Method (μέθοδος):', currentValue);
+                        if (newMethod !== null) {
+                          const methodValue = newMethod.trim() === '' || newMethod.trim() === '-' ? undefined : newMethod.trim();
+                          onUpdateExercise(progExercise.id, { method: methodValue });
+                        }
+                      }}
+                      className="p-2 text-indigo-600 hover:bg-indigo-50 rounded text-sm"
+                      title="Επεξεργασία Method"
+                    >
+                      Edit Method
+                    </button>
+                    <button
+                      onClick={() => {
+                        onEditLevel(progExercise.id, progExercise.level);
+                      }}
+                      className="p-2 text-teal-600 hover:bg-teal-50 rounded text-sm"
+                      title="Επεξεργασία Level"
+                    >
+                      Edit Level
+                    </button>
+                    <button
+                      onClick={() => {
+                        const currentValue = progExercise.tempo || '';
+                        const newTempo = prompt('Tempo (τέμπο):', currentValue);
+                        if (newTempo !== null) {
+                          const tempoValue = newTempo.trim() === '' || newTempo.trim() === '-' ? undefined : newTempo.trim();
+                          onUpdateExercise(progExercise.id, { tempo: tempoValue });
+                        }
+                      }}
+                      className="p-2 text-pink-600 hover:bg-pink-50 rounded text-sm"
+                      title="Επεξεργασία Tempo"
+                    >
+                      Edit Tempo
                     </button>
                     <button
                       onClick={() => onDeleteExercise(progExercise.id)}
