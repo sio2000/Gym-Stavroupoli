@@ -1987,7 +1987,7 @@ const TrainingMethodologiesSection: React.FC = () => {
               <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">Μεθοδολογίες Προπονησης</h2>
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">Μεθοδολογίες Προπόνησης</h2>
               <p className="text-purple-100 text-sm sm:text-base lg:text-lg">Εξερευνήστε διάφορες προπονητικές μεθοδολογίες</p>
             </div>
           </div>
