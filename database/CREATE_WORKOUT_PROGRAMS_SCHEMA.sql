@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS combined_workout_programs (
   display_order INTEGER DEFAULT 0,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(program_type)
 );
 
 -- Exercises in Combined Programs (with custom sets/reps/rest)

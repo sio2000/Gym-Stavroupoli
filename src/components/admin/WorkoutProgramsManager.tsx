@@ -566,7 +566,7 @@ const WorkoutProgramsManager: React.FC = () => {
               </button>
             </div>
             <div className="space-y-3">
-              {['Αρχάριο', 'Προχωρημένο', 'Επαγγελματικό'].map((level) => (
+              {['Αρχάριος', 'Προχωρημένος', 'Επαγγελματίας'].map((level) => (
                 <button
                   key={level}
                   onClick={async () => {
@@ -580,14 +580,24 @@ const WorkoutProgramsManager: React.FC = () => {
                   }}
                   className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
                     editingExerciseForLevel.currentLevel === level
-                      ? 'border-teal-500 bg-teal-50 text-teal-700 font-semibold'
-                      : 'border-gray-200 hover:border-teal-300 hover:bg-teal-50 text-gray-700'
+                      ? (level === 'Αρχάριος'
+                          ? 'border-red-500 bg-red-50 text-red-700 font-semibold'
+                          : level === 'Προχωρημένος'
+                          ? 'border-yellow-400 bg-yellow-50 text-yellow-800 font-semibold'
+                          : 'border-green-500 bg-green-50 text-green-700 font-semibold')
+                      : (level === 'Αρχάριος'
+                          ? 'border-gray-200 hover:border-red-300 hover:bg-red-50 text-gray-700'
+                          : level === 'Προχωρημένος'
+                          ? 'border-gray-200 hover:border-yellow-300 hover:bg-yellow-50 text-gray-700'
+                          : 'border-gray-200 hover:border-green-300 hover:bg-green-50 text-gray-700')
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-lg">{level}</span>
                     {editingExerciseForLevel.currentLevel === level && (
-                      <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        level === 'Αρχάριος' ? 'bg-red-500' : level === 'Προχωρημένος' ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}>
                         <div className="w-2 h-2 rounded-full bg-white"></div>
                       </div>
                     )}
@@ -806,18 +816,30 @@ const CombinedProgramCard: React.FC<{
     'upper-body': 'Άνω μέρος σώματος',
     'lower-body': 'Κάτω μέρος σώματος',
     'full-body': 'Πλήρες σώμα',
-    'free-weights': 'Ελεύθερα βάρη'
+    'free-weights': 'Ελεύθερα βάρη',
+    'pyramidal': 'Pyramidal (Πυραμιδική)'
   };
   
+  const [exerciseSearch, setExerciseSearch] = useState('');
+  const normalizedSearch = exerciseSearch.trim().toLowerCase();
+
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">{program.name || programTypeLabels[program.program_type]}</h3>
-            {program.description && <p className="text-sm text-gray-500">{program.description}</p>}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold truncate">{program.name || programTypeLabels[program.program_type]}</h3>
+            {program.description && <p className="text-sm text-gray-500 truncate">{program.description}</p>}
           </div>
           <div className="flex items-center space-x-2">
+            {/* Αναζήτηση άσκησης μέσα στο συγκεκριμένο πρόγραμμα */}
+            <input
+              type="text"
+              value={exerciseSearch}
+              onChange={(e) => setExerciseSearch(e.target.value)}
+              placeholder="Αναζήτηση άσκησης..."
+              className="hidden sm:block w-48 px-3 py-2 border rounded-lg text-sm"
+            />
             <button
               onClick={onDeleteProgram}
               className="p-2 text-red-600 hover:bg-red-50 rounded"
@@ -868,7 +890,15 @@ const CombinedProgramCard: React.FC<{
         
         <div className="space-y-3">
           {program.exercises && program.exercises.length > 0 ? (
-            program.exercises.map((progExercise) => (
+            program.exercises
+              .filter((pe) => {
+                if (!normalizedSearch) return true;
+                const name = pe.exercise?.name?.toLowerCase() || '';
+                const desc = pe.exercise?.description?.toLowerCase() || '';
+                const notes = pe.notes?.toLowerCase() || '';
+                return name.includes(normalizedSearch) || desc.includes(normalizedSearch) || notes.includes(normalizedSearch);
+              })
+              .map((progExercise) => (
               <div key={progExercise.id} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
@@ -913,11 +943,24 @@ const CombinedProgramCard: React.FC<{
                         <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded">Method: {progExercise.method}</span>
                       )}
                       {progExercise.level && (
-                        <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded">Level: {progExercise.level}</span>
+                        <span
+                          className={`px-2 py-1 rounded ${
+                            progExercise.level.toLowerCase().includes('αρχ')
+                              ? 'bg-red-100 text-red-700'
+                              : progExercise.level.toLowerCase().includes('προχω') || progExercise.level.toLowerCase().includes('μετρ')
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-green-100 text-green-700'
+                          }`}
+                        >
+                          Level: {progExercise.level}
+                        </span>
                       )}
                       {progExercise.tempo && (
                         <span className="px-2 py-1 bg-pink-100 text-pink-700 rounded">Tempo: {progExercise.tempo}</span>
                       )}
+                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                        Program: {typeof progExercise.program_number === 'number' ? progExercise.program_number : '-'}
+                      </span>
                     </div>
                     {progExercise.notes && <p className="text-sm text-gray-500 mt-1">{progExercise.notes}</p>}
                   </div>
@@ -937,6 +980,26 @@ const CombinedProgramCard: React.FC<{
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded text-sm"
                     >
                       Edit Sets
+                    </button>
+                    <button
+                      onClick={() => {
+                        const currentValue =
+                          typeof (progExercise as any).program_number === 'number'
+                            ? String((progExercise as any).program_number)
+                            : '';
+                        const newVal = prompt('Program number (1..20) - βάλε "-" για αφαίρεση:', currentValue);
+                        if (newVal !== null) {
+                          const t = newVal.trim();
+                          const num = t === '' || t === '-' ? undefined : parseInt(t);
+                          onUpdateExercise(progExercise.id, {
+                            program_number: num !== undefined && isNaN(num as number) ? undefined : (num as any),
+                          });
+                        }
+                      }}
+                      className="p-2 text-gray-700 hover:bg-gray-100 rounded text-sm"
+                      title="Ορισμός Program Number"
+                    >
+                      Edit Program
                     </button>
                     <button
                       onClick={() => {

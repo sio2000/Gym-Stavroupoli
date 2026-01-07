@@ -60,6 +60,9 @@ const MembershipPage: React.FC = React.memo(() => {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [bannersLoading, setBannersLoading] = useState(false);
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
+  // Selection state for Combined Programs filtering (Level -> Program)
+  const [selectedLevelByProgram, setSelectedLevelByProgram] = useState<Record<string, string | null>>({});
+  const [selectedProgramByProgram, setSelectedProgramByProgram] = useState<Record<string, number | null>>({});
   const [bannerPreview, setBannerPreview] = useState<Banner | null>(null);
   
   // Workout programs state
@@ -90,8 +93,18 @@ const MembershipPage: React.FC = React.memo(() => {
       }>;
     }> = {};
 
+    // Deduplicate categories by name (keep first occurrence)
+    const seenNames = new Set<string>();
+    const uniqueCategories = workoutCategories.filter(category => {
+      if (seenNames.has(category.name)) {
+        return false;
+      }
+      seenNames.add(category.name);
+      return true;
+    });
+
     // Group exercises by category
-    workoutCategories.forEach(category => {
+    uniqueCategories.forEach(category => {
       const categoryExercises = workoutExercises
         .filter(ex => ex.category_id === category.id)
         .map(ex => {
@@ -140,11 +153,13 @@ const MembershipPage: React.FC = React.memo(() => {
       title: program.name || (program.program_type === 'upper-body' ? 'Άνω μέρος σώματος (Up body)' :
                               program.program_type === 'lower-body' ? 'Κάτω μέρος σώματος (Down body)' :
                               program.program_type === 'full-body' ? 'Όλο το σώμα (Full body)' :
+                              program.program_type === 'pyramidal' ? 'Pyramidal (Πυραμιδική)' :
                               'Ελεύθερα βάρη (Free weights)'),
       description: program.description || (
         program.program_type === 'upper-body' ? 'Συνδυασμός ασκήσεων για άνω μέρος σώματος' :
         program.program_type === 'lower-body' ? 'Συνδυασμός ασκήσεων για κάτω μέρος σώματος' :
         program.program_type === 'full-body' ? 'Συνδυασμός ασκήσεων για όλο το σώμα' :
+        program.program_type === 'pyramidal' ? 'Πυραμιδική μεθοδολογία - συνδυασμός ασκήσεων σε “πυραμίδα”' :
         'Συνδυασμός ασκήσεων με ελεύθερα βάρη'
       ),
       icon: '🔲',
@@ -181,7 +196,8 @@ const MembershipPage: React.FC = React.memo(() => {
           rest_seconds: progEx.rest_seconds,
           method: progEx.method,
           level: progEx.level,
-          tempo: progEx.tempo
+          tempo: progEx.tempo,
+          program_number: (progEx as any)?.program_number ?? (progEx as any)?.programNumber ?? null
         };
       })
     }));
@@ -688,7 +704,7 @@ const MembershipPage: React.FC = React.memo(() => {
         </div>
       )}
 
-      {/* Μεθοδολογίες Προπονησης Section */}
+      {/* Μεθοδολογίες Προπόνησης Section */}
       {hasWorkoutProgramsEligibleMembership && (
         <TrainingMethodologiesSection />
       )}
@@ -775,7 +791,7 @@ const MembershipPage: React.FC = React.memo(() => {
                     >
                       <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-4 sm:pt-6">
-                          {program.exercises.map((exercise, exerciseIndex) => (
+                          {(program.exercises || []).map((exercise: any, exerciseIndex: number) => (
                             <div
                               key={exerciseIndex}
                               className="group/exercise bg-white rounded-xl p-4 sm:p-5 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-blue-200 hover:scale-105 hover:-translate-y-1"
@@ -832,7 +848,9 @@ const MembershipPage: React.FC = React.memo(() => {
                   key={program.id}
                   className="group relative bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 overflow-hidden hover:scale-105 hover:-translate-y-2"
                   style={{
-                    animationDelay: `${(Object.keys(workoutPrograms).length + index) * 100}ms`,
+                    // Βάλε τα Συνδυαστικά πρώτα στο grid, πριν από τα κανονικά προγράμματα
+                    order: -1,
+                    animationDelay: `${index * 100}ms`,
                     animation: 'fadeInUp 0.6s ease-out forwards',
                     opacity: 0
                   }}
@@ -879,81 +897,245 @@ const MembershipPage: React.FC = React.memo(() => {
                       }}
                     >
                       <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-4 sm:pt-6">
-                          {program.exercises.map((exercise, exerciseIndex) => (
-                            <div
-                              key={exerciseIndex}
-                              className="group/exercise bg-white rounded-xl p-4 sm:p-5 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-purple-200 hover:scale-105 hover:-translate-y-1"
-                              style={{
-                                animationDelay: `${exerciseIndex * 100}ms`,
-                                animation: 'fadeInScale 0.4s ease-out forwards',
-                                opacity: 0
-                              }}
-                            >
-                              <div className="flex items-start justify-between mb-3 sm:mb-4">
-                                <div className="flex-1 w-full">
-                                  <h4 className="font-bold text-gray-900 mb-2 text-base sm:text-lg group-hover/exercise:text-purple-700 transition-colors duration-300 break-words">
-                                    {exercise.name}
-                                  </h4>
-                                  {exercise.description && (
-                                    <p className="text-xs sm:text-sm text-gray-600 mb-3 leading-relaxed break-words whitespace-normal">
-                                      {exercise.description}
-                                    </p>
-                                  )}
-                                  <div className="flex flex-wrap gap-2 items-center">
-                                    {exercise.sets && (
-                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        {exercise.sets}
-                                      </div>
-                                    )}
-                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                                      Kg: {(exercise.weight_kg !== null && exercise.weight_kg !== undefined && !isNaN(Number(exercise.weight_kg))) 
-                                        ? exercise.weight_kg 
-                                        : '-'}
-                                    </div>
-                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                                      RM: {(exercise.rm_percentage !== null && exercise.rm_percentage !== undefined && !isNaN(Number(exercise.rm_percentage))) 
-                                        ? `${exercise.rm_percentage}%` 
-                                        : '-'}
-                                    </div>
-                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">
-                                      RPE: {(exercise.rpe !== null && exercise.rpe !== undefined && !isNaN(Number(exercise.rpe))) 
-                                        ? exercise.rpe 
-                                        : '-'}
-                                    </div>
-                                    <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-cyan-100 text-cyan-700 rounded-full text-xs font-semibold">
-                                      Time: {(exercise.time_seconds !== null && exercise.time_seconds !== undefined && !isNaN(Number(exercise.time_seconds))) 
-                                        ? (Number(exercise.time_seconds) >= 60 
-                                          ? `${Math.floor(Number(exercise.time_seconds) / 60)}:${String(Number(exercise.time_seconds) % 60).padStart(2, '0')}`
-                                          : `${exercise.time_seconds}s`)
-                                        : '-'}
-                                    </div>
-                                    {exercise.method && (
-                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">
-                                        Method: {exercise.method}
-                                      </div>
-                                    )}
-                                    {exercise.level && (
-                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-teal-100 text-teal-700 rounded-full text-xs font-semibold">
-                                        Level: {exercise.level}
-                                      </div>
-                                    )}
-                                    {exercise.tempo && (
-                                      <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-pink-100 text-pink-700 rounded-full text-xs font-semibold">
-                                        Tempo: {exercise.tempo}
-                                      </div>
-                                    )}
-                                  </div>
+                        {(() => {
+                          // --- Stepper: Level -> Program -> Exercises ---
+                          const normalizeLevelKey = (raw?: any): 'beginner' | 'intermediate' | 'pro' | null => {
+                            if (!raw) return null;
+                            const s = String(raw).toLowerCase();
+                            // Handle internal keys we store in state
+                            if (s === 'beginner') return 'beginner';
+                            if (s === 'intermediate') return 'intermediate';
+                            if (s === 'pro') return 'pro';
+                            if (s.includes('αρχ')) return 'beginner';
+                            if (s.includes('προχω') || s.includes('μετρ')) return 'intermediate';
+                            if (s.includes('επαγ') || s.includes('ειδικ')) return 'pro';
+                            return null;
+                          };
+
+                          const levelLabel: Record<'beginner'|'intermediate'|'pro', string> = {
+                            beginner: 'Αρχάριος',
+                            intermediate: 'Προχωρημένος',
+                            pro: 'Επαγγελματίας'
+                          };
+
+                          const levelStyle: Record<'beginner'|'intermediate'|'pro', { pill: string; pillSelected: string }> = {
+                            beginner: { pill: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100', pillSelected: 'bg-red-600 text-white border-red-600' },
+                            intermediate: { pill: 'bg-yellow-50 text-yellow-800 border-yellow-200 hover:bg-yellow-100', pillSelected: 'bg-yellow-500 text-white border-yellow-500' },
+                            pro: { pill: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100', pillSelected: 'bg-green-600 text-white border-green-600' }
+                          };
+
+                          const selectedLevelRaw = selectedLevelByProgram[program.id] || null;
+                          const selectedLevel = normalizeLevelKey(selectedLevelRaw);
+                          const selectedProgram = selectedProgramByProgram[program.id] || null;
+
+                          const exercisesAll = (program.exercises || []) as any[];
+                          const availableLevels = Array.from(new Set(exercisesAll.map(e => normalizeLevelKey(e.level)).filter(Boolean))) as Array<'beginner'|'intermediate'|'pro'>;
+
+                          const availablePrograms = Array.from(
+                            new Set(
+                              exercisesAll
+                                .filter(e => selectedLevel && normalizeLevelKey(e.level) === selectedLevel)
+                                .map(e => e.program_number)
+                                .filter((n:any) => n !== null && n !== undefined)
+                            )
+                          ).sort((a:any,b:any)=>a-b);
+
+                          if (!selectedLevel) {
+                            return (
+                              <div className="pt-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h4 className="text-sm font-semibold text-gray-700">Επίλεξε Επίπεδο</h4>
+                                  <span className="text-xs text-gray-500">Βήμα 1/2</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {(['beginner','intermediate','pro'] as const).map((lvlKey) => {
+                                    const enabled = availableLevels.includes(lvlKey);
+                                    return (
+                                      <button
+                                        key={lvlKey}
+                                        onClick={() => {
+                                          if (!enabled) return;
+                                          setSelectedLevelByProgram(prev => ({ ...prev, [program.id]: lvlKey }));
+                                          setSelectedProgramByProgram(prev => ({ ...prev, [program.id]: null }));
+                                        }}
+                                        className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
+                                          enabled ? levelStyle[lvlKey].pill : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                        }`}
+                                        disabled={!enabled}
+                                      >
+                                        {levelLabel[lvlKey]}
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               </div>
-                              
-                              {/* No YouTube link for combined programs - removed as per request */}
+                            );
+                          }
+
+                          if (!selectedProgram) {
+                            return (
+                              <div className="pt-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className={`px-2 py-1 rounded-full text-xs border ${levelStyle[selectedLevel].pill}`}>
+                                    Level: {levelLabel[selectedLevel]}
+                                  </span>
+                                  <span className="text-xs text-gray-500">Βήμα 2/2</span>
+                                </div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <h4 className="text-sm font-semibold text-gray-700">Επίλεξε Program</h4>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedLevelByProgram(prev => ({ ...prev, [program.id]: null }));
+                                      setSelectedProgramByProgram(prev => ({ ...prev, [program.id]: null }));
+                                    }}
+                                    className="text-sm text-blue-600 hover:underline"
+                                  >
+                                    ← αλλαγή επιπέδου
+                                  </button>
+                                </div>
+                                {availablePrograms.length === 0 ? (
+                                  <div className="text-sm text-gray-500 py-3">
+                                    Δεν υπάρχουν διαθέσιμα programs για το επίπεδο «{levelLabel[selectedLevel]}».
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-wrap gap-2">
+                                    {availablePrograms.map((pn: number) => (
+                                      <button
+                                        key={pn}
+                                        onClick={() => setSelectedProgramByProgram(prev => ({ ...prev, [program.id]: pn }))}
+                                        className="px-3 py-1.5 rounded-full text-xs border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 transition-colors"
+                                      >
+                                        Program {pn}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          const filtered = exercisesAll.filter(e =>
+                            normalizeLevelKey(e.level) === selectedLevel &&
+                            e.program_number === selectedProgram
+                          );
+
+                          return (
+                            <div className="pt-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`px-2 py-1 rounded-full text-xs border ${levelStyle[selectedLevel].pill}`}>
+                                    Level: {levelLabel[selectedLevel]}
+                                  </span>
+                                  <span className="px-2 py-1 rounded-full text-xs border bg-blue-50 text-blue-700 border-blue-200">
+                                    Program {selectedProgram}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => setSelectedProgramByProgram(prev => ({ ...prev, [program.id]: null }))}
+                                    className="text-sm text-blue-600 hover:underline"
+                                  >
+                                    αλλαγή program
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedProgramByProgram(prev => ({ ...prev, [program.id]: null }));
+                                      setSelectedLevelByProgram(prev => ({ ...prev, [program.id]: null }));
+                                    }}
+                                    className="text-sm text-blue-600 hover:underline"
+                                  >
+                                    αλλαγή level
+                                  </button>
+                                </div>
+                              </div>
+
+                              {filtered.length === 0 ? (
+                                <div className="text-sm text-gray-500 py-3">
+                                  Δεν υπάρχουν ασκήσεις στο επιλεγμένο Level/Program.
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                  {filtered.map((exercise, exerciseIndex) => (
+                                    <div
+                                      key={exerciseIndex}
+                                      className="group/exercise bg-white rounded-xl p-4 sm:p-5 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-purple-200 hover:scale-105 hover:-translate-y-1"
+                                      style={{
+                                        animationDelay: `${exerciseIndex * 100}ms`,
+                                        animation: 'fadeInScale 0.4s ease-out forwards',
+                                        opacity: 0
+                                      }}
+                                    >
+                                      <div className="flex items-start justify-between mb-3 sm:mb-4">
+                                        <div className="flex-1 w-full">
+                                          <h4 className="font-bold text-gray-900 mb-2 text-base sm:text-lg group-hover/exercise:text-purple-700 transition-colors duration-300 break-words">
+                                            {exercise.name}
+                                          </h4>
+                                          {exercise.description && (
+                                            <p className="text-xs sm:text-sm text-gray-600 mb-3 leading-relaxed break-words whitespace-normal">
+                                              {exercise.description}
+                                            </p>
+                                          )}
+                                          <div className="flex flex-wrap gap-2 items-center">
+                                            {exercise.sets && (
+                                              <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                                <Clock className="h-3 w-3 mr-1" />
+                                                {exercise.sets}
+                                              </div>
+                                            )}
+                                            <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                                              Kg: {(exercise.weight_kg !== null && exercise.weight_kg !== undefined && !isNaN(Number(exercise.weight_kg)))
+                                                ? exercise.weight_kg
+                                                : '-'}
+                                            </div>
+                                            <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                              RM: {(exercise.rm_percentage !== null && exercise.rm_percentage !== undefined && !isNaN(Number(exercise.rm_percentage)))
+                                                ? `${exercise.rm_percentage}%`
+                                                : '-'}
+                                            </div>
+                                            <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">
+                                              RPE: {(exercise.rpe !== null && exercise.rpe !== undefined && !isNaN(Number(exercise.rpe)))
+                                                ? exercise.rpe
+                                                : '-'}
+                                            </div>
+                                            <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-cyan-100 text-cyan-700 rounded-full text-xs font-semibold">
+                                              Time: {(exercise.time_seconds !== null && exercise.time_seconds !== undefined && !isNaN(Number(exercise.time_seconds)))
+                                                ? (Number(exercise.time_seconds) >= 60
+                                                  ? `${Math.floor(Number(exercise.time_seconds) / 60)}:${String(Number(exercise.time_seconds) % 60).padStart(2, '0')}`
+                                                  : `${exercise.time_seconds}s`)
+                                                : '-'}
+                                            </div>
+                                            {exercise.method && (
+                                              <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">
+                                                Method: {exercise.method}
+                                              </div>
+                                            )}
+                                            <div className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold ${
+                                              selectedLevel === 'beginner'
+                                                ? 'bg-red-50 text-red-700'
+                                                : selectedLevel === 'intermediate'
+                                                ? 'bg-yellow-50 text-yellow-800'
+                                                : 'bg-green-50 text-green-700'
+                                            }`}>
+                                              Level: {levelLabel[selectedLevel]}
+                                            </div>
+                                            {exercise.tempo && (
+                                              <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-pink-100 text-pink-700 rounded-full text-xs font-semibold">
+                                                Tempo: {exercise.tempo}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* No YouTube link for combined programs - removed as per request */}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                        
-                      </div>
+                          );
+                        })()}
+                    </div>
                     </div>
                   )}
                 </div>

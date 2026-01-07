@@ -147,7 +147,15 @@ INSERT INTO combined_workout_programs (name, name_english, description, program_
   ('Άνω μέρος σώματος', 'Upper Body', 'Συνδυασμός ασκήσεων για άνω μέρος σώματος', 'upper-body', 1),
   ('Κάτω μέρος σώματος', 'Lower Body', 'Συνδυασμός ασκήσεων για κάτω μέρος σώματος', 'lower-body', 2),
   ('Όλο το σώμα', 'Full Body', 'Συνδυασμός ασκήσεων για όλο το σώμα', 'full-body', 3),
-  ('Ελεύθερα βάρη', 'Free Weights', 'Συνδυασμός ασκήσεων με ελεύθερα βάρη', 'free-weights', 4)
-ON CONFLICT DO NOTHING;
+  ('Ελεύθερα βάρη', 'Free Weights', 'Συνδυασμός ασκήσεων με ελεύθερα βάρη', 'free-weights', 4),
+  ('Pyramidal (Πυραμιδική)', 'Pyramidal', 'Πυραμιδική μεθοδολογία - συνδυασμός ασκήσεων σε “πυραμίδα”', 'pyramidal', 5)
+ON CONFLICT (program_type) DO UPDATE
+SET
+  name = EXCLUDED.name,
+  name_english = EXCLUDED.name_english,
+  description = EXCLUDED.description,
+  display_order = EXCLUDED.display_order,
+  is_active = true,
+  updated_at = NOW();
 
 -- Note: Combined program exercises should be added manually through the admin panel

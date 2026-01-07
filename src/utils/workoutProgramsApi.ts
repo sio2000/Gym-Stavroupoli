@@ -46,7 +46,7 @@ export interface CombinedWorkoutProgram {
   name: string;
   name_english?: string;
   description?: string;
-  program_type: 'upper-body' | 'lower-body' | 'full-body' | 'free-weights';
+  program_type: 'upper-body' | 'lower-body' | 'full-body' | 'free-weights' | 'pyramidal';
   display_order: number;
   is_active: boolean;
   created_at: string;
@@ -73,6 +73,7 @@ export interface CombinedProgramExercise {
   method?: string; // Method description (free text)
   level?: string; // Level: Αρχάριο, Προχωρημένο, or Επαγγελματικό
   tempo?: string; // Tempo description (free text)
+  program_number?: number; // Program number for combined program grouping
   created_at: string;
   updated_at: string;
   exercise?: WorkoutExercise;

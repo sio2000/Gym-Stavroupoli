@@ -64,6 +64,15 @@ BEGIN
     END IF;
 END $$;
 
+-- Add program_number column (integer index for grouping exercises into programs)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'combined_program_exercises' AND column_name = 'program_number') THEN
+        ALTER TABLE combined_program_exercises ADD COLUMN program_number INTEGER;
+    END IF;
+END $$;
+
 -- Add comments for documentation
 COMMENT ON COLUMN combined_program_exercises.weight_kg IS 'Weight in kilograms for the exercise (e.g., 20.5 kg)';
 COMMENT ON COLUMN combined_program_exercises.rm_percentage IS 'Percentage of 1RM (Repetition Maximum), e.g., 60.00 for 60%';
@@ -72,3 +81,4 @@ COMMENT ON COLUMN combined_program_exercises.time_seconds IS 'Time duration for 
 COMMENT ON COLUMN combined_program_exercises.method IS 'Method description for the exercise (free text input)';
 COMMENT ON COLUMN combined_program_exercises.level IS 'Level of difficulty: Αρχάριο, Προχωρημένο, or Επαγγελματικό';
 COMMENT ON COLUMN combined_program_exercises.tempo IS 'Tempo description for the exercise (free text input)';
+COMMENT ON COLUMN combined_program_exercises.program_number IS 'Program number (e.g., 1,2,3,...) for grouping exercises under a combined program';
