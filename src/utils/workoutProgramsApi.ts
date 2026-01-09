@@ -46,7 +46,7 @@ export interface CombinedWorkoutProgram {
   name: string;
   name_english?: string;
   description?: string;
-  program_type: 'upper-body' | 'lower-body' | 'full-body' | 'free-weights' | 'pyramidal';
+  program_type: 'upper-body' | 'lower-body' | 'full-body' | 'free-weights' | 'pyramidal' | 'warm-up' | 'cool-down';
   display_order: number;
   is_active: boolean;
   created_at: string;

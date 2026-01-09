@@ -513,7 +513,6 @@ const SecretaryDashboard: React.FC = () => {
       setMembershipRequests(allRequests);
     } catch (error) {
       console.error('Error loading membership requests:', error);
-      toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων');
     } finally {
       setLoading(false);
     }

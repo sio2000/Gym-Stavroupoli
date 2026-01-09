@@ -7,13 +7,16 @@ import {
   Search,
   X,
   RefreshCw,
-  Calendar
+  Calendar,
+  Loader2
 } from 'lucide-react';
 import { 
   getCashRegisterTotals, 
   getCashSummaryPerUser, 
+  getUserCashTransactions,
   CashRegisterTotals, 
-  UserCashSummary 
+  UserCashSummary,
+  CashTransaction
 } from '@/utils/cashRegisterApi';
 import toast from 'react-hot-toast';
 
@@ -33,6 +36,12 @@ const CashRegister: React.FC = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const USERS_PER_PAGE = 10;
+  
+  // User transaction details modal state
+  const [selectedCashUser, setSelectedCashUser] = useState<UserCashSummary | null>(null);
+  const [userCashTransactionsDetails, setUserCashTransactionsDetails] = useState<CashTransaction[]>([]);
+  const [showCashDetailsModal, setShowCashDetailsModal] = useState(false);
+  const [loadingCashDetails, setLoadingCashDetails] = useState(false);
 
   const loadCashRegisterData = async () => {
     try {
@@ -101,6 +110,22 @@ const CashRegister: React.FC = () => {
   };
 
   const displayUsers = searchTerm ? searchResults : paginatedUsers;
+
+  // Load user cash transactions details for modal
+  const loadUserCashTransactionsDetails = async (user: UserCashSummary) => {
+    try {
+      setLoadingCashDetails(true);
+      setSelectedCashUser(user);
+      const transactionsDetails = await getUserCashTransactions(user.user_id);
+      setUserCashTransactionsDetails(transactionsDetails);
+      setShowCashDetailsModal(true);
+    } catch (error) {
+      console.error('Error loading user cash transactions details:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση των λεπτομερειών συναλλαγών');
+    } finally {
+      setLoadingCashDetails(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -242,7 +267,11 @@ const CashRegister: React.FC = () => {
           ) : (
             <div className="space-y-4">
               {displayUsers.map((user, index) => (
-                <div key={user.user_id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div 
+                  key={user.user_id} 
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer hover:border-green-400"
+                  onClick={() => loadUserCashTransactionsDetails(user)}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       {/* User Avatar */}
@@ -324,6 +353,145 @@ const CashRegister: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Cash Transactions User Details Modal */}
+      {showCashDetailsModal && selectedCashUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-green-600 to-blue-600 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-white">Αναλυτικό Ιστορικό Συναλλαγών</h3>
+                <p className="text-sm text-green-100 mt-1">
+                  {selectedCashUser.user_name} ({selectedCashUser.user_email})
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCashDetailsModal(false);
+                  setSelectedCashUser(null);
+                  setUserCashTransactionsDetails([]);
+                }}
+                className="text-white hover:bg-green-700 rounded-lg p-2 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingCashDetails ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                  <span className="ml-3 text-gray-600">Φόρτωση λεπτομερειών...</span>
+                </div>
+              ) : userCashTransactionsDetails.length === 0 ? (
+                <div className="text-center py-12">
+                  <DollarSign className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-gray-600">Δεν υπάρχουν καταγραφές συναλλαγών για αυτόν τον χρήστη</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="bg-green-50 rounded-lg p-4 mb-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <span className="text-sm font-medium text-gray-700 block">Συνολικά Μετρητά:</span>
+                        <span className="text-2xl font-bold text-green-600">€{selectedCashUser.cash_total.toFixed(2)}</span>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-sm font-medium text-gray-700 block">Συνολικά POS:</span>
+                        <span className="text-2xl font-bold text-blue-600">€{selectedCashUser.pos_total.toFixed(2)}</span>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-sm font-medium text-gray-700 block">Σύνολο:</span>
+                        <span className="text-2xl font-bold text-gray-900">€{(selectedCashUser.cash_total + selectedCashUser.pos_total).toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-green-200 text-center">
+                      <span className="text-sm font-medium text-gray-700">Συνολικές συναλλαγές: </span>
+                      <span className="text-lg font-semibold text-gray-900">{userCashTransactionsDetails.length}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-gray-900 mb-3">Ιστορικό Προσθήκης Χρημάτων:</h4>
+                    {userCashTransactionsDetails.map((transaction) => (
+                      <div 
+                        key={transaction.id} 
+                        className={`border rounded-lg p-4 hover:bg-gray-50 transition-colors ${
+                          transaction.transaction_type === 'cash' 
+                            ? 'bg-green-50 border-green-200' 
+                            : 'bg-blue-50 border-blue-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div className={`rounded-full p-3 ${
+                              transaction.transaction_type === 'cash' 
+                                ? 'bg-green-100' 
+                                : 'bg-blue-100'
+                            }`}>
+                              {transaction.transaction_type === 'cash' ? (
+                                <DollarSign className="h-5 w-5 text-green-600" />
+                              ) : (
+                                <CreditCard className="h-5 w-5 text-blue-600" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                €{transaction.amount.toFixed(2)} - {transaction.transaction_type === 'cash' ? 'Μετρητά' : 'POS'}
+                              </p>
+                              {transaction.notes && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Σημείωση: {transaction.notes}
+                                </p>
+                              )}
+                              {transaction.program_id && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Program ID: {transaction.program_id}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-gray-900">
+                              {new Date(transaction.created_at).toLocaleDateString('el-GR', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(transaction.created_at).toLocaleTimeString('el-GR', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowCashDetailsModal(false);
+                  setSelectedCashUser(null);
+                  setUserCashTransactionsDetails([]);
+                }}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+              >
+                Κλείσιμο
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

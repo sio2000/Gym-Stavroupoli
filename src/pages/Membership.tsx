@@ -22,7 +22,6 @@ import { formatDate, formatCurrency, getPaymentStatusName } from '@/utils';
 import { 
   getMembershipPackages, 
   createMembershipRequest,
-  getUserMembershipRequests,
   getUserActiveMemberships,
   getDurationLabel,
   getDurationDisplayText,
@@ -55,7 +54,6 @@ const MembershipPage: React.FC = React.memo(() => {
   const [showPersonalTrainingModal, setShowPersonalTrainingModal] = useState(false);
   const [packages, setPackages] = useState<MembershipPackage[]>([]);
   const [packageDurations] = useState<MembershipPackageDuration[]>([]);
-  const [userRequests, setUserRequests] = useState<MembershipRequest[]>([]);
   const [userMemberships, setUserMemberships] = useState<MembershipType[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [bannersLoading, setBannersLoading] = useState(false);
@@ -154,12 +152,16 @@ const MembershipPage: React.FC = React.memo(() => {
                               program.program_type === 'lower-body' ? 'Κάτω μέρος σώματος (Down body)' :
                               program.program_type === 'full-body' ? 'Όλο το σώμα (Full body)' :
                               program.program_type === 'pyramidal' ? 'Pyramidal (Πυραμιδική)' :
+                              program.program_type === 'warm-up' ? 'Warm up program' :
+                              program.program_type === 'cool-down' ? 'Cool down program' :
                               'Ελεύθερα βάρη (Free weights)'),
       description: program.description || (
         program.program_type === 'upper-body' ? 'Συνδυασμός ασκήσεων για άνω μέρος σώματος' :
         program.program_type === 'lower-body' ? 'Συνδυασμός ασκήσεων για κάτω μέρος σώματος' :
         program.program_type === 'full-body' ? 'Συνδυασμός ασκήσεων για όλο το σώμα' :
-        program.program_type === 'pyramidal' ? 'Πυραμιδική μεθοδολογία - συνδυασμός ασκήσεων σε “πυραμίδα”' :
+        program.program_type === 'pyramidal' ? 'Πυραμιδική μεθοδολογία - συνδυασμός ασκήσεων σε "πυραμίδα"' :
+        program.program_type === 'warm-up' ? 'Προγράμματα προθέρμανσης' :
+        program.program_type === 'cool-down' ? 'Προγράμματα ψύξης' :
         'Συνδυασμός ασκήσεων με ελεύθερα βάρη'
       ),
       icon: '🔲',
@@ -205,7 +207,6 @@ const MembershipPage: React.FC = React.memo(() => {
 
   useEffect(() => {
     loadPackages();
-    loadUserRequests();
     loadUserMemberships();
     loadBanners();
     loadWorkoutPrograms();
@@ -250,16 +251,6 @@ const MembershipPage: React.FC = React.memo(() => {
       console.error('[Membership] Error loading workout programs:', error);
     } finally {
       setWorkoutProgramsLoading(false);
-    }
-  };
-
-  const loadUserRequests = async () => {
-    if (!user?.id) return;
-    try {
-      const requests = await getUserMembershipRequests(user.id);
-      setUserRequests(requests);
-    } catch (error) {
-      console.error('Error loading user requests:', error);
     }
   };
 
@@ -326,7 +317,6 @@ const MembershipPage: React.FC = React.memo(() => {
       setShowPurchaseModal(false);
       setSelectedPackage(null);
       setSelectedDuration(null);
-      loadUserRequests();
     } catch (error) {
       console.error('Error creating membership request:', error);
       if (selectedPackage.name === 'Pilates') {

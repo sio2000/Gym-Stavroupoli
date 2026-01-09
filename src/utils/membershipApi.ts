@@ -408,7 +408,6 @@ export const createMembershipRequest = async (
     return true;
   } catch (error) {
     console.error('Error creating membership request:', error);
-    toast.error('Σφάλμα κατά τη δημιουργία του αιτήματος');
     return false;
   }
 };
@@ -471,7 +470,6 @@ export const getMembershipRequests = async (): Promise<MembershipRequest[]> => {
     return requestsWithLockedFields;
   } catch (error) {
     console.error('Error fetching membership requests:', error);
-    toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων');
     return [];
   }
 };
@@ -578,7 +576,6 @@ export const getMembershipRequestsWithLockedInstallments = async (): Promise<Mem
     return requestsWithLockedInstallments;
   } catch (error) {
     console.error('Error fetching membership requests with locked installments:', error);
-    toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων');
     return [];
   }
 };
@@ -603,7 +600,6 @@ export const getUserMembershipRequests = async (userId: string): Promise<Members
     return data || [];
   } catch (error) {
     console.error('Error fetching user membership requests:', error);
-    toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων');
     return [];
   }
 };

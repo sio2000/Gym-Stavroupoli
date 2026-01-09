@@ -228,6 +228,17 @@ const AdminPanel: React.FC = () => {
   // Kettlebell Points pagination state
   const [kettlebellCurrentPage, setKettlebellCurrentPage] = useState(1);
   const KETTLEBELL_USERS_PER_PAGE = 10;
+  
+  // Kettlebell Points user details modal state
+  const [selectedKettlebellUser, setSelectedKettlebellUser] = useState<UserKettlebellSummary | null>(null);
+  const [userKettlebellPointsDetails, setUserKettlebellPointsDetails] = useState<Array<{
+    id: string;
+    points: number;
+    created_at: string;
+    program_id?: string;
+  }>>([]);
+  const [showKettlebellDetailsModal, setShowKettlebellDetailsModal] = useState(false);
+  const [loadingKettlebellDetails, setLoadingKettlebellDetails] = useState(false);
 
   // Open Gym section state
   const [openGymSelectedUserId, setOpenGymSelectedUserId] = useState<string>('');
@@ -1985,7 +1996,6 @@ const AdminPanel: React.FC = () => {
       setMembershipRequestsPage(1);
     } catch (error) {
       console.error('Error loading membership requests:', error);
-      toast.error('Σφάλμα κατά τη φόρτωση των αιτημάτων');
     }
   };
 
@@ -2626,6 +2636,27 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('Error loading user kettlebell points:', error);
       setKettlebellPoints('');
+    }
+  };
+
+  // Load user kettlebell points details for modal
+  const loadUserKettlebellPointsDetails = async (user: UserKettlebellSummary) => {
+    try {
+      setLoadingKettlebellDetails(true);
+      setSelectedKettlebellUser(user);
+      const pointsDetails = await getUserKettlebellPoints(user.user_id);
+      setUserKettlebellPointsDetails(pointsDetails.map(p => ({
+        id: p.id,
+        points: p.points,
+        created_at: p.created_at,
+        program_id: p.program_id
+      })));
+      setShowKettlebellDetailsModal(true);
+    } catch (error) {
+      console.error('Error loading user kettlebell points details:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση των λεπτομερειών βαθμών');
+    } finally {
+      setLoadingKettlebellDetails(false);
     }
   };
 
@@ -3839,33 +3870,6 @@ const AdminPanel: React.FC = () => {
                               <Edit3 className="h-4 w-4" />
                             </button>
                           </div>
-                          {/* Filters group */}
-                          <div className="flex items-center flex-wrap gap-2">
-                            <button
-                              onClick={() => { setMembershipRequestsFilter('all'); setMembershipRequestsPage(1); }}
-                              className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
-                                membershipRequestsFilter === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                              }`}
-                            >Όλα</button>
-                            <button
-                              onClick={() => { setMembershipRequestsFilter('freegym'); setMembershipRequestsPage(1); }}
-                              className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
-                                membershipRequestsFilter === 'freegym' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                              }`}
-                            >Open Gym</button>
-                            <button
-                              onClick={() => { setMembershipRequestsFilter('pilates'); setMembershipRequestsPage(1); }}
-                              className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
-                                membershipRequestsFilter === 'pilates' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                              }`}
-                            >Pilates</button>
-                            <button
-                              onClick={() => { setMembershipRequestsFilter('installments'); setMembershipRequestsPage(1); }}
-                              className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
-                                membershipRequestsFilter === 'installments' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                              }`}
-                            >Δόσεις</button>
-                          </div>
                           {editingDuration?.id === duration.id ? (
                             <div className="flex items-center space-x-2">
                               <div className="flex-1">
@@ -4008,37 +4012,8 @@ const AdminPanel: React.FC = () => {
                             </div>
                           </div>
                           
-                          {/* Filters + Pagination Controls */}
+                          {/* Pagination Controls */}
                           <div className="flex items-center space-x-2 flex-wrap gap-y-2">
-                            {/* Filters group (left) */}
-                            <div className="flex items-center flex-wrap gap-2 mr-4">
-                              <span className="text-xs sm:text-sm font-semibold text-slate-600 mr-1">Φίλτρα αιτημάτων συνδρομών:</span>
-                              <button
-                                onClick={() => { setMembershipRequestsFilter('all'); setMembershipRequestsPage(1); }}
-                                className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
-                                  membershipRequestsFilter === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                                }`}
-                              >Όλα</button>
-                              <button
-                                onClick={() => { setMembershipRequestsFilter('freegym'); setMembershipRequestsPage(1); }}
-                                className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
-                                  membershipRequestsFilter === 'freegym' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                                }`}
-                              >Open Gym</button>
-                              <button
-                                onClick={() => { setMembershipRequestsFilter('pilates'); setMembershipRequestsPage(1); }}
-                                className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
-                                  membershipRequestsFilter === 'pilates' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                                }`}
-                              >Pilates</button>
-                              <button
-                                onClick={() => { setMembershipRequestsFilter('installments'); setMembershipRequestsPage(1); }}
-                                className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold border transition-colors ${
-                                  membershipRequestsFilter === 'installments' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                                }`}
-                              >Δόσεις</button>
-                            </div>
-                            
                             {/* Pagination */}
                             <div className="flex items-center space-x-2">
                             {/* First page button */}
@@ -5002,7 +4977,11 @@ const AdminPanel: React.FC = () => {
                     <div className="space-y-4">
                       {/* Show search results if searching, otherwise show paginated users */}
                       {(kettlebellSearchTerm ? kettlebellSearchResults : kettlebellPaginatedUsers).map((user, index) => (
-                        <div key={user.user_id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div 
+                          key={user.user_id} 
+                          className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer hover:border-blue-400"
+                          onClick={() => loadUserKettlebellPointsDetails(user)}
+                        >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                               {/* Rank Badge */}
@@ -5076,6 +5055,118 @@ const AdminPanel: React.FC = () => {
                       )}
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Kettlebell Points User Details Modal */}
+          {showKettlebellDetailsModal && selectedKettlebellUser && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Αναλυτικό Ιστορικό Kettlebell Points</h3>
+                    <p className="text-sm text-orange-100 mt-1">
+                      {selectedKettlebellUser.user_name} ({selectedKettlebellUser.user_email})
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowKettlebellDetailsModal(false);
+                      setSelectedKettlebellUser(null);
+                      setUserKettlebellPointsDetails([]);
+                    }}
+                    className="text-white hover:bg-orange-700 rounded-lg p-2 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  {loadingKettlebellDetails ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+                      <span className="ml-3 text-gray-600">Φόρτωση λεπτομερειών...</span>
+                    </div>
+                  ) : userKettlebellPointsDetails.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Award className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-gray-600">Δεν υπάρχουν καταγραφές βαθμών για αυτόν τον χρήστη</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="bg-orange-50 rounded-lg p-4 mb-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">Συνολικοί βαθμοί:</span>
+                          <span className="text-2xl font-bold text-orange-600">{selectedKettlebellUser.total_points}</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-sm font-medium text-gray-700">Συνολικές καταγραφές:</span>
+                          <span className="text-lg font-semibold text-gray-900">{userKettlebellPointsDetails.length}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-gray-900 mb-3">Ιστορικό Προσθήκης Βαθμών:</h4>
+                        {userKettlebellPointsDetails.map((point) => (
+                          <div 
+                            key={point.id} 
+                            className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-4">
+                                <div className="bg-orange-100 rounded-full p-3">
+                                  <Award className="h-5 w-5 text-orange-600" />
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-gray-900">
+                                    +{point.points} {point.points === 1 ? 'βαθμός' : 'βαθμοί'}
+                                  </p>
+                                  {point.program_id && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Program ID: {point.program_id}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-gray-900">
+                                  {new Date(point.created_at).toLocaleDateString('el-GR', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {new Date(point.created_at).toLocaleTimeString('el-GR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+                  <button
+                    onClick={() => {
+                      setShowKettlebellDetailsModal(false);
+                      setSelectedKettlebellUser(null);
+                      setUserKettlebellPointsDetails([]);
+                    }}
+                    className="w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                  >
+                    Κλείσιμο
+                  </button>
                 </div>
               </div>
             </div>
