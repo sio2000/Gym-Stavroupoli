@@ -22,10 +22,16 @@ const todayIso = () => new Date().toISOString().split('T')[0];
 
 const computeStatus = (paid: boolean, dueDate: string): InstallmentStatus => {
   if (paid) return 'paid';
+  if (!dueDate) return 'pending';
+  
+  // Συγκρίνουμε μόνο τις ημερομηνίες (YYYY-MM-DD) χωρίς ώρες/timezone
   const due = new Date(dueDate + 'T00:00:00');
+  due.setHours(0, 0, 0, 0);
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  return due < now ? 'overdue' : 'pending';
+  
+  // Αν η due date είναι <= σήμερα, είναι overdue
+  return due <= now ? 'overdue' : 'pending';
 };
 
 const mapRequestToInstallments = (req: any): InstallmentListItem[] => {

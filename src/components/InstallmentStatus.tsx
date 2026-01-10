@@ -30,7 +30,7 @@ const InstallmentStatus: React.FC<InstallmentStatusProps> = ({ status, className
         };
       case 'overdue':
         return {
-          text: 'Ανεξόφλητη δόση!',
+          text: 'Ανεξόφλητη δόση',
           bgColor: 'bg-red-100',
           textColor: 'text-red-800',
           borderColor: 'border-red-200',

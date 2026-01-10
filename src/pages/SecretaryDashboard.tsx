@@ -25,7 +25,8 @@ import {
   UserPlus,
   Wallet,
   ListChecks,
-  Mail
+  Mail,
+  Search
 } from 'lucide-react';
 import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
@@ -301,6 +302,7 @@ const SecretaryDashboard: React.FC = () => {
   const [overduePage, setOverduePage] = useState(1);
   const OVERDUE_PER_PAGE = 6;
   const [dismissedOverdue, setDismissedOverdue] = useState<Set<string>>(new Set());
+  const [overdueSearch, setOverdueSearch] = useState('');
   // Installment locking state
   const [showLockConfirmation, setShowLockConfirmation] = useState(false);
   const [pendingLockRequest, setPendingLockRequest] = useState<{
@@ -2832,9 +2834,24 @@ const SecretaryDashboard: React.FC = () => {
   });
 
   const overdueInstallments = filteredInstallments.filter((inst) => inst.status === 'overdue');
-  const visibleOverdue = overdueInstallments.filter(
-    (inst) => !dismissedOverdue.has(`${inst.requestId}-${inst.installmentNumber}`)
-  );
+  const visibleOverdue = overdueInstallments.filter((inst) => {
+    // Φιλτράρισμα για dismissed
+    if (dismissedOverdue.has(`${inst.requestId}-${inst.installmentNumber}`)) {
+      return false;
+    }
+    // Φιλτράρισμα για αναζήτηση
+    if (overdueSearch) {
+      const searchLower = overdueSearch.toLowerCase();
+      const matchesSearch =
+        inst.userName.toLowerCase().includes(searchLower) ||
+        (inst.userEmail || '').toLowerCase().includes(searchLower) ||
+        (inst.userPhone || '').toLowerCase().includes(searchLower) ||
+        inst.dueDate.includes(searchLower) ||
+        inst.amount.toString().includes(searchLower);
+      return matchesSearch;
+    }
+    return true;
+  });
   const totalInstallmentPages = Math.max(1, Math.ceil(filteredInstallments.length / INSTALLMENTS_PER_PAGE));
   const paginatedInstallments = filteredInstallments.slice(
     (installmentPage - 1) * INSTALLMENTS_PER_PAGE,
@@ -2847,7 +2864,7 @@ const SecretaryDashboard: React.FC = () => {
   );
   useEffect(() => {
     setOverduePage(1);
-  }, [visibleOverdue.length, installmentSearch, installmentStatusFilter, dismissedOverdue]);
+  }, [visibleOverdue.length, installmentSearch, installmentStatusFilter, dismissedOverdue, overdueSearch]);
 
   // ===== Installments admin helpers =====
   const loadInstallmentsAdminList = async () => {
@@ -3390,8 +3407,34 @@ const SecretaryDashboard: React.FC = () => {
                 <h3 className="text-lg font-semibold text-red-200">Καθυστερημένες / λήγουσες δόσεις</h3>
                 <span className="text-sm text-red-100">Σύνολο: {visibleOverdue.length} • Σελίδα {overduePage}/{totalOverduePages}</span>
               </div>
+              
+              {/* Search Bar for Overdue Installments */}
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-red-400 h-5 w-5" />
+                  <input
+                    type="text"
+                    placeholder="🔍 Αναζήτηση καθυστερημένων δόσεων (όνομα, email, τηλέφωνο, ημερομηνία, ποσό)..."
+                    value={overdueSearch}
+                    onChange={(e) => setOverdueSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-red-950/60 border border-red-500/40 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white placeholder-red-300 text-sm"
+                  />
+                  {overdueSearch && (
+                    <button
+                      onClick={() => setOverdueSearch('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-400 hover:text-red-200 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
               {visibleOverdue.length === 0 ? (
-                <p className="text-red-100 text-sm">Καμία καθυστερημένη δόση</p>
+                <p className="text-red-100 text-sm">
+                  {overdueSearch 
+                    ? `Δεν βρέθηκαν αποτελέσματα για "${overdueSearch}"` 
+                    : 'Καμία καθυστερημένη δόση'}
+                </p>
               ) : (
                 <>
                   <div className="grid md:grid-cols-2 gap-3">

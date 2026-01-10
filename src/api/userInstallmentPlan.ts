@@ -26,10 +26,16 @@ export interface MultipleInstallmentPlansResponse {
 // ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιεί τα installment_X_paid flags για συγχρονισμό με το Admin Panel
 const computeStatus = (paid: boolean, dueDate: string): 'pending' | 'paid' | 'overdue' => {
   if (paid) return 'paid';
+  if (!dueDate) return 'pending';
+  
+  // Συγκρίνουμε μόνο τις ημερομηνίες (YYYY-MM-DD) χωρίς ώρες/timezone
   const due = new Date(dueDate + 'T00:00:00');
+  due.setHours(0, 0, 0, 0);
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  return due < now ? 'overdue' : 'pending';
+  
+  // Αν η due date είναι <= σήμερα, είναι overdue
+  return due <= now ? 'overdue' : 'pending';
 };
 
 // Helper function για να μετατρέψει τα δεδομένα σε το επιθυμητό schema
@@ -139,7 +145,8 @@ export const hasOverdueInstallment = async (userId: string): Promise<boolean> =>
     if (request.installment_1_amount > 0 && request.installment_1_paid !== true) {
       const dueDate1 = request.installment_1_due_date || new Date().toISOString().split('T')[0];
       const due1 = new Date(dueDate1 + 'T00:00:00');
-      if (due1 < now) {
+      due1.setHours(0, 0, 0, 0);
+      if (due1 <= now) {
         console.log('[InstallmentPlan] Found overdue installment 1');
         return true;
       }
@@ -149,7 +156,8 @@ export const hasOverdueInstallment = async (userId: string): Promise<boolean> =>
     if (request.installment_2_amount > 0 && request.installment_2_paid !== true) {
       const dueDate2 = request.installment_2_due_date || new Date().toISOString().split('T')[0];
       const due2 = new Date(dueDate2 + 'T00:00:00');
-      if (due2 < now) {
+      due2.setHours(0, 0, 0, 0);
+      if (due2 <= now) {
         console.log('[InstallmentPlan] Found overdue installment 2');
         return true;
       }
@@ -159,7 +167,8 @@ export const hasOverdueInstallment = async (userId: string): Promise<boolean> =>
     if (request.installment_3_amount > 0 && !request.third_installment_deleted && request.installment_3_paid !== true) {
       const dueDate3 = request.installment_3_due_date || new Date().toISOString().split('T')[0];
       const due3 = new Date(dueDate3 + 'T00:00:00');
-      if (due3 < now) {
+      due3.setHours(0, 0, 0, 0);
+      if (due3 <= now) {
         console.log('[InstallmentPlan] Found overdue installment 3');
         return true;
       }
