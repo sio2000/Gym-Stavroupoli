@@ -99,14 +99,14 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
         return { startDate: dates[0], endDate: dates[dates.length - 1] };
       })();
 
+      // Optimized: Only fetch slots for the date range we need
       const [availableSlots, allSlotsData] = await Promise.all([
         getPilatesAvailableSlots(startDate, endDate),
-        getPilatesScheduleSlots()
+        getPilatesScheduleSlots(startDate, endDate)
       ]);
 
-      const slotsData = allSlotsData.filter(slot =>
-        slot.date >= startDate && slot.date <= endDate
-      );
+      // No need to filter since we already fetched only the range we need
+      const slotsData = allSlotsData;
       setSlots(slotsData);
       setAvailableSlotsState(availableSlots);
 
@@ -656,8 +656,8 @@ const PilatesScheduleDisplay: React.FC<PilatesScheduleDisplayProps> = ({
                                 {statusContent}
                               </button>
                               
-                              {/* View Button for bookings - Show in admin mode when there are bookings */}
-                              {!readOnly && isActive && booked > 0 && (
+                              {/* View Button for bookings - Show when there are bookings (both admin and read-only mode) */}
+                              {isActive && booked > 0 && (
                                 <button
                                   onClick={async (e) => {
                                     e.stopPropagation();

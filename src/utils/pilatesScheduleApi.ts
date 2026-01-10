@@ -9,10 +9,20 @@ import {
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 // Pilates Schedule Slots API
-export const getPilatesScheduleSlots = async (): Promise<PilatesScheduleSlot[]> => {
-  const { data, error } = await supabase
+export const getPilatesScheduleSlots = async (startDate?: string, endDate?: string): Promise<PilatesScheduleSlot[]> => {
+  let query = supabase
     .from('pilates_schedule_slots')
-    .select('*')
+    .select('*');
+
+  // Filter by date range if provided for better performance
+  if (startDate) {
+    query = query.gte('date', startDate);
+  }
+  if (endDate) {
+    query = query.lte('date', endDate);
+  }
+
+  const { data, error } = await query
     .order('date', { ascending: true })
     .order('start_time', { ascending: true });
 

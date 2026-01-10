@@ -24,8 +24,9 @@ const InstallmentPlanPage = React.lazy(() => import('@/pages/InstallmentPlanPage
 // Temporarily disable lazy loading for Profile to debug
 import Profile from '@/pages/Profile';
 const TrainerSpecificDashboard = React.lazy(() => import('@/pages/TrainerSpecificDashboard'));
-const TrainerKaterina = React.lazy(() => import('@/pages/TrainerKaterina'));
-const TrainerIoanna = React.lazy(() => import('@/pages/TrainerIoanna'));
+// Remove lazy loading for trainer pages to improve loading speed
+import TrainerKaterina from '@/pages/TrainerKaterina';
+import TrainerIoanna from '@/pages/TrainerIoanna';
 const PersonalTraining = React.lazy(() => import('@/pages/PersonalTraining'));
 const PersonalTrainingSchedule = React.lazy(() => import('@/pages/PersonalTrainingSchedule'));
 const PaspartuTraining = React.lazy(() => import('@/pages/PaspartuTraining'));
@@ -219,9 +220,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute requiredRole="trainer">
               <Layout>
-                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
-                  <TrainerKaterina />
-                </React.Suspense>
+                <TrainerKaterina />
               </Layout>
             </ProtectedRoute>
           }
@@ -232,9 +231,7 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute requiredRole="trainer">
               <Layout>
-                <React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}>
-                  <TrainerIoanna />
-                </React.Suspense>
+                <TrainerIoanna />
               </Layout>
             </ProtectedRoute>
           }
