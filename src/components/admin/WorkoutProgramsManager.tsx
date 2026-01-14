@@ -1322,7 +1322,6 @@ const CombinedProgramCard: React.FC<{
                             type="button"
                             className="px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1"
                           >
-                            <span className="font-bold">Reps</span>
                             <span>Edit Reps</span>
                           </button>
                           
