@@ -1262,6 +1262,74 @@ const CombinedProgramCard: React.FC<{
                             onClick={(e) => {
                               e.stopPropagation();
                               e.preventDefault();
+                              // Show current reps value
+                              let currentDisplay = '';
+                              if (progExercise.reps_text) {
+                                currentDisplay = progExercise.reps_text;
+                              } else if (progExercise.reps_min && progExercise.reps_max) {
+                                currentDisplay = `${progExercise.reps_min}-${progExercise.reps_max}`;
+                              } else if (progExercise.reps_min) {
+                                currentDisplay = progExercise.reps_min.toString();
+                              } else if (progExercise.reps_max) {
+                                currentDisplay = progExercise.reps_max.toString();
+                              } else {
+                                currentDisplay = '-';
+                              }
+                              
+                              const newReps = prompt('Reps (π.χ. "10-15" ή "30-60 δευτερόλεπτα" ή "12" - βάλε "-" για αφαίρεση):', currentDisplay);
+                              if (newReps !== null) {
+                                const trimmed = newReps.trim();
+                                if (trimmed === '' || trimmed === '-') {
+                                  // Clear all reps
+                                  onUpdateExercise(progExercise.id, { 
+                                    reps_text: undefined, 
+                                    reps_min: undefined, 
+                                    reps_max: undefined 
+                                  });
+                                } else if (trimmed.includes('-') && !trimmed.includes('δευτερόλεπτα')) {
+                                  // Range format like "10-15"
+                                  const parts = trimmed.split('-');
+                                  const min = parts[0]?.trim();
+                                  const max = parts[1]?.trim();
+                                  const minNum = min ? parseInt(min) : undefined;
+                                  const maxNum = max ? parseInt(max) : undefined;
+                                  onUpdateExercise(progExercise.id, { 
+                                    reps_text: undefined,
+                                    reps_min: minNum && !isNaN(minNum) ? minNum : undefined, 
+                                    reps_max: maxNum && !isNaN(maxNum) ? maxNum : undefined 
+                                  });
+                                } else {
+                                  // Text format or single number
+                                  const singleNum = parseInt(trimmed);
+                                  if (!isNaN(singleNum)) {
+                                    // Single number
+                                    onUpdateExercise(progExercise.id, { 
+                                      reps_text: undefined,
+                                      reps_min: singleNum, 
+                                      reps_max: undefined 
+                                    });
+                                  } else {
+                                    // Text format
+                                    onUpdateExercise(progExercise.id, { 
+                                      reps_text: trimmed, 
+                                      reps_min: undefined, 
+                                      reps_max: undefined 
+                                    });
+                                  }
+                                }
+                              }
+                            }}
+                            type="button"
+                            className="px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1"
+                          >
+                            <span className="font-bold">Reps</span>
+                            <span>Edit Reps</span>
+                          </button>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
                               if (confirm('Είσαι σίγουρος ότι θέλεις να διαγράψεις αυτή την άσκηση;')) {
                                 onDeleteExercise(progExercise.id);
                               }

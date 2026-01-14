@@ -199,7 +199,10 @@ const MembershipPage: React.FC = React.memo(() => {
           method: progEx.method,
           level: progEx.level,
           tempo: progEx.tempo,
-          program_number: (progEx as any)?.program_number ?? (progEx as any)?.programNumber ?? null
+          program_number: (progEx as any)?.program_number ?? (progEx as any)?.programNumber ?? null,
+          reps_text: progEx.reps_text,
+          reps_min: progEx.reps_min,
+          reps_max: progEx.reps_max
         };
       })
     }));
@@ -1070,6 +1073,19 @@ const MembershipPage: React.FC = React.memo(() => {
                                               <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
                                                 <Clock className="h-3 w-3 mr-1" />
                                                 {exercise.sets}
+                                              </div>
+                                            )}
+                                            {(exercise.reps_text || exercise.reps_min || exercise.reps_max) && (
+                                              <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">
+                                                Reps: {exercise.reps_text 
+                                                  ? exercise.reps_text 
+                                                  : exercise.reps_min && exercise.reps_max
+                                                    ? `${exercise.reps_min}-${exercise.reps_max}`
+                                                    : exercise.reps_min
+                                                      ? exercise.reps_min.toString()
+                                                      : exercise.reps_max
+                                                        ? exercise.reps_max.toString()
+                                                        : '-'}
                                               </div>
                                             )}
                                             <div className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
