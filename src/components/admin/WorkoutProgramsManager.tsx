@@ -13,7 +13,9 @@ import {
   Activity,
   Search,
   Settings,
-  Check
+  Check,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -818,6 +820,8 @@ const CombinedProgramCard: React.FC<{
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
   const [addExerciseSearch, setAddExerciseSearch] = useState('');
   const [showExerciseDropdown, setShowExerciseDropdown] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5; // Αριθμός ασκήσεων ανά σελίδα
   
   const programTypeLabels = {
     'upper-body': 'Άνω μέρος σώματος',
@@ -845,6 +849,34 @@ const CombinedProgramCard: React.FC<{
       return isNotInProgram && matchesSearch;
     });
   }, [allExercises, program.exercises, addExerciseSearch]);
+
+  // Filtered and paginated exercises for display
+  const filteredExercises = useMemo(() => {
+    if (!program.exercises) return [];
+    return program.exercises.filter((pe) => {
+      if (!normalizedSearch) return true;
+      const name = pe.exercise?.name?.toLowerCase() || '';
+      const desc = pe.exercise?.description?.toLowerCase() || '';
+      const notes = pe.notes?.toLowerCase() || '';
+      return name.includes(normalizedSearch) || desc.includes(normalizedSearch) || notes.includes(normalizedSearch);
+    });
+  }, [program.exercises, normalizedSearch]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredExercises.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedExercises = filteredExercises.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [normalizedSearch]);
+
+  // Reset to page 1 when exercises change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [program.exercises?.length]);
 
   // Helper function to handle edit field
   const handleEditField = (progExercise: CombinedProgramExercise, fieldName: string, promptText: string, parseValue: (value: string) => any) => {
@@ -1023,16 +1055,9 @@ const CombinedProgramCard: React.FC<{
         )}
         
         <div className="space-y-4">
-          {program.exercises && program.exercises.length > 0 ? (
-            program.exercises
-              .filter((pe) => {
-                if (!normalizedSearch) return true;
-                const name = pe.exercise?.name?.toLowerCase() || '';
-                const desc = pe.exercise?.description?.toLowerCase() || '';
-                const notes = pe.notes?.toLowerCase() || '';
-                return name.includes(normalizedSearch) || desc.includes(normalizedSearch) || notes.includes(normalizedSearch);
-              })
-              .map((progExercise) => {
+          {filteredExercises.length > 0 ? (
+            <>
+              {paginatedExercises.map((progExercise) => {
                 return (
                 <div key={progExercise.id} className="bg-white border-2 border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all duration-200 relative">
                   <div className="flex flex-col lg:flex-row lg:items-start gap-4">
@@ -1465,7 +1490,38 @@ const CombinedProgramCard: React.FC<{
                     </div>
                   </div>
                 </div>
-              )})
+              )})}
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Εμφάνιση {startIndex + 1}-{Math.min(endIndex, filteredExercises.length)} από {filteredExercises.length} ασκήσεις
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium text-gray-700 transition-colors"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Προηγούμενη
+                    </button>
+                    <div className="text-sm text-gray-600 font-medium">
+                      Σελίδα {currentPage} από {totalPages}
+                    </div>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium text-gray-700 transition-colors"
+                    >
+                      Επόμενη
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
               <Activity className="h-12 w-12 text-gray-400 mx-auto mb-3" />
