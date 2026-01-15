@@ -44,6 +44,13 @@ import {
   getCombinedWorkoutPrograms
 } from '@/utils/workoutProgramsApi';
 
+// Helper function για να εμφανίζουμε "Open Gym" αντί για "Free Gym" μόνο στο UI
+const formatPackageNameForUser = (packageName: string | null | undefined): string => {
+  if (!packageName) return '';
+  if (packageName === 'Free Gym') return 'Open Gym';
+  return packageName;
+};
+
 const MembershipPage: React.FC = React.memo(() => {
   const { user } = useAuth();
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -505,7 +512,7 @@ const MembershipPage: React.FC = React.memo(() => {
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-primary-900">
-                        {membership.package?.name}
+                        {formatPackageNameForUser(membership.package?.name)}
                       </h3>
                       <p className="text-primary-700">
                         {getSmartDurationLabel(membership.duration_type, membership.start_date, membership.end_date)}
@@ -551,7 +558,7 @@ const MembershipPage: React.FC = React.memo(() => {
               <div>
                 <h2 className="text-xl font-bold text-primary-900">Ενεργή Συνδρομή</h2>
                 <p className="text-primary-700">
-                  {allPackages.find(p => p.id === userMembership.package_id)?.name || 'Unknown Package'}
+                  {formatPackageNameForUser(allPackages.find(p => p.id === userMembership.package_id)?.name) || 'Unknown Package'}
                 </p>
               </div>
             </div>

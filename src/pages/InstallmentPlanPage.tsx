@@ -14,6 +14,13 @@ import toast from 'react-hot-toast';
 import { InstallmentPlanData } from '@/services/api/installmentApi';
 import InstallmentStatus, { InstallmentStatusType } from '@/components/InstallmentStatus';
 
+// Helper function για να εμφανίζουμε "Open Gym" αντί για "Free Gym" μόνο στο UI
+const formatPackageNameForUser = (packageName: string | null | undefined): string => {
+  if (!packageName) return '';
+  if (packageName === 'Free Gym') return 'Open Gym';
+  return packageName;
+};
+
 // Helper function για να λάβει τα δεδομένα από το API - ΤΩΡΑ ΕΠΙΣΤΡΕΦΕΙ ΟΛΑ ΤΑ ΠΛΑΝΑ
 const fetchAllInstallmentPlans = async (): Promise<InstallmentPlanData[]> => {
   try {
@@ -202,7 +209,7 @@ const InstallmentPlanPage: React.FC = () => {
               {/* Τίτλος με το όνομα του πακέτου */}
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h3 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">
-                  {planData.packageName}
+                  {formatPackageNameForUser(planData.packageName)}
                 </h3>
                 {plansData.length > 1 && (
                   <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">

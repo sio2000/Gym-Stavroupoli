@@ -66,16 +66,31 @@ export const saveSecretaryKettlebellPoints = async (
   createdBy: string = ''
 ): Promise<boolean> => {
   try {
+    // Ensure createdBy is not empty - get current user if not provided
+    let validCreatedBy = createdBy;
+    if (!validCreatedBy || validCreatedBy.trim() === '') {
+      const { data: authUser } = await supabase.auth.getUser();
+      validCreatedBy = authUser?.user?.id || '';
+    }
+    
+    if (!validCreatedBy) {
+      console.error('[saveSecretaryKettlebellPoints] No valid createdBy ID found');
+      return false;
+    }
+    
+    // Convert points to integer (database field is integer, not decimal)
+    const integerPoints = Math.round(points);
+    
     console.log('[saveSecretaryKettlebellPoints] Saving kettlebell points via admin function:', {
-      userId, points, programId, createdBy
+      userId, points: integerPoints, programId, createdBy: validCreatedBy
     });
 
     // Use the admin function to bypass RLS
     const { data, error } = await supabase.rpc('admin_save_kettlebell_points', {
       p_user_id: userId,
-      p_points: points,
+      p_points: integerPoints,
       p_program_id: programId,
-      p_created_by: createdBy
+      p_created_by: validCreatedBy
     });
 
     if (error) {
@@ -87,9 +102,9 @@ export const saveSecretaryKettlebellPoints = async (
         .from('user_kettlebell_points')
         .insert({
           user_id: userId,
-          points: points,
+          points: integerPoints,
           program_id: programId,
-          created_by: createdBy
+          created_by: validCreatedBy
         });
 
       if (insertError) {

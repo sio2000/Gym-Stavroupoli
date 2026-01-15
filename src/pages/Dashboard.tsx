@@ -17,9 +17,7 @@ import {
   Camera,
   Image,
   Trash2,
-  Zap,
-  Lock,
-  TrendingUp
+  Lock
 } from 'lucide-react';
 // import { getAvailableQRCategories } from '@/utils/activeMemberships';
 import { addUserMetric, getUserMetrics, getUserGoals, upsertUserGoal, uploadBeforeAfterPhoto, getBeforeAfterPhotos, deleteBeforeAfterPhoto } from '@/utils/profileUtils';
@@ -37,7 +35,7 @@ const PopupModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 mobile-safe-top mobile-safe-bottom">
-      <div className="bg-dark-800 rounded-xl shadow-xl border border-dark-600 w-full max-w-md max-h-[80vh] overflow-y-auto">
+      <div className="bg-dark-800 rounded-xl shadow-xl border border-dark-600 w-full max-w-md max-h-[85vh] overflow-y-auto my-auto">
         <div className="flex items-center justify-between p-4 border-b border-dark-600">
           <h3 className="text-lg font-bold text-white">{title}</h3>
           <button
@@ -542,113 +540,6 @@ const StepsPopup: React.FC<{
         onClick={handleSaveAll} 
         disabled={saving || (!targetSteps && !steps)} 
         className="w-full py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <Save className="h-5 w-5" />
-        {saving ? 'Αποθήκευση...' : 'Αποθήκευση'}
-      </button>
-    </div>
-  );
-});
-
-const WorkoutPopup: React.FC<{
-  userId: string; 
-  onSaved: () => Promise<void> | void;
-  onShowToast: (type: 'success' | 'error', message: string) => void;
-  goals?: any[];
-}> = React.memo(({ userId, onSaved, onShowToast, goals = [] }) => {
-  const [workoutType, setWorkoutType] = useState<string>('');
-  const [targetWorkoutDays, setTargetWorkoutDays] = useState<string>('');
-  const [saving, setSaving] = useState<boolean>(false);
-
-  // Get existing workout days goal
-  const workoutDaysGoal = goals.find(g => g.goal_type === 'workout_days');
-  React.useEffect(() => {
-    if (workoutDaysGoal?.target_value) {
-      setTargetWorkoutDays(workoutDaysGoal.target_value.toString());
-    }
-  }, [workoutDaysGoal]);
-
-  const handleSaveAll = async () => {
-    if (!userId) return;
-    
-    setSaving(true);
-    try {
-      let hasChanges = false;
-      
-      // Save goal if provided
-      if (targetWorkoutDays) {
-          await upsertUserGoal(userId, { 
-          goal_type: 'workout_days',
-          target_value: parseInt(targetWorkoutDays),
-          unit: 'days/week',
-          title: 'Στόχος Προπόνησης'
-        });
-        hasChanges = true;
-      }
-      
-      // Save metric if provided
-      if (workoutType) {
-        await addUserMetric(userId, {
-          metric_date: new Date().toISOString().slice(0,10),
-          workout_type: workoutType
-        });
-        setWorkoutType('');
-        hasChanges = true;
-      }
-      
-      if (hasChanges) {
-        await onSaved();
-        onShowToast('success', 'Όλα τα δεδομένα αποθηκεύτηκαν επιτυχώς!');
-      }
-    } catch (error) {
-      onShowToast('error', 'Σφάλμα κατά την αποθήκευση των δεδομένων.');
-    } finally {
-      setSaving(false);
-    }
-  };
-  
-  return (
-    <div className="space-y-4">
-      {/* Goal Setting */}
-      <div className="bg-orange-600/10 rounded-lg p-4 border border-orange-600/20">
-        <div className="flex items-center gap-2 mb-3">
-          <Target className="h-5 w-5 text-orange-500" />
-          <h4 className="font-semibold text-white">Στόχος Προπόνησης</h4>
-        </div>
-        <input 
-          type="number" 
-          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white placeholder-gray-400" 
-          value={targetWorkoutDays} 
-          onChange={e => setTargetWorkoutDays(e.target.value)} 
-          placeholder="Ημέρες προπόνησης/εβδομάδα" 
-        />
-      </div>
-
-      {/* Workout Type Input */}
-      <div className="bg-orange-600/10 rounded-lg p-4 border border-orange-600/20">
-        <div className="flex items-center gap-2 mb-3">
-          <Dumbbell className="h-5 w-5 text-orange-500" />
-          <h4 className="font-semibold text-white">Είδος Προπόνησης</h4>
-        </div>
-        <select 
-          className="w-full border border-dark-600 rounded-lg px-3 py-2 bg-dark-700 text-white" 
-          value={workoutType} 
-          onChange={e => setWorkoutType(e.target.value)}
-        >
-          <option value="">Επιλέξτε...</option>
-          <option value="weights">Βάρη</option>
-          <option value="cardio">Καρδιο</option>
-          <option value="hiit">HIIT</option>
-          <option value="yoga">Γιόγκα</option>
-          <option value="pilates">Πιλάτες</option>
-          <option value="crossfit">CrossFit</option>
-        </select>
-      </div>
-
-      <button 
-        onClick={handleSaveAll} 
-        disabled={saving || (!targetWorkoutDays && !workoutType)} 
-        className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Save className="h-5 w-5" />
         {saving ? 'Αποθήκευση...' : 'Αποθήκευση'}
@@ -1244,8 +1135,7 @@ const Dashboard: React.FC = React.memo(() => {
     height: false,
     bodyFat: false,
     sleep: false,
-    steps: false,
-    workout: false
+    steps: false
   });
 
   // Toast functions
@@ -1403,15 +1293,6 @@ const Dashboard: React.FC = React.memo(() => {
         bgColor: 'bg-emerald-100',
         trend: '',
         onClick: () => openPopup('steps')
-      },
-      {
-        name: 'Προπόνηση',
-        value: latest.workout_type || '—',
-        icon: Dumbbell,
-        color: 'text-orange-600',
-        bgColor: 'bg-orange-100',
-        trend: '',
-        onClick: () => openPopup('workout')
       }
     ];
   }, [latest]);
@@ -2009,18 +1890,6 @@ const Dashboard: React.FC = React.memo(() => {
         />
       </PopupModal>
 
-      <PopupModal 
-        isOpen={popupStates.workout} 
-        onClose={() => closePopup('workout')} 
-        title="Προπόνηση"
-      >
-        <WorkoutPopup 
-          userId={user?.id || ''} 
-          onSaved={refreshData} 
-          onShowToast={showToast}
-          goals={goals}
-        />
-      </PopupModal>
     </div>
     </>
   );

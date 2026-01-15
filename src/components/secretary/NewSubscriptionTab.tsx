@@ -558,7 +558,8 @@ const NewSubscriptionTab: React.FC = () => {
                     return;
                   }
                   const price = Number(ptPrice || 0);
-                  const kbPoints = Number(ptKettlebellPoints || 0);
+                  // Convert to integer for Kettlebell Points (database field is integer)
+                  const kbPoints = Math.round(Number(ptKettlebellPoints || 0));
                   
                   if (!price || price <= 0) {
                     toast.error('Συμπλήρωσε έγκυρη τιμή');
@@ -587,11 +588,19 @@ const NewSubscriptionTab: React.FC = () => {
                     
                     // 2. Save kettlebell points if provided
                     if (kbPoints > 0) {
+                      // Ensure createdBy is not empty string
+                      const validCreatedBy = createdBy || user?.id || '';
+                      if (!validCreatedBy) {
+                        toast.error('Σφάλμα: Δεν βρέθηκε ID χρήστη');
+                        setSubmitting(false);
+                        return;
+                      }
+                      
                       const kbSuccess = await saveSecretaryKettlebellPoints(
                         selectedUser.user_id,
                         kbPoints,
                         undefined, // program_id
-                        createdBy
+                        validCreatedBy
                       );
                     
                       if (!kbSuccess) {

@@ -43,7 +43,7 @@ const QRCodeCanvas: React.FC<{ qrData: string; category: string }> = ({ qrData, 
 
   const getCategoryLabel = (cat: string) => {
     switch (cat) {
-      case 'free_gym': return 'Ελεύθερο Gym';
+      case 'free_gym': return 'Open Gym';
       case 'pilates': return 'Pilates';
       case 'personal': return 'Personal Training';
       default: return cat;
@@ -90,7 +90,7 @@ const ZoomableQRModal: React.FC<{
 
   const getCategoryLabel = (cat: string) => {
     switch (cat) {
-      case 'free_gym': return 'Ελεύθερο Gym';
+      case 'free_gym': return 'Open Gym';
       case 'pilates': return 'Pilates';
       case 'personal': return 'Personal Training';
       default: return cat;
@@ -413,7 +413,7 @@ const QRCodes: React.FC = () => {
         ctx.textAlign = 'center';
         
         const categoryLabels = {
-          'free_gym': 'Ελεύθερο Gym',
+          'free_gym': 'Open Gym',
           'pilates': 'Pilates',
           'personal': 'Personal Training'
         };
@@ -669,12 +669,12 @@ const QRCodes: React.FC = () => {
                     )}
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    QR Εισόδου Γυμναστηρίου
+                    QR Εισόδου Open Gym
                   </p>
                 </div>
 
                 <div className="space-y-2 mb-4 text-center">
-                  <h3 className="font-medium text-gray-900">Είσοδος Γυμναστηρίου</h3>
+                  <h3 className="font-medium text-gray-900">Είσοδος Open Gym</h3>
                   <div className="space-y-1 text-sm text-gray-600">
                     <div className="flex items-center justify-center">
                       <Calendar className="h-4 w-4 mr-2" />
