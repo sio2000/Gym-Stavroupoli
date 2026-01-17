@@ -191,10 +191,16 @@ const LoginForm: React.FC = () => {
             <p className="text-sm text-red-400">{errors.acceptPolicies}</p>
           )}
 
-          <div>
+          <div className="relative">
+            {/* UI Bubble για ενημέρωση εκπαίδευσης προσωπικού - ΑΦΑΙΡΕΣΤΕ ΑΥΤΟ ΤΟ DIV ΓΙΑ ΝΑ ΕΝΕΡΓΟΠΟΙΗΘΕΙ ΤΟ ΚΟΥΜΠΙ */}
+            <div className="bg-white border border-gray-300 rounded-lg p-4 mb-4 shadow-lg text-center text-sm text-gray-800 font-medium relative">
+              <div className="absolute bottom-[-8px] left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
+              <div className="absolute bottom-[-10px] left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-300"></div>
+              Το πρόγραμμα θα είναι έτοιμο για χρήση έπειτα από την εκπαίδευση του προσωπικού του γυμναστηρίου. Με αυτόν τον τρόπο διασφαλίζεται ότι δεν θα γίνει κάποιο λάθος από ανεκπαίδευτο προσωπικό το οποίο έπειτα θα πρέπει να διορθώσει χειροκίνητα ο προγραμματιστής.
+            </div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={true}
               className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
