@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toLocalDateKey } from '@/utils/date';
-import { ChevronLeft, ChevronRight, Users, Clock, MapPin, AlertCircle, X, RefreshCw } from 'lucide-react';
-import { getGroupTrainingCalendarEvents, GroupTrainingCalendarEvent } from '@/utils/groupTrainingCalendarApi';
+import { Users, Clock, MapPin, AlertCircle, X, RefreshCw, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '@/config/supabase';
 import toast from 'react-hot-toast';
 
 interface TrainerMonthlyCalendarProps {
@@ -9,14 +9,28 @@ interface TrainerMonthlyCalendarProps {
   featureEnabled?: boolean;
 }
 
+interface PersonalTrainingCalendarEvent {
+  id: string;
+  title: string;
+  type: 'personal';
+  start: string; // ISO string
+  end: string; // ISO string
+  room: string;
+  trainer: string;
+  userName: string;
+  userEmail: string;
+  notes?: string;
+  status: string;
+}
+
 const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({ 
   trainerName,
   featureEnabled = true 
 }) => {
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [events, setEvents] = useState<GroupTrainingCalendarEvent[]>([]);
+  const [events, setEvents] = useState<PersonalTrainingCalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<GroupTrainingCalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<PersonalTrainingCalendarEvent | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -33,25 +47,106 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
       const startDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
       const endDate = toLocalDateKey(new Date(currentYear, currentMonth, 0));
       
-      console.log('[TrainerMonthlyCalendar] Loading events for trainer:', trainerName, { startDate, endDate });
+      console.log('[TrainerMonthlyCalendar] Loading personal training events for trainer:', trainerName, { startDate, endDate });
       
-      const response = await getGroupTrainingCalendarEvents(startDate, endDate);
-      
-      // Filter events by trainer (robust to whitespace/case differences)
-      const filteredEvents = response.events.filter(event =>
-        (event.trainer || '').trim().toLowerCase() === (trainerName || '').trim().toLowerCase()
-      );
-      
-      // Επιπλέον ταξινόμηση για να βεβαιωθούμε ότι τα events είναι ταξινομημένα
-      const sortedFilteredEvents = filteredEvents.sort((a, b) => {
+      // Query all personal training schedules
+      const { data: schedules, error } = await supabase
+        .from('personal_training_schedules')
+        .select(`
+          id,
+          user_id,
+          schedule_data,
+          trainer_name,
+          status,
+          users!personal_training_schedules_user_id_fkey(
+            first_name,
+            last_name,
+            email
+          )
+        `);
+
+      if (error) {
+        console.error('[TrainerMonthlyCalendar] Error loading schedules:', error);
+        throw new Error(`Failed to fetch personal training schedules: ${error.message}`);
+      }
+
+      console.log('[TrainerMonthlyCalendar] Raw schedules data:', schedules);
+
+      // Filter schedules for this trainer (case insensitive)
+      const trainerSchedules = schedules?.filter(schedule => {
+        // Check both trainer_name column and schedule_data.sessions[].trainer
+        if (schedule.trainer_name?.toLowerCase() === trainerName.toLowerCase()) {
+          return true;
+        }
+        const sessions = schedule.schedule_data?.sessions || [];
+        return sessions.some((session: any) => session.trainer?.toLowerCase() === trainerName.toLowerCase());
+      }) || [];
+
+      console.log('[TrainerMonthlyCalendar] Filtered trainer schedules:', trainerSchedules.length);
+
+      // Convert schedules to calendar events
+      const calendarEvents: PersonalTrainingCalendarEvent[] = [];
+
+      trainerSchedules.forEach((schedule: any) => {
+        const sessions = schedule.schedule_data?.sessions || [];
+        const userName = schedule.users ? 
+          `${schedule.users.first_name} ${schedule.users.last_name}` : 
+          'Άγνωστος Χρήστης';
+        const userEmail = schedule.users?.email || '';
+
+        sessions.forEach((session: any) => {
+          if (session.trainer?.toLowerCase() === trainerName.toLowerCase()) {
+            // Parse date and time - use startTime and endTime properties
+            const sessionDate = session.date;
+            const startTime = session.startTime;
+            const endTime = session.endTime || startTime; // fallback if endTime doesn't exist
+            
+            // Validate times
+            if (!startTime || !startTime.includes(':')) {
+              console.warn('[TrainerMonthlyCalendar] Invalid startTime format:', startTime, 'for session:', session);
+              return; // skip this session
+            }
+            
+            // Create ISO strings
+            const startDateTime = `${sessionDate}T${startTime}:00`;
+            const endDateTime = `${sessionDate}T${endTime}:00`;
+
+            // Validate date format
+            const testDate = new Date(startDateTime);
+            if (isNaN(testDate.getTime())) {
+              console.error('[TrainerMonthlyCalendar] Invalid date format:', startDateTime);
+              return; // skip this session
+            }
+
+            const event: PersonalTrainingCalendarEvent = {
+              id: `${schedule.id}-${session.date}-${session.startTime}`,
+              title: `${session.type} - ${userName}`,
+              type: 'personal',
+              start: startDateTime,
+              end: endDateTime,
+              room: session.room || 'N/A',
+              trainer: session.trainer,
+              userName: userName,
+              userEmail: userEmail,
+              notes: session.notes,
+              status: schedule.status
+            };
+
+            calendarEvents.push(event);
+          }
+        });
+      });
+
+      // Don't filter by current month - show all trainer sessions
+      const sortedEvents = calendarEvents.sort((a, b) => {
         const timeA = new Date(a.start).getTime();
         const timeB = new Date(b.start).getTime();
         return timeA - timeB;
       });
+
+      setEvents(sortedEvents);
       
-      setEvents(sortedFilteredEvents);
-      
-      console.log('[TrainerMonthlyCalendar] Loaded events for trainer:', filteredEvents.length);
+      console.log('[TrainerMonthlyCalendar] Loaded events for trainer:', sortedEvents.length);
     } catch (error) {
       console.error('[TrainerMonthlyCalendar] Error loading events:', error);
       toast.error('Αποτυχία φόρτωσης ημερολογίου');
@@ -90,59 +185,6 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
       });
   };
 
-  // Get capacity status color
-  const getCapacityColor = (participantsCount: number, capacity: number) => {
-    const percentage = (participantsCount / capacity) * 100;
-    if (percentage === 0) return 'text-gray-600';
-    if (percentage <= 50) return 'text-green-700';
-    if (percentage < 100) return 'text-yellow-700';
-    return 'text-red-700';
-  };
-
-  // Get capacity status background
-  const getCapacityBgColor = (participantsCount: number, capacity: number) => {
-    const percentage = (participantsCount / capacity) * 100;
-    if (percentage === 0) return 'bg-gray-100';
-    if (percentage <= 50) return 'bg-green-200';
-    if (percentage < 100) return 'bg-yellow-200';
-    return 'bg-red-200';
-  };
-
-  // Get capacity status for full sessions
-  const isSessionFull = (participantsCount: number, capacity: number) => {
-    return participantsCount >= capacity;
-  };
-
-  // Handle event click
-  const handleEventClick = async (event: GroupTrainingCalendarEvent) => {
-    try {
-      setLoading(true);
-      console.log('[TrainerMonthlyCalendar] Event clicked:', event);
-      
-      setSelectedEvent(event);
-      setShowEventModal(true);
-    } catch (error) {
-      console.error('[TrainerMonthlyCalendar] Error loading event details:', error);
-      toast.error('Failed to load event details');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle refresh
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await loadEvents();
-      toast.success('Ημερολόγιο ανανεώθηκε');
-    } catch (error) {
-      console.error('[TrainerMonthlyCalendar] Error refreshing:', error);
-      toast.error('Αποτυχία ανανέωσης ημερολογίου');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   // Generate calendar days
   const generateCalendarDays = () => {
     const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
@@ -174,12 +216,11 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
           
           <div className="space-y-1 flex-grow">
             {dayEvents.map((event, index) => {
-              const isFull = isSessionFull(event.participants_count, event.capacity);
               return (
                 <div
                   key={index}
                   onClick={() => handleEventClick(event)}
-                  className={`rounded-lg cursor-pointer hover:opacity-90 transition-all duration-200 ${getCapacityBgColor(event.participants_count, event.capacity)} border border-opacity-20 shadow-sm hover:shadow-md p-2`}
+                  className="rounded-lg cursor-pointer hover:opacity-90 transition-all duration-200 bg-blue-100 border border-blue-200 shadow-sm hover:shadow-md p-2"
                   title="Click to view session details"
                 >
                   <div className="text-center">
@@ -187,29 +228,14 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
                       {event.start.split('T')[1].substring(0, 5)}
                     </div>
                     <div className="flex items-center justify-center space-x-1 mb-1">
-                      <span className="text-lg">
-                        {event.capacity === 1 ? '👤' : 
-                         event.capacity === 2 ? '👥👥' : 
-                         event.capacity === 3 ? '👥👥👥' : 
-                         event.capacity === 6 ? '👥👥👥👥👥👥' : 
-                         event.capacity === 10 ? '👥👥👥👥👥👥👥👥👥👥' : '👥'}
-                      </span>
+                      <span className="text-lg">👤</span>
                       <span className="text-xs font-bold text-gray-700">
-                        {event.participants_count}/{event.capacity}
+                        {event.type === 'personal' ? 'Personal' : event.type.charAt(0).toUpperCase() + event.type.slice(1)}
                       </span>
                     </div>
                     <div className="text-xs text-gray-600 font-medium">
-                      {event.capacity === 1 ? '1 άτομο (Individual)' : 
-                       event.capacity === 2 ? '2 άτομα' : 
-                       event.capacity === 3 ? '3 άτομα' : 
-                       event.capacity === 6 ? '6 άτομα' : 
-                       event.capacity === 10 ? '10 άτομα' : `${event.capacity} άτομα`}
+                      {event.userName}
                     </div>
-                    {isFull && (
-                      <div className="text-xs text-red-600 font-bold mt-1">
-                        🔒 ΓΕΜΑΤΟ
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -220,6 +246,36 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
     }
 
     return days;
+  };
+
+  // Handle event click
+  const handleEventClick = (event: PersonalTrainingCalendarEvent) => {
+    try {
+      setLoading(true);
+      console.log('[TrainerMonthlyCalendar] Event clicked:', event);
+      
+      setSelectedEvent(event);
+      setShowEventModal(true);
+    } catch (error) {
+      console.error('[TrainerMonthlyCalendar] Error loading event details:', error);
+      toast.error('Failed to load event details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadEvents();
+      toast.success('Ημερολόγιο ανανεώθηκε');
+    } catch (error) {
+      console.error('[TrainerMonthlyCalendar] Error refreshing:', error);
+      toast.error('Αποτυχία ανανέωσης ημερολογίου');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   if (!featureEnabled) {
@@ -305,7 +361,7 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
         {/* Month/Year Display */}
         <div className="mt-4">
           <h2 className="text-2xl font-bold text-gray-900">
-            {new Date(currentYear, currentMonth - 1).toLocaleDateString('en-US', { 
+            {new Date(currentYear, currentMonth - 1).toLocaleDateString('el-GR', { 
               month: 'long', 
               year: 'numeric' 
             })}
@@ -375,65 +431,47 @@ const TrainerMonthlyCalendar: React.FC<TrainerMonthlyCalendarProps> = ({
                   </div>
                 </div>
 
-                {/* Capacity Status */}
-                <div className={`rounded-lg p-4 ${isSessionFull(selectedEvent.participants_count, selectedEvent.capacity) ? 'bg-red-50 border border-red-200' : 'bg-blue-50'}`}>
+                {/* Personal Training Info */}
+                <div className="bg-blue-50 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="font-medium text-lg">Χωρητικότητα Μαθήματος</span>
+                    <span className="font-medium text-lg">Personal Training Session</span>
                     <div className="flex items-center space-x-2">
-                      <span className="text-2xl">
-                        {selectedEvent.capacity === 1 ? '👤' : 
-                         selectedEvent.capacity === 2 ? '👥👥' : 
-                         selectedEvent.capacity === 3 ? '👥👥👥' : 
-                         selectedEvent.capacity === 6 ? '👥👥👥👥👥👥' : 
-                         selectedEvent.capacity === 10 ? '👥👥👥👥👥👥👥👥👥👥' : '👥'}
+                      <span className="text-2xl">👤</span>
+                      <span className="px-3 py-2 rounded-full text-lg font-bold bg-blue-200 text-blue-800">
+                        Personal
                       </span>
-                      <span className={`px-3 py-2 rounded-full text-lg font-bold ${getCapacityBgColor(selectedEvent.participants_count, selectedEvent.capacity)} ${getCapacityColor(selectedEvent.participants_count, selectedEvent.capacity)}`}>
-                        {selectedEvent.participants_count}/{selectedEvent.capacity}
-                      </span>
-                      {isSessionFull(selectedEvent.participants_count, selectedEvent.capacity) && (
-                        <span className="text-sm text-red-600 font-bold bg-red-100 px-3 py-2 rounded-lg">
-                          🔒 ΓΕΜΑΤΟ
-                        </span>
-                      )}
                     </div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-bold text-gray-800 mb-2">
-                      {selectedEvent.capacity === 1 ? 'Individual Training - 1 άτομο' : 
-                       selectedEvent.capacity === 2 ? 'Μάθημα για 2 άτομα' : 
-                       selectedEvent.capacity === 3 ? 'Μάθημα για 3 άτομα' : 
-                       selectedEvent.capacity === 6 ? 'Μάθημα για 6 άτομα' : 
-                       selectedEvent.capacity === 10 ? 'Μάθημα για 10 άτομα' : `Μάθημα για ${selectedEvent.capacity} άτομα`}
+                      Personal Training Session
                     </div>
                     <div className="text-sm text-gray-600">
-                      {selectedEvent.participants_count === 0 ? 'Κανένας συμμετέχων' :
-                       selectedEvent.participants_count === 1 ? '1 συμμετέχων' :
-                       `${selectedEvent.participants_count} συμμετέχοντες`}
+                      1-on-1 Training
                     </div>
                   </div>
-                  {isSessionFull(selectedEvent.participants_count, selectedEvent.capacity) && (
-                    <div className="mt-3 text-sm text-red-600 bg-red-100 p-3 rounded-lg">
-                      ⚠️ Αυτό το μάθημα είναι γεμάτο. Δεν επιτρέπονται νέες κρατήσεις.
-                    </div>
-                  )}
                 </div>
 
-                {/* Participants */}
-                {selectedEvent.participants.length > 0 && (
+                {/* Client Info */}
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Πελάτης</h4>
+                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                      {selectedEvent.userName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{selectedEvent.userName}</div>
+                      <div className="text-xs text-gray-600">{selectedEvent.userEmail}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {selectedEvent.notes && (
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Συμμετέχοντες</h4>
-                    <div className="space-y-2">
-                      {selectedEvent.participants.map((participant, index) => (
-                        <div key={index} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
-                          <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                            {participant.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-medium text-sm">{participant.name}</div>
-                            <div className="text-xs text-gray-600">{participant.email}</div>
-                          </div>
-                        </div>
-                      ))}
+                    <h4 className="font-medium text-gray-900 mb-2">Σημειώσεις</h4>
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="text-sm text-gray-700">{selectedEvent.notes}</div>
                     </div>
                   </div>
                 )}

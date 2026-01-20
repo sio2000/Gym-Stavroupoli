@@ -5665,26 +5665,6 @@ const SecretaryDashboard: React.FC = () => {
                         >
                           🆕 Νέες Σεσίες
                         </button>
-                        <button
-                          onClick={() => {
-                            setSessionFilter('existing');
-                            // Load existing sessions when switching to existing
-                            if (newCode.selectedUserId) {
-                              loadExistingSessions(newCode.selectedUserId);
-                            }
-                          }}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                            sessionFilter === 'existing'
-                              ? 'bg-green-500 text-white shadow-lg'
-                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          }`}
-                          disabled={!newCode.selectedUserId}
-                        >
-                          📚 Υπάρχουσες Σεσίες
-                          {loadingExistingSessions && (
-                            <span className="ml-2">⏳</span>
-                          )}
-                        </button>
                       </div>
                       {sessionFilter === 'existing' && existingSessions.length > 0 && (
                         <div className="text-sm text-green-600 bg-green-100 px-3 py-1 rounded-lg">
