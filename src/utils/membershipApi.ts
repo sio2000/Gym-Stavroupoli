@@ -166,6 +166,20 @@ const ensureActiveMembership = async ({
     const end = new Date(start);
     end.setDate(end.getDate() + durationDays);
 
+    // Check for existing active membership for same user and package
+    const { data: existingMembership } = await supabase
+      .from('memberships')
+      .select('start_date, end_date')
+      .eq('user_id', userId)
+      .eq('package_id', packageId)
+      .eq('is_active', true)
+      .single();
+
+    if (existingMembership) {
+      console.log('[MembershipAPI] Found existing active membership, returning existing dates');
+      return { startDate: existingMembership.start_date, endDate: existingMembership.end_date };
+    }
+
     const { data: authUser } = await supabase.auth.getUser();
     const insertMembership: any = {
       user_id: userId,
@@ -330,6 +344,12 @@ const addPilatesDeposit = async ({
   const expiresAt = new Date(endDateStr + 'T23:59:59Z').toISOString();
   const { data: authUser } = await supabase.auth.getUser();
   const createdBy = authUser?.user?.id || '00000000-0000-0000-0000-000000000001';
+
+  // Deactivate all previous deposits for this user to ensure clean state
+  await supabase
+    .from('pilates_deposits')
+    .update({ is_active: false })
+    .eq('user_id', userId);
 
   const { error: rpcError } = await supabase.rpc('credit_pilates_deposit', {
     p_created_by: createdBy,
@@ -1488,19 +1508,19 @@ export const createUltimateMembershipRequest = async (
         const endDate = membershipDates?.endDate || calculateEndDate(new Date().toISOString().split('T')[0], getDurationDays(normalizedDurationType));
         const expiresIso = new Date(endDate + 'T23:59:59Z').toISOString();
 
-        const { error: depositErr } = await supabase
-          .from('pilates_deposits')
-          .insert({
-            user_id: actualUserId,
-            package_id: pilatesPkg.id,
-            deposit_remaining: initialDeposit,
-            expires_at: expiresIso,
-            is_active: true,
-            created_by: null
-          });
+        const { data: authUser } = await supabase.auth.getUser();
+        const createdBy = authUser?.user?.id || '00000000-0000-0000-0000-000000000001';
 
-        if (depositErr) {
-          console.error('[Ultimate] manual insert pilates_deposits failed (createUltimateMembershipRequest):', depositErr);
+        const { error: rpcError } = await supabase.rpc('credit_pilates_deposit', {
+          p_created_by: createdBy,
+          p_user_id: actualUserId,
+          p_package_id: pilatesPkg.id,
+          p_deposit_remaining: initialDeposit,
+          p_expires_at: expiresIso
+        });
+
+        if (rpcError) {
+          console.error('[Ultimate] RPC credit_pilates_deposit failed (createUltimateMembershipRequest):', rpcError);
         }
       }
     } catch (depErr) {
