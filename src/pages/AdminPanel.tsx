@@ -74,12 +74,6 @@ import {
 import { 
   saveProgramApprovalState
 } from '@/utils/programApprovalApi';
-import {
-  normalizeLegacyUsers,
-  detectLegacyUsers,
-  validateUserNormalization,
-  type LegacyUser
-} from '@/utils/legacyUserNormalization';
 
 
 
@@ -297,13 +291,6 @@ const AdminPanel: React.FC = () => {
     installment3DueDate?: string;
   }}>({});
 
-  // Legacy normalization state
-  const [legacyUsers, setLegacyUsers] = useState<LegacyUser[]>([]);
-  const [normalizationLoading, setNormalizationLoading] = useState(false);
-  const [normalizationResult, setNormalizationResult] = useState<any>(null);
-
-
-
   // Helper function to check if user is pending
   const isUserPending = (userId: string) => {
     return pendingUsers.has(userId);
@@ -518,7 +505,6 @@ const AdminPanel: React.FC = () => {
     { id: 'users-information', name: 'Χρήστες-Πληροφορίες', icon: Users },
     { id: 'banners', name: 'Banners Αρχικής', icon: Image },
     { id: 'workout-programs', name: 'Προγράμματα Προπόνησης', icon: Activity },
-    { id: 'legacy-normalization', name: '🔧 Legacy Normalization', icon: AlertTriangle },
     { id: 'error-fixing', name: 'Διόρθωση Σφαλμάτων', icon: AlertTriangle }
   ];
 
@@ -3211,46 +3197,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  // ===== LEGACY NORMALIZATION FUNCTIONS =====
-
-  const handleDetectLegacyUsers = async () => {
-    try {
-      setNormalizationLoading(true);
-      const users = await detectLegacyUsers();
-      setLegacyUsers(users);
-      toast.success(`Εντοπίστηκαν ${users.length} legacy χρήστες`);
-    } catch (error) {
-      console.error('Error detecting legacy users:', error);
-      toast.error('Σφάλμα κατά την ανίχνευση legacy χρηστών');
-    } finally {
-      setNormalizationLoading(false);
-    }
-  };
-
-  const handleNormalizeLegacyUsers = async () => {
-    try {
-      setNormalizationLoading(true);
-      setNormalizationResult(null);
-
-      const result = await normalizeLegacyUsers();
-      setNormalizationResult(result);
-
-      if (result.success) {
-        toast.success(result.message);
-        // Refresh the legacy users list
-        await handleDetectLegacyUsers();
-      } else {
-        toast.error('Η ομαλοποίηση απέτυχε');
-      }
-    } catch (error) {
-      console.error('Error normalizing legacy users:', error);
-      toast.error('Σφάλμα κατά την ομαλοποίηση legacy χρηστών');
-      setNormalizationResult({ success: false, message: 'Σφάλμα εκτέλεσης', errors: [error] });
-    } finally {
-      setNormalizationLoading(false);
-    }
-  };
-
   // Load Kettlebell Points when selected user changes
   useEffect(() => {
     if (newCode.selectedUserId) {
@@ -4917,219 +4863,6 @@ const AdminPanel: React.FC = () => {
           {/* Workout Programs Tab */}
           {activeTab === 'workout-programs' && !loading && (
             <WorkoutProgramsManager />
-          )}
-
-          {/* Legacy Normalization Tab */}
-          {activeTab === 'legacy-normalization' && !loading && (
-            <div className="space-y-6">
-              {/* Header */}
-              <div className="bg-gradient-to-r from-red-600 to-orange-600 rounded-xl p-4 sm:p-6 text-white mb-4 sm:mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
-                  <div>
-                    <h2 className="text-lg sm:text-2xl font-bold mb-2">🔧 Legacy User Normalization</h2>
-                    <p className="text-red-100 text-sm sm:text-base">Ομαλοποίηση χρηστών από το παλιό σύστημα</p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={handleDetectLegacyUsers}
-                      disabled={normalizationLoading}
-                      className="flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all duration-200 font-semibold shadow-lg text-sm disabled:opacity-50"
-                    >
-                      <Search className="h-4 w-4" />
-                      <span>🔍 Ανίχνευση</span>
-                    </button>
-                    <button
-                      onClick={handleNormalizeLegacyUsers}
-                      disabled={normalizationLoading || legacyUsers.length === 0}
-                      className="flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all duration-200 font-semibold shadow-lg text-sm disabled:opacity-50"
-                    >
-                      <Settings className="h-4 w-4" />
-                      <span>🔧 Ομαλοποίηση</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Status */}
-              {normalizationResult && (
-                <div className={`rounded-xl p-4 ${normalizationResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                  <div className="flex items-center space-x-2">
-                    {normalizationResult.success ? (
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <AlertTriangle className="h-5 w-5 text-red-600" />
-                    )}
-                    <div>
-                      <h3 className={`font-semibold ${normalizationResult.success ? 'text-green-800' : 'text-red-800'}`}>
-                        {normalizationResult.message}
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Επεξεργάστηκαν {normalizationResult.usersProcessed || 0} χρήστες
-                      </p>
-                      {normalizationResult.errors && normalizationResult.errors.length > 0 && (
-                        <div className="mt-2">
-                          <p className="text-sm font-medium text-red-700">Σφάλματα:</p>
-                          <ul className="text-sm text-red-600 list-disc list-inside">
-                            {normalizationResult.errors.map((error: string, index: number) => (
-                              <li key={index}>{error}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {normalizationResult.verificationChecklist && (
-                        <div className="mt-4">
-                          <p className="text-sm font-medium text-green-700 mb-2">✅ Έλεγχος Ολοκλήρωσης:</p>
-                          <ul className="text-sm text-green-600 space-y-1">
-                            <li className="flex items-center">
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Membership requests δημιουργήθηκαν
-                            </li>
-                            <li className="flex items-center">
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Pilates deposits αρχικοποιήθηκαν
-                            </li>
-                            <li className="flex items-center">
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Ultimate credits εφαρμόστηκαν
-                            </li>
-                            <li className="flex items-center">
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Override safety εξασφαλίστηκε
-                            </li>
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Legacy Users List */}
-              {legacyUsers.length > 0 && (
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                  <div className="p-6 border-b border-gray-200">
-                    <h3 className="text-xl font-bold text-gray-900">⚠️ Legacy Χρήστες ({legacyUsers.length})</h3>
-                    <p className="text-gray-600 mt-1">Χρήστες που χρειάζονται ομαλοποίηση</p>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Χρήστης</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Πακέτο</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Προβλήματα</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deposits</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {legacyUsers.map((user) => (
-                          <tr key={user.userId} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{user.userName}</div>
-                              <div className="text-sm text-gray-500">{user.userId.slice(0, 8)}...</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{user.packageName}</div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex flex-wrap gap-1">
-                                {user.issues.map((issue, index) => (
-                                  <span
-                                    key={index}
-                                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
-                                  >
-                                    {issue.replace(/_/g, ' ')}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {user.hasPilatesDeposit ? (
-                                <span className="text-green-600">
-                                  {user.actualDepositCount}/{user.expectedDepositCount}
-                                </span>
-                              ) : (
-                                <span className="text-red-600">Missing</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Info Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Search className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-lg font-semibold text-blue-900">Ανίχνευση</h3>
-                      <p className="text-blue-600 text-sm">Εντοπίζει legacy χρήστες</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-green-50 rounded-xl p-6 border border-green-200">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <CheckCircle className="h-6 w-6 text-green-600" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-lg font-semibold text-green-900">Requests</h3>
-                      <p className="text-green-600 text-sm">Δημιουργεί membership requests</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-purple-50 rounded-xl p-6 border border-purple-200">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Award className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-lg font-semibold text-purple-900">Deposits</h3>
-                      <p className="text-purple-600 text-sm">Διορθώνει Pilates deposits</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-orange-50 rounded-xl p-6 border border-orange-200">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <Settings className="h-6 w-6 text-orange-600" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-lg font-semibold text-orange-900">Ομαλοποίηση</h3>
-                      <p className="text-orange-600 text-sm">Εξισώνει με νέους χρήστες</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Instructions */}
-              <div className="bg-yellow-50 rounded-xl p-6 border border-yellow-200">
-                <div className="flex items-start space-x-3">
-                  <AlertTriangle className="h-6 w-6 text-yellow-600 mt-0.5" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-yellow-900 mb-2">Οδηγίες Χρήσης</h3>
-                    <ol className="text-sm text-yellow-800 space-y-1 list-decimal list-inside">
-                      <li>Πατήστε "Ανίχνευση" για να βρείτε legacy χρήστες</li>
-                      <li>Ελέγξτε τη λίστα για προβλήματα</li>
-                      <li>Πατήστε "Ομαλοποίηση" για αυτόματη διόρθωση</li>
-                      <li>Επαληθεύστε ότι όλα τα προβλήματα λύθηκαν</li>
-                    </ol>
-                    <p className="text-xs text-yellow-700 mt-3">
-                      ⚠️ Αυτή η λειτουργία είναι ασφαλής και idempotent. Μπορεί να εκτελεστεί πολλές φορές.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
           )}
 
           {/* Error Fixing Tab */}
