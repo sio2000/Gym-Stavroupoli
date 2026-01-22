@@ -801,10 +801,91 @@ export const rejectMembershipRequest = async (requestId: string, rejectedReason:
 
 // ===== MEMBERSHIPS API =====
 
+/**
+ * Update Pilates memberships status based on deposit availability
+ * Sets is_active = false for Pilates memberships when deposit_remaining <= 0
+ */
+const updatePilatesMembershipStatus = async (userId: string): Promise<void> => {
+  try {
+    // Get user's Pilates memberships that are currently active
+    const { data: activePilatesMemberships, error: membershipError } = await supabase
+      .from('memberships')
+      .select(`
+        id,
+        package:membership_packages(name, package_type)
+      `)
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .gte('end_date', new Date().toISOString().split('T')[0]);
+
+    if (membershipError) {
+      console.warn('[MembershipAPI] Error fetching active Pilates memberships for status update:', membershipError);
+      return;
+    }
+
+    if (!activePilatesMemberships || activePilatesMemberships.length === 0) {
+      return; // No active memberships to check
+    }
+
+    // Check current deposit
+    const { data: pilatesDeposit, error: depositError } = await supabase
+      .from('pilates_deposits')
+      .select('deposit_remaining, is_active')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('credited_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (depositError) {
+      console.warn('[MembershipAPI] Error fetching Pilates deposit for status update:', depositError);
+      return;
+    }
+
+    const hasValidDeposit = pilatesDeposit && pilatesDeposit.deposit_remaining && pilatesDeposit.deposit_remaining > 0;
+
+    // Find Pilates memberships that need to be deactivated
+    const pilatesMembershipsToDeactivate = activePilatesMemberships.filter(membership => {
+      const packageName = membership.package?.name?.toLowerCase() || '';
+      const packageType = membership.package?.package_type?.toLowerCase() || '';
+      const isPilatesMembership = packageType === 'pilates' || packageName === 'pilates';
+
+      // Only deactivate if it's a pure Pilates membership (not Ultimate) AND no valid deposit
+      return isPilatesMembership && !hasValidDeposit;
+    });
+
+    if (pilatesMembershipsToDeactivate.length > 0) {
+      const membershipIds = pilatesMembershipsToDeactivate.map(m => m.id);
+
+      console.log('[MembershipAPI] Deactivating Pilates memberships due to zero deposit:', membershipIds);
+
+      const { error: updateError } = await supabase
+        .from('memberships')
+        .update({
+          is_active: false,
+          status: 'expired',
+          updated_at: new Date().toISOString()
+        })
+        .in('id', membershipIds);
+
+      if (updateError) {
+        console.error('[MembershipAPI] Error deactivating Pilates memberships:', updateError);
+      } else {
+        console.log('[MembershipAPI] Successfully deactivated Pilates memberships:', membershipIds);
+      }
+    }
+  } catch (error) {
+    console.error('[MembershipAPI] Exception in updatePilatesMembershipStatus:', error);
+  }
+};
+
 export const getUserActiveMemberships = async (userId: string): Promise<Membership[]> => {
   try {
     console.log('[MembershipAPI] ===== FETCHING USER ACTIVE MEMBERSHIPS =====');
     console.log('[MembershipAPI] User ID:', userId);
+
+    // Update Pilates membership status based on deposit availability
+    await updatePilatesMembershipStatus(userId);
     
     // Get current date in YYYY-MM-DD format for comparison
     const currentDate = new Date().toISOString().split('T')[0];
@@ -831,23 +912,65 @@ export const getUserActiveMemberships = async (userId: string): Promise<Membersh
     if (error) throw error;
     
     // Additional client-side filtering to ensure no expired memberships slip through
-    const filteredData = (data || []).filter(membership => {
+    // AND check Pilates deposits for Pilates memberships
+    const filteredData = [];
+    for (const membership of (data || [])) {
       const membershipEndDate = new Date(membership.end_date);
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Reset time to start of day
-      
+
       const isNotExpired = membershipEndDate >= today;
-      
+
       if (!isNotExpired) {
         console.log('[MembershipAPI] Filtering out expired membership:', {
           id: membership.id,
           end_date: membership.end_date,
           package_name: membership.package?.name
         });
+        continue;
       }
-      
-      return isNotExpired;
-    });
+
+      // Special check for Pilates memberships: must have deposit_remaining > 0
+      const packageName = membership.package?.name?.toLowerCase() || '';
+      const packageType = membership.package?.package_type?.toLowerCase() || '';
+
+      const isPilatesMembership = packageType === 'pilates' || packageName === 'pilates';
+
+      if (isPilatesMembership) {
+        try {
+          const { data: pilatesDeposit, error: depositError } = await supabase
+            .from('pilates_deposits')
+            .select('deposit_remaining, is_active')
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .order('credited_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (depositError) {
+            console.warn('[MembershipAPI] Error fetching Pilates deposit for membership check:', depositError);
+            // If error, don't include this membership to be safe
+            continue;
+          }
+
+          // If Pilates membership but deposit = 0 or doesn't exist, exclude from active memberships
+          if (!pilatesDeposit || !pilatesDeposit.deposit_remaining || pilatesDeposit.deposit_remaining <= 0) {
+            console.log('[MembershipAPI] Filtering out Pilates membership with zero deposit:', {
+              id: membership.id,
+              package_name: membership.package?.name,
+              deposit_remaining: pilatesDeposit?.deposit_remaining || 0
+            });
+            continue;
+          }
+        } catch (depositCheckError) {
+          console.warn('[MembershipAPI] Exception checking Pilates deposit:', depositCheckError);
+          // If exception, don't include this membership to be safe
+          continue;
+        }
+      }
+
+      filteredData.push(membership);
+    }
     
     // Transform data to match Membership interface
     const transformedData = filteredData.map(membership => ({

@@ -60,11 +60,92 @@ const PACKAGE_TYPE_TO_QR_CATEGORY: Record<string, QRCodeCategory> = {
 };
 
 /**
+ * Update Pilates memberships status based on deposit availability
+ * Sets is_active = false for Pilates memberships when deposit_remaining <= 0
+ */
+const updatePilatesMembershipStatus = async (userId: string): Promise<void> => {
+  try {
+    // Get user's Pilates memberships that are currently active
+    const { data: activePilatesMemberships, error: membershipError } = await supabase
+      .from('memberships')
+      .select(`
+        id,
+        package:membership_packages(name, package_type)
+      `)
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .gte('end_date', new Date().toISOString().split('T')[0]);
+
+    if (membershipError) {
+      console.warn('[ActiveMemberships] Error fetching active Pilates memberships for status update:', membershipError);
+      return;
+    }
+
+    if (!activePilatesMemberships || activePilatesMemberships.length === 0) {
+      return; // No active memberships to check
+    }
+
+    // Check current deposit
+    const { data: pilatesDeposit, error: depositError } = await supabase
+      .from('pilates_deposits')
+      .select('deposit_remaining, is_active')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('credited_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (depositError) {
+      console.warn('[ActiveMemberships] Error fetching Pilates deposit for status update:', depositError);
+      return;
+    }
+
+    const hasValidDeposit = pilatesDeposit && pilatesDeposit.deposit_remaining && pilatesDeposit.deposit_remaining > 0;
+
+    // Find Pilates memberships that need to be deactivated
+    const pilatesMembershipsToDeactivate = activePilatesMemberships.filter(membership => {
+      const packageName = membership.package?.name?.toLowerCase() || '';
+      const packageType = membership.package?.package_type?.toLowerCase() || '';
+      const isPilatesMembership = packageType === 'pilates' || packageName === 'pilates';
+
+      // Only deactivate if it's a pure Pilates membership (not Ultimate) AND no valid deposit
+      return isPilatesMembership && !hasValidDeposit;
+    });
+
+    if (pilatesMembershipsToDeactivate.length > 0) {
+      const membershipIds = pilatesMembershipsToDeactivate.map(m => m.id);
+
+      console.log('[ActiveMemberships] Deactivating Pilates memberships due to zero deposit:', membershipIds);
+
+      const { error: updateError } = await supabase
+        .from('memberships')
+        .update({
+          is_active: false,
+          status: 'expired',
+          updated_at: new Date().toISOString()
+        })
+        .in('id', membershipIds);
+
+      if (updateError) {
+        console.error('[ActiveMemberships] Error deactivating Pilates memberships:', updateError);
+      } else {
+        console.log('[ActiveMemberships] Successfully deactivated Pilates memberships:', membershipIds);
+      }
+    }
+  } catch (error) {
+    console.error('[ActiveMemberships] Exception in updatePilatesMembershipStatus:', error);
+  }
+};
+
+/**
  * Get user's active memberships for QR code generation
  */
 export const getUserActiveMembershipsForQR = async (userId: string): Promise<ActiveMembership[]> => {
   try {
     console.log('[ActiveMemberships] Fetching active memberships for user:', userId);
+
+    // Update Pilates membership status based on deposit availability
+    await updatePilatesMembershipStatus(userId);
     
     // Use is_active column (since status column doesn't exist in this database)
     const { data, error } = await supabase
@@ -91,16 +172,56 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
       throw error;
     }
 
-    const activeMemberships: ActiveMembership[] = (data || []).map(membership => {
+    const activeMemberships: ActiveMembership[] = [];
+    for (const membership of (data || [])) {
       // Handle membership_packages as either array or single object
-      const packages = Array.isArray(membership.membership_packages) 
-        ? membership.membership_packages 
+      const packages = Array.isArray(membership.membership_packages)
+        ? membership.membership_packages
         : membership.membership_packages ? [membership.membership_packages] : [];
-      
+
       // For now, just take the first package (most memberships have one package)
       const pkg = packages[0];
-      
-      return {
+
+      // Special check for Pilates memberships: must have deposit_remaining > 0
+      const packageName = pkg?.name?.toLowerCase() || '';
+      const packageType = pkg?.package_type?.toLowerCase() || '';
+
+      const isPilatesMembership = packageType === 'pilates' || packageName === 'pilates';
+
+      if (isPilatesMembership) {
+        try {
+          const { data: pilatesDeposit, error: depositError } = await supabase
+            .from('pilates_deposits')
+            .select('deposit_remaining, is_active')
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .order('credited_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (depositError) {
+            console.warn('[ActiveMemberships] Error fetching Pilates deposit for QR check:', depositError);
+            // If error, don't include this membership to be safe
+            continue;
+          }
+
+          // If Pilates membership but deposit = 0 or doesn't exist, exclude from active memberships
+          if (!pilatesDeposit || !pilatesDeposit.deposit_remaining || pilatesDeposit.deposit_remaining <= 0) {
+            console.log('[ActiveMemberships] Filtering out Pilates membership with zero deposit for QR:', {
+              id: membership.id,
+              package_name: pkg?.name,
+              deposit_remaining: pilatesDeposit?.deposit_remaining || 0
+            });
+            continue;
+          }
+        } catch (depositCheckError) {
+          console.warn('[ActiveMemberships] Exception checking Pilates deposit for QR:', depositCheckError);
+          // If exception, don't include this membership to be safe
+          continue;
+        }
+      }
+
+      activeMemberships.push({
         id: membership.id,
         packageId: membership.package_id,
         packageName: pkg?.name || 'Unknown',
@@ -108,8 +229,8 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
         status: membership.is_active ? 'active' : 'expired' as 'active' | 'expired' | 'cancelled' | 'suspended',
         endDate: membership.end_date,
         startDate: membership.start_date
-      };
-    });
+      });
+    }
 
     console.log('[ActiveMemberships] Found active memberships:', activeMemberships);
     return activeMemberships;
