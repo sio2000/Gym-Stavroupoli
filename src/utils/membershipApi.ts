@@ -166,17 +166,19 @@ const ensureActiveMembership = async ({
     const end = new Date(start);
     end.setDate(end.getDate() + durationDays);
 
-    // Check for existing active membership for same user and package
+    // Check for existing active membership for same user and package that is still valid
+    const currentDate = new Date().toISOString().split('T')[0];
     const { data: existingMembership } = await supabase
       .from('memberships')
       .select('start_date, end_date')
       .eq('user_id', userId)
       .eq('package_id', packageId)
       .eq('is_active', true)
+      .gte('end_date', currentDate) // Only consider memberships that haven't expired
       .single();
 
     if (existingMembership) {
-      console.log('[MembershipAPI] Found existing active membership, returning existing dates');
+      console.log('[MembershipAPI] Found existing active and valid membership, returning existing dates');
       return { startDate: existingMembership.start_date, endDate: existingMembership.end_date };
     }
 
@@ -667,7 +669,7 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
     if (updateError) throw updateError;
 
     // Create membership record
-    const { error: membershipError } = await supabase
+    const { data: membershipData, error: membershipError } = await supabase
       .from('memberships')
       .insert({
         user_id: request.user_id,
@@ -678,9 +680,22 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
         approved_by: user.id,
         approved_at: new Date().toISOString(),
         duration_type: request.duration_type
-      });
+      })
+      .select('id')
+      .single();
 
     if (membershipError) throw membershipError;
+
+    const membershipId = membershipData?.id;
+    if (!membershipId) throw new Error('Failed to get membership ID');
+
+    // Validate membership completeness (legacy prevention)
+    const completenessValidation = await validateMembershipCompleteness(request.user_id, membershipId);
+    if (!completenessValidation.isComplete) {
+      console.error('[MembershipAPI] Membership validation failed:', completenessValidation);
+      // Don't fail the approval, but log the issue
+      console.warn('[MembershipAPI] Membership created but incomplete. Missing:', completenessValidation.missingComponents);
+    }
 
     // Pilates deposit crediting (robust mapping)
     const pilatesDurationToDeposit: Record<string, number> = {
@@ -1707,6 +1722,23 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
       endDate: dualResult.end_date
     });
 
+    // Validate membership completeness (legacy prevention)
+    if (dualResult.pilates_membership_id) {
+      const pilatesValidation = await validateMembershipCompleteness(requestData.user_id, dualResult.pilates_membership_id);
+      if (!pilatesValidation.isComplete) {
+        console.error('[MembershipAPI] Pilates membership validation failed:', pilatesValidation);
+        console.warn('[MembershipAPI] Pilates membership created but incomplete. Missing:', pilatesValidation.missingComponents);
+      }
+    }
+
+    if (dualResult.free_gym_membership_id) {
+      const freeGymValidation = await validateMembershipCompleteness(requestData.user_id, dualResult.free_gym_membership_id);
+      if (!freeGymValidation.isComplete) {
+        console.error('[MembershipAPI] Free Gym membership validation failed:', freeGymValidation);
+        console.warn('[MembershipAPI] Free Gym membership created but incomplete. Missing:', freeGymValidation.missingComponents);
+      }
+    }
+
     // --- Normalize memberships to 1-year Ultimate duration & weekly refill preset ---
     const startDate = dualResult.start_date || new Date().toISOString().split('T')[0];
     const endDate = dualResult.end_date || calculateEndDate(startDate, 365);
@@ -1833,7 +1865,79 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
   }
 };
 
-// ===== PERSONAL TRAINING SUBSCRIPTION (Secretary) =====
+// ===== LEGACY PREVENTION GUARDS =====
+
+/**
+ * Validates that a newly created membership has all required components
+ * This prevents legacy-style incomplete memberships
+ */
+export const validateMembershipCompleteness = async (userId: string, membershipId: string): Promise<{
+  isComplete: boolean;
+  missingComponents: string[];
+  recommendations: string[];
+}> => {
+  const result = {
+    isComplete: true,
+    missingComponents: [] as string[],
+    recommendations: [] as string[]
+  };
+
+  try {
+    // Get membership details
+    const { data: membership, error: membershipError } = await supabase
+      .from('memberships')
+      .select(`
+        package_id,
+        membership_packages!inner(name)
+      `)
+      .eq('id', membershipId)
+      .single();
+
+    if (membershipError) throw membershipError;
+
+    const packageName = membership.membership_packages?.name;
+
+    // Check for membership_request
+    const { data: requests, error: requestError } = await supabase
+      .from('membership_requests')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('package_id', membership.package_id)
+      .limit(1);
+
+    if (requestError || !requests || requests.length === 0) {
+      result.isComplete = false;
+      result.missingComponents.push('membership_request');
+      result.recommendations.push('Create a membership_request record for audit trail');
+    }
+
+    // Check for deposits if Pilates/Ultimate
+    if (packageName?.toLowerCase().includes('pilates') ||
+        packageName?.toLowerCase().includes('ultimate')) {
+
+      const { data: deposits, error: depositError } = await supabase
+        .from('pilates_deposits')
+        .select('deposit_remaining')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (depositError || !deposits || deposits.length === 0) {
+        result.isComplete = false;
+        result.missingComponents.push('pilates_deposit');
+        result.recommendations.push('Initialize pilates_deposits for this membership');
+      }
+    }
+
+  } catch (error) {
+    console.error('[MembershipAPI] Error validating membership completeness:', error);
+    result.isComplete = false;
+    result.missingComponents.push('validation_error');
+    result.recommendations.push('Manual review required due to validation error');
+  }
+
+  return result;
+};
 
 export const createPersonalTrainingSubscription = async ({
   userId,
