@@ -537,26 +537,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.removeItem('temp_password');
         localStorage.removeItem('temp_email');
         
-        // Get user from database using email
-        const { data: userProfile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('user_id, email, first_name, last_name, role')
-          .eq('email', credentials.email.toLowerCase().trim())
-          .single();
+        // Sign in with Supabase Auth using temporary password
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password,
+        });
 
-        if (profileError || !userProfile) {
-          throw new Error('Δεν βρέθηκε χρήστης με αυτό το email');
+        if (error) {
+          console.error('[Auth] Temporary password login error:', error);
+          throw error;
         }
 
-        // Load user profile and continue with normal flow
-        await loadUserProfile(userProfile.user_id);
-        console.log('[Auth] Temporary password login successful for:', credentials.email);
-        
-        // Set flag to indicate user just logged in
-        setJustLoggedIn(true);
-        
-        toast.success('Συνδεθήκατε με προσωρινό κωδικό. Παρακαλώ αλλάξτε τον κωδικό σας.');
-        return;
+        if (data.user) {
+          console.log('[Auth] Temporary password login successful, loading user profile...');
+          await loadUserProfile(data.user.id);
+          console.log('[Auth] Temporary password login completed successfully for:', data.user.email);
+          
+          // Set flag to indicate user just logged in
+          setJustLoggedIn(true);
+          
+          toast.success('Συνδεθήκατε με προσωρινό κωδικό. Παρακαλώ αλλάξτε τον κωδικό σας.');
+          return;
+        }
       }
       
       const { data, error } = await supabase.auth.signInWithPassword({

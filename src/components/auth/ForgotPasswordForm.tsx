@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Mail, Phone, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/config/supabase';
+import { supabaseAdmin } from '@/utils/supabaseAdmin';
 import { isValidEmail } from '@/utils';
 import toast from 'react-hot-toast';
 
@@ -61,6 +62,18 @@ const ForgotPasswordForm: React.FC = () => {
       const tempPass = Math.random().toString(36).slice(-8).toUpperCase();
       setTempPassword(tempPass);
       setIsVerified(true);
+
+      // Update the user's password to the temporary password
+      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+        userProfile.user_id,
+        { password: tempPass }
+      );
+
+      if (passwordError) {
+        console.error('Error setting temporary password:', passwordError);
+        toast.error('Σφάλμα κατά τη δημιουργία προσωρινού κωδικού');
+        return;
+      }
 
       // Store temporary password in localStorage for login
       localStorage.setItem('temp_password', tempPass);

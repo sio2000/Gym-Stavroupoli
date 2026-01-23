@@ -27,7 +27,7 @@ import toast from 'react-hot-toast';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showCameraPreview, setShowCameraPreview] = useState(false);
@@ -587,14 +587,17 @@ const Profile: React.FC = () => {
       console.log('[Profile] Password changed successfully:', data);
       
       // Show success message
-      toast.success('Ο κωδικός πρόσβασης άλλαξε επιτυχώς!');
+      toast.success('Ο κωδικός πρόσβασης άλλαξε επιτυχώς! Παρακαλώ συνδεθείτε ξανά με τον νέο κωδικό.');
       
       // Close modal and reset form
       setShowPasswordModal(false);
       setPasswordData({ newPassword: '', confirmPassword: '' });
       
-      // Note: Supabase handles session refresh automatically
-      // The user will remain logged in with the new password
+      // Logout user to force re-login with new password
+      await logout();
+      
+      // Redirect to login page
+      navigate('/login');
       
     } catch (error) {
       // Handle network or unexpected errors
