@@ -354,6 +354,31 @@ const NewSubscriptionTab: React.FC = () => {
     if ((d.duration_type || '') === 'ultimate_1year' && (selectedPackage?.pkg.name || '').toLowerCase().includes('medium')) {
       return '52 μαθήματα';
     }
+    
+    // Για FreeGym: εμφάνιση ημερών
+    const packageKind = selectedPackage ? detectPackageKind(selectedPackage.pkg) : null;
+    if (packageKind === 'open_gym') {
+      return `${d.duration_days} ημέρες`;
+    }
+    
+    // Για Pilates: εμφάνιση ημερών, τιμής και μαθημάτων
+    if (packageKind === 'pilates') {
+      if (d.classes_count) {
+        // Αντιστοίχιση μαθημάτων σε μήνες
+        const monthsMap: Record<number, string> = {
+          1: '(Δοκιμαστικό)',
+          4: '(1 μήνας)',
+          8: '(2 μήνες)',
+          16: '(3 μήνες)',
+          25: '(6 μήνες)',
+          50: '(1 έτος)'
+        };
+        const monthsLabel = monthsMap[d.classes_count] || '';
+        return `${d.duration_days} ημέρες - ${d.classes_count} μαθήματα ${monthsLabel}`.trim();
+      }
+      return `${d.duration_days} ημέρες`;
+    }
+    
     // Για Pilates: προσθέτουμε τους μήνες στην παρένθεση
     if (d.classes_count) {
       const isPilates = (selectedPackage?.pkg.name || '').toLowerCase().includes('pilates');

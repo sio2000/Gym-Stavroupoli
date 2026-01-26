@@ -114,6 +114,7 @@ export interface MembershipPackage {
   id: string;
   name: string;
   description: string;
+  display_name?: string;
   duration_days: number;
   price: number;
   package_type: string;

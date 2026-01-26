@@ -44,10 +44,11 @@ import {
   getCombinedWorkoutPrograms
 } from '@/utils/workoutProgramsApi';
 
-// Helper function για να εμφανίζουμε "Open Gym" αντί για "Free Gym" μόνο στο UI
+// Helper function για να εμφανίζουμε "Open Gym" αντί για "Free Gym" και να απλοποιούμε τα ονόματα μόνο στο UI
 const formatPackageNameForUser = (packageName: string | null | undefined): string => {
   if (!packageName) return '';
-  if (packageName === 'Free Gym') return 'Open Gym';
+  if (packageName.toLowerCase().includes('free gym') || packageName.toLowerCase().includes('open gym')) return 'Open Gym';
+  if (packageName.toLowerCase().includes('pilates')) return 'Pilates';
   return packageName;
 };
 
@@ -514,9 +515,6 @@ const MembershipPage: React.FC = React.memo(() => {
                       <h3 className="text-lg font-bold text-primary-900">
                         {formatPackageNameForUser(membership.package?.name)}
                       </h3>
-                      <p className="text-primary-700">
-                        {getSmartDurationLabel(membership.duration_type, membership.start_date, membership.end_date)}
-                      </p>
                     </div>
                   </div>
                   <div className="text-right">

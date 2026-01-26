@@ -63,8 +63,13 @@ const MemberRegistration: React.FC<MemberRegistrationProps> = ({ onClose }) => {
   const [showMemberForm, setShowMemberForm] = useState(false);
   const [editingMember, setEditingMember] = useState<UserType | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [expandedPackages, setExpandedPackages] = useState<Set<string>>(new Set());
+  const [editingDuration, setEditingDuration] = useState<MembershipPackageDuration | null>(null);
+  const [durationFormData, setDurationFormData] = useState({
+    duration_days: '',
+    price: '',
+    classes_count: ''
+  });
 
   const [memberFormData, setMemberFormData] = useState<MemberFormData>({
     email: '',
@@ -158,20 +163,22 @@ const MemberRegistration: React.FC<MemberRegistrationProps> = ({ onClose }) => {
 
       if (error) throw error;
       setPackages(data || []);
+      
+      // Load all durations
+      await loadAllPackageDurations();
     } catch (error) {
       console.error('Error loading packages:', error);
       throw error;
     }
   };
 
-  const loadPackageDurations = async (packageId: string) => {
+  const loadAllPackageDurations = async () => {
     try {
       const { data, error } = await supabaseAdmin
         .from('membership_package_durations')
         .select('*')
-        .eq('package_id', packageId)
         .eq('is_active', true)
-        .order('duration_days');
+        .order('package_id, duration_type');
 
       if (error) throw error;
       setPackageDurations(data || []);
@@ -179,6 +186,11 @@ const MemberRegistration: React.FC<MemberRegistrationProps> = ({ onClose }) => {
       console.error('Error loading package durations:', error);
       throw error;
     }
+  };
+
+  const loadPackageDurations = async (packageId: string) => {
+    // Durations are already loaded in loadAllPackageDurations
+    // This function is kept for compatibility
   };
 
   const handleMemberSubmit = async (e: React.FormEvent) => {
@@ -303,22 +315,73 @@ const MemberRegistration: React.FC<MemberRegistrationProps> = ({ onClose }) => {
     }
   };
 
-  const resetMemberForm = () => {
-    setMemberFormData({
-      email: '',
-      password: '',
-      first_name: '',
-      last_name: '',
-      phone: '',
-      date_of_birth: '',
-      address: '',
-      emergency_contact_name: '',
-      emergency_contact_phone: '',
-      language: 'el',
-      role: 'user'
+  const togglePackageExpansion = async (packageId: string) => {
+    const newExpanded = new Set(expandedPackages);
+    if (newExpanded.has(packageId)) {
+      newExpanded.delete(packageId);
+    } else {
+      newExpanded.add(packageId);
+      // Load durations if not already loaded
+      await loadPackageDurations(packageId);
+    }
+    setExpandedPackages(newExpanded);
+  };
+
+  const startEditingDuration = (duration: MembershipPackageDuration) => {
+    setEditingDuration(duration);
+    setDurationFormData({
+      duration_days: duration.duration_days.toString(),
+      price: duration.price.toString(),
+      classes_count: (duration.classes_count || 0).toString()
     });
-    setEditingMember(null);
-    setShowMemberForm(false);
+  };
+
+  const cancelEditingDuration = () => {
+    setEditingDuration(null);
+    setDurationFormData({
+      duration_days: '',
+      price: '',
+      classes_count: ''
+    });
+  };
+
+  const saveDurationChanges = async () => {
+    if (!editingDuration) return;
+
+    // Find the package to check if it's pilates
+    const pkg = packages.find(p => p.id === editingDuration.package_id);
+    const isPilates = pkg?.name?.toLowerCase().includes('pilates');
+
+    // Validation for pilates
+    if (isPilates && !durationFormData.classes_count) {
+      toast.error('Για Pilates πακέτα, ο αριθμός μαθημάτων είναι υποχρεωτικός');
+      return;
+    }
+
+    try {
+      const { error } = await supabaseAdmin
+        .from('membership_package_durations')
+        .update({
+          duration_days: parseInt(durationFormData.duration_days),
+          price: parseFloat(durationFormData.price),
+          classes_count: durationFormData.classes_count ? parseInt(durationFormData.classes_count) : null
+        })
+        .eq('id', editingDuration.id);
+
+      if (error) throw error;
+
+      toast.success('Οι αλλαγές αποθηκεύτηκαν επιτυχώς');
+      setEditingDuration(null);
+      
+      // Reload all durations
+      await loadAllPackageDurations();
+      
+      // Reload packages to get updated data
+      loadPackages();
+    } catch (error) {
+      console.error('Error updating duration:', error);
+      toast.error('Σφάλμα κατά την αποθήκευση των αλλαγών');
+    }
   };
 
   const filteredMembers = members.filter(member => {
@@ -766,21 +829,171 @@ const MemberRegistration: React.FC<MemberRegistrationProps> = ({ onClose }) => {
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Διαθέσιμα Πακέτα</h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {packages.map((pkg) => (
-                  <div key={pkg.id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-semibold text-gray-900">{pkg.name}</h4>
-                      <span className="text-2xl font-bold text-primary-600">
-                        €{pkg.price?.toFixed(2) || '0.00'}
-                      </span>
+              <div className="space-y-4">
+                {packages.map((pkg) => {
+                  const isExpanded = expandedPackages.has(pkg.id);
+                  const packageDurations = packageDurations.filter(d => d.package_id === pkg.id);
+                  
+                  return (
+                    <div key={pkg.id} className="bg-white border border-gray-200 rounded-lg shadow-sm">
+                      <div 
+                        className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => togglePackageExpansion(pkg.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <button className="text-gray-400 hover:text-gray-600">
+                              {isExpanded ? (
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                </svg>
+                              ) : (
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              )}
+                            </button>
+                            <div>
+                              <h4 className="text-lg font-semibold text-gray-900">{pkg.name}</h4>
+                              <p className="text-gray-600 text-sm">{pkg.description}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-primary-600">
+                              €{pkg.price?.toFixed(2) || '0.00'}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {packageDurations.length} επιλογές διάρκειας
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="border-t border-gray-200 p-6">
+                          <h5 className="text-md font-medium text-gray-900 mb-4">Επιλογές Διάρκειας</h5>
+                          
+                          {packageDurations.length === 0 ? (
+                            <div className="text-gray-500 text-sm">Δεν υπάρχουν επιλογές διάρκειας</div>
+                          ) : (
+                            <div className="space-y-3">
+                              {packageDurations.map((duration) => {
+                                const isPilates = pkg?.name?.toLowerCase().includes('pilates') || pkg?.name?.toLowerCase().includes('πίλατες');
+                                
+                                return (
+                                  <div key={duration.id} className="border border-gray-200 rounded-lg p-4">
+                                    {editingDuration?.id === duration.id ? (
+                                      <div className="space-y-3">
+                                        <div className={isPilates ? "grid grid-cols-4 gap-3" : "grid grid-cols-3 gap-3"}>
+                                          <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                              Ημέρες
+                                            </label>
+                                            <input
+                                              type="number"
+                                              value={durationFormData.duration_days}
+                                              onChange={(e) => setDurationFormData({...durationFormData, duration_days: e.target.value})}
+                                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                              Τιμή (€)
+                                            </label>
+                                            <input
+                                              type="number"
+                                              step="0.01"
+                                              value={durationFormData.price}
+                                              onChange={(e) => setDurationFormData({...durationFormData, price: e.target.value})}
+                                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                            />
+                                          </div>
+                                          {isPilates && (
+                                            <div>
+                                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Μαθήματα *
+                                              </label>
+                                              <input
+                                                type="number"
+                                                value={durationFormData.classes_count}
+                                                onChange={(e) => setDurationFormData({...durationFormData, classes_count: e.target.value})}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                                placeholder="π.χ. 4, 8, 16"
+                                                required
+                                              />
+                                            </div>
+                                          )}
+                                          {!isPilates && (
+                                            <div>
+                                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Μαθήματα
+                                              </label>
+                                              <input
+                                                type="number"
+                                                value={durationFormData.classes_count}
+                                                onChange={(e) => setDurationFormData({...durationFormData, classes_count: e.target.value})}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                                placeholder="προαιρετικό"
+                                              />
+                                            </div>
+                                          )}
+                                        </div>
+                                        {isPilates && (
+                                          <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                                            Για Pilates πακέτα, ο αριθμός μαθημάτων είναι υποχρεωτικός και καθορίζει το πρόγραμμα.
+                                          </div>
+                                        )}
+                                        <div className="flex justify-end space-x-2">
+                                          <button
+                                            onClick={cancelEditingDuration}
+                                            className="px-3 py-1 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+                                          >
+                                            Ακύρωση
+                                          </button>
+                                          <button
+                                            onClick={saveDurationChanges}
+                                            className="px-3 py-1 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
+                                          >
+                                            Αποθήκευση
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <div className="font-medium text-gray-900">
+                                            {duration.duration_type} - {duration.duration_days} ημέρες
+                                          </div>
+                                          <div className="text-sm text-gray-600">
+                                            Τιμή: €{duration.price.toFixed(2)}
+                                            {duration.classes_count && (
+                                              <span className="ml-2">• Μαθήματα: {duration.classes_count}</span>
+                                            )}
+                                          </div>
+                                          {isPilates && !duration.classes_count && (
+                                            <div className="text-xs text-red-600 mt-1">
+                                              ⚠️ Χρειάζεται αριθμός μαθημάτων
+                                            </div>
+                                          )}
+                                        </div>
+                                        <button
+                                          onClick={() => startEditingDuration(duration)}
+                                          className="p-2 text-gray-400 hover:text-gray-600"
+                                        >
+                                          <Edit3 className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-gray-600 mb-4">{pkg.description}</p>
-                    <div className="text-sm text-gray-500">
-                      Διάρκεια: {pkg.duration_days} ημέρες
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {packages.length === 0 && (

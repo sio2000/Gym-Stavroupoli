@@ -405,12 +405,65 @@ export const createMembershipRequest = async (
 
     if (error) throw error;
 
-    await ensureActiveMembership({
-      userId: targetUserId,
-      packageId,
-      durationType,
-      customDurationDays
-    });
+    // *** FIX: Calculate correct dates and create new membership instead of using ensureActiveMembership ***
+    // ensureActiveMembership returns existing dates if membership exists, but for new requests we need new dates
+    
+    // Get duration details
+    const { data: duration, error: durationError } = await supabase
+      .from('membership_package_durations')
+      .select('*')
+      .eq('package_id', packageId)
+      .eq('duration_type', durationType)
+      .single();
+
+    if (durationError || !duration) {
+      console.error('[MembershipAPI] Duration not found for membership request:', durationError);
+      throw new Error('Duration not found');
+    }
+
+    // Calculate dates
+    const startDate = new Date().toISOString().split('T')[0];
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + duration.duration_days);
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    // Deactivate existing active memberships for this user and package
+    const { error: deactivateError } = await supabase
+      .from('memberships')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', targetUserId)
+      .eq('package_id', packageId)
+      .eq('is_active', true);
+
+    if (deactivateError) {
+      console.error('[MembershipAPI] Error deactivating existing memberships:', deactivateError);
+    } else {
+      console.log(`[MembershipAPI] Deactivated existing active memberships for user ${targetUserId} and package ${packageId}`);
+    }
+
+    // Create new membership
+    const { data: membershipData, error: membershipError } = await supabase
+      .from('memberships')
+      .insert({
+        user_id: targetUserId,
+        package_id: packageId,
+        start_date: startDate,
+        end_date: endDateStr,
+        is_active: true,
+        duration_type: durationType,
+        approved_by: null, // Secretary created
+        approved_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+
+    if (membershipError) {
+      console.error('[MembershipAPI] Error creating new membership:', membershipError);
+      throw membershipError;
+    }
 
     if (requestedPrice && !Number.isNaN(requestedPrice)) {
       await addCashTransaction({
@@ -667,6 +720,43 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
       .eq('id', requestId);
 
     if (updateError) throw updateError;
+
+    // *** FIX: Deactivate existing active memberships of the same package type ***
+    // This ensures that when a user upgrades their membership, old memberships are properly deactivated
+    const { error: deactivateError } = await supabase
+      .from('memberships')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', request.user_id)
+      .eq('package_id', request.package_id)
+      .eq('is_active', true);
+
+    if (deactivateError) {
+      console.error('[MembershipAPI] Error deactivating existing memberships:', deactivateError);
+      // Don't fail the approval for this, but log the issue
+    } else {
+      console.log(`[MembershipAPI] Deactivated existing active memberships for user ${request.user_id} and package ${request.package_id}`);
+    }
+
+    // For Pilates packages, also deactivate existing Pilates deposits to prevent conflicts
+    if (isPilatesPackage) {
+      const { error: deactivateDepositError } = await supabase
+        .from('pilates_deposits')
+        .update({
+          is_active: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', request.user_id)
+        .eq('is_active', true);
+
+      if (deactivateDepositError) {
+        console.error('[MembershipAPI] Error deactivating existing Pilates deposits:', deactivateDepositError);
+      } else {
+        console.log(`[MembershipAPI] Deactivated existing active Pilates deposits for user ${request.user_id}`);
+      }
+    }
 
     // Create membership record
     const { data: membershipData, error: membershipError } = await supabase
@@ -1335,12 +1425,83 @@ export const createPilatesMembershipRequest = async (
 
     console.log('[MembershipAPI] Pilates request created successfully:', insertResult);
 
-    const membershipDates = await ensureActiveMembership({
-      userId: actualUserId,
-      packageId: actualPackageId,
-      durationType,
-      customDurationDays
-    });
+    // *** FIX: Calculate correct dates and create new membership instead of using ensureActiveMembership ***
+    // ensureActiveMembership returns existing dates if membership exists, but for new requests we need new dates
+    
+    // Get duration details
+    const { data: duration, error: durationError } = await supabase
+      .from('membership_package_durations')
+      .select('*')
+      .eq('package_id', actualPackageId)
+      .eq('duration_type', durationType)
+      .single();
+
+    if (durationError || !duration) {
+      console.error('[MembershipAPI] Duration not found for Pilates request:', durationError);
+      throw new Error('Duration not found');
+    }
+
+    // Calculate dates
+    const startDate = new Date().toISOString().split('T')[0];
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + duration.duration_days);
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    // Deactivate existing active Pilates memberships for this user
+    const { error: deactivateError } = await supabase
+      .from('memberships')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', actualUserId)
+      .eq('package_id', actualPackageId)
+      .eq('is_active', true);
+
+    if (deactivateError) {
+      console.error('[MembershipAPI] Error deactivating existing Pilates memberships:', deactivateError);
+    } else {
+      console.log(`[MembershipAPI] Deactivated existing active Pilates memberships for user ${actualUserId}`);
+    }
+
+    // Deactivate existing Pilates deposits
+    const { error: deactivateDepositError } = await supabase
+      .from('pilates_deposits')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', actualUserId)
+      .eq('is_active', true);
+
+    if (deactivateDepositError) {
+      console.error('[MembershipAPI] Error deactivating existing Pilates deposits:', deactivateDepositError);
+    } else {
+      console.log(`[MembershipAPI] Deactivated existing active Pilates deposits for user ${actualUserId}`);
+    }
+
+    // Create new membership
+    const { data: membershipData, error: membershipError } = await supabase
+      .from('memberships')
+      .insert({
+        user_id: actualUserId,
+        package_id: actualPackageId,
+        start_date: startDate,
+        end_date: endDateStr,
+        is_active: true,
+        duration_type: durationType,
+        approved_by: null, // Secretary created
+        approved_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+
+    if (membershipError) {
+      console.error('[MembershipAPI] Error creating new Pilates membership:', membershipError);
+      throw membershipError;
+    }
+
+    const membershipDates = { startDate, endDate: endDateStr };
 
     await addPilatesDeposit({
       userId: actualUserId,
@@ -1599,11 +1760,107 @@ export const createUltimateMembershipRequest = async (
     }
 
     console.log('[MembershipAPI] Ultimate request created successfully:', data);
-    const membershipDates = await ensureActiveMembership({
+    
+    // *** FIX: Use RPC to create dual memberships instead of ensureActiveMembership ***
+    // This ensures proper deactivation of old memberships and creation of new ones
+    
+    // Deactivate existing active memberships for Pilates and Free Gym packages
+    const { error: deactivatePilatesError } = await supabase
+      .from('memberships')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', actualUserId)
+      .eq('is_active', true)
+      .in('package_id', (
+        await supabase
+          .from('membership_packages')
+          .select('id')
+          .in('name', ['Pilates', 'Free Gym'])
+      ).data?.map(p => p.id) || []);
+
+    if (deactivatePilatesError) {
+      console.error('[MembershipAPI] Error deactivating existing Pilates/Free Gym memberships:', deactivatePilatesError);
+    } else {
+      console.log(`[MembershipAPI] Deactivated existing active Pilates/Free Gym memberships for user ${actualUserId}`);
+    }
+
+    // Deactivate existing Pilates deposits
+    const { error: deactivateDepositError } = await supabase
+      .from('pilates_deposits')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', actualUserId)
+      .eq('is_active', true);
+
+    if (deactivateDepositError) {
+      console.error('[MembershipAPI] Error deactivating existing Pilates deposits:', deactivateDepositError);
+    } else {
+      console.log(`[MembershipAPI] Deactivated existing active Pilates deposits for user ${actualUserId}`);
+    }
+
+    // Call the database function to create dual memberships
+    const { data: dualResult, error: dualError } = await supabase
+      .rpc('create_ultimate_dual_memberships', {
+        p_user_id: actualUserId,
+        p_ultimate_request_id: data.id,
+        p_duration_days: 365, // 1 year
+        p_start_date: new Date().toISOString().split('T')[0] // Today's date
+      });
+
+    if (dualError) {
+      console.error('[MembershipAPI] Error creating dual memberships:', dualError);
+      throw dualError;
+    }
+
+    // Check if the dual activation was successful
+    if (!dualResult || !dualResult.success) {
+      console.error('[MembershipAPI] Dual activation failed:', dualResult);
+      throw new Error(dualResult?.error || 'Failed to create dual memberships');
+    }
+
+    console.log('[MembershipAPI] Ultimate dual activation successful:', {
+      requestId: data.id,
       userId: actualUserId,
-      packageId: actualPackageId,
-      durationType: normalizedDurationType
+      pilatesMembershipId: dualResult.pilates_membership_id,
+      freeGymMembershipId: dualResult.free_gym_membership_id,
+      startDate: dualResult.start_date,
+      endDate: dualResult.end_date
     });
+
+    // Update memberships to reflect Ultimate duration
+    const startDate = dualResult.start_date || new Date().toISOString().split('T')[0];
+    const endDate = dualResult.end_date || calculateEndDate(startDate, 365);
+    const durationTypeForPackage = 'ultimate_1year';
+
+    if (dualResult.pilates_membership_id) {
+      await supabase
+        .from('memberships')
+        .update({
+          start_date: startDate,
+          end_date: endDate,
+          duration_type: durationTypeForPackage,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', dualResult.pilates_membership_id);
+    }
+
+    if (dualResult.free_gym_membership_id) {
+      await supabase
+        .from('memberships')
+        .update({
+          start_date: startDate,
+          end_date: endDate,
+          duration_type: durationTypeForPackage,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', dualResult.free_gym_membership_id);
+    }
+
+    const membershipDates = { startDate, endDate };
 
     if (requestedPrice && !Number.isNaN(requestedPrice)) {
       await addCashTransaction({
@@ -1794,6 +2051,46 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
     if (updateError) {
       console.error('[MembershipAPI] Error updating request status:', updateError);
       throw updateError;
+    }
+
+    // *** FIX: Deactivate existing active memberships for Pilates and Free Gym packages ***
+    // This ensures that when a user gets Ultimate membership, old Pilates/Free Gym memberships are deactivated
+    const { error: deactivatePilatesError } = await supabase
+      .from('memberships')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', requestData.user_id)
+      .eq('is_active', true)
+      .in('package_id', (
+        await supabase
+          .from('membership_packages')
+          .select('id')
+          .in('name', ['Pilates', 'Free Gym'])
+      ).data?.map(p => p.id) || []);
+
+    if (deactivatePilatesError) {
+      console.error('[MembershipAPI] Error deactivating existing Pilates/Free Gym memberships:', deactivatePilatesError);
+      // Don't fail the approval for this, but log the issue
+    } else {
+      console.log(`[MembershipAPI] Deactivated existing active Pilates/Free Gym memberships for user ${requestData.user_id}`);
+    }
+
+    // Also deactivate existing Pilates deposits
+    const { error: deactivateDepositError } = await supabase
+      .from('pilates_deposits')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', requestData.user_id)
+      .eq('is_active', true);
+
+    if (deactivateDepositError) {
+      console.error('[MembershipAPI] Error deactivating existing Pilates deposits:', deactivateDepositError);
+    } else {
+      console.log(`[MembershipAPI] Deactivated existing active Pilates deposits for user ${requestData.user_id}`);
     }
 
     // Call the database function to create dual memberships

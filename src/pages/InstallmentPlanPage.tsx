@@ -14,10 +14,11 @@ import toast from 'react-hot-toast';
 import { InstallmentPlanData } from '@/services/api/installmentApi';
 import InstallmentStatus, { InstallmentStatusType } from '@/components/InstallmentStatus';
 
-// Helper function για να εμφανίζουμε "Open Gym" αντί για "Free Gym" μόνο στο UI
+// Helper function για να εμφανίζουμε "Open Gym" αντί για "Free Gym" και να απλοποιούμε τα ονόματα μόνο στο UI
 const formatPackageNameForUser = (packageName: string | null | undefined): string => {
   if (!packageName) return '';
-  if (packageName === 'Free Gym') return 'Open Gym';
+  if (packageName.toLowerCase().includes('free gym') || packageName.toLowerCase().includes('open gym')) return 'Open Gym';
+  if (packageName.toLowerCase().includes('pilates')) return 'Pilates';
   return packageName;
 };
 

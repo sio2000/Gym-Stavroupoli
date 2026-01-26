@@ -60,6 +60,7 @@ import {
   getPilatesPackageDurations,
   updatePilatesPackagePricing,
 } from '@/utils/membershipApi';
+import { updateMembershipPackageDuration as updateDurationFull } from '@/utils/memberApi';
 import { 
   markOldMembersUsed, 
   saveKettlebellPoints,
@@ -74,6 +75,7 @@ import {
 import { 
   saveProgramApprovalState
 } from '@/utils/programApprovalApi';
+import { updateMembershipPackage } from '@/utils/memberApi';
 
 
 
@@ -416,6 +418,8 @@ const AdminPanel: React.FC = () => {
   const [selectedPackage, setSelectedPackage] = useState<MembershipPackage | null>(null);
   const [editingDuration, setEditingDuration] = useState<MembershipPackageDuration | null>(null);
   const [newPrice, setNewPrice] = useState<string>('');
+  const [newDurationDays, setNewDurationDays] = useState<string>('');
+  const [newClassesCount, setNewClassesCount] = useState<string>('');
   const [membershipRequests, setMembershipRequests] = useState<any[]>([]);
   
   // Pagination and search state for membership requests
@@ -2075,50 +2079,68 @@ const AdminPanel: React.FC = () => {
   const handleEditDuration = (duration: MembershipPackageDuration) => {
     setEditingDuration(duration);
     setNewPrice(duration.price.toString());
+    setNewDurationDays(duration.duration_days.toString());
+    setNewClassesCount(duration.classes_count?.toString() || '');
   };
 
   const handleSavePrice = async () => {
-    if (!editingDuration || !newPrice) return;
+    if (!editingDuration || !newPrice || !newDurationDays) return;
 
     const price = parseFloat(newPrice);
+    const durationDays = parseInt(newDurationDays);
+    const classesCount = newClassesCount ? parseInt(newClassesCount) : null;
+    
     if (isNaN(price) || price < 0) {
       toast.error('Παρακαλώ εισάγετε έγκυρη τιμή');
+      return;
+    }
+    
+    if (isNaN(durationDays) || durationDays <= 0) {
+      toast.error('Παρακαλώ εισάγετε έγκυρο αριθμό ημερών');
+      return;
+    }
+
+    // Validation for Pilates
+    if (selectedPackage?.name === 'Pilates' && !classesCount) {
+      toast.error('Για Pilates πακέτα, ο αριθμός μαθημάτων είναι υποχρεωτικός');
       return;
     }
 
     try {
       setLoading(true);
       
-      // Check if this is a Pilates duration
+      const updateData: Partial<MembershipPackageDuration> = {
+        price,
+        duration_days: durationDays,
+        classes_count: classesCount,
+        updated_at: new Date().toISOString()
+      };
+      
+      const updatedDuration = await updateDurationFull(editingDuration.id, updateData);
+      
+      // Update the local state
+      setPackageDurations(prev => 
+        prev.map(d => d.id === editingDuration.id ? updatedDuration : d)
+      );
       if (selectedPackage?.name === 'Pilates') {
-        const success = await updatePilatesPackagePricing(editingDuration.duration_type, price);
-        
-        if (success) {
-          // Update the local state
-          setPackageDurations(prev => 
-            prev.map(d => d.id === editingDuration.id ? { ...d, price } : d)
-          );
-          setPilatesDurations(prev => 
-            prev.map(d => d.id === editingDuration.id ? { ...d, price } : d)
-          );
-          setEditingDuration(null);
-          setNewPrice('');
-          toast.success('Η τιμή Pilates ενημερώθηκε επιτυχώς');
-        }
-      } else {
-        const success = await updateMembershipPackageDuration(editingDuration.id, price);
-        if (success) {
-          setEditingDuration(null);
-          setNewPrice('');
-          loadPackageDurations(selectedPackage?.id || '');
-        }
+        setPilatesDurations(prev => 
+          prev.map(d => d.id === editingDuration.id ? updatedDuration : d)
+        );
       }
+      
+      setEditingDuration(null);
+      setNewPrice('');
+      setNewDurationDays('');
+      setNewClassesCount('');
+      toast.success('Η τιμή, η διάρκεια και τα μαθήματα ενημερώθηκαν επιτυχώς');
     } catch (error) {
-      console.error('Error updating price:', error);
+      console.error('Error updating duration:', error);
+      toast.error('Σφάλμα κατά την ενημέρωση');
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleApproveRequest = async (requestId: string) => {
     try {
@@ -3812,9 +3834,11 @@ const AdminPanel: React.FC = () => {
                             ) : (
                               <Award className="h-6 w-6 text-blue-500" />
                             )}
-                            <h4 className="text-lg font-bold text-gray-900">{pkg.name}</h4>
+                            <h4 className="text-lg font-bold text-gray-900">{pkg.display_name || pkg.name}</h4>
                           </div>
-                          <Settings className="h-5 w-5 text-gray-400" />
+                          <div className="flex items-center space-x-2">
+                            <Settings className="h-5 w-5 text-gray-400" />
+                          </div>
                         </div>
                         <p className="text-gray-600 text-sm mb-4">{pkg.description}</p>
                         {pkg.features && (
@@ -3838,7 +3862,7 @@ const AdminPanel: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100">
                   <div className="p-6 border-b border-gray-200">
                     <h3 className="text-xl font-bold text-gray-900">
-                      Τιμές για {selectedPackage.name}
+                      Τιμές
                     </h3>
                     <p className="text-gray-600 mt-1">Ενημερώστε τις τιμές για κάθε διάρκεια</p>
                   </div>
@@ -3853,11 +3877,11 @@ const AdminPanel: React.FC = () => {
                                 <Clock className="h-4 w-4 text-blue-600" />
                               </div>
                               <div>
-                                <h4 className="font-semibold text-gray-900">
-                                  {getDurationLabel(duration.duration_type)}
-                                </h4>
                                 <p className="text-sm text-gray-600">
                                   {duration.duration_days} ημέρες
+                                  {selectedPackage?.name === 'Pilates' && duration.classes_count && (
+                                    <span className="ml-1">• {duration.classes_count} μαθήματα</span>
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -3869,34 +3893,93 @@ const AdminPanel: React.FC = () => {
                             </button>
                           </div>
                           {editingDuration?.id === duration.id ? (
-                            <div className="flex items-center space-x-2">
-                              <div className="flex-1">
-                                <input
-                                  type="number"
-                                  value={newPrice}
-                                  onChange={(e) => setNewPrice(e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="Νέα τιμή"
-                                  step="0.01"
-                                  min="0"
-                                />
+                            <div className="space-y-2">
+                              {selectedPackage?.name === 'Pilates' ? (
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Τιμή (€)</label>
+                                    <input
+                                      type="number"
+                                      value={newPrice}
+                                      onChange={(e) => setNewPrice(e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Νέα τιμή"
+                                      step="0.01"
+                                      min="0"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Ημέρες</label>
+                                    <input
+                                      type="number"
+                                      value={newDurationDays}
+                                      onChange={(e) => setNewDurationDays(e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Ημέρες διάρκειας"
+                                      min="1"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Μαθήματα *</label>
+                                    <input
+                                      type="number"
+                                      value={newClassesCount}
+                                      onChange={(e) => setNewClassesCount(e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="π.χ. 4, 8, 16"
+                                      min="1"
+                                    />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-2">
+                                  <div className="flex-1">
+                                    <label className="block text-xs text-gray-600 mb-1">Τιμή (€)</label>
+                                    <input
+                                      type="number"
+                                      value={newPrice}
+                                      onChange={(e) => setNewPrice(e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Νέα τιμή"
+                                      step="0.01"
+                                      min="0"
+                                    />
+                                  </div>
+                                  <div className="flex-1">
+                                    <label className="block text-xs text-gray-600 mb-1">Ημέρες</label>
+                                    <input
+                                      type="number"
+                                      value={newDurationDays}
+                                      onChange={(e) => setNewDurationDays(e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Ημέρες διάρκειας"
+                                      min="1"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={handleSavePrice}
+                                  disabled={loading}
+                                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm disabled:opacity-50"
+                                >
+                                  <Save className="h-4 w-4 inline mr-1" />
+                                  Αποθήκευση
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingDuration(null);
+                                    setNewPrice('');
+                                    setNewDurationDays('');
+                                    setNewClassesCount('');
+                                  }}
+                                  className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                                >
+                                  <X className="h-4 w-4 inline mr-1" />
+                                  Ακύρωση
+                                </button>
                               </div>
-                              <button
-                                onClick={handleSavePrice}
-                                disabled={loading}
-                                className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm disabled:opacity-50"
-                              >
-                                <Save className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingDuration(null);
-                                  setNewPrice('');
-                                }}
-                                className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
                             </div>
                           ) : (
                             <div className="text-right">
