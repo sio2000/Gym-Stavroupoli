@@ -2146,24 +2146,11 @@ const AdminPanel: React.FC = () => {
     try {
       setLoading(true);
       
-      // Find the request to check if it's Ultimate package
-      const request = membershipRequests.find(r => r.id === requestId);
-      const isUltimatePackage = request?.package?.name === 'Ultimate' || request?.package?.name === 'Ultimate Medium';
-      
-      if (isUltimatePackage) {
-        // Handle Ultimate package approval with dual activation
-        const success = await approveUltimateMembershipRequest(requestId);
-        if (success) {
-          toast.success('Το Ultimate αίτημα εγκρίθηκε επιτυχώς! Δημιουργήθηκαν 2 συνδρομές: Pilates + Open Gym');
-          loadMembershipRequests();
-        }
-      } else {
-        // Handle regular package approval
-        const success = await approveMembershipRequest(requestId);
-        if (success) {
-          toast.success('Το αίτημα εγκρίθηκε επιτυχώς!');
-          loadMembershipRequests();
-        }
+      // Handle all package approvals with standard membership creation
+      const success = await approveMembershipRequest(requestId);
+      if (success) {
+        toast.success('Το αίτημα εγκρίθηκε επιτυχώς!');
+        loadMembershipRequests();
       }
     } catch (error) {
       console.error('Error approving request:', error);

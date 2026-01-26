@@ -740,8 +740,8 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
       console.log(`[MembershipAPI] Deactivated existing active memberships for user ${request.user_id} and package ${request.package_id}`);
     }
 
-    // For Pilates packages, also deactivate existing Pilates deposits to prevent conflicts
-    if (isPilatesPackage) {
+    // For Pilates and Ultimate packages, also deactivate existing Pilates deposits to prevent conflicts
+    if (isPilatesPackage || isUltimatePackage) {
       const { error: deactivateDepositError } = await supabase
         .from('pilates_deposits')
         .update({
@@ -798,6 +798,7 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
     };
 
     let isPilatesPackage = false;
+    let isUltimatePackage = false;
     try {
       const { data: pkg } = await supabase
         .from('membership_packages')
@@ -805,38 +806,56 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
         .eq('id', request.package_id)
         .single();
       isPilatesPackage = pkg?.name === 'Pilates';
+      isUltimatePackage = pkg?.name === 'Ultimate' || pkg?.name === 'Ultimate Medium';
     } catch (e) {
       console.warn('[MembershipAPI] Could not verify package name for pilates deposit logic. Skipping deposit credit.');
     }
 
-    if (isPilatesPackage) {
+    if (isPilatesPackage || isUltimatePackage) {
       let depositCount = 0;
-      if (typeof request.classes_count === 'number' && request.classes_count > 0) {
-        depositCount = request.classes_count;
-      }
-      try {
-        const { data: durRow } = await supabase
-          .from('membership_package_durations')
-          .select('classes_count, price, duration_days, duration_type')
-          .eq('package_id', request.package_id)
-          .eq('duration_type', request.duration_type)
-          .single();
-        if (!depositCount && durRow?.classes_count) {
-          depositCount = durRow.classes_count as number;
+      
+      // Special handling for Ultimate packages
+      if (isUltimatePackage) {
+        try {
+          const { data: pkg } = await supabase
+            .from('membership_packages')
+            .select('name')
+            .eq('id', request.package_id)
+            .single();
+          depositCount = pkg?.name === 'Ultimate Medium' ? 1 : 3;
+        } catch (e) {
+          console.warn('[MembershipAPI] Could not determine Ultimate package type for deposit count:', e);
+          depositCount = 3; // Default to 3 for Ultimate
+        }
+      } else {
+        // Existing logic for Pilates packages
+        if (typeof request.classes_count === 'number' && request.classes_count > 0) {
+          depositCount = request.classes_count;
+        }
+        try {
+          const { data: durRow } = await supabase
+            .from('membership_package_durations')
+            .select('classes_count, price, duration_days, duration_type')
+            .eq('package_id', request.package_id)
+            .eq('duration_type', request.duration_type)
+            .single();
+          if (!depositCount && durRow?.classes_count) {
+            depositCount = durRow.classes_count as number;
+          }
+          if (!depositCount) {
+            depositCount = pilatesDurationToDeposit[(durRow?.duration_type || request.duration_type) as keyof typeof pilatesDurationToDeposit] || 0;
+          }
+          if (!depositCount && typeof durRow?.price === 'number') {
+            const price = Math.round(durRow.price);
+            const priceMap: Record<number, number> = { 0: 1, 44: 4, 80: 8, 144: 16, 190: 25, 350: 50 };
+            depositCount = priceMap[price] || 0;
+          }
+        } catch (e) {
+          console.warn('[MembershipAPI] Could not read duration row for pilates deposit mapping:', e);
         }
         if (!depositCount) {
-          depositCount = pilatesDurationToDeposit[(durRow?.duration_type || request.duration_type) as keyof typeof pilatesDurationToDeposit] || 0;
+          depositCount = pilatesDurationToDeposit[request.duration_type as keyof typeof pilatesDurationToDeposit] || 0;
         }
-        if (!depositCount && typeof durRow?.price === 'number') {
-          const price = Math.round(durRow.price);
-          const priceMap: Record<number, number> = { 0: 1, 44: 4, 80: 8, 144: 16, 190: 25, 350: 50 };
-          depositCount = priceMap[price] || 0;
-        }
-      } catch (e) {
-        console.warn('[MembershipAPI] Could not read duration row for pilates deposit mapping:', e);
-      }
-      if (!depositCount) {
-        depositCount = pilatesDurationToDeposit[request.duration_type as keyof typeof pilatesDurationToDeposit] || 0;
       }
 
       if (depositCount > 0) {
@@ -1727,9 +1746,7 @@ export const createUltimateMembershipRequest = async (
     // Normalize duration type for Ultimate packages
     // Σημείωση: λόγω constraint στον πίνακα memberships, αποθηκεύουμε ultimate_medium ως ultimate_1year
     const normalizedDurationType =
-      packageId === 'Ultimate' || packageId === 'ultimate-package'
-        ? 'ultimate_1year'
-        : packageId === 'Ultimate Medium' || packageId === 'ultimate-medium-package'
+      actualPackageName.toLowerCase().includes('ultimate')
         ? 'ultimate_1year'
         : durationType;
     const isUltimateMedium = actualPackageName.toLowerCase().includes('ultimate medium');
@@ -1761,9 +1778,7 @@ export const createUltimateMembershipRequest = async (
 
     console.log('[MembershipAPI] Ultimate request created successfully:', data);
     
-    // *** FIX: Use RPC to create dual memberships instead of ensureActiveMembership ***
-    // This ensures proper deactivation of old memberships and creation of new ones
-    
+    // *** FIX: Create single Ultimate membership instead of dual memberships ***
     // Deactivate existing active memberships for Pilates and Free Gym packages
     const { error: deactivatePilatesError } = await supabase
       .from('memberships')
@@ -1802,65 +1817,43 @@ export const createUltimateMembershipRequest = async (
       console.log(`[MembershipAPI] Deactivated existing active Pilates deposits for user ${actualUserId}`);
     }
 
-    // Call the database function to create dual memberships
-    const { data: dualResult, error: dualError } = await supabase
-      .rpc('create_ultimate_dual_memberships', {
-        p_user_id: actualUserId,
-        p_ultimate_request_id: data.id,
-        p_duration_days: 365, // 1 year
-        p_start_date: new Date().toISOString().split('T')[0] // Today's date
-      });
+    // Calculate dates for Ultimate membership
+    const startDate = new Date().toISOString().split('T')[0];
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 365); // 1 year
+    const endDateStr = endDate.toISOString().split('T')[0];
 
-    if (dualError) {
-      console.error('[MembershipAPI] Error creating dual memberships:', dualError);
-      throw dualError;
+    // Create single Ultimate membership
+    const { data: membershipData, error: membershipError } = await supabase
+      .from('memberships')
+      .insert({
+        user_id: actualUserId,
+        package_id: actualPackageId,
+        start_date: startDate,
+        end_date: endDateStr,
+        is_active: true,
+        duration_type: normalizedDurationType,
+        approved_by: null, // Secretary created
+        approved_at: new Date().toISOString(),
+        source_request_id: data.id,
+        source_package_name: actualPackageName
+      })
+      .select('id')
+      .single();
+
+    if (membershipError) {
+      console.error('[MembershipAPI] Error creating Ultimate membership:', membershipError);
+      throw membershipError;
     }
 
-    // Check if the dual activation was successful
-    if (!dualResult || !dualResult.success) {
-      console.error('[MembershipAPI] Dual activation failed:', dualResult);
-      throw new Error(dualResult?.error || 'Failed to create dual memberships');
-    }
-
-    console.log('[MembershipAPI] Ultimate dual activation successful:', {
+    console.log('[MembershipAPI] Ultimate single membership created successfully:', {
       requestId: data.id,
+      membershipId: membershipData.id,
       userId: actualUserId,
-      pilatesMembershipId: dualResult.pilates_membership_id,
-      freeGymMembershipId: dualResult.free_gym_membership_id,
-      startDate: dualResult.start_date,
-      endDate: dualResult.end_date
+      packageName: actualPackageName,
+      startDate,
+      endDate: endDateStr
     });
-
-    // Update memberships to reflect Ultimate duration
-    const startDate = dualResult.start_date || new Date().toISOString().split('T')[0];
-    const endDate = dualResult.end_date || calculateEndDate(startDate, 365);
-    const durationTypeForPackage = 'ultimate_1year';
-
-    if (dualResult.pilates_membership_id) {
-      await supabase
-        .from('memberships')
-        .update({
-          start_date: startDate,
-          end_date: endDate,
-          duration_type: durationTypeForPackage,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', dualResult.pilates_membership_id);
-    }
-
-    if (dualResult.free_gym_membership_id) {
-      await supabase
-        .from('memberships')
-        .update({
-          start_date: startDate,
-          end_date: endDate,
-          duration_type: durationTypeForPackage,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', dualResult.free_gym_membership_id);
-    }
-
-    const membershipDates = { startDate, endDate };
 
     if (requestedPrice && !Number.isNaN(requestedPrice)) {
       await addCashTransaction({
@@ -1899,9 +1892,8 @@ export const createUltimateMembershipRequest = async (
           .update({ is_active: false })
           .eq('user_id', actualUserId);
 
-        // Compute expires_at
-        const endDate = membershipDates?.endDate || calculateEndDate(new Date().toISOString().split('T')[0], getDurationDays(normalizedDurationType));
-        const expiresIso = new Date(endDate + 'T23:59:59Z').toISOString();
+        // Compute expires_at using the membership end date
+        const expiresIso = new Date(endDateStr + 'T23:59:59Z').toISOString();
 
         const { data: authUser } = await supabase.auth.getUser();
         const createdBy = authUser?.user?.id || '00000000-0000-0000-0000-000000000001';
@@ -1909,7 +1901,7 @@ export const createUltimateMembershipRequest = async (
         const { error: rpcError } = await supabase.rpc('credit_pilates_deposit', {
           p_created_by: createdBy,
           p_user_id: actualUserId,
-          p_package_id: pilatesPkg.id,
+          p_package_id: actualPackageId, // Use Ultimate package ID for deposit
           p_deposit_remaining: initialDeposit,
           p_expires_at: expiresIso
         });
@@ -2093,17 +2085,38 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
       console.log(`[MembershipAPI] Deactivated existing active Pilates deposits for user ${requestData.user_id}`);
     }
 
-    // Call the database function to create dual memberships
-    const { data: dualResult, error: dualError } = await supabase
-      .rpc('create_ultimate_dual_memberships', {
-        p_user_id: requestData.user_id,
-        p_ultimate_request_id: requestId,
-        p_duration_days: 365, // 1 year
-        p_start_date: new Date().toISOString().split('T')[0] // Today's date
-      });
+    // *** FIX: Create single Ultimate membership instead of dual memberships ***
+    // Calculate dates for Ultimate membership
+    const startDate = new Date().toISOString().split('T')[0];
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 365); // 1 year
+    const endDateStr = endDate.toISOString().split('T')[0];
 
-    if (dualError) {
-      console.error('[MembershipAPI] Error creating dual memberships:', dualError);
+    // Normalize duration type for Ultimate packages
+    const normalizedDurationType = requestData.membership_packages?.name?.toLowerCase().includes('ultimate')
+      ? 'ultimate_1year'
+      : requestData.duration_type;
+
+    // Create single Ultimate membership
+    const { data: membershipData, error: membershipError } = await supabase
+      .from('memberships')
+      .insert({
+        user_id: requestData.user_id,
+        package_id: requestData.package_id,
+        start_date: startDate,
+        end_date: endDateStr,
+        is_active: true,
+        duration_type: normalizedDurationType,
+        approved_by: null, // Admin approved
+        approved_at: new Date().toISOString(),
+        source_request_id: requestId,
+        source_package_name: requestData.membership_packages?.name
+      })
+      .select('id')
+      .single();
+
+    if (membershipError) {
+      console.error('[MembershipAPI] Error creating Ultimate membership:', membershipError);
       
       // Rollback the request status update
       await supabase
@@ -2114,83 +2127,23 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
         })
         .eq('id', requestId);
         
-      throw dualError;
+      throw membershipError;
     }
 
-    // Check if the dual activation was successful
-    if (!dualResult || !dualResult.success) {
-      console.error('[MembershipAPI] Dual activation failed:', dualResult);
-      
-      // Rollback the request status update
-      await supabase
-        .from('membership_requests')
-        .update({ 
-          status: 'pending',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', requestId);
-        
-      throw new Error(dualResult?.error || 'Failed to create dual memberships');
-    }
-
-    console.log('[MembershipAPI] Ultimate dual activation successful:', {
+    console.log('[MembershipAPI] Ultimate single membership created successfully:', {
       requestId,
+      membershipId: membershipData.id,
       userId: requestData.user_id,
-      pilatesMembershipId: dualResult.pilates_membership_id,
-      freeGymMembershipId: dualResult.free_gym_membership_id,
-      startDate: dualResult.start_date,
-      endDate: dualResult.end_date
+      packageName: requestData.membership_packages?.name,
+      startDate,
+      endDate: endDateStr
     });
 
     // Validate membership completeness (legacy prevention)
-    if (dualResult.pilates_membership_id) {
-      const pilatesValidation = await validateMembershipCompleteness(requestData.user_id, dualResult.pilates_membership_id);
-      if (!pilatesValidation.isComplete) {
-        console.error('[MembershipAPI] Pilates membership validation failed:', pilatesValidation);
-        console.warn('[MembershipAPI] Pilates membership created but incomplete. Missing:', pilatesValidation.missingComponents);
-      }
-    }
-
-    if (dualResult.free_gym_membership_id) {
-      const freeGymValidation = await validateMembershipCompleteness(requestData.user_id, dualResult.free_gym_membership_id);
-      if (!freeGymValidation.isComplete) {
-        console.error('[MembershipAPI] Free Gym membership validation failed:', freeGymValidation);
-        console.warn('[MembershipAPI] Free Gym membership created but incomplete. Missing:', freeGymValidation.missingComponents);
-      }
-    }
-
-    // --- Normalize memberships to 1-year Ultimate duration & weekly refill preset ---
-    const startDate = dualResult.start_date || new Date().toISOString().split('T')[0];
-    const endDate = dualResult.end_date || calculateEndDate(startDate, 365);
-
-    // Update Pilates membership to reflect Ultimate 1-year duration
-    // Για αποφυγή constraint στο memberships, αποθηκεύουμε και για Medium το ultimate_1year
-    const durationTypeForPackage = 'ultimate_1year';
-
-    // Update Pilates membership to reflect Ultimate duration
-    if (dualResult.pilates_membership_id) {
-      await supabase
-        .from('memberships')
-        .update({
-          start_date: startDate,
-          end_date: endDate,
-          duration_type: durationTypeForPackage,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', dualResult.pilates_membership_id);
-    }
-
-    // Update Free Gym membership to reflect Ultimate duration
-    if (dualResult.free_gym_membership_id) {
-      await supabase
-        .from('memberships')
-        .update({
-          start_date: startDate,
-          end_date: endDate,
-          duration_type: durationTypeForPackage,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', dualResult.free_gym_membership_id);
+    const membershipValidation = await validateMembershipCompleteness(requestData.user_id, membershipData.id);
+    if (!membershipValidation.isComplete) {
+      console.error('[MembershipAPI] Ultimate membership validation failed:', membershipValidation);
+      console.warn('[MembershipAPI] Ultimate membership created but incomplete. Missing:', membershipValidation.missingComponents);
     }
 
     // Helper to compute the current weekly window (Δευτέρα–Σάββατο)
@@ -2221,20 +2174,20 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
 
     const initialDeposit = requestData.membership_packages?.name === 'Ultimate Medium' ? 1 : 3;
 
-    // Always credit deposit under Pilates package so calendar reads correctly
-    const { data: pilatesPkg, error: pilatesPkgErr } = await supabase
+    // Always credit deposit under Ultimate package so calendar reads correctly
+    const { data: ultimatePkg, error: ultimatePkgErr } = await supabase
       .from('membership_packages')
       .select('id')
-      .eq('name', 'Pilates')
+      .eq('name', requestData.membership_packages?.name)
       .eq('is_active', true)
       .single();
-    if (pilatesPkgErr || !pilatesPkg) {
-      console.error('[Ultimate] Pilates package not found for deposit:', pilatesPkgErr);
-      throw pilatesPkgErr || new Error('Pilates package missing');
+    if (ultimatePkgErr || !ultimatePkg) {
+      console.error('[Ultimate] Ultimate package not found for deposit:', ultimatePkgErr);
+      throw ultimatePkgErr || new Error('Ultimate package missing');
     }
 
     // Manual upsert to ensure active Pilates deposit (bypass RPC uncertainty)
-    const expiresIso = new Date(endDate + 'T23:59:59Z').toISOString();
+    const expiresIso = new Date(endDateStr + 'T23:59:59Z').toISOString();
 
     // Deactivate ALL previous deposits for this user (any package) to avoid stale Ultimate package deposits
     await supabase
@@ -2246,7 +2199,7 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
       .from('pilates_deposits')
       .insert({
         user_id: requestData.user_id,
-        package_id: pilatesPkg.id,
+        package_id: ultimatePkg.id,
         deposit_remaining: initialDeposit,
         expires_at: expiresIso,
         is_active: true,
@@ -2264,7 +2217,7 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
 
     await supabase.from('ultimate_weekly_refills').insert({
       user_id: requestData.user_id,
-      membership_id: dualResult.pilates_membership_id || dualResult.free_gym_membership_id,
+      membership_id: membershipData.id,
       source_request_id: requestId,
       package_name: requestData.membership_packages?.name || 'Ultimate',
       activation_date: startDate,
