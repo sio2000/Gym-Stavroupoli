@@ -687,7 +687,9 @@ const NewSubscriptionTab: React.FC = () => {
                       checked={selectedDurationId === d.id}
                       onChange={() => setSelectedDurationId(d.id)}
                     />
-                    <div className="font-semibold">{renderDurationLabel(d)}</div>
+                    <div className="font-semibold">
+                      {customDuration ? `${customDuration} ημέρες (προσαρμοσμένη)` : renderDurationLabel(d)}
+                    </div>
                     <div className="text-xs text-gray-400">Τιμή: €{(d.price || 0).toFixed(2)}</div>
                   </label>
                 ))}

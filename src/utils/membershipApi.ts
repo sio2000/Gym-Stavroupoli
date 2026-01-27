@@ -424,7 +424,14 @@ export const createMembershipRequest = async (
     // Calculate dates
     const startDate = new Date().toISOString().split('T')[0];
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() + duration.duration_days);
+    // Use customDurationDays if provided, otherwise use duration.duration_days
+    const actualDurationDays = customDurationDays || duration.duration_days;
+    console.log('[MembershipAPI] createMembershipRequest - Duration calculation:', {
+      customDurationDays,
+      packageDurationDays: duration.duration_days,
+      actualDurationDays
+    });
+    endDate.setDate(endDate.getDate() + actualDurationDays);
     const endDateStr = endDate.toISOString().split('T')[0];
 
     // Deactivate existing active memberships for this user and package
@@ -1463,7 +1470,14 @@ export const createPilatesMembershipRequest = async (
     // Calculate dates
     const startDate = new Date().toISOString().split('T')[0];
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() + duration.duration_days);
+    // Use customDurationDays if provided, otherwise use duration.duration_days
+    const actualDurationDays = customDurationDays || duration.duration_days;
+    console.log('[MembershipAPI] createPilatesMembershipRequest - Duration calculation:', {
+      customDurationDays,
+      packageDurationDays: duration.duration_days,
+      actualDurationDays
+    });
+    endDate.setDate(endDate.getDate() + actualDurationDays);
     const endDateStr = endDate.toISOString().split('T')[0];
 
     // Deactivate existing active Pilates memberships for this user
