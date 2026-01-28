@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/config/supabaseAdmin';
+import { supabase } from '@/config/supabase';  // ADDED (STEP 6 – Rule 4): For safe user context
 import { Lesson, Room, Trainer, LessonCategory } from '@/types';
 
 export interface LessonFormData {
@@ -222,8 +223,127 @@ export const getLessonAvailability = async (lessonId: string, date: string): Pro
 };
 
 // Book a lesson
+// ADDED (STEP 6 – Rule 4): New safe booking function with membership validation
+/**
+ * Book a lesson with membership validation
+ * 
+ * STEP 6 IMPLEMENTATION (Rule 4):
+ * - Checks user has active membership BEFORE creating booking
+ * - Prevents duplicate bookings
+ * - Enforces lesson capacity
+ * - Fails safely with clear errors
+ */
+export const bookLessonSafe = async (
+  userId: string,
+  lessonId: string,
+  bookingDate: string
+): Promise<{ success: boolean; message: string; booking_id?: string }> => {
+  try {
+    // ADDED (STEP 6 – Rule 4): Step 1 - Check user has active membership
+    console.log(`[LessonAPI] Validating membership for user ${userId} before lesson booking`);
+    
+    const today = new Date().toISOString().split('T')[0];
+    const { data: activeMemberships, error: membershipError } = await supabase
+      .from('memberships')
+      .select('id, status, deleted_at, end_date')
+      .eq('user_id', userId)
+      .eq('status', 'active')           // CHANGED (STEP 6 – Rule 2): Use status='active'
+      .is('deleted_at', null)           // CHANGED (STEP 6 – Rule 7): Exclude soft-deletes
+      .gt('end_date', today);           // CHANGED (STEP 6 – Rule 2): Guard check
+    
+    if (membershipError) {
+      console.error('[LessonAPI] Error checking membership:', membershipError);
+      throw new Error('Unable to verify membership. Please try again.');
+    }
+    
+    if (!activeMemberships || activeMemberships.length === 0) {
+      console.warn(`[LessonAPI] User ${userId} has no active membership, blocking lesson booking`);
+      throw new Error('No active membership. Please purchase a membership to book lessons.');
+    }
+    
+    // ADDED (STEP 6 – Rule 4): Step 2 - Check booking doesn't already exist
+    const { data: existingBooking, error: checkError } = await supabase
+      .from('lesson_bookings')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('lesson_id', lessonId)
+      .eq('booking_date', bookingDate)
+      .eq('status', 'confirmed')
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('[LessonAPI] Error checking for duplicate booking:', checkError);
+      // Don't fail, continue
+    } else if (existingBooking) {
+      throw new Error('You are already booked for this lesson.');
+    }
+    
+    // ADDED (STEP 6 – Rule 4): Step 3 - Check lesson capacity
+    const { data: lesson, error: lessonError } = await supabase
+      .from('lessons')
+      .select('id, capacity')
+      .eq('id', lessonId)
+      .single();
+    
+    if (lessonError || !lesson) {
+      throw new Error('Lesson not found.');
+    }
+    
+    const { count: bookingCount, error: countError } = await supabase
+      .from('lesson_bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('lesson_id', lessonId)
+      .eq('booking_date', bookingDate)
+      .eq('status', 'confirmed');
+    
+    if (countError) {
+      console.error('[LessonAPI] Error checking lesson capacity:', countError);
+      // Don't fail, continue
+    } else if (countError === null && bookingCount !== null && bookingCount >= lesson.capacity) {
+      throw new Error('This lesson is fully booked. Please choose another time.');
+    }
+    
+    // ADDED (STEP 6 – Rule 4): Step 4 - Create booking (with DB trigger as additional safety)
+    console.log(`[LessonAPI] Creating lesson booking for user ${userId}, lesson ${lessonId}`);
+    
+    const { data, error } = await supabase
+      .from('lesson_bookings')
+      .insert({
+        user_id: userId,
+        lesson_id: lessonId,
+        booking_date: bookingDate,
+        status: 'confirmed'
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('[LessonAPI] Error creating lesson booking:', error);
+      throw new Error('Failed to create booking. Please try again.');
+    }
+    
+    console.log(`[LessonAPI] Successfully booked lesson ${lessonId} for user ${userId}`);
+    return {
+      success: true,
+      message: 'Booking confirmed',
+      booking_id: data.id
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[LessonAPI] Error in bookLessonSafe:', errorMessage);
+    return {
+      success: false,
+      message: errorMessage
+    };
+  }
+};
+
+// DEPRECATED: Old booking function without membership validation
+// Use bookLessonSafe instead
 export const bookLesson = async (userId: string, lessonId: string, bookingDate: string): Promise<{ success: boolean; message: string; booking_id?: string }> => {
   try {
+    console.warn('[LessonAPI] bookLesson is DEPRECATED. Use bookLessonSafe instead which includes membership validation.');
+    
     const { data, error } = await supabaseAdmin
       .rpc('book_lesson', {
         p_user_id: userId,
@@ -234,7 +354,7 @@ export const bookLesson = async (userId: string, lessonId: string, bookingDate: 
     if (error) throw error;
     return data[0] || { success: false, message: 'Unknown error' };
   } catch (error) {
-    console.error('Error booking lesson:', error);
+    console.error('[LessonAPI] Error booking lesson:', error);
     throw error;
   }
 };

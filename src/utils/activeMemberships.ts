@@ -1,5 +1,12 @@
 // Active Memberships Utility
 // Handles checking user's active memberships for QR code generation
+// 
+// STEP 6 IMPLEMENTATION NOTES:
+// - RULE 1: Uses ONLY canonical user_id (auth.users.id)
+// - RULE 2: Checks status='active' (not is_active), deleted_at IS NULL
+// - RULE 3: Pilates deposits ONLY for display, NOT access control
+// - RULE 7: Soft-deletes excluded in all READ queries
+// - RULE 9: Proactive monitoring of expiry
 
 import { supabase } from '@/config/supabase';
 import { Membership, MembershipPackage } from '@/types';
@@ -12,6 +19,8 @@ export interface ActiveMembership {
   status: 'active' | 'expired' | 'cancelled' | 'suspended';
   endDate: string;
   startDate: string;
+  daysUntilExpiry?: number;  // ADDED (STEP 6 – Rule 9): For expiry warnings
+  expiryWarning?: string;     // ADDED (STEP 6 – Rule 9): Proactive warning
 }
 
 export interface QRCodeCategory {
@@ -60,102 +69,50 @@ const PACKAGE_TYPE_TO_QR_CATEGORY: Record<string, QRCodeCategory> = {
 };
 
 /**
- * Update Pilates memberships status based on deposit availability
- * Sets is_active = false for Pilates memberships when deposit_remaining <= 0
+ * CHANGED (STEP 6 – Rule 3): Removed app-side expiration logic
+ * 
+ * REASON: The database now handles pilates deposit deactivation atomically
+ * via subscription_expire_worker() function. The app should NEVER manually
+ * update membership status based on pilates deposits.
+ * 
+ * Instead: Trust database-side triggers to keep is_active & status in sync.
+ * Deposits should be used ONLY for UI display ("X classes remaining").
+ * 
+ * This function is DEPRECATED and kept only for reference.
+ * DO NOT USE in production code.
  */
-const updatePilatesMembershipStatus = async (userId: string): Promise<void> => {
-  try {
-    // Get user's Pilates memberships that are currently active
-    const { data: activePilatesMemberships, error: membershipError } = await supabase
-      .from('memberships')
-      .select(`
-        id,
-        package:membership_packages(name, package_type)
-      `)
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .gte('end_date', new Date().toISOString().split('T')[0]);
-
-    if (membershipError) {
-      console.warn('[ActiveMemberships] Error fetching active Pilates memberships for status update:', membershipError);
-      return;
-    }
-
-    if (!activePilatesMemberships || activePilatesMemberships.length === 0) {
-      return; // No active memberships to check
-    }
-
-    // Check current deposit
-    const { data: pilatesDeposit, error: depositError } = await supabase
-      .from('pilates_deposits')
-      .select('deposit_remaining, is_active')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .order('credited_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (depositError) {
-      console.warn('[ActiveMemberships] Error fetching Pilates deposit for status update:', depositError);
-      return;
-    }
-
-    const hasValidDeposit = pilatesDeposit && pilatesDeposit.deposit_remaining && pilatesDeposit.deposit_remaining > 0;
-
-    // Find Pilates memberships that need to be deactivated
-    const pilatesMembershipsToDeactivate = activePilatesMemberships.filter(membership => {
-      const packageName = membership.package?.name?.toLowerCase() || '';
-      const packageType = membership.package?.package_type?.toLowerCase() || '';
-      const isPilatesMembership = packageType === 'pilates' || packageName === 'pilates';
-
-      // Only deactivate if it's a pure Pilates membership (not Ultimate) AND no valid deposit
-      return isPilatesMembership && !hasValidDeposit;
-    });
-
-    if (pilatesMembershipsToDeactivate.length > 0) {
-      const membershipIds = pilatesMembershipsToDeactivate.map(m => m.id);
-
-      console.log('[ActiveMemberships] Deactivating Pilates memberships due to zero deposit:', membershipIds);
-
-      const { error: updateError } = await supabase
-        .from('memberships')
-        .update({
-          is_active: false,
-          status: 'expired',
-          updated_at: new Date().toISOString()
-        })
-        .in('id', membershipIds);
-
-      if (updateError) {
-        console.error('[ActiveMemberships] Error deactivating Pilates memberships:', updateError);
-      } else {
-        console.log('[ActiveMemberships] Successfully deactivated Pilates memberships:', membershipIds);
-      }
-    }
-  } catch (error) {
-    console.error('[ActiveMemberships] Exception in updatePilatesMembershipStatus:', error);
-  }
+const updatePilatesMembershipStatus_DEPRECATED = async (userId: string): Promise<void> => {
+  console.warn('[ActiveMemberships] updatePilatesMembershipStatus is DEPRECATED. Database handles this atomically now.');
+  // See subscription_expire_worker() in database for canonical implementation
 };
 
 /**
  * Get user's active memberships for QR code generation
+ * 
+ * STEP 6 IMPLEMENTATION:
+ * - RULE 1: Uses canonical user_id (auth.users.id)
+ * - RULE 2: Checks status='active' (not is_active), deleted_at IS NULL, end_date guard
+ * - RULE 3: Pilates deposits used ONLY for UI display, NOT access control
+ * - RULE 7: Soft-deletes excluded (is('deleted_at', null))
+ * - RULE 9: Calculates daysUntilExpiry for proactive warnings
  */
 export const getUserActiveMembershipsForQR = async (userId: string): Promise<ActiveMembership[]> => {
   try {
     console.log('[ActiveMemberships] Fetching active memberships for user:', userId);
 
-    // Update Pilates membership status based on deposit availability
-    await updatePilatesMembershipStatus(userId);
-    
-    // Use is_active column (since status column doesn't exist in this database)
+    // CHANGED (STEP 6 – Rule 2): Query by status='active' instead of is_active
+    // CHANGED (STEP 6 – Rule 7): Exclude soft-deleted records (deleted_at IS NULL)
+    const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('memberships')
       .select(`
         id,
         package_id,
-        is_active,
+        status,
+        deleted_at,
         start_date,
         end_date,
+        expires_at,
         membership_packages(
           id,
           name,
@@ -163,8 +120,9 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
         )
       `)
       .eq('user_id', userId)
-      .eq('is_active', true)
-      .gte('end_date', new Date().toISOString().split('T')[0]) // Not expired
+      .eq('status', 'active')           // CHANGED (STEP 6 – Rule 2): Primary check
+      .is('deleted_at', null)           // CHANGED (STEP 6 – Rule 7): Exclude soft-deletes
+      .gt('end_date', today)            // CHANGED (STEP 6 – Rule 2): Safety guard check
       .order('end_date', { ascending: false });
 
     if (error) {
@@ -173,6 +131,8 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
     }
 
     const activeMemberships: ActiveMembership[] = [];
+    const now = new Date();
+    
     for (const membership of (data || [])) {
       // Handle membership_packages as either array or single object
       const packages = Array.isArray(membership.membership_packages)
@@ -182,43 +142,25 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
       // For now, just take the first package (most memberships have one package)
       const pkg = packages[0];
 
-      // Special check for Pilates memberships: must have deposit_remaining > 0
+      // CHANGED (STEP 6 – Rule 3): Pilates deposits used ONLY for DISPLAY, NOT access control
+      // The database-side trigger already keeps membership status in sync with deposits
+      // We trust the status='active' check above — if DB says active, it's valid
+      
       const packageName = pkg?.name?.toLowerCase() || '';
       const packageType = pkg?.package_type?.toLowerCase() || '';
-
       const isPilatesMembership = packageType === 'pilates' || packageName === 'pilates';
 
-      if (isPilatesMembership) {
-        try {
-          const { data: pilatesDeposit, error: depositError } = await supabase
-            .from('pilates_deposits')
-            .select('deposit_remaining, is_active')
-            .eq('user_id', userId)
-            .eq('is_active', true)
-            .order('credited_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (depositError) {
-            console.warn('[ActiveMemberships] Error fetching Pilates deposit for QR check:', depositError);
-            // If error, don't include this membership to be safe
-            continue;
-          }
-
-          // If Pilates membership but deposit = 0 or doesn't exist, exclude from active memberships
-          if (!pilatesDeposit || !pilatesDeposit.deposit_remaining || pilatesDeposit.deposit_remaining <= 0) {
-            console.log('[ActiveMemberships] Filtering out Pilates membership with zero deposit for QR:', {
-              id: membership.id,
-              package_name: pkg?.name,
-              deposit_remaining: pilatesDeposit?.deposit_remaining || 0
-            });
-            continue;
-          }
-        } catch (depositCheckError) {
-          console.warn('[ActiveMemberships] Exception checking Pilates deposit for QR:', depositCheckError);
-          // If exception, don't include this membership to be safe
-          continue;
-        }
+      // ADDED (STEP 6 – Rule 9): Calculate days until expiry for proactive warnings
+      const endDate = new Date(membership.end_date + 'T23:59:59');
+      const daysUntilExpiry = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      let expiryWarning: string | undefined;
+      if (daysUntilExpiry <= 0) {
+        expiryWarning = 'Membership expired';
+      } else if (daysUntilExpiry <= 7) {
+        expiryWarning = `Expires in ${daysUntilExpiry} days`;
+      } else if (daysUntilExpiry <= 30) {
+        expiryWarning = `Expires in ${daysUntilExpiry} days`;
       }
 
       activeMemberships.push({
@@ -226,9 +168,11 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
         packageId: membership.package_id,
         packageName: pkg?.name || 'Unknown',
         packageType: pkg?.package_type || 'unknown',
-        status: membership.is_active ? 'active' : 'expired' as 'active' | 'expired' | 'cancelled' | 'suspended',
+        status: 'active' as const,
         endDate: membership.end_date,
-        startDate: membership.start_date
+        startDate: membership.start_date,
+        daysUntilExpiry,           // ADDED (STEP 6 – Rule 9)
+        expiryWarning              // ADDED (STEP 6 – Rule 9)
       });
     }
 
@@ -242,11 +186,13 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
 
 /**
  * Get QR code categories available for user based on their active memberships
+ * 
+ * STEP 6 IMPLEMENTATION:
+ * - RULE 3: Trust database status='active' check (pilates handled automatically)
+ * - No app-side deposit checks for access control
  */
 export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCategory[]> => {
   try {
-    // Ενιαίο QR: αν υπάρχει οποιαδήποτε ενεργή συνδρομή ή accepted personal training, δίνουμε μόνο free_gym
-    // BUT: Αν έχει Pilates membership (ή Ultimate/Ultimate Medium που περιλαμβάνουν Pilates), πρέπει να έχει deposit > 0
     const activeMemberships = await getUserActiveMembershipsForQR(userId);
 
     if (!activeMemberships || activeMemberships.length === 0) {
@@ -298,41 +244,13 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
              (pkgType === 'free_gym' || pkgName.includes('free gym') || pkgName.includes('free'));
     });
 
-    // If user has ONLY Pilates membership (NOT Ultimate), MUST check deposit
-    // Ultimate/Ultimate Medium are EXCLUDED from this check (they can enter gym even with 0 deposit)
-    if (hasOnlyPilatesMembership && !hasUltimateMembership) {
-      const { data: pilatesDeposit, error: depositError } = await supabase
-        .from('pilates_deposits')
-        .select('deposit_remaining, is_active')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .order('credited_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (depositError) {
-        console.warn('[ActiveMemberships] Error fetching Pilates deposit:', depositError);
-        // If error, don't show QR option to be safe
-        return [];
-      }
-
-      // If ONLY Pilates membership (NOT Ultimate) but deposit = 0 or doesn't exist, no QR eligibility
-      // UNLESS user also has non-Pilates membership (e.g., Free Gym)
-      if (!pilatesDeposit || !pilatesDeposit.deposit_remaining || pilatesDeposit.deposit_remaining <= 0) {
-        console.log(`[ActiveMemberships] User has ONLY Pilates membership (NOT Ultimate) but deposit is ${pilatesDeposit?.deposit_remaining || 0}`);
-        
-        // If ONLY Pilates membership (NOT Ultimate) with 0 deposit (no Free Gym), no QR code
-        if (!hasNonPilatesMembership) {
-          console.log('[ActiveMemberships] Only Pilates membership (NOT Ultimate) with 0 deposit = no QR eligibility');
-          return [];
-        }
-        
-        // If has Pilates (with 0 deposit) BUT also has Free Gym membership
-        // Allow QR code for Free Gym access only
-        console.log('[ActiveMemberships] Has Pilates with 0 deposit BUT also has Free Gym - allowing QR for Free Gym');
-        // Continue below to return Free Gym category
-      }
-    }
+    // CHANGED (STEP 6 – Rule 3): Removed app-side pilates deposit check for access control
+    // Database status='active' check already ensures user has valid membership
+    // If database says membership.status='active', we trust it — subscription_expire_worker()
+    // already handles deactivation when deposits are exhausted
+    
+    // If we get here, user has at least one active membership (from DB check above)
+    // User is eligible for QR code access
 
     let hasPersonalTraining = false;
     try {
@@ -348,8 +266,7 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
       console.warn('[ActiveMemberships] Could not check personal schedule acceptance:', e);
     }
 
-    // If has Pilates membership, we already checked deposit > 0 above (or has Free Gym fallback)
-    // If has other memberships or personal training, eligible
+    // If has active membership or personal training, eligible for QR
     if ((activeMemberships && activeMemberships.length > 0) || hasPersonalTraining) {
       const freeGymCategory = PACKAGE_TYPE_TO_QR_CATEGORY['free_gym'];
       return freeGymCategory ? [freeGymCategory] : [];

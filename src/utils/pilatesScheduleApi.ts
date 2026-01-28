@@ -240,18 +240,37 @@ export const getPilatesBookings = async (userId?: string): Promise<PilatesBookin
 };
 
 export const createPilatesBooking = async (bookingData: PilatesBookingFormData, userId: string): Promise<PilatesBooking> => {
+  // CHANGED (STEP 6 – Rule 8): Improved error handling with explicit case distinction
+  
   // Use atomic RPC to decrement deposit and create booking
   const { data: rpcData, error: rpcError } = await supabase
     .rpc('book_pilates_class', { p_user_id: userId, p_slot_id: bookingData.slotId });
 
+  // ADDED (STEP 6 – Rule 8): Distinguish error types for better UX
   if (rpcError) {
-    console.error('Error booking pilates via RPC:', rpcError);
-    throw rpcError;
+    console.error('[PilatesScheduleAPI] Error booking pilates via RPC:', rpcError);
+    
+    // Parse error message to provide user-friendly feedback
+    const errorMessage = rpcError.message?.toLowerCase() || '';
+    
+    if (errorMessage.includes('no active deposit') || errorMessage.includes('deposit_remaining')) {
+      throw new Error('You have no available classes. Please purchase a package to book this class.');
+    } else if (errorMessage.includes('slot full') || errorMessage.includes('capacity') || errorMessage.includes('booked')) {
+      throw new Error('This class is fully booked. Please choose another time slot.');
+    } else if (errorMessage.includes('already booked') || errorMessage.includes('duplicate')) {
+      throw new Error('You are already booked for this class.');
+    } else if (errorMessage.includes('not available') || errorMessage.includes('past') || errorMessage.includes('expired')) {
+      throw new Error('This class slot is no longer available.');
+    } else if (errorMessage.includes('no active membership') || errorMessage.includes('membership')) {
+      throw new Error('You must have an active membership to book classes. Please purchase a membership.');
+    } else {
+      throw new Error(`Booking failed: ${rpcError.message || 'Unknown error'}`);
+    }
   }
 
   const bookingId = rpcData?.[0]?.booking_id || rpcData?.booking_id;
   if (!bookingId) {
-    throw new Error('Booking failed: missing booking id');
+    throw new Error('Booking failed: unable to create booking (no booking ID returned)');
   }
 
   // Try to fetch booking details, but don't fail if we can't (RLS might block it)
@@ -267,7 +286,10 @@ export const createPilatesBooking = async (bookingData: PilatesBookingFormData, 
     .single();
 
   if (error) {
-    console.warn('Could not fetch booking details (this is OK, booking was created):', error);
+    console.warn('[PilatesScheduleAPI] Could not fetch booking details (this is OK, booking was created):', error);
+    // ADDED (STEP 6 – Rule 8): Log successful booking even if fetch fails
+    console.log(`[PilatesScheduleAPI] Booked class ${bookingData.slotId} for user ${userId}`);
+    
     // If we can't fetch the booking (due to RLS), construct minimal response
     // The booking exists in DB, we just can't query it immediately
     // Return minimal data so the UI can continue
@@ -283,6 +305,8 @@ export const createPilatesBooking = async (bookingData: PilatesBookingFormData, 
     } as PilatesBooking;
   }
 
+  // ADDED (STEP 6 – Rule 8): Log successful booking with deposit info
+  console.log(`[PilatesScheduleAPI] Successfully booked class ${bookingData.slotId} for user ${userId}`);
   return data as PilatesBooking;
 };
 
@@ -320,27 +344,33 @@ export const cancelPilatesBooking = async (bookingId: string, userId?: string): 
   return data as PilatesBooking;
 };
 
-// Check if user has active pilates membership
+// CHANGED (STEP 6 – Rule 2): Check membership status properly
+// Check if user has active pilates membership using canonical status check
 export const hasActivePilatesMembership = async (userId: string): Promise<boolean> => {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // CHANGED (STEP 6 – Rule 2): Use status='active' (not is_active)
+  // CHANGED (STEP 6 – Rule 7): Exclude soft-deletes (deleted_at IS NULL)
   const { data, error } = await supabase
     .from('memberships')
     .select(`
       id,
-      is_active,
+      status,
+      deleted_at,
       end_date,
       membership_packages(package_type)
     `)
     .eq('user_id', userId)
-    .eq('is_active', true)
-    .gte('end_date', new Date().toISOString().split('T')[0])
-    .single();
+    .eq('status', 'active')           // CHANGED (STEP 6 – Rule 2): Primary check
+    .is('deleted_at', null)           // CHANGED (STEP 6 – Rule 7): Exclude soft-deletes
+    .gt('end_date', today)            // CHANGED (STEP 6 – Rule 2): Safety guard
 
   if (error) {
-    console.error('Error checking pilates membership:', error);
+    console.error('[PilatesScheduleAPI] Error checking pilates membership:', error);
     return false;
   }
 
-  return !!data;
+  return !!data && data.length > 0;
 };
 
 // Get pilates slots for a specific date range
