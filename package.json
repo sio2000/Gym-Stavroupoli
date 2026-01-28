@@ -1,11 +1,11 @@
 {
   "name": "getfitskg",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node -e \"if(process.platform!=='win32'){require('child_process').execSync('chmod +x node_modules/.bin/vite',{stdio:'inherit'})}\"",
+    "prebuild": "node -e \"if(process.platform!=='win32'){require('child_process').execSync('chmod +x node_modules/.bin',{stdio:'inherit'})}\"",
     "build": "vite build --config vite.production.config.ts",
     "build:mobile": "vite build",
     "build:simple": "vite build --config vite-simple.config.ts",
@@ -34,7 +34,12 @@
     "appstore:check": "tsx scripts/checkAppStoreRequirements.ts",
     "version:show": "tsx scripts/versionManager.ts show",
     "version:bump": "tsx scripts/versionManager.ts bump",
-    "version:patch": "tsx scripts/versionManager.ts patch"
+    "version:patch": "tsx scripts/versionManager.ts patch",
+    "install:playwright": "npx playwright install --with-deps",
+    "create-bots": "node scripts/create_test_bots.js",
+    "cleanup:testdata": "node scripts/cleanup_test_data.js",
+    "e2e:test": "npx playwright test --project=chromium",
+    "e2e:test:headed": "npx playwright test --headed"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
@@ -60,7 +65,8 @@
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^7.9.4",
     "react-webcam": "^7.2.0",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "node-fetch": "^2.6.7"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
@@ -79,6 +85,7 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vite": "^5.0.8"
+    "vite": "^5.0.8",
+    "@playwright/test": "^1.40.0"
   }
 }
