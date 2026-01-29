@@ -1,0 +1,31 @@
+{
+  "bot_email": "qa.bot+1769640278347.04@example.com",
+  "scenarios": [
+    {
+      "scenario_id": "SC-000004",
+      "bot_index": 4,
+      "scenario_name": "Freeze and unfreeze ULTIMATE",
+      "result": "pass",
+      "timestamp": "2026-01-29T00:31:15.674Z",
+      "freeze_success": false,
+      "unfreeze_success": false
+    }
+  ],
+  "memberships": [
+    {
+      "timestamp": "2026-01-29T00:31:15.674Z",
+      "package": "ULTIMATE",
+      "status": "frozen",
+      "frozen_at": "2026-01-29T00:31:15.674Z"
+    },
+    {
+      "timestamp": "2026-01-29T00:31:15.674Z",
+      "package": "ULTIMATE",
+      "status": "active",
+      "unfrozen_at": "2026-01-29T00:31:15.674Z"
+    }
+  ],
+  "cashier_events": [],
+  "lessons_overrides": [],
+  "errors": []
+}

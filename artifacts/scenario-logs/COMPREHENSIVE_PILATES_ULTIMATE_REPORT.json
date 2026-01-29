@@ -1,0 +1,184 @@
+{
+  "total_scenarios": 11,
+  "passed": 10,
+  "failed": 1,
+  "by_package": {
+    "PILATES": {
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "scenarios": [
+        "SC-0000001",
+        "SC-0000005",
+        "SC-0000007",
+        "SC-0000010"
+      ]
+    },
+    "ULTIMATE": {
+      "total": 4,
+      "passed": 3,
+      "failed": 0,
+      "scenarios": [
+        "SC-0000002",
+        "SC-0000006",
+        "SC-0000008",
+        "SC-0000009"
+      ]
+    },
+    "ULTIMATE_MEDIUM": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "scenarios": [
+        "SC-0000003"
+      ]
+    },
+    "FREEGYM": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "scenarios": [
+        "SC-0000004",
+        "SC-0000011"
+      ]
+    }
+  },
+  "by_scenario_type": {
+    "create_verify": {
+      "total": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    "renew_before_expiry": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "renew_at_expiry": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "freeze_unfreeze": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "cancel_recreate": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "upgrade_downgrade": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "cashier_purchase": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "cashier_partial_refund": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "cashier_full_refund": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "time_progression": {
+      "total": 1,
+      "passed": 0,
+      "failed": 0
+    },
+    "deposit_validation": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "concurrent_operations": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "overlapping_memberships": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "expiration_safety": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "lessons_visibility_readonly": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "by_bot": {
+    "0": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "1": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "2": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "3": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "4": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "5": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "6": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "7": {
+      "passed": 0,
+      "failed": 1,
+      "total": 1
+    },
+    "8": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "9": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "10": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    }
+  },
+  "edge_cases": [],
+  "timing": {},
+  "timestamp": "2026-01-29T00:19:24.066Z",
+  "pass_rate": "90.9"
+}

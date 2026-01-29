@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-01-29T01:11:14.916Z",
+  "totalBots": 30,
+  "totalPackages": 4,
+  "totalDurations": 5,
+  "totalPlanned": 600,
+  "created": 0,
+  "failed": 600,
+  "createdSubscriptions": []
+}

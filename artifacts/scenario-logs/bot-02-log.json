@@ -1,0 +1,34 @@
+{
+  "bot_email": "qa.bot+1769640278347.03@example.com",
+  "scenarios": [
+    {
+      "scenario_id": "SC-000003",
+      "bot_index": 3,
+      "scenario_name": "Renewal 7 days before expiry",
+      "result": "pass",
+      "timestamp": "2026-01-29T00:31:15.668Z",
+      "package": "PILATES",
+      "renewal_type": "early"
+    }
+  ],
+  "memberships": [
+    {
+      "timestamp": "2026-01-29T00:31:15.668Z",
+      "package": "PILATES",
+      "duration": 30,
+      "deposit_amount": 50,
+      "status": "active",
+      "renewal_type": "early_renewal"
+    }
+  ],
+  "cashier_events": [
+    {
+      "timestamp": "2026-01-29T00:31:15.668Z",
+      "event": "renewal_payment",
+      "amount": 50,
+      "reason": "Renewal 7 days before expiry"
+    }
+  ],
+  "lessons_overrides": [],
+  "errors": []
+}

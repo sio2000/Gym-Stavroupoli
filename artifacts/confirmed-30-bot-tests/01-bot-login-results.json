@@ -1,0 +1,188 @@
+{
+  "totalBots": 30,
+  "successfulLogins": 0,
+  "failedLogins": 30,
+  "botResults": [
+    {
+      "bot": "BOT-01",
+      "email": "qa.bot+1769640278347.01@example.com",
+      "status": "failed",
+      "error": "locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button').filter({ hasText: /login|sign in|enter/i }).first()\u001b[22m\n"
+    },
+    {
+      "bot": "BOT-02",
+      "email": "qa.bot+1769640278347.02@example.com",
+      "status": "failed",
+      "error": "locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button').filter({ hasText: /login|sign in|enter/i }).first()\u001b[22m\n"
+    },
+    {
+      "bot": "BOT-03",
+      "email": "qa.bot+1769640278347.03@example.com",
+      "status": "failed",
+      "error": "locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button').filter({ hasText: /login|sign in|enter/i }).first()\u001b[22m\n"
+    },
+    {
+      "bot": "BOT-04",
+      "email": "qa.bot+1769640278347.04@example.com",
+      "status": "failed",
+      "error": "locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button').filter({ hasText: /login|sign in|enter/i }).first()\u001b[22m\n"
+    },
+    {
+      "bot": "BOT-05",
+      "email": "qa.bot+1769640278347.05@example.com",
+      "status": "failed",
+      "error": "locator.click: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for locator('button').filter({ hasText: /login|sign in|enter/i }).first()\u001b[22m\n"
+    },
+    {
+      "bot": "BOT-06",
+      "email": "qa.bot+1769640278347.06@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Test ended.\nBrowser logs:\n\n<launching> C:\\Users\\theoharis\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1208\\chrome-headless-shell-win64\\chrome-headless-shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\\Users\\THEOHA~1\\AppData\\Local\\Temp\\playwright_chromiumdev_profile-y1tzKK --remote-debugging-pipe --no-startup-window\n<launched> pid=37012\n[pid=37012][err] [0128/173124.881:INFO:CONSOLE:495] \"[vite] connecting...\", source: http://localhost:5173/@vite/client (495)\n[pid=37012][err] [0128/173124.948:INFO:CONSOLE:21551] \"%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\", source: http://localhost:5173/node_modules/.vite/deps/chunk-GKJBSOWT.js?v=bad3ee14 (21551)\n[pid=37012][err] [0128/173124.961:INFO:CONSOLE:5445] \"Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.\", source: http://localhost:5173/node_modules/.vite/deps/@supabase_supabase-js.js?v=bad3ee14 (5445)\n[pid=37012][err] [0128/173125.008:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173125.008:INFO:CONSOLE:58] \"[Auth] isInitialized: false\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173125.008:INFO:CONSOLE:113] \"[Auth] Calling getInitialSession...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (113)\n[pid=37012][err] [0128/173125.008:INFO:CONSOLE:66] \"[Auth] Getting initial session...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (66)\n[pid=37012][err] [0128/173125.008:INFO:CONSOLE:115] \"[Auth] Setting up auth state change listener...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (115)\n[pid=37012][err] [0128/173125.008:INFO:CONSOLE:138] \"[Auth] Cleaning up auth context useEffect\", source: http://localhost:5173/src/contexts/AuthContext.tsx (138)\n[pid=37012][err] [0128/173125.009:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173125.009:INFO:CONSOLE:58] \"[Auth] isInitialized: false\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173125.009:INFO:CONSOLE:113] \"[Auth] Calling getInitialSession...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (113)\n[pid=37012][err] [0128/173125.009:INFO:CONSOLE:66] \"[Auth] Getting initial session...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (66)\n[pid=37012][err] [0128/173125.009:INFO:CONSOLE:115] \"[Auth] Setting up auth state change listener...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (115)\n[pid=37012][err] [0128/173125.020:INFO:CONSOLE:82] \"[Auth] Session query result - session: undefined error: null\", source: http://localhost:5173/src/contexts/AuthContext.tsx (82)\n[pid=37012][err] [0128/173125.020:INFO:CONSOLE:91] \"[Auth] Initial session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (91)\n[pid=37012][err] [0128/173125.020:INFO:CONSOLE:92] \"[Auth] User ID from session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (92)\n[pid=37012][err] [0128/173125.021:INFO:CONSOLE:82] \"[Auth] Session query result - session: undefined error: null\", source: http://localhost:5173/src/contexts/AuthContext.tsx (82)\n[pid=37012][err] [0128/173125.021:INFO:CONSOLE:91] \"[Auth] Initial session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (91)\n[pid=37012][err] [0128/173125.021:INFO:CONSOLE:92] \"[Auth] User ID from session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (92)\n[pid=37012][err] [0128/173125.021:INFO:CONSOLE:97] \"[Auth] No session found, setting loading to false and marking as initialized\", source: http://localhost:5173/src/contexts/AuthContext.tsx (97)\n[pid=37012][err] [0128/173125.023:INFO:CONSOLE:138] \"[Auth] Cleaning up auth context useEffect\", source: http://localhost:5173/src/contexts/AuthContext.tsx (138)\n[pid=37012][err] [0128/173125.023:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173125.023:INFO:CONSOLE:58] \"[Auth] isInitialized: true\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173125.024:INFO:CONSOLE:60] \"[Auth] Already initialized, skipping...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (60)\n[pid=37012][err] [0128/173125.185:INFO:CONSOLE:618] \"[vite] connected.\", source: http://localhost:5173/@vite/client (618)\n[pid=37012][err] [0128/173130.418:INFO:CONSOLE:495] \"[vite] connecting...\", source: http://localhost:5173/@vite/client (495)\n[pid=37012][err] [0128/173130.476:INFO:CONSOLE:21551] \"%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\", source: http://localhost:5173/node_modules/.vite/deps/chunk-GKJBSOWT.js?v=bad3ee14 (21551)\n[pid=37012][err] [0128/173130.490:INFO:CONSOLE:5445] \"Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.\", source: http://localhost:5173/node_modules/.vite/deps/@supabase_supabase-js.js?v=bad3ee14 (5445)\n[pid=37012][err] [0128/173130.532:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173130.532:INFO:CONSOLE:58] \"[Auth] isInitialized: false\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173130.532:INFO:CONSOLE:113] \"[Auth] Calling getInitialSession...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (113)\n[pid=37012][err] [0128/173130.533:INFO:CONSOLE:66] \"[Auth] Getting initial session...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (66)\n[pid=37012][err] [0128/173130.533:INFO:CONSOLE:115] \"[Auth] Setting up auth state change listener...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (115)\n[pid=37012][err] [0128/173130.533:INFO:CONSOLE:138] \"[Auth] Cleaning up auth context useEffect\", source: http://localhost:5173/src/contexts/AuthContext.tsx (138)\n[pid=37012][err] [0128/173130.533:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173130.533:INFO:CONSOLE:58] \"[Auth] isInitialized: false\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173130.533:INFO:CONSOLE:113] \"[Auth] Calling getInitialSession...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (113)\n[pid=37012][err] [0128/173130.533:INFO:CONSOLE:66] \"[Auth] Getting initial session...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (66)\n[pid=37012][err] [0128/173130.533:INFO:CONSOLE:115] \"[Auth] Setting up auth state change listener...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (115)\n[pid=37012][err] [0128/173130.539:INFO:CONSOLE:82] \"[Auth] Session query result - session: undefined error: null\", source: http://localhost:5173/src/contexts/AuthContext.tsx (82)\n[pid=37012][err] [0128/173130.540:INFO:CONSOLE:91] \"[Auth] Initial session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (91)\n[pid=37012][err] [0128/173130.540:INFO:CONSOLE:92] \"[Auth] User ID from session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (92)\n[pid=37012][err] [0128/173130.540:INFO:CONSOLE:82] \"[Auth] Session query result - session: undefined error: null\", source: http://localhost:5173/src/contexts/AuthContext.tsx (82)\n[pid=37012][err] [0128/173130.540:INFO:CONSOLE:91] \"[Auth] Initial session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (91)\n[pid=37012][err] [0128/173130.540:INFO:CONSOLE:92] \"[Auth] User ID from session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (92)\n[pid=37012][err] [0128/173130.540:INFO:CONSOLE:97] \"[Auth] No session found, setting loading to false and marking as initialized\", source: http://localhost:5173/src/contexts/AuthContext.tsx (97)\n[pid=37012][err] [0128/173130.543:INFO:CONSOLE:138] \"[Auth] Cleaning up auth context useEffect\", source: http://localhost:5173/src/contexts/AuthContext.tsx (138)\n[pid=37012][err] [0128/173130.543:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173130.543:INFO:CONSOLE:58] \"[Auth] isInitialized: true\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173130.543:INFO:CONSOLE:60] \"[Auth] Already initialized, skipping...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (60)\n[pid=37012][err] [0128/173130.734:INFO:CONSOLE:618] \"[vite] connected.\", source: http://localhost:5173/@vite/client (618)\n[pid=37012][err] [0128/173135.934:INFO:CONSOLE:495] \"[vite] connecting...\", source: http://localhost:5173/@vite/client (495)\n[pid=37012][err] [0128/173135.991:INFO:CONSOLE:21551] \"%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\", source: http://localhost:5173/node_modules/.vite/deps/chunk-GKJBSOWT.js?v=bad3ee14 (21551)\n[pid=37012][err] [0128/173136.001:INFO:CONSOLE:5445] \"Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.\", source: http://localhost:5173/node_modules/.vite/deps/@supabase_supabase-js.js?v=bad3ee14 (5445)\n[pid=37012][err] [0128/173136.043:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173136.043:INFO:CONSOLE:58] \"[Auth] isInitialized: false\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173136.043:INFO:CONSOLE:113] \"[Auth] Calling getInitialSession...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (113)\n[pid=37012][err] [0128/173136.043:INFO:CONSOLE:66] \"[Auth] Getting initial session...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (66)\n[pid=37012][err] [0128/173136.043:INFO:CONSOLE:115] \"[Auth] Setting up auth state change listener...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (115)\n[pid=37012][err] [0128/173136.044:INFO:CONSOLE:138] \"[Auth] Cleaning up auth context useEffect\", source: http://localhost:5173/src/contexts/AuthContext.tsx (138)\n[pid=37012][err] [0128/173136.044:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173136.044:INFO:CONSOLE:58] \"[Auth] isInitialized: false\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173136.044:INFO:CONSOLE:113] \"[Auth] Calling getInitialSession...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (113)\n[pid=37012][err] [0128/173136.044:INFO:CONSOLE:66] \"[Auth] Getting initial session...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (66)\n[pid=37012][err] [0128/173136.044:INFO:CONSOLE:115] \"[Auth] Setting up auth state change listener...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (115)\n[pid=37012][err] [0128/173136.050:INFO:CONSOLE:82] \"[Auth] Session query result - session: undefined error: null\", source: http://localhost:5173/src/contexts/AuthContext.tsx (82)\n[pid=37012][err] [0128/173136.050:INFO:CONSOLE:91] \"[Auth] Initial session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (91)\n[pid=37012][err] [0128/173136.050:INFO:CONSOLE:92] \"[Auth] User ID from session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (92)\n[pid=37012][err] [0128/173136.051:INFO:CONSOLE:82] \"[Auth] Session query result - session: undefined error: null\", source: http://localhost:5173/src/contexts/AuthContext.tsx (82)\n[pid=37012][err] [0128/173136.051:INFO:CONSOLE:91] \"[Auth] Initial session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (91)\n[pid=37012][err] [0128/173136.051:INFO:CONSOLE:92] \"[Auth] User ID from session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (92)\n[pid=37012][err] [0128/173136.051:INFO:CONSOLE:97] \"[Auth] No session found, setting loading to false and marking as initialized\", source: http://localhost:5173/src/contexts/AuthContext.tsx (97)\n[pid=37012][err] [0128/173136.054:INFO:CONSOLE:138] \"[Auth] Cleaning up auth context useEffect\", source: http://localhost:5173/src/contexts/AuthContext.tsx (138)\n[pid=37012][err] [0128/173136.054:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173136.054:INFO:CONSOLE:58] \"[Auth] isInitialized: true\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173136.054:INFO:CONSOLE:60] \"[Auth] Already initialized, skipping...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (60)\n[pid=37012][err] [0128/173136.245:INFO:CONSOLE:618] \"[vite] connected.\", source: http://localhost:5173/@vite/client (618)\n[pid=37012][err] [0128/173141.436:INFO:CONSOLE:495] \"[vite] connecting...\", source: http://localhost:5173/@vite/client (495)\n[pid=37012][err] [0128/173141.496:INFO:CONSOLE:21551] \"%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\", source: http://localhost:5173/node_modules/.vite/deps/chunk-GKJBSOWT.js?v=bad3ee14 (21551)\n[pid=37012][err] [0128/173141.508:INFO:CONSOLE:5445] \"Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.\", source: http://localhost:5173/node_modules/.vite/deps/@supabase_supabase-js.js?v=bad3ee14 (5445)\n[pid=37012][err] [0128/173141.551:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173141.551:INFO:CONSOLE:58] \"[Auth] isInitialized: false\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173141.551:INFO:CONSOLE:113] \"[Auth] Calling getInitialSession...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (113)\n[pid=37012][err] [0128/173141.552:INFO:CONSOLE:66] \"[Auth] Getting initial session...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (66)\n[pid=37012][err] [0128/173141.552:INFO:CONSOLE:115] \"[Auth] Setting up auth state change listener...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (115)\n[pid=37012][err] [0128/173141.552:INFO:CONSOLE:138] \"[Auth] Cleaning up auth context useEffect\", source: http://localhost:5173/src/contexts/AuthContext.tsx (138)\n[pid=37012][err] [0128/173141.552:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173141.552:INFO:CONSOLE:58] \"[Auth] isInitialized: false\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173141.552:INFO:CONSOLE:113] \"[Auth] Calling getInitialSession...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (113)\n[pid=37012][err] [0128/173141.552:INFO:CONSOLE:66] \"[Auth] Getting initial session...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (66)\n[pid=37012][err] [0128/173141.552:INFO:CONSOLE:115] \"[Auth] Setting up auth state change listener...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (115)\n[pid=37012][err] [0128/173141.557:INFO:CONSOLE:82] \"[Auth] Session query result - session: undefined error: null\", source: http://localhost:5173/src/contexts/AuthContext.tsx (82)\n[pid=37012][err] [0128/173141.557:INFO:CONSOLE:91] \"[Auth] Initial session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (91)\n[pid=37012][err] [0128/173141.557:INFO:CONSOLE:92] \"[Auth] User ID from session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (92)\n[pid=37012][err] [0128/173141.558:INFO:CONSOLE:82] \"[Auth] Session query result - session: undefined error: null\", source: http://localhost:5173/src/contexts/AuthContext.tsx (82)\n[pid=37012][err] [0128/173141.558:INFO:CONSOLE:91] \"[Auth] Initial session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (91)\n[pid=37012][err] [0128/173141.558:INFO:CONSOLE:92] \"[Auth] User ID from session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (92)\n[pid=37012][err] [0128/173141.558:INFO:CONSOLE:97] \"[Auth] No session found, setting loading to false and marking as initialized\", source: http://localhost:5173/src/contexts/AuthContext.tsx (97)\n[pid=37012][err] [0128/173141.561:INFO:CONSOLE:138] \"[Auth] Cleaning up auth context useEffect\", source: http://localhost:5173/src/contexts/AuthContext.tsx (138)\n[pid=37012][err] [0128/173141.561:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173141.561:INFO:CONSOLE:58] \"[Auth] isInitialized: true\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173141.561:INFO:CONSOLE:60] \"[Auth] Already initialized, skipping...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (60)\n[pid=37012][err] [0128/173141.746:INFO:CONSOLE:618] \"[vite] connected.\", source: http://localhost:5173/@vite/client (618)\n[pid=37012][err] [0128/173146.963:INFO:CONSOLE:495] \"[vite] connecting...\", source: http://localhost:5173/@vite/client (495)\n[pid=37012][err] [0128/173147.023:INFO:CONSOLE:21551] \"%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\", source: http://localhost:5173/node_modules/.vite/deps/chunk-GKJBSOWT.js?v=bad3ee14 (21551)\n[pid=37012][err] [0128/173147.034:INFO:CONSOLE:5445] \"Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.\", source: http://localhost:5173/node_modules/.vite/deps/@supabase_supabase-js.js?v=bad3ee14 (5445)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:58] \"[Auth] isInitialized: false\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:113] \"[Auth] Calling getInitialSession...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (113)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:66] \"[Auth] Getting initial session...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (66)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:115] \"[Auth] Setting up auth state change listener...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (115)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:138] \"[Auth] Cleaning up auth context useEffect\", source: http://localhost:5173/src/contexts/AuthContext.tsx (138)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:58] \"[Auth] isInitialized: false\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:113] \"[Auth] Calling getInitialSession...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (113)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:66] \"[Auth] Getting initial session...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (66)\n[pid=37012][err] [0128/173147.077:INFO:CONSOLE:115] \"[Auth] Setting up auth state change listener...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (115)\n[pid=37012][err] [0128/173147.082:INFO:CONSOLE:82] \"[Auth] Session query result - session: undefined error: null\", source: http://localhost:5173/src/contexts/AuthContext.tsx (82)\n[pid=37012][err] [0128/173147.082:INFO:CONSOLE:91] \"[Auth] Initial session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (91)\n[pid=37012][err] [0128/173147.082:INFO:CONSOLE:92] \"[Auth] User ID from session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (92)\n[pid=37012][err] [0128/173147.083:INFO:CONSOLE:82] \"[Auth] Session query result - session: undefined error: null\", source: http://localhost:5173/src/contexts/AuthContext.tsx (82)\n[pid=37012][err] [0128/173147.083:INFO:CONSOLE:91] \"[Auth] Initial session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (91)\n[pid=37012][err] [0128/173147.083:INFO:CONSOLE:92] \"[Auth] User ID from session: undefined\", source: http://localhost:5173/src/contexts/AuthContext.tsx (92)\n[pid=37012][err] [0128/173147.083:INFO:CONSOLE:97] \"[Auth] No session found, setting loading to false and marking as initialized\", source: http://localhost:5173/src/contexts/AuthContext.tsx (97)\n[pid=37012][err] [0128/173147.087:INFO:CONSOLE:138] \"[Auth] Cleaning up auth context useEffect\", source: http://localhost:5173/src/contexts/AuthContext.tsx (138)\n[pid=37012][err] [0128/173147.087:INFO:CONSOLE:57] \"[Auth] ===== AUTH CONTEXT USEEFFECT STARTED =====\", source: http://localhost:5173/src/contexts/AuthContext.tsx (57)\n[pid=37012][err] [0128/173147.087:INFO:CONSOLE:58] \"[Auth] isInitialized: true\", source: http://localhost:5173/src/contexts/AuthContext.tsx (58)\n[pid=37012][err] [0128/173147.087:INFO:CONSOLE:60] \"[Auth] Already initialized, skipping...\", source: http://localhost:5173/src/contexts/AuthContext.tsx (60)\n[pid=37012][err] [0128/173147.267:INFO:CONSOLE:618] \"[vite] connected.\", source: http://localhost:5173/@vite/client (618)\n[pid=37012] <gracefully close start>"
+    },
+    {
+      "bot": "BOT-07",
+      "email": "qa.bot+1769640278347.07@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-08",
+      "email": "qa.bot+1769640278347.08@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-09",
+      "email": "qa.bot+1769640278347.09@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-10",
+      "email": "qa.bot+1769640278347.10@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-11",
+      "email": "qa.bot+1769640278347.11@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-12",
+      "email": "qa.bot+1769640278347.12@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-13",
+      "email": "qa.bot+1769640278347.13@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-14",
+      "email": "qa.bot+1769640278347.14@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-15",
+      "email": "qa.bot+1769640278347.15@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-16",
+      "email": "qa.bot+1769640278347.16@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-17",
+      "email": "qa.bot+1769640278347.17@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-18",
+      "email": "qa.bot+1769640278347.18@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-19",
+      "email": "qa.bot+1769640278347.19@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-20",
+      "email": "qa.bot+1769640278347.20@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-21",
+      "email": "qa.bot+1769640278347.21@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-22",
+      "email": "qa.bot+1769640278347.22@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-23",
+      "email": "qa.bot+1769640278347.23@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-24",
+      "email": "qa.bot+1769640278347.24@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-25",
+      "email": "qa.bot+1769640278347.25@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-26",
+      "email": "qa.bot+1769640278347.26@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-27",
+      "email": "qa.bot+1769640278347.27@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-28",
+      "email": "qa.bot+1769640278347.28@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-29",
+      "email": "qa.bot+1769640278347.29@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    },
+    {
+      "bot": "BOT-30",
+      "email": "qa.bot+1769640278347.30@example.com",
+      "status": "failed",
+      "error": "browser.newContext: Target page, context or browser has been closed"
+    }
+  ],
+  "timestamp": "2026-01-29T01:31:24.471Z"
+}

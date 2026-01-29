@@ -1,0 +1,19 @@
+{
+  "bot_email": "qa.bot+1769640278347.07@example.com",
+  "scenarios": [
+    {
+      "scenario_id": "SC-000007",
+      "bot_index": 7,
+      "scenario_name": "Double-click protection (ULTIMATE MEDIUM)",
+      "result": "pass",
+      "timestamp": "2026-01-29T00:31:18.186Z",
+      "concurrent_attempts": 2,
+      "successful_creations": 0,
+      "protected": true
+    }
+  ],
+  "memberships": [],
+  "cashier_events": [],
+  "lessons_overrides": [],
+  "errors": []
+}

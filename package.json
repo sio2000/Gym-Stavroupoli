@@ -36,8 +36,8 @@
     "version:bump": "tsx scripts/versionManager.ts bump",
     "version:patch": "tsx scripts/versionManager.ts patch",
     "install:playwright": "npx playwright install --with-deps",
-    "create-bots": "node scripts/create_test_bots.js",
-    "cleanup:testdata": "node scripts/cleanup_test_data.js",
+    "create-bots": "node scripts/create_test_bots.cjs",
+    "cleanup:testdata": "node scripts/cleanup_test_data.cjs",
     "e2e:test": "npx playwright test --project=chromium",
     "e2e:test:headed": "npx playwright test --headed"
   },

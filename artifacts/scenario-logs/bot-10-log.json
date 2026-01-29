@@ -1,0 +1,53 @@
+{
+  "bot_email": "qa.bot+1769640278347.11@example.com",
+  "scenarios": [
+    {
+      "scenario_id": "SC-000011",
+      "bot_index": 11,
+      "scenario_name": "ULTIMATE weekly refill (4 weeks)",
+      "result": "pass",
+      "timestamp": "2026-01-29T00:31:18.211Z",
+      "weeks": 4,
+      "refill_per_week": 10,
+      "total_refilled": 40
+    }
+  ],
+  "memberships": [
+    {
+      "timestamp": "2026-01-29T00:31:18.211Z",
+      "package": "ULTIMATE",
+      "duration": 60,
+      "refill_enabled": true,
+      "weeks_simulated": 4,
+      "total_refilled": 40
+    }
+  ],
+  "cashier_events": [
+    {
+      "timestamp": "2026-01-29T00:31:18.211Z",
+      "event": "weekly_refill_week_1",
+      "amount": 10,
+      "date": "2026-02-05"
+    },
+    {
+      "timestamp": "2026-01-29T00:31:18.211Z",
+      "event": "weekly_refill_week_2",
+      "amount": 10,
+      "date": "2026-02-12"
+    },
+    {
+      "timestamp": "2026-01-29T00:31:18.211Z",
+      "event": "weekly_refill_week_3",
+      "amount": 10,
+      "date": "2026-02-19"
+    },
+    {
+      "timestamp": "2026-01-29T00:31:18.211Z",
+      "event": "weekly_refill_week_4",
+      "amount": 10,
+      "date": "2026-02-26"
+    }
+  ],
+  "lessons_overrides": [],
+  "errors": []
+}

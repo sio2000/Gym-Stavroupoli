@@ -61,7 +61,7 @@ async function fixUserProfilesDisplay() {
       
       const { data: newUser, error: createError } = await serviceSupabase.auth.admin.createUser({
         email: 'receptiongym2025@gmail.com',
-        password: 'reception2025',
+        password: 'Reception123!',
         email_confirm: true,
         user_metadata: {
           role: 'secretary',
@@ -102,7 +102,7 @@ async function fixUserProfilesDisplay() {
     
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: 'receptiongym2025@gmail.com',
-      password: 'reception2025'
+      password: 'Reception123!'
     });
     
     if (authError) {

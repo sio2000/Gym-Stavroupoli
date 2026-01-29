@@ -1,0 +1,39 @@
+{
+  "bot_email": "qa.bot+1769640278347.09@example.com",
+  "scenarios": [
+    {
+      "scenario_id": "SC-000009",
+      "bot_index": 9,
+      "scenario_name": "Cancel and recreate PILATES",
+      "result": "pass",
+      "timestamp": "2026-01-29T00:31:18.198Z",
+      "original_duration": 30,
+      "new_duration": 60,
+      "status_transition": "active → cancelled → active"
+    }
+  ],
+  "memberships": [
+    {
+      "timestamp": "2026-01-29T00:31:18.198Z",
+      "package": "PILATES",
+      "status": "active",
+      "action": "created"
+    },
+    {
+      "timestamp": "2026-01-29T00:31:18.198Z",
+      "package": "PILATES",
+      "status": "cancelled",
+      "action": "cancelled"
+    },
+    {
+      "timestamp": "2026-01-29T00:31:18.198Z",
+      "package": "PILATES",
+      "duration": 60,
+      "status": "active",
+      "action": "recreated"
+    }
+  ],
+  "cashier_events": [],
+  "lessons_overrides": [],
+  "errors": []
+}

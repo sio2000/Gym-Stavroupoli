@@ -1,0 +1,26 @@
+[
+  {
+    "scenario": "Pilates 7-day subscription",
+    "package": "PILATES",
+    "duration": 7,
+    "status": "verified"
+  },
+  {
+    "scenario": "Ultimate 30-day subscription",
+    "package": "ULTIMATE",
+    "duration": 30,
+    "status": "verified"
+  },
+  {
+    "scenario": "Ultimate Medium 14-day subscription",
+    "package": "ULTIMATE_MEDIUM",
+    "duration": 14,
+    "status": "verified"
+  },
+  {
+    "scenario": "Free Gym 60-day subscription",
+    "package": "FREEGYM",
+    "duration": 60,
+    "status": "verified"
+  }
+]

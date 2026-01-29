@@ -16,7 +16,7 @@ async function testSecretaryAccess() {
     console.log('📧 [Secretary Test] Logging in as secretary...');
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: 'receptiongym2025@gmail.com',
-      password: 'reception2025'
+      password: 'Reception123!'
     });
 
     if (authError) {

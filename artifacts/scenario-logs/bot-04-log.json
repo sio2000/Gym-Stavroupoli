@@ -1,0 +1,35 @@
+{
+  "bot_email": "qa.bot+1769640278347.05@example.com",
+  "scenarios": [
+    {
+      "scenario_id": "SC-000005",
+      "bot_index": 5,
+      "scenario_name": "Cashier: purchase + partial refund",
+      "result": "pass",
+      "timestamp": "2026-01-29T00:31:15.680Z",
+      "full_payment": false,
+      "partial_refund": false
+    }
+  ],
+  "memberships": [],
+  "cashier_events": [
+    {
+      "timestamp": "2026-01-29T00:31:15.680Z",
+      "membership_id": "membership-1769646675680",
+      "amount": 50,
+      "type": "PAYMENT",
+      "status": "error",
+      "error": "Failed to parse URL from undefined/rest/v1/cashier_transactions"
+    },
+    {
+      "timestamp": "2026-01-29T00:31:15.680Z",
+      "membership_id": "membership-1769646675680",
+      "amount": -10,
+      "type": "REFUND",
+      "status": "error",
+      "error": "Failed to parse URL from undefined/rest/v1/cashier_transactions"
+    }
+  ],
+  "lessons_overrides": [],
+  "errors": []
+}

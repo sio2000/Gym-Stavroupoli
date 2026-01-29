@@ -1,0 +1,82 @@
+{
+  "totalBots": 30,
+  "accessibleBots": 0,
+  "failedBots": [
+    {
+      "botId": "95b99236-00bc-467a-bb83-4bb5bb8128d1",
+      "email": "qa.bot+1769640278347.01@example.com",
+      "error": "locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button').filter({ hasText: /login|sign in/i }).first()\u001b[22m\n"
+    },
+    {
+      "botId": "a5ba2e22-1fa4-43dc-a629-d1542af02c69",
+      "email": "qa.bot+1769640278347.02@example.com",
+      "error": "locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button').filter({ hasText: /login|sign in/i }).first()\u001b[22m\n"
+    },
+    {
+      "botId": "b79c8705-df0e-4180-9091-b2290aa72a40",
+      "email": "qa.bot+1769640278347.03@example.com",
+      "error": "locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button').filter({ hasText: /login|sign in/i }).first()\u001b[22m\n"
+    },
+    {
+      "botId": "f7aae5a7-3799-48ef-94a0-ca8c4c5e78a6",
+      "email": "qa.bot+1769640278347.04@example.com",
+      "error": "locator.click: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for locator('button').filter({ hasText: /login|sign in/i }).first()\u001b[22m\n"
+    },
+    {
+      "botId": "9039bba9-3090-431f-95ad-2af8c866cd6b",
+      "email": "qa.bot+1769640278347.05@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    },
+    {
+      "botId": "283c4264-bf24-4604-bd8e-c457532842d3",
+      "email": "qa.bot+1769640278347.06@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    },
+    {
+      "botId": "376e2a0d-88c9-4fcb-88d9-a5e64c04e784",
+      "email": "qa.bot+1769640278347.07@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    },
+    {
+      "botId": "22db9223-5401-4eae-9b90-47159ff78520",
+      "email": "qa.bot+1769640278347.08@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    },
+    {
+      "botId": "46ce6946-ce3a-47d8-8639-2ea09c5257bd",
+      "email": "qa.bot+1769640278347.09@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    },
+    {
+      "botId": "b8bef962-db94-4d29-8bed-16cbe39a070e",
+      "email": "qa.bot+1769640278347.10@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    },
+    {
+      "botId": "36c92ae6-3416-491c-a7a6-be75af84d90e",
+      "email": "qa.bot+1769640278347.11@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    },
+    {
+      "botId": "0dfc567d-2cda-47ca-887a-6a228bebb117",
+      "email": "qa.bot+1769640278347.12@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    },
+    {
+      "botId": "f418065c-9d59-4b8c-8305-60f8b53713aa",
+      "email": "qa.bot+1769640278347.13@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    },
+    {
+      "botId": "236cb9f4-5c91-44a5-9733-c69fb0d7ef6f",
+      "email": "qa.bot+1769640278347.14@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    },
+    {
+      "botId": "a5e3c3bd-2c59-40c0-af56-725608dabbc0",
+      "email": "qa.bot+1769640278347.15@example.com",
+      "error": "page.goto: Target page, context or browser has been closed"
+    }
+  ],
+  "timestamp": "2026-01-29T01:14:01.618Z"
+}

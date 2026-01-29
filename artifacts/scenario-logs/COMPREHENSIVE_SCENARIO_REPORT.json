@@ -1,0 +1,102 @@
+{
+  "total_scenarios": 11,
+  "passed_scenarios": 8,
+  "failed_scenarios": 3,
+  "by_package": {
+    "PILATES": {
+      "total": 7,
+      "passed": 5,
+      "failed": 2
+    },
+    "ULTIMATE": {
+      "total": 3,
+      "passed": 2,
+      "failed": 1
+    },
+    "ULTIMATE_MEDIUM": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "by_scenario_type": {
+    "create_and_verify": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "renew_before_expiry": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "renew_at_expiry": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "freeze_unfreeze": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "cancel_recreate": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "upgrade_downgrade": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "cashier_purchase": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "cashier_partial": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "weekly_refill_ultimate": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "lessons_override": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "lessons_visibility": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "concurrent_creation": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "double_click_protection": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "time_progression": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "expiration_safety": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    }
+  },
+  "bot_summary": {},
+  "edge_cases": [],
+  "timestamp": "2026-01-29T00:31:15.610Z"
+}

@@ -1,0 +1,17 @@
+{
+  "bot_email": "qa.bot+1769640278347.01@example.com",
+  "scenarios": [
+    {
+      "scenario_id": "SC-000001",
+      "bot_index": 1,
+      "scenario_name": "Create PILATES 30-day membership",
+      "result": "fail",
+      "timestamp": "2026-01-29T00:31:15.648Z",
+      "error": "Membership creation failed"
+    }
+  ],
+  "memberships": [],
+  "cashier_events": [],
+  "lessons_overrides": [],
+  "errors": []
+}

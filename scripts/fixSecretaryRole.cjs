@@ -126,7 +126,7 @@ async function fixSecretaryRole() {
     
     const { data: testAuth, error: testAuthError } = await testSupabase.auth.signInWithPassword({
       email: 'receptiongym2025@gmail.com',
-      password: 'reception2025'
+      password: 'Reception123!'
     });
     
     if (testAuthError) {

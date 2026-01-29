@@ -1,0 +1,10 @@
+{
+  "packageRules": {
+    "PILATES": "✅ PILATES classes only - NO calendar bookings",
+    "ULTIMATE": "✅ All lesson types available",
+    "ULTIMATE_MEDIUM": "✅ Selected lessons available",
+    "FREEGYM": "✅ Limited lesson access"
+  },
+  "enforcementVerified": true,
+  "timestamp": "2026-01-29T01:14:55.291Z"
+}

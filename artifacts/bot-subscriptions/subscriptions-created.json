@@ -1,0 +1,250 @@
+{
+  "created": 30,
+  "failed": 0,
+  "subscriptions": [
+    {
+      "botEmail": "qa.bot+1769640278347.01@example.com",
+      "userId": "95b99236-00bc-467a-bb83-4bb5bb8128d1",
+      "package": "PILATES",
+      "packageUUID": "c16de111-3687-41ce-a446-5af61a3c6eff",
+      "id": "b9126811-d348-4c9a-b0ac-300150033c92",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.02@example.com",
+      "userId": "a5ba2e22-1fa4-43dc-a629-d1542af02c69",
+      "package": "ULTIMATE",
+      "packageUUID": "feefb0d8-edc5-4eb1-befa-0b69a43ca75d",
+      "id": "04e22134-626f-489e-b355-6d7551477fa7",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.03@example.com",
+      "userId": "b79c8705-df0e-4180-9091-b2290aa72a40",
+      "package": "ULTIMATE_MEDIUM",
+      "packageUUID": "728cc455-f122-4aca-8319-5cb0f44ec590",
+      "id": "d28d9c6c-f250-4d9b-8de4-8d101aac213c",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.04@example.com",
+      "userId": "f7aae5a7-3799-48ef-94a0-ca8c4c5e78a6",
+      "package": "FREEGYM",
+      "packageUUID": "95bdb862-6cb4-4f57-a20e-3c6422f055dd",
+      "id": "e01988ec-2cc8-4aa7-b3d3-6e3512ab7e9e",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.05@example.com",
+      "userId": "9039bba9-3090-431f-95ad-2af8c866cd6b",
+      "package": "PILATES",
+      "packageUUID": "c16de111-3687-41ce-a446-5af61a3c6eff",
+      "id": "daf2b72e-ac59-4f53-ac99-cbba2712cb02",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.06@example.com",
+      "userId": "283c4264-bf24-4604-bd8e-c457532842d3",
+      "package": "ULTIMATE",
+      "packageUUID": "feefb0d8-edc5-4eb1-befa-0b69a43ca75d",
+      "id": "d880dab8-bb67-4db2-9ed5-69bd17738b90",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.07@example.com",
+      "userId": "376e2a0d-88c9-4fcb-88d9-a5e64c04e784",
+      "package": "ULTIMATE_MEDIUM",
+      "packageUUID": "728cc455-f122-4aca-8319-5cb0f44ec590",
+      "id": "23c4c62f-2696-45a3-bad6-4e4bfce46759",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.08@example.com",
+      "userId": "22db9223-5401-4eae-9b90-47159ff78520",
+      "package": "FREEGYM",
+      "packageUUID": "95bdb862-6cb4-4f57-a20e-3c6422f055dd",
+      "id": "3df01452-fbe3-42d2-ae31-e171880c974c",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.09@example.com",
+      "userId": "46ce6946-ce3a-47d8-8639-2ea09c5257bd",
+      "package": "PILATES",
+      "packageUUID": "c16de111-3687-41ce-a446-5af61a3c6eff",
+      "id": "c8d6961f-8d09-4b74-8b80-cd922e642755",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.10@example.com",
+      "userId": "b8bef962-db94-4d29-8bed-16cbe39a070e",
+      "package": "ULTIMATE",
+      "packageUUID": "feefb0d8-edc5-4eb1-befa-0b69a43ca75d",
+      "id": "5ddfdc23-d73c-4f31-a1e7-75ba8f0501a6",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.11@example.com",
+      "userId": "36c92ae6-3416-491c-a7a6-be75af84d90e",
+      "package": "ULTIMATE_MEDIUM",
+      "packageUUID": "728cc455-f122-4aca-8319-5cb0f44ec590",
+      "id": "06f15880-221e-49bd-8da9-d4ac20cad735",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.12@example.com",
+      "userId": "0dfc567d-2cda-47ca-887a-6a228bebb117",
+      "package": "FREEGYM",
+      "packageUUID": "95bdb862-6cb4-4f57-a20e-3c6422f055dd",
+      "id": "f0f19b52-b837-4671-8c77-f22fb8cfcff7",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.13@example.com",
+      "userId": "f418065c-9d59-4b8c-8305-60f8b53713aa",
+      "package": "PILATES",
+      "packageUUID": "c16de111-3687-41ce-a446-5af61a3c6eff",
+      "id": "8cd81c5e-c13a-4bb0-b4b1-bfb7c7aaa8e9",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.14@example.com",
+      "userId": "236cb9f4-5c91-44a5-9733-c69fb0d7ef6f",
+      "package": "ULTIMATE",
+      "packageUUID": "feefb0d8-edc5-4eb1-befa-0b69a43ca75d",
+      "id": "84a41d57-f808-4b41-9811-ab74015c7830",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.15@example.com",
+      "userId": "a5e3c3bd-2c59-40c0-af56-725608dabbc0",
+      "package": "ULTIMATE_MEDIUM",
+      "packageUUID": "728cc455-f122-4aca-8319-5cb0f44ec590",
+      "id": "6d3dfdaa-7e98-4405-bb0f-3e79e3c4d157",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.16@example.com",
+      "userId": "d51bcdd1-c3ab-461d-9a00-ab5ec4df35bf",
+      "package": "FREEGYM",
+      "packageUUID": "95bdb862-6cb4-4f57-a20e-3c6422f055dd",
+      "id": "8d1b4807-1157-4c61-8b1f-d1c6d1695fd8",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.17@example.com",
+      "userId": "2ce35c1a-ba0f-46ff-80bd-11f3192bfb62",
+      "package": "PILATES",
+      "packageUUID": "c16de111-3687-41ce-a446-5af61a3c6eff",
+      "id": "447c8f27-e14a-42d9-9596-9547d2940d67",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.18@example.com",
+      "userId": "565c1357-dead-4d59-92ef-69ca053e3b94",
+      "package": "ULTIMATE",
+      "packageUUID": "feefb0d8-edc5-4eb1-befa-0b69a43ca75d",
+      "id": "a0c6056d-e36e-4835-9c7b-8e57d2cdfb99",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.19@example.com",
+      "userId": "7d6090ab-44ab-44c3-9ccf-ab51caedce25",
+      "package": "ULTIMATE_MEDIUM",
+      "packageUUID": "728cc455-f122-4aca-8319-5cb0f44ec590",
+      "id": "58f27e26-9954-491f-9f64-4d0eae67a891",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.20@example.com",
+      "userId": "013e4a07-abb8-418c-96f2-4f893a4ed0f9",
+      "package": "FREEGYM",
+      "packageUUID": "95bdb862-6cb4-4f57-a20e-3c6422f055dd",
+      "id": "0dbdb47e-513e-459b-9027-747716d1d0e4",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.21@example.com",
+      "userId": "c6d93ab0-44de-4b1d-9699-e7c20bf14c40",
+      "package": "PILATES",
+      "packageUUID": "c16de111-3687-41ce-a446-5af61a3c6eff",
+      "id": "0c684045-fca5-4826-b44e-7dc005c45371",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.22@example.com",
+      "userId": "64dd04f6-1517-4c94-8549-12dbf5dd2049",
+      "package": "ULTIMATE",
+      "packageUUID": "feefb0d8-edc5-4eb1-befa-0b69a43ca75d",
+      "id": "892eec8d-26e1-4c40-bb56-9475a5cd76bf",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.23@example.com",
+      "userId": "6466b815-7ba5-4ec3-8cc9-a57949ce61bc",
+      "package": "ULTIMATE_MEDIUM",
+      "packageUUID": "728cc455-f122-4aca-8319-5cb0f44ec590",
+      "id": "b4c5f50a-085e-4fa2-bc40-200afa6ad7d7",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.24@example.com",
+      "userId": "c91ebfeb-0b8b-4483-826e-d1a3337233d2",
+      "package": "FREEGYM",
+      "packageUUID": "95bdb862-6cb4-4f57-a20e-3c6422f055dd",
+      "id": "89aff0fe-a54f-4062-a3cd-6c4476f5eea3",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.25@example.com",
+      "userId": "a59e3d5a-7354-4ab4-991d-395bbf65344a",
+      "package": "PILATES",
+      "packageUUID": "c16de111-3687-41ce-a446-5af61a3c6eff",
+      "id": "41d5e5f2-6e87-4f7a-953b-038745a35f1d",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.26@example.com",
+      "userId": "dbdf7655-22aa-439d-8820-d51251bbe7b9",
+      "package": "ULTIMATE",
+      "packageUUID": "feefb0d8-edc5-4eb1-befa-0b69a43ca75d",
+      "id": "8f8c22a4-5472-4086-af31-d6c611975019",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.27@example.com",
+      "userId": "3f4ae9b4-a925-4e3a-8a35-2e1251b96097",
+      "package": "ULTIMATE_MEDIUM",
+      "packageUUID": "728cc455-f122-4aca-8319-5cb0f44ec590",
+      "id": "1dff0939-a11e-4c61-aec6-a3bbe0579253",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.28@example.com",
+      "userId": "a8a27e5c-2214-41f7-b441-88f204f62eb5",
+      "package": "FREEGYM",
+      "packageUUID": "95bdb862-6cb4-4f57-a20e-3c6422f055dd",
+      "id": "280f5274-f479-40bb-877b-2f4a88353513",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.29@example.com",
+      "userId": "58e5f4e2-8307-44e4-a6ee-f66e0c5f5827",
+      "package": "PILATES",
+      "packageUUID": "c16de111-3687-41ce-a446-5af61a3c6eff",
+      "id": "2f74ceee-5a2a-4604-aff6-962abef8d80d",
+      "status": "created"
+    },
+    {
+      "botEmail": "qa.bot+1769640278347.30@example.com",
+      "userId": "a1c61f7c-1652-4081-aaa8-55dc1e76e4d1",
+      "package": "ULTIMATE",
+      "packageUUID": "feefb0d8-edc5-4eb1-befa-0b69a43ca75d",
+      "id": "cbb40f8e-3202-4fff-8e3a-8f4f37a12ed0",
+      "status": "created"
+    }
+  ],
+  "timestamp": "2026-01-29T01:42:42.128Z",
+  "startTime": 1769650962128,
+  "endTime": 1769650969414,
+  "duration": "7.29s"
+}

@@ -1,0 +1,42 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - img "Get Fit Logo" [ref=e8]
+    - heading "Καλώς ήρθες στο Get Fit" [level=2] [ref=e9]
+    - paragraph [ref=e10]: Σύνδεση στην εφαρμογή διαχείρισης γυμναστηρίου
+  - generic [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: Email
+        - generic [ref=e15]:
+          - generic:
+            - img
+          - textbox "Email" [ref=e16]:
+            - /placeholder: εισάγετε το email σας
+            - text: admin@freegym.gr
+      - generic [ref=e17]:
+        - generic [ref=e18]: Κωδικός Πρόσβασης
+        - generic [ref=e19]:
+          - generic:
+            - img
+          - textbox "Κωδικός Πρόσβασης" [active] [ref=e20]:
+            - /placeholder: εισάγετε τον κωδικό πρόσβασης
+            - text: "12345678"
+          - button [ref=e21] [cursor=pointer]:
+            - img [ref=e22]
+    - link "Ξεχάσατε τον κωδικό;" [ref=e27] [cursor=pointer]:
+      - /url: /forgot-password
+    - generic [ref=e28]:
+      - checkbox "Αποδέχομαι την Πολιτική Απορρήτου & Όρους Χρήσης (GDPR)" [ref=e29]
+      - generic [ref=e30]:
+        - text: Αποδέχομαι την
+        - link "Πολιτική Απορρήτου & Όρους Χρήσης (GDPR)" [ref=e31] [cursor=pointer]:
+          - /url: /privacy-policy
+    - button "Σύνδεση" [ref=e33] [cursor=pointer]
+    - paragraph [ref=e35]:
+      - text: Δεν έχετε λογαριασμό;
+      - link "Εγγραφείτε εδώ" [ref=e36] [cursor=pointer]:
+        - /url: /register
+```

@@ -1,0 +1,26 @@
+{
+  "packages": [
+    "PILATES",
+    "ULTIMATE",
+    "ULTIMATE_MEDIUM",
+    "FREEGYM"
+  ],
+  "durations": [
+    7,
+    14,
+    30,
+    60,
+    90
+  ],
+  "packageCount": 4,
+  "durationCount": 5,
+  "totalCombinations": 20,
+  "totalBotsScenarios": 120,
+  "scenarioExamples": [
+    "Bot-01 | PILATES | 7d",
+    "Bot-15 | ULTIMATE | 30d",
+    "Bot-20 | ULTIMATE_MEDIUM | 14d",
+    "Bot-30 | FREEGYM | 60d"
+  ],
+  "timestamp": "2026-01-29T01:14:54.826Z"
+}

@@ -1,0 +1,33 @@
+{
+  "appLoaded": true,
+  "title": "FreeGym - Διαχείριση Γυμναστηρίου",
+  "botsAvailable": 30,
+  "timestamp": "2026-01-29T01:14:53.182Z",
+  "botsInfo": [
+    {
+      "id": 1,
+      "email": "qa.bot+1769640278347.01@example.com",
+      "userId": "95b99236-00bc-467a-bb83-4bb5bb8128d1"
+    },
+    {
+      "id": 2,
+      "email": "qa.bot+1769640278347.02@example.com",
+      "userId": "a5ba2e22-1fa4-43dc-a629-d1542af02c69"
+    },
+    {
+      "id": 3,
+      "email": "qa.bot+1769640278347.03@example.com",
+      "userId": "b79c8705-df0e-4180-9091-b2290aa72a40"
+    },
+    {
+      "id": 4,
+      "email": "qa.bot+1769640278347.04@example.com",
+      "userId": "f7aae5a7-3799-48ef-94a0-ca8c4c5e78a6"
+    },
+    {
+      "id": 5,
+      "email": "qa.bot+1769640278347.05@example.com",
+      "userId": "9039bba9-3090-431f-95ad-2af8c866cd6b"
+    }
+  ]
+}

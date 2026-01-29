@@ -1,0 +1,17 @@
+{
+  "bot_email": "qa.bot+1769640278347.02@example.com",
+  "scenarios": [
+    {
+      "scenario_id": "SC-000002",
+      "bot_index": 2,
+      "scenario_name": "Create ULTIMATE 60-day with refill",
+      "result": "fail",
+      "timestamp": "2026-01-29T00:31:15.656Z",
+      "error": "ULTIMATE creation failed"
+    }
+  ],
+  "memberships": [],
+  "cashier_events": [],
+  "lessons_overrides": [],
+  "errors": []
+}

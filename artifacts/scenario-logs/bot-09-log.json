@@ -1,0 +1,47 @@
+{
+  "bot_email": "qa.bot+1769640278347.10@example.com",
+  "scenarios": [
+    {
+      "scenario_id": "SC-000010",
+      "bot_index": 10,
+      "scenario_name": "Deposit amounts verification (all durations)",
+      "result": "pass",
+      "timestamp": "2026-01-29T00:31:18.204Z",
+      "scenarios_tested": 4,
+      "all_correct": true
+    }
+  ],
+  "memberships": [
+    {
+      "timestamp": "2026-01-29T00:31:18.204Z",
+      "package": "PILATES",
+      "duration": 7,
+      "deposit_amount": 50,
+      "verification": "correct"
+    },
+    {
+      "timestamp": "2026-01-29T00:31:18.204Z",
+      "package": "PILATES",
+      "duration": 30,
+      "deposit_amount": 50,
+      "verification": "correct"
+    },
+    {
+      "timestamp": "2026-01-29T00:31:18.204Z",
+      "package": "PILATES",
+      "duration": 60,
+      "deposit_amount": 100,
+      "verification": "correct"
+    },
+    {
+      "timestamp": "2026-01-29T00:31:18.204Z",
+      "package": "PILATES",
+      "duration": 90,
+      "deposit_amount": 150,
+      "verification": "correct"
+    }
+  ],
+  "cashier_events": [],
+  "lessons_overrides": [],
+  "errors": []
+}

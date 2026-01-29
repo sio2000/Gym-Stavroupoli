@@ -1,0 +1,30 @@
+{
+  "bot_email": "qa.bot+1769640278347.08@example.com",
+  "scenarios": [
+    {
+      "scenario_id": "SC-000008",
+      "bot_index": 8,
+      "scenario_name": "Time progression: expiration at day 20/30",
+      "result": "pass",
+      "timestamp": "2026-01-29T00:31:18.192Z",
+      "days_passed": 20,
+      "days_remaining": 10,
+      "status": "active"
+    }
+  ],
+  "memberships": [
+    {
+      "timestamp": "2026-01-29T00:31:18.192Z",
+      "package": "PILATES",
+      "start_date": "2026-01-29",
+      "end_date": "2026-02-28",
+      "current_simulation_date": "2026-02-18",
+      "days_remaining": 10,
+      "status": "active",
+      "expiration_check": "passed"
+    }
+  ],
+  "cashier_events": [],
+  "lessons_overrides": [],
+  "errors": []
+}

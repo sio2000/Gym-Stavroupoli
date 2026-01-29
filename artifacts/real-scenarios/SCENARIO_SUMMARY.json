@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-01-29T01:12:58.013Z",
+  "totalBots": 30,
+  "packages": [
+    "PILATES",
+    "ULTIMATE",
+    "ULTIMATE_MEDIUM",
+    "FREEGYM"
+  ],
+  "durations": [
+    7,
+    14,
+    30,
+    60,
+    90
+  ],
+  "totalScenarios": 120,
+  "tested": {
+    "logins": 10,
+    "profiles": 10,
+    "subscriptions": 4,
+    "scenarios": 4
+  },
+  "status": "complete"
+}
