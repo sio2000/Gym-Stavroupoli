@@ -1,0 +1,1684 @@
+[
+  {
+    "phase": "PHASE: T0: TODAY (Friday) (+0 days)",
+    "timestamp": "2026-01-31T19:26:30.742Z",
+    "tests": [
+      {
+        "name": "Ultimate Ultimate Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "6e31ed13-c956-43d7-a99b-ddb5e69662f4",
+            "user_id": "b898f7fc-b0f5-4a80-b9cb-85ac010d1083",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.290428+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.290428+00:00",
+            "updated_at": "2026-01-31T19:11:06.290428+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "effbe633-b3b0-4754-8ce5-55f1242bef31",
+            "user_id": "8b9f3274-ceed-4378-8202-fb0c593bebc4",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.583056+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.583056+00:00",
+            "updated_at": "2026-01-31T19:11:06.583056+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "47948db2-d177-4b8e-8afa-de6bf1a6a274",
+            "user_id": "18139e41-e1c5-4b40-98e4-b713987b8d21",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.878172+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.878172+00:00",
+            "updated_at": "2026-01-31T19:11:06.878172+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "0533bef9-3d84-4496-9a7d-116b4232a8c9",
+            "user_id": "9f222a90-9846-4cbe-8bc3-3aff68017f6d",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.174075+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.174075+00:00",
+            "updated_at": "2026-01-31T19:11:07.174075+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "605ff1dc-1d03-422e-ae70-5ed711bc61a4",
+            "user_id": "c56a223c-4275-4bd2-a14d-6f59c39d295e",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.748033+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.748033+00:00",
+            "updated_at": "2026-01-31T19:11:07.748033+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-02-01 (today: 2026-01-31)"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-01-31 (today: 2026-01-31)"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-20 (today: 2026-01-31)"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-15 (today: 2026-01-31)"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-02-28 (today: 2026-01-31)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot005 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-02-01"
+      },
+      {
+        "name": "FreeGym FreeGym Bot004 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-05-01"
+      },
+      {
+        "name": "FreeGym FreeGym Bot003 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-01-31"
+      },
+      {
+        "name": "FreeGym FreeGym Bot002 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-04-15"
+      },
+      {
+        "name": "FreeGym FreeGym Bot001 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-03-31"
+      },
+      {
+        "name": "Ultimate User - Multiple Memberships",
+        "status": "PASS",
+        "message": "User has 2 active membership(s)"
+      },
+      {
+        "name": "Expired Memberships - Correct Status",
+        "status": "PASS",
+        "message": "0 correctly marked inactive, 0 incorrectly active"
+      }
+    ]
+  },
+  {
+    "phase": "PHASE: T1: SUNDAY +2 days (Refill Day) (+2 days)",
+    "timestamp": "2026-01-31T19:26:43.582Z",
+    "tests": [
+      {
+        "name": "Ultimate Ultimate Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "6e31ed13-c956-43d7-a99b-ddb5e69662f4",
+            "user_id": "b898f7fc-b0f5-4a80-b9cb-85ac010d1083",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.290428+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.290428+00:00",
+            "updated_at": "2026-01-31T19:11:06.290428+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot005 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "effbe633-b3b0-4754-8ce5-55f1242bef31",
+            "user_id": "8b9f3274-ceed-4378-8202-fb0c593bebc4",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.583056+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.583056+00:00",
+            "updated_at": "2026-01-31T19:11:06.583056+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot004 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "47948db2-d177-4b8e-8afa-de6bf1a6a274",
+            "user_id": "18139e41-e1c5-4b40-98e4-b713987b8d21",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.878172+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.878172+00:00",
+            "updated_at": "2026-01-31T19:11:06.878172+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot003 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "0533bef9-3d84-4496-9a7d-116b4232a8c9",
+            "user_id": "9f222a90-9846-4cbe-8bc3-3aff68017f6d",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.174075+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.174075+00:00",
+            "updated_at": "2026-01-31T19:11:07.174075+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot002 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "605ff1dc-1d03-422e-ae70-5ed711bc61a4",
+            "user_id": "c56a223c-4275-4bd2-a14d-6f59c39d295e",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.748033+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.748033+00:00",
+            "updated_at": "2026-01-31T19:11:07.748033+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot001 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot005 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot004 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot003 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot002 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot001 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-02-01 (today: 2026-02-02)"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-01-31 (today: 2026-02-02)"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-20 (today: 2026-02-02)"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-15 (today: 2026-02-02)"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-02-28 (today: 2026-02-02)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot005 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-02-01)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot004 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-05-01"
+      },
+      {
+        "name": "FreeGym FreeGym Bot003 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-01-31)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot002 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-04-15"
+      },
+      {
+        "name": "FreeGym FreeGym Bot001 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-03-31"
+      },
+      {
+        "name": "Ultimate User - Multiple Memberships",
+        "status": "PASS",
+        "message": "User has 2 active membership(s)"
+      },
+      {
+        "name": "Expired Memberships - Correct Status",
+        "status": "FAIL",
+        "message": "0 correctly marked inactive, 12 incorrectly active"
+      }
+    ]
+  },
+  {
+    "phase": "PHASE: T2: Mid-week +8 days (+8 days)",
+    "timestamp": "2026-01-31T19:26:53.182Z",
+    "tests": [
+      {
+        "name": "Ultimate Ultimate Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "6e31ed13-c956-43d7-a99b-ddb5e69662f4",
+            "user_id": "b898f7fc-b0f5-4a80-b9cb-85ac010d1083",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.290428+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.290428+00:00",
+            "updated_at": "2026-01-31T19:11:06.290428+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "effbe633-b3b0-4754-8ce5-55f1242bef31",
+            "user_id": "8b9f3274-ceed-4378-8202-fb0c593bebc4",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.583056+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.583056+00:00",
+            "updated_at": "2026-01-31T19:11:06.583056+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "47948db2-d177-4b8e-8afa-de6bf1a6a274",
+            "user_id": "18139e41-e1c5-4b40-98e4-b713987b8d21",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.878172+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.878172+00:00",
+            "updated_at": "2026-01-31T19:11:06.878172+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "0533bef9-3d84-4496-9a7d-116b4232a8c9",
+            "user_id": "9f222a90-9846-4cbe-8bc3-3aff68017f6d",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.174075+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.174075+00:00",
+            "updated_at": "2026-01-31T19:11:07.174075+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "605ff1dc-1d03-422e-ae70-5ed711bc61a4",
+            "user_id": "c56a223c-4275-4bd2-a14d-6f59c39d295e",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.748033+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.748033+00:00",
+            "updated_at": "2026-01-31T19:11:07.748033+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-02-01 (today: 2026-02-08)"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-01-31 (today: 2026-02-08)"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-20 (today: 2026-02-08)"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-15 (today: 2026-02-08)"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-02-28 (today: 2026-02-08)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot005 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-02-01)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot004 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-05-01"
+      },
+      {
+        "name": "FreeGym FreeGym Bot003 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-01-31)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot002 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-04-15"
+      },
+      {
+        "name": "FreeGym FreeGym Bot001 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-03-31"
+      },
+      {
+        "name": "Ultimate User - Multiple Memberships",
+        "status": "PASS",
+        "message": "User has 2 active membership(s)"
+      },
+      {
+        "name": "Expired Memberships - Correct Status",
+        "status": "FAIL",
+        "message": "1 correctly marked inactive, 24 incorrectly active"
+      }
+    ]
+  },
+  {
+    "phase": "PHASE: T3: NEXT SUNDAY +16 days (Second Refill) (+16 days)",
+    "timestamp": "2026-01-31T19:27:11.540Z",
+    "tests": [
+      {
+        "name": "Ultimate Ultimate Bot005 - Deposits",
+        "status": "WARN",
+        "message": "0 active deposits (Ultimate = 3 lessons per week)",
+        "details": null
+      },
+      {
+        "name": "Ultimate Ultimate Bot005 - Sunday Refill",
+        "status": "FAIL",
+        "message": "Sunday refill: 0 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "effbe633-b3b0-4754-8ce5-55f1242bef31",
+            "user_id": "8b9f3274-ceed-4378-8202-fb0c593bebc4",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.583056+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.583056+00:00",
+            "updated_at": "2026-01-31T19:11:06.583056+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot004 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "47948db2-d177-4b8e-8afa-de6bf1a6a274",
+            "user_id": "18139e41-e1c5-4b40-98e4-b713987b8d21",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.878172+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.878172+00:00",
+            "updated_at": "2026-01-31T19:11:06.878172+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot003 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "0533bef9-3d84-4496-9a7d-116b4232a8c9",
+            "user_id": "9f222a90-9846-4cbe-8bc3-3aff68017f6d",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.174075+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.174075+00:00",
+            "updated_at": "2026-01-31T19:11:07.174075+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot002 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "605ff1dc-1d03-422e-ae70-5ed711bc61a4",
+            "user_id": "c56a223c-4275-4bd2-a14d-6f59c39d295e",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.748033+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.748033+00:00",
+            "updated_at": "2026-01-31T19:11:07.748033+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot001 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot005 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot004 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot003 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot002 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot001 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-02-01 (today: 2026-02-16)"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-01-31 (today: 2026-02-16)"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-20 (today: 2026-02-16)"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-15 (today: 2026-02-16)"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-02-28 (today: 2026-02-16)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot005 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-02-01)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot004 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-05-01"
+      },
+      {
+        "name": "FreeGym FreeGym Bot003 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-01-31)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot002 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-04-15"
+      },
+      {
+        "name": "FreeGym FreeGym Bot001 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-03-31"
+      },
+      {
+        "name": "Ultimate User - Multiple Memberships",
+        "status": "PASS",
+        "message": "User has 2 active membership(s)"
+      },
+      {
+        "name": "Expired Memberships - Correct Status",
+        "status": "FAIL",
+        "message": "1 correctly marked inactive, 24 incorrectly active"
+      }
+    ]
+  },
+  {
+    "phase": "PHASE: T4: One month +30 days (+30 days)",
+    "timestamp": "2026-01-31T19:27:42.557Z",
+    "tests": [
+      {
+        "name": "Ultimate Ultimate Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "6e31ed13-c956-43d7-a99b-ddb5e69662f4",
+            "user_id": "b898f7fc-b0f5-4a80-b9cb-85ac010d1083",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.290428+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.290428+00:00",
+            "updated_at": "2026-01-31T19:11:06.290428+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot005 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "effbe633-b3b0-4754-8ce5-55f1242bef31",
+            "user_id": "8b9f3274-ceed-4378-8202-fb0c593bebc4",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.583056+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.583056+00:00",
+            "updated_at": "2026-01-31T19:11:06.583056+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot004 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "47948db2-d177-4b8e-8afa-de6bf1a6a274",
+            "user_id": "18139e41-e1c5-4b40-98e4-b713987b8d21",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.878172+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.878172+00:00",
+            "updated_at": "2026-01-31T19:11:06.878172+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot003 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "0533bef9-3d84-4496-9a7d-116b4232a8c9",
+            "user_id": "9f222a90-9846-4cbe-8bc3-3aff68017f6d",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.174075+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.174075+00:00",
+            "updated_at": "2026-01-31T19:11:07.174075+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot002 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Ultimate Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "605ff1dc-1d03-422e-ae70-5ed711bc61a4",
+            "user_id": "c56a223c-4275-4bd2-a14d-6f59c39d295e",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.748033+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.748033+00:00",
+            "updated_at": "2026-01-31T19:11:07.748033+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot001 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 3 lessons available (expected: 3)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot005 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot004 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot003 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot002 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot001 - Sunday Refill",
+        "status": "PASS",
+        "message": "Sunday refill: 1 lessons available (expected: 1)"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-02-01 (today: 2026-03-02)"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-01-31 (today: 2026-03-02)"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-20 (today: 2026-03-02)"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-15 (today: 2026-03-02)"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-02-28 (today: 2026-03-02)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot005 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-02-01)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot004 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-05-01"
+      },
+      {
+        "name": "FreeGym FreeGym Bot003 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-01-31)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot002 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-04-15"
+      },
+      {
+        "name": "FreeGym FreeGym Bot001 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-03-31"
+      },
+      {
+        "name": "Ultimate User - Multiple Memberships",
+        "status": "PASS",
+        "message": "User has 2 active membership(s)"
+      },
+      {
+        "name": "Expired Memberships - Correct Status",
+        "status": "FAIL",
+        "message": "1 correctly marked inactive, 26 incorrectly active"
+      }
+    ]
+  },
+  {
+    "phase": "PHASE: T5: Expiration period +45 days (+45 days)",
+    "timestamp": "2026-01-31T19:28:10.109Z",
+    "tests": [
+      {
+        "name": "Ultimate Ultimate Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "6e31ed13-c956-43d7-a99b-ddb5e69662f4",
+            "user_id": "b898f7fc-b0f5-4a80-b9cb-85ac010d1083",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.290428+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.290428+00:00",
+            "updated_at": "2026-01-31T19:11:06.290428+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "effbe633-b3b0-4754-8ce5-55f1242bef31",
+            "user_id": "8b9f3274-ceed-4378-8202-fb0c593bebc4",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.583056+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.583056+00:00",
+            "updated_at": "2026-01-31T19:11:06.583056+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "47948db2-d177-4b8e-8afa-de6bf1a6a274",
+            "user_id": "18139e41-e1c5-4b40-98e4-b713987b8d21",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.878172+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.878172+00:00",
+            "updated_at": "2026-01-31T19:11:06.878172+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "0533bef9-3d84-4496-9a7d-116b4232a8c9",
+            "user_id": "9f222a90-9846-4cbe-8bc3-3aff68017f6d",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.174075+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.174075+00:00",
+            "updated_at": "2026-01-31T19:11:07.174075+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "605ff1dc-1d03-422e-ae70-5ed711bc61a4",
+            "user_id": "c56a223c-4275-4bd2-a14d-6f59c39d295e",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.748033+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.748033+00:00",
+            "updated_at": "2026-01-31T19:11:07.748033+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-02-01 (today: 2026-03-16)"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-01-31 (today: 2026-03-16)"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Not Expired",
+        "status": "PASS",
+        "message": "Expires: 2026-03-20 (today: 2026-03-16)"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-03-15 (today: 2026-03-16)"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-02-28 (today: 2026-03-16)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot005 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-02-01)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot004 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-05-01"
+      },
+      {
+        "name": "FreeGym FreeGym Bot003 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-01-31)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot002 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-04-15"
+      },
+      {
+        "name": "FreeGym FreeGym Bot001 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-03-31"
+      },
+      {
+        "name": "Ultimate User - Multiple Memberships",
+        "status": "PASS",
+        "message": "User has 2 active membership(s)"
+      },
+      {
+        "name": "Expired Memberships - Correct Status",
+        "status": "FAIL",
+        "message": "1 correctly marked inactive, 62 incorrectly active"
+      }
+    ]
+  },
+  {
+    "phase": "PHASE: T6: Far future +90 days (+90 days)",
+    "timestamp": "2026-01-31T19:28:26.573Z",
+    "tests": [
+      {
+        "name": "Ultimate Ultimate Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "6e31ed13-c956-43d7-a99b-ddb5e69662f4",
+            "user_id": "b898f7fc-b0f5-4a80-b9cb-85ac010d1083",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.290428+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.290428+00:00",
+            "updated_at": "2026-01-31T19:11:06.290428+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "effbe633-b3b0-4754-8ce5-55f1242bef31",
+            "user_id": "8b9f3274-ceed-4378-8202-fb0c593bebc4",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.583056+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.583056+00:00",
+            "updated_at": "2026-01-31T19:11:06.583056+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "47948db2-d177-4b8e-8afa-de6bf1a6a274",
+            "user_id": "18139e41-e1c5-4b40-98e4-b713987b8d21",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:06.878172+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:06.878172+00:00",
+            "updated_at": "2026-01-31T19:11:06.878172+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "0533bef9-3d84-4496-9a7d-116b4232a8c9",
+            "user_id": "9f222a90-9846-4cbe-8bc3-3aff68017f6d",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.174075+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.174075+00:00",
+            "updated_at": "2026-01-31T19:11:07.174075+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Ultimate Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate = 3 lessons per week)",
+        "details": [
+          {
+            "id": "605ff1dc-1d03-422e-ae70-5ed711bc61a4",
+            "user_id": "c56a223c-4275-4bd2-a14d-6f59c39d295e",
+            "package_id": "c16de111-3687-41ce-a446-5af61a3c6eff",
+            "deposit_remaining": 3,
+            "credited_at": "2026-01-31T19:11:07.748033+00:00",
+            "expires_at": "2026-02-28T00:00:00+00:00",
+            "is_active": true,
+            "created_by": null,
+            "created_at": "2026-01-31T19:11:07.748033+00:00",
+            "updated_at": "2026-01-31T19:11:07.748033+00:00",
+            "membership_id": null,
+            "linked_to_membership": false
+          }
+        ]
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot005 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot004 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot003 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot002 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Ultimate Medium Ultimate Medium Bot001 - Deposits",
+        "status": "PASS",
+        "message": "1 active deposits (Ultimate Medium = 1 lesson per week)"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot005 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-02-01 (today: 2026-04-30)"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot004 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-01-31 (today: 2026-04-30)"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot003 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-03-20 (today: 2026-04-30)"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot002 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-03-15 (today: 2026-04-30)"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Deposits Active",
+        "status": "PASS",
+        "message": "4 lessons remaining for Pilates subscription"
+      },
+      {
+        "name": "Pilates Pilates Bot001 - Not Expired",
+        "status": "FAIL",
+        "message": "Expires: 2026-02-28 (today: 2026-04-30)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot005 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-02-01)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot004 - Status Correct",
+        "status": "PASS",
+        "message": "Active until 2026-05-01"
+      },
+      {
+        "name": "FreeGym FreeGym Bot003 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-01-31)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot002 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-04-15)"
+      },
+      {
+        "name": "FreeGym FreeGym Bot001 - Status Correct",
+        "status": "FAIL",
+        "message": "Correctly marked as inactive (expired: 2026-03-31)"
+      },
+      {
+        "name": "Ultimate User - Multiple Memberships",
+        "status": "PASS",
+        "message": "User has 2 active membership(s)"
+      },
+      {
+        "name": "Expired Memberships - Correct Status",
+        "status": "FAIL",
+        "message": "1 correctly marked inactive, 65 incorrectly active"
+      }
+    ]
+  }
+]

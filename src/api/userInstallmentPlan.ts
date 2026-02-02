@@ -1,5 +1,10 @@
 import { supabase } from '@/config/supabase';
 
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 // Interface για την απάντηση του API - Ένα πλάνο δόσεων
 export interface InstallmentPlanResponse {
   userId: string;
@@ -44,9 +49,9 @@ const computeStatus = (paid: boolean, dueDate: string): 'pending' | 'paid' | 'ov
 function mapPlanToResponse(request: any): InstallmentPlanResponse {
   const installments = [];
   
-  // Πρώτη δόση
+  // Πρώτη δόση - using local timezone to avoid UTC conversion issues
   if (request.installment_1_amount && request.installment_1_amount > 0) {
-    const dueDate1 = request.installment_1_due_date || new Date().toISOString().split('T')[0];
+    const dueDate1 = request.installment_1_due_date || formatDateLocal(new Date());
     const paid1 = request.installment_1_paid === true;
     
     installments.push({
@@ -57,9 +62,9 @@ function mapPlanToResponse(request: any): InstallmentPlanResponse {
     });
   }
   
-  // Δεύτερη δόση
+  // Δεύτερη δόση - using local timezone to avoid UTC conversion issues
   if (request.installment_2_amount && request.installment_2_amount > 0) {
-    const dueDate2 = request.installment_2_due_date || new Date().toISOString().split('T')[0];
+    const dueDate2 = request.installment_2_due_date || formatDateLocal(new Date());
     const paid2 = request.installment_2_paid === true;
     
     installments.push({
@@ -70,9 +75,9 @@ function mapPlanToResponse(request: any): InstallmentPlanResponse {
     });
   }
   
-  // Τρίτη δόση (μόνο αν δεν έχει διαγραφεί)
+  // Τρίτη δόση (μόνο αν δεν έχει διαγραφεί) - using local timezone to avoid UTC conversion issues
   if (request.installment_3_amount && request.installment_3_amount > 0 && !request.third_installment_deleted) {
-    const dueDate3 = request.installment_3_due_date || new Date().toISOString().split('T')[0];
+    const dueDate3 = request.installment_3_due_date || formatDateLocal(new Date());
     const paid3 = request.installment_3_paid === true;
     
     installments.push({
@@ -142,8 +147,9 @@ export const hasOverdueInstallment = async (userId: string): Promise<boolean> =>
     now.setHours(0, 0, 0, 0);
     
     // Έλεγχος πρώτης δόσης - χρησιμοποιούμε το installment_1_paid flag
+    // Using local timezone to avoid UTC conversion issues
     if (request.installment_1_amount > 0 && request.installment_1_paid !== true) {
-      const dueDate1 = request.installment_1_due_date || new Date().toISOString().split('T')[0];
+      const dueDate1 = request.installment_1_due_date || formatDateLocal(new Date());
       const due1 = new Date(dueDate1 + 'T00:00:00');
       due1.setHours(0, 0, 0, 0);
       if (due1 <= now) {
@@ -153,8 +159,9 @@ export const hasOverdueInstallment = async (userId: string): Promise<boolean> =>
     }
 
     // Έλεγχος δεύτερης δόσης - χρησιμοποιούμε το installment_2_paid flag
+    // Using local timezone to avoid UTC conversion issues
     if (request.installment_2_amount > 0 && request.installment_2_paid !== true) {
-      const dueDate2 = request.installment_2_due_date || new Date().toISOString().split('T')[0];
+      const dueDate2 = request.installment_2_due_date || formatDateLocal(new Date());
       const due2 = new Date(dueDate2 + 'T00:00:00');
       due2.setHours(0, 0, 0, 0);
       if (due2 <= now) {
@@ -164,8 +171,9 @@ export const hasOverdueInstallment = async (userId: string): Promise<boolean> =>
     }
 
     // Έλεγχος τρίτης δόσης - χρησιμοποιούμε το installment_3_paid flag
+    // Using local timezone to avoid UTC conversion issues
     if (request.installment_3_amount > 0 && !request.third_installment_deleted && request.installment_3_paid !== true) {
-      const dueDate3 = request.installment_3_due_date || new Date().toISOString().split('T')[0];
+      const dueDate3 = request.installment_3_due_date || formatDateLocal(new Date());
       const due3 = new Date(dueDate3 + 'T00:00:00');
       due3.setHours(0, 0, 0, 0);
       if (due3 <= now) {

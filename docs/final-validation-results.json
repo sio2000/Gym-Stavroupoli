@@ -1,0 +1,74 @@
+{
+  "tests": [
+    {
+      "name": "Καμία ενεργή συνδρομή με ληγμένη ημερομηνία",
+      "passed": true,
+      "details": "0 ανωμαλίες (πρέπει να είναι 0)"
+    },
+    {
+      "name": "Συνδρομές καταγράφονται σωστά",
+      "passed": true,
+      "details": "63 συνολικά (49 ενεργές, 14 ληγμένες)"
+    },
+    {
+      "name": "Χρήστες με QR πρόσβαση εντοπίζονται",
+      "passed": true,
+      "details": "0 χρήστες με έγκυρη πρόσβαση"
+    },
+    {
+      "name": "Deposits λειτουργούν κανονικά",
+      "passed": true,
+      "details": "43 ενεργά, 43 με υπόλοιπο, 0 αρνητικά"
+    },
+    {
+      "name": "Κανένα αρνητικό υπόλοιπο μαθημάτων",
+      "passed": true,
+      "details": "Κανένα"
+    },
+    {
+      "name": "Πίνακας κρατήσεων προσβάσιμος",
+      "passed": true,
+      "details": "12 κρατήσεις"
+    },
+    {
+      "name": "Πίνακας slots προσβάσιμος",
+      "passed": true,
+      "details": "50 διαθέσιμα slots"
+    },
+    {
+      "name": "Προφίλ χρηστών προσβάσιμα",
+      "passed": true,
+      "details": "50 χρήστες ορατοί"
+    },
+    {
+      "name": "Συνδρομές που λήγουν σήμερα εντοπίζονται",
+      "passed": true,
+      "details": "5 λήγουν σήμερα"
+    },
+    {
+      "name": "Ανανεώσεις συνδρομών καταγράφονται",
+      "passed": true,
+      "details": "12 χρήστες με πολλαπλές συνδρομές"
+    },
+    {
+      "name": "Όλες οι ημερομηνίες είναι έγκυρες",
+      "passed": true,
+      "details": "0 με λάθος ημερομηνίες"
+    }
+  ],
+  "passed": 11,
+  "failed": 0,
+  "stats": {
+    "anomalies": 0,
+    "totalMemberships": 63,
+    "activeMemberships": 49,
+    "expiredMemberships": 14,
+    "usersWithQRAccess": 0,
+    "activeDeposits": 43,
+    "depositsWithCredits": 43,
+    "totalBookings": 12,
+    "futureSlots": 50,
+    "expiringToday": 5,
+    "usersWithRenewals": 12
+  }
+}

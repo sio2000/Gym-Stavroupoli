@@ -1,15 +1,22 @@
 // Active Memberships Utility
 // Handles checking user's active memberships for QR code generation
 // 
-// STEP 6 IMPLEMENTATION NOTES:
-// - RULE 1: Uses ONLY canonical user_id (auth.users.id)
-// - RULE 2: Checks status='active' (not is_active), deleted_at IS NULL
-// - RULE 3: Pilates deposits ONLY for display, NOT access control
-// - RULE 7: Soft-deletes excluded in all READ queries
-// - RULE 9: Proactive monitoring of expiry
+// PILATES-FIX IMPLEMENTATION:
+// All logs prefixed with [PILATES-FIX] for easy filtering
+// - Uses ONLY canonical user_id (auth.users.id)
+// - Checks status='active' (not is_active), deleted_at IS NULL
+// - DETERMINISTIC end_date check - NEVER trust status/is_active alone
+// - Pilates deposits ONLY for display, NOT access control
+// - Soft-deletes excluded in all READ queries
+// - Proactive monitoring of expiry
 
 import { supabase } from '@/config/supabase';
 import { Membership, MembershipPackage } from '@/types';
+
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
 
 export interface ActiveMembership {
   id: string;
@@ -89,26 +96,33 @@ const updatePilatesMembershipStatus_DEPRECATED = async (userId: string): Promise
 /**
  * Get user's active memberships for QR code generation
  * 
- * STEP 6 IMPLEMENTATION:
- * - RULE 1: Uses canonical user_id (auth.users.id)
- * - RULE 2: Checks status='active' (not is_active), deleted_at IS NULL, end_date guard
- * - RULE 3: Pilates deposits used ONLY for UI display, NOT access control
- * - RULE 7: Soft-deletes excluded (is('deleted_at', null))
- * - RULE 9: Calculates daysUntilExpiry for proactive warnings
+ * PILATES-FIX IMPLEMENTATION:
+ * - Uses canonical user_id (auth.users.id)
+ * - DETERMINISTIC checks: status='active' AND end_date >= today
+ * - Soft-deletes excluded (deleted_at IS NULL)
+ * - Pilates deposits used ONLY for UI display, NOT access control
+ * - Calculates daysUntilExpiry for proactive warnings
  */
 export const getUserActiveMembershipsForQR = async (userId: string): Promise<ActiveMembership[]> => {
   try {
-    console.log('[ActiveMemberships] Fetching active memberships for user:', userId);
+    console.log('[PILATES-FIX] getUserActiveMembershipsForQR called for user:', userId);
 
-    // CHANGED (STEP 6 – Rule 2): Query by status='active' instead of is_active
-    // CHANGED (STEP 6 – Rule 7): Exclude soft-deleted records (deleted_at IS NULL)
-    const today = new Date().toISOString().split('T')[0];
+    // PILATES-FIX: DETERMINISTIC membership check
+    // A membership is ONLY valid if ALL of these are true:
+    // 1. status = 'active'
+    // 2. deleted_at IS NULL
+    // 3. end_date >= today (CRITICAL: never trust status alone!)
+    // Using local timezone to avoid UTC conversion issues
+    const today = formatDateLocal(new Date());
+    console.log('[PILATES-FIX] Today for date comparison:', today);
+    
     const { data, error } = await supabase
       .from('memberships')
       .select(`
         id,
         package_id,
         status,
+        is_active,
         deleted_at,
         start_date,
         end_date,
@@ -120,15 +134,27 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
         )
       `)
       .eq('user_id', userId)
-      .eq('status', 'active')           // CHANGED (STEP 6 – Rule 2): Primary check
-      .is('deleted_at', null)           // CHANGED (STEP 6 – Rule 7): Exclude soft-deletes
-      .gt('end_date', today)            // CHANGED (STEP 6 – Rule 2): Safety guard check
+      .eq('status', 'active')           // Primary check: status MUST be 'active'
+      .is('deleted_at', null)           // Exclude soft-deleted records
+      .gte('end_date', today)           // DETERMINISTIC: end_date MUST be >= today
       .order('end_date', { ascending: false });
 
     if (error) {
-      console.error('[ActiveMemberships] Error fetching memberships:', error);
+      console.error('[PILATES-FIX] Error fetching memberships:', error);
       throw error;
     }
+
+    console.log('[PILATES-FIX] Raw membership data from DB:', {
+      count: data?.length || 0,
+      memberships: data?.map(m => ({
+        id: m.id,
+        status: m.status,
+        is_active: m.is_active,
+        end_date: m.end_date,
+        deleted_at: m.deleted_at,
+        package_name: (m.membership_packages as any)?.name
+      }))
+    });
 
     const activeMemberships: ActiveMembership[] = [];
     const now = new Date();
@@ -142,25 +168,30 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
       // For now, just take the first package (most memberships have one package)
       const pkg = packages[0];
 
-      // CHANGED (STEP 6 – Rule 3): Pilates deposits used ONLY for DISPLAY, NOT access control
-      // The database-side trigger already keeps membership status in sync with deposits
-      // We trust the status='active' check above — if DB says active, it's valid
-      
       const packageName = pkg?.name?.toLowerCase() || '';
       const packageType = pkg?.package_type?.toLowerCase() || '';
       const isPilatesMembership = packageType === 'pilates' || packageName === 'pilates';
+      const isUltimateMembership = packageName.includes('ultimate');
 
-      // ADDED (STEP 6 – Rule 9): Calculate days until expiry for proactive warnings
+      // PILATES-FIX: Calculate days until expiry for proactive warnings
       const endDate = new Date(membership.end_date + 'T23:59:59');
       const daysUntilExpiry = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
       let expiryWarning: string | undefined;
       if (daysUntilExpiry <= 0) {
-        expiryWarning = 'Membership expired';
+        // CRITICAL FIX: Membership has expired - DO NOT include in active memberships
+        console.warn('[PILATES-FIX] SKIPPING EXPIRED MEMBERSHIP: end_date is in past!', {
+          membershipId: membership.id,
+          end_date: membership.end_date,
+          status: membership.status,
+          daysUntilExpiry
+        });
+        // Skip this membership - it's expired
+        continue;
+      } else if (daysUntilExpiry <= 3) {
+        expiryWarning = `Λήγει σε ${daysUntilExpiry} ημέρες!`;
       } else if (daysUntilExpiry <= 7) {
-        expiryWarning = `Expires in ${daysUntilExpiry} days`;
-      } else if (daysUntilExpiry <= 30) {
-        expiryWarning = `Expires in ${daysUntilExpiry} days`;
+        expiryWarning = `Λήγει σε ${daysUntilExpiry} ημέρες`;
       }
 
       activeMemberships.push({
@@ -171,15 +202,36 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
         status: 'active' as const,
         endDate: membership.end_date,
         startDate: membership.start_date,
-        daysUntilExpiry,           // ADDED (STEP 6 – Rule 9)
-        expiryWarning              // ADDED (STEP 6 – Rule 9)
+        daysUntilExpiry,
+        expiryWarning
+      });
+
+      // PILATES-FIX: Log each membership processed
+      console.log('[PILATES-FIX] Processed membership:', {
+        id: membership.id,
+        packageName: pkg?.name,
+        packageType: pkg?.package_type,
+        isPilates: isPilatesMembership,
+        isUltimate: isUltimateMembership,
+        daysUntilExpiry,
+        expiryWarning
       });
     }
 
-    console.log('[ActiveMemberships] Found active memberships:', activeMemberships);
+    console.log('[PILATES-FIX] Final active memberships:', {
+      count: activeMemberships.length,
+      memberships: activeMemberships.map(m => ({
+        id: m.id,
+        packageName: m.packageName,
+        packageType: m.packageType,
+        daysUntilExpiry: m.daysUntilExpiry,
+        expiryWarning: m.expiryWarning
+      }))
+    });
+    
     return activeMemberships;
   } catch (error) {
-    console.error('[ActiveMemberships] Error fetching active memberships:', error);
+    console.error('[PILATES-FIX] Error fetching active memberships:', error);
     return [];
   }
 };
@@ -187,15 +239,20 @@ export const getUserActiveMembershipsForQR = async (userId: string): Promise<Act
 /**
  * Get QR code categories available for user based on their active memberships
  * 
- * STEP 6 IMPLEMENTATION:
- * - RULE 3: Trust database status='active' check (pilates handled automatically)
+ * PILATES-FIX IMPLEMENTATION:
+ * - Trust DETERMINISTIC database checks (status='active' AND end_date >= today)
  * - No app-side deposit checks for access control
+ * - All access logic based on database truth
  */
 export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCategory[]> => {
   try {
+    console.log('[PILATES-FIX] getAvailableQRCategories called for user:', userId);
+    
     const activeMemberships = await getUserActiveMembershipsForQR(userId);
 
     if (!activeMemberships || activeMemberships.length === 0) {
+      console.log('[PILATES-FIX] No active memberships found, checking personal training...');
+      
       // Check for personal training
       let hasPersonalTraining = false;
       try {
@@ -207,34 +264,34 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
           .order('created_at', { ascending: false })
           .limit(1);
         hasPersonalTraining = !!(personalSchedule && personalSchedule.length > 0);
+        console.log('[PILATES-FIX] Personal training check:', { hasPersonalTraining });
       } catch (e) {
-        console.warn('[ActiveMemberships] Could not check personal schedule acceptance:', e);
+        console.warn('[PILATES-FIX] Could not check personal schedule acceptance:', e);
       }
 
       if (hasPersonalTraining) {
         const freeGymCategory = PACKAGE_TYPE_TO_QR_CATEGORY['free_gym'];
+        console.log('[PILATES-FIX] Granting QR access via personal training');
         return freeGymCategory ? [freeGymCategory] : [];
       }
 
+      console.log('[PILATES-FIX] No QR access - no active memberships or personal training');
       return [];
     }
 
-    // Check if user has ONLY Pilates membership (NOT Ultimate/Ultimate Medium)
+    // Analyze membership types
     const hasOnlyPilatesMembership = activeMemberships.some(m => {
       const pkgName = m.packageName?.toLowerCase() || '';
       const pkgType = m.packageType?.toLowerCase() || '';
-      // Pilates membership but NOT Ultimate/Ultimate Medium
       return (pkgType === 'pilates' || pkgName === 'pilates') && 
              !pkgName.includes('ultimate');
     });
 
-    // Check if user has Ultimate/Ultimate Medium (exclude from deposit check)
     const hasUltimateMembership = activeMemberships.some(m => {
       const pkgName = m.packageName?.toLowerCase() || '';
       return pkgName.includes('ultimate');
     });
 
-    // Check for non-Pilates memberships (Free Gym, etc.)
     const hasNonPilatesMembership = activeMemberships.some(m => {
       const pkgName = m.packageName?.toLowerCase() || '';
       const pkgType = m.packageType?.toLowerCase() || '';
@@ -244,13 +301,17 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
              (pkgType === 'free_gym' || pkgName.includes('free gym') || pkgName.includes('free'));
     });
 
-    // CHANGED (STEP 6 – Rule 3): Removed app-side pilates deposit check for access control
-    // Database status='active' check already ensures user has valid membership
-    // If database says membership.status='active', we trust it — subscription_expire_worker()
-    // already handles deactivation when deposits are exhausted
-    
-    // If we get here, user has at least one active membership (from DB check above)
-    // User is eligible for QR code access
+    console.log('[PILATES-FIX] Membership analysis:', {
+      hasOnlyPilatesMembership,
+      hasUltimateMembership,
+      hasNonPilatesMembership,
+      totalActiveMemberships: activeMemberships.length
+    });
+
+    // PILATES-FIX: Trust DETERMINISTIC database checks
+    // If getUserActiveMembershipsForQR returned any memberships, they are VALID
+    // (status='active' AND end_date >= today AND deleted_at IS NULL)
+    // No additional app-side validation needed
 
     let hasPersonalTraining = false;
     try {
@@ -263,18 +324,27 @@ export const getAvailableQRCategories = async (userId: string): Promise<QRCodeCa
         .limit(1);
       hasPersonalTraining = !!(personalSchedule && personalSchedule.length > 0);
     } catch (e) {
-      console.warn('[ActiveMemberships] Could not check personal schedule acceptance:', e);
+      console.warn('[PILATES-FIX] Could not check personal schedule acceptance:', e);
     }
 
     // If has active membership or personal training, eligible for QR
     if ((activeMemberships && activeMemberships.length > 0) || hasPersonalTraining) {
       const freeGymCategory = PACKAGE_TYPE_TO_QR_CATEGORY['free_gym'];
+      console.log('[PILATES-FIX] QR access GRANTED:', {
+        reason: activeMemberships.length > 0 ? 'active_membership' : 'personal_training',
+        memberships: activeMemberships.map(m => ({
+          id: m.id,
+          packageName: m.packageName,
+          daysUntilExpiry: m.daysUntilExpiry
+        }))
+      });
       return freeGymCategory ? [freeGymCategory] : [];
     }
 
+    console.log('[PILATES-FIX] QR access DENIED - no valid access criteria met');
     return [];
   } catch (error) {
-    console.error('[ActiveMemberships] Error getting available QR categories:', error);
+    console.error('[PILATES-FIX] Error getting available QR categories:', error);
     return [];
   }
 };

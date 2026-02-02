@@ -1,0 +1,222 @@
+{
+  "totalTests": 25,
+  "passed": 23,
+  "failed": 2,
+  "criticalIssues": [
+    {
+      "category": "calendarBookings",
+      "name": "Slots calendar accessible",
+      "details": "0 slots available from today onwards"
+    },
+    {
+      "category": "performance",
+      "name": "Deposits query < 2s",
+      "details": "19025ms"
+    }
+  ],
+  "startTime": "2026-02-01T15:35:47.286Z",
+  "endTime": "2026-02-01T15:36:18.553Z",
+  "categories": {
+    "criticalExpiration": {
+      "passed": 1,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "No active subscriptions with past end_date",
+          "passed": true,
+          "details": "0 anomalies - System working correctly"
+        }
+      ]
+    },
+    "statusConsistency": {
+      "passed": 2,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Membership status distribution tracked",
+          "passed": true,
+          "details": "Total: 63, Active: 49, Expired: 14, Pending: 0, Cancelled: 0"
+        },
+        {
+          "name": "All active memberships have valid end_date",
+          "passed": true,
+          "details": "49/49 active memberships have valid dates"
+        }
+      ]
+    },
+    "qrAccess": {
+      "passed": 2,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Users with valid QR access identified",
+          "passed": true,
+          "details": "42 users have valid QR access"
+        },
+        {
+          "name": "QR access logic is deterministic",
+          "passed": true,
+          "details": "Access determined by status=active AND end_date>=today"
+        }
+      ]
+    },
+    "pilatesDeposits": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Active deposits system functional",
+          "passed": true,
+          "details": "43 active deposits found"
+        },
+        {
+          "name": "Deposits with remaining credits tracked",
+          "passed": true,
+          "details": "43 deposits have credits, 0 are exhausted"
+        },
+        {
+          "name": "No negative credit balances",
+          "passed": true,
+          "details": "No negative balances found"
+        }
+      ]
+    },
+    "calendarBookings": {
+      "passed": 1,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "Bookings table accessible",
+          "passed": true,
+          "details": "12 recent bookings found"
+        },
+        {
+          "name": "Slots calendar accessible",
+          "passed": false,
+          "details": "0 slots available from today onwards"
+        }
+      ]
+    },
+    "trainerVisibility": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Bookings with user details accessible",
+          "passed": true,
+          "details": "Data accessible"
+        },
+        {
+          "name": "User profiles accessible for management",
+          "passed": true,
+          "details": "50 user profiles accessible"
+        },
+        {
+          "name": "Membership history accessible",
+          "passed": true,
+          "details": "50 membership records visible"
+        }
+      ]
+    },
+    "timeSimulation": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Memberships expiring TODAY identified",
+          "passed": true,
+          "details": "5 memberships expire today"
+        },
+        {
+          "name": "Memberships expiring this WEEK identified",
+          "passed": true,
+          "details": "24 memberships expire within 7 days"
+        },
+        {
+          "name": "Recently expired memberships handled correctly",
+          "passed": true,
+          "details": "All recently expired are marked as expired"
+        },
+        {
+          "name": "Future-start memberships tracked",
+          "passed": true,
+          "details": "2 memberships start in the future"
+        }
+      ]
+    },
+    "installments": {
+      "passed": 2,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Membership requests table accessible",
+          "passed": true,
+          "details": "20 requests found"
+        },
+        {
+          "name": "Pending payment memberships tracked",
+          "passed": true,
+          "details": "0 memberships pending approval/payment"
+        }
+      ]
+    },
+    "realUserScenarios": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Active users can be identified",
+          "passed": true,
+          "details": "10 users with active subscriptions"
+        },
+        {
+          "name": "Active users have deposit records",
+          "passed": true,
+          "details": "7 active deposits for active users"
+        },
+        {
+          "name": "User renewal patterns tracked",
+          "passed": true,
+          "details": "12 users have multiple subscription records (renewals)"
+        }
+      ]
+    },
+    "performance": {
+      "passed": 2,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "Membership query with joins < 3s",
+          "passed": true,
+          "details": "332ms"
+        },
+        {
+          "name": "Bookings query with joins < 3s",
+          "passed": true,
+          "details": "280ms"
+        },
+        {
+          "name": "Deposits query < 2s",
+          "passed": false,
+          "details": "19025ms"
+        }
+      ]
+    }
+  },
+  "systemStats": {
+    "activeExpiredAnomalies": 0,
+    "totalMemberships": 63,
+    "activeMemberships": 49,
+    "expiredMemberships": 14,
+    "usersWithQRAccess": 42,
+    "totalDeposits": 43,
+    "depositsWithCredits": 43,
+    "futureSlots": 0,
+    "recentBookings": 12,
+    "expiringToday": 5,
+    "expiringThisWeek": 24,
+    "activeUsers": 10,
+    "usersWithRenewals": 12,
+    "avgQueryTime": 6546
+  }
+}

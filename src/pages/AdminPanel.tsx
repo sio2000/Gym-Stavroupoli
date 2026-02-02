@@ -86,6 +86,11 @@ const AVAILABLE_TRAINERS: TrainerName[] = ['Mike', 'Jordan'];
 const LARGE_DATASET_THRESHOLD = 100;
 const ITEMS_PER_PAGE = 50;
 
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 // Helper to validate user id for RPC calls (defined early to avoid hoisting issues)
 const getValidUserId = async (userId: string | undefined) => {
   if (!userId || userId === 'undefined' || userId === '00000000-0000-0000-0000-000000000001') {
@@ -1900,7 +1905,7 @@ const AdminPanel: React.FC = () => {
       setMonthlyTotal(0);
       setUserSearchTerm('');
       setUserSearchMode('dropdown');
-      setProgramSessions([{ id: 'tmp-1', date: new Date().toISOString().split('T')[0], startTime: '18:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }]);
+      setProgramSessions([{ id: 'tmp-1', date: formatDateLocal(new Date()), startTime: '18:00', type: 'personal', trainer: 'Mike', room: 'Αίθουσα Mike', group: '2ΑτομαGroup', notes: '' }]);
       setSessionFilter('new'); // Reset session filter
       setExistingSessions([]); // Reset existing sessions
       
@@ -3325,14 +3330,14 @@ const AdminPanel: React.FC = () => {
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 1);
 
-      // Create membership
+      // Create membership - using local timezone to avoid UTC conversion issues
       const { error: membershipError } = await supabase
         .from('memberships')
         .insert({
           user_id: userId,
           package_id: freeGymPackage.id,
-          start_date: startDate.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0],
+          start_date: formatDateLocal(startDate),
+          end_date: formatDateLocal(endDate),
           is_active: true,
           expires_at: endDate.toISOString(),
           source_package_name: 'Open Gym'

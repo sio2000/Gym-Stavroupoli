@@ -1,5 +1,49 @@
 // Local date utilities to avoid UTC-induced off-by-one errors
 
+/**
+ * Format a date string (YYYY-MM-DD) for display in Greek locale
+ * IMPORTANT: Parses the date as LOCAL time to avoid UTC conversion issues
+ * When you do new Date('2026-02-01'), JS interprets it as UTC midnight
+ * which can show as Jan 31 in UTC+2 (Greece)
+ */
+export function formatDateForDisplay(dateString: string, locale: string = 'el-GR'): string {
+  if (!dateString) return '-';
+  // Strip time part if present
+  const dateOnly = dateString.split('T')[0];
+  const parts = dateOnly.split('-');
+  if (parts.length !== 3) return '-';
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // months are 0-indexed
+  const day = parseInt(parts[2], 10);
+  const date = new Date(year, month, day);
+  if (isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+}
+
+/**
+ * Format a date string (YYYY-MM-DD) for short display in Greek locale
+ */
+export function formatDateShort(dateString: string, locale: string = 'el-GR'): string {
+  if (!dateString) return '-';
+  const dateOnly = dateString.split('T')[0];
+  const parts = dateOnly.split('-');
+  if (parts.length !== 3) return '-';
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const date = new Date(year, month, day);
+  if (isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+}
+
 // Returns YYYY-MM-DD for the given Date in local time
 export function toLocalDateKey(date: Date): string {
 	const year = date.getFullYear();

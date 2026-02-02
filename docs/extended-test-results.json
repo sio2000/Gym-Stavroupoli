@@ -1,0 +1,258 @@
+{
+  "totalTests": 35,
+  "passed": 31,
+  "failed": 4,
+  "startTime": "2026-02-01T15:25:43.898Z",
+  "endTime": "2026-02-01T15:26:00.199Z",
+  "categories": {
+    "existingSubscriptions": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Total bot user memberships found",
+          "passed": true,
+          "details": "36 memberships"
+        },
+        {
+          "name": "Active memberships count",
+          "passed": true,
+          "details": "25 active"
+        },
+        {
+          "name": "Expired memberships count",
+          "passed": true,
+          "details": "11 expired"
+        }
+      ]
+    },
+    "expirationLogic": {
+      "passed": 2,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "No active memberships with past end_date",
+          "passed": true,
+          "details": "0 anomalies"
+        },
+        {
+          "name": "All expired memberships have past end_date",
+          "passed": false,
+          "details": "1 inconsistencies"
+        },
+        {
+          "name": "Memberships expiring today are still active",
+          "passed": true,
+          "details": "5 expiring today"
+        }
+      ]
+    },
+    "pilatesDeposits": {
+      "passed": 4,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "Bot user deposits exist",
+          "passed": false,
+          "details": "0 deposits"
+        },
+        {
+          "name": "Active deposits tracked",
+          "passed": true,
+          "details": "0 active"
+        },
+        {
+          "name": "Deposits with remaining credits",
+          "passed": true,
+          "details": "0 with credits"
+        },
+        {
+          "name": "Deposits with zero credits",
+          "passed": true,
+          "details": "0 exhausted"
+        },
+        {
+          "name": "No negative credit balances",
+          "passed": true,
+          "details": "0 negative"
+        }
+      ]
+    },
+    "calendarBookings": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Bot user bookings retrievable",
+          "passed": true,
+          "details": "0 bookings"
+        },
+        {
+          "name": "Confirmed bookings tracked",
+          "passed": true,
+          "details": "0 confirmed"
+        },
+        {
+          "name": "Cancelled bookings tracked",
+          "passed": true,
+          "details": "0 cancelled"
+        },
+        {
+          "name": "Bookings include slot date info",
+          "passed": true,
+          "details": "0/0 with slot data"
+        }
+      ]
+    },
+    "qrCodeAccess": {
+      "passed": 2,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Users with valid QR access identified",
+          "passed": true,
+          "details": "25 users with access"
+        },
+        {
+          "name": "Expired users correctly identified",
+          "passed": true,
+          "details": "11 users without access"
+        }
+      ]
+    },
+    "trainerVisibility": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Bookings show user names",
+          "passed": true,
+          "details": "12 bookings checked"
+        },
+        {
+          "name": "Bookings show slot times",
+          "passed": true,
+          "details": "Slot data visible"
+        },
+        {
+          "name": "Future slots retrievable",
+          "passed": true,
+          "details": "20 slots available"
+        },
+        {
+          "name": "Bot users visible to admin",
+          "passed": true,
+          "details": "30 users visible"
+        }
+      ]
+    },
+    "comboScenarios": {
+      "passed": 2,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Users with multiple memberships tracked",
+          "passed": true,
+          "details": "0 users with multiple subscriptions"
+        },
+        {
+          "name": "Renewal patterns detectable",
+          "passed": true,
+          "details": "0 memberships in renewal chains"
+        }
+      ]
+    },
+    "databaseIntegrity": {
+      "passed": 2,
+      "failed": 2,
+      "tests": [
+        {
+          "name": "All memberships have valid date ranges",
+          "passed": true,
+          "details": "0 invalid date ranges"
+        },
+        {
+          "name": "All deposits linked to valid memberships",
+          "passed": false,
+          "details": "38 orphan deposits"
+        },
+        {
+          "name": "All bookings linked to valid slots",
+          "passed": false,
+          "details": "12 orphan bookings"
+        },
+        {
+          "name": "Active deposit expiration check",
+          "passed": true,
+          "details": "0 deposits need expiration update"
+        }
+      ]
+    },
+    "performance": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Membership query < 2s",
+          "passed": true,
+          "details": "149ms"
+        },
+        {
+          "name": "Deposits query < 2s",
+          "passed": true,
+          "details": "924ms"
+        },
+        {
+          "name": "Bookings join query < 3s",
+          "passed": true,
+          "details": "273ms"
+        },
+        {
+          "name": "Slots query < 2s",
+          "passed": true,
+          "details": "566ms"
+        }
+      ]
+    },
+    "edgeCases": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Long-duration memberships (6+ months) handled",
+          "passed": true,
+          "details": "10 found"
+        },
+        {
+          "name": "Future-start memberships handled",
+          "passed": true,
+          "details": "2 found"
+        },
+        {
+          "name": "High credit deposits (20+) handled",
+          "passed": true,
+          "details": "2 found"
+        },
+        {
+          "name": "Users without active subscription tracked",
+          "passed": true,
+          "details": "30 inactive users"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "totalMemberships": 36,
+    "activeMemberships": 25,
+    "expiredMemberships": 11,
+    "anomalies": 0,
+    "totalDeposits": 0,
+    "activeDeposits": 0,
+    "depositsWithCredits": 0,
+    "totalBookings": 0,
+    "confirmedBookings": 0,
+    "usersWithQRAccess": 25,
+    "usersWithMultipleSubscriptions": 0,
+    "avgQueryTime": 478
+  }
+}

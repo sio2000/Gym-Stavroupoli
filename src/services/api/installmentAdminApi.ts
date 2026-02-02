@@ -1,6 +1,11 @@
 import { supabase } from '@/config/supabase';
 import { saveCashTransaction } from '@/utils/cashRegisterApi';
 
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 export type InstallmentStatus = 'pending' | 'overdue' | 'paid';
 
 export interface InstallmentListItem {
@@ -18,7 +23,7 @@ export interface InstallmentListItem {
   status: InstallmentStatus;
 }
 
-const todayIso = () => new Date().toISOString().split('T')[0];
+const todayIso = () => formatDateLocal(new Date());
 
 const computeStatus = (paid: boolean, dueDate: string): InstallmentStatus => {
   if (paid) return 'paid';

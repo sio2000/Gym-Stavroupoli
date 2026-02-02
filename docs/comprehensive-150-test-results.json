@@ -1,0 +1,1873 @@
+{
+  "tests": [
+    {
+      "category": "connectivity",
+      "name": "Σύνδεση με πίνακα memberships",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "connectivity",
+      "name": "Σύνδεση με πίνακα user_profiles",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "connectivity",
+      "name": "Σύνδεση με πίνακα pilates_deposits",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "connectivity",
+      "name": "Σύνδεση με πίνακα pilates_bookings",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "connectivity",
+      "name": "Σύνδεση με πίνακα pilates_schedule_slots",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "connectivity",
+      "name": "Σύνδεση με πίνακα membership_packages",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "connectivity",
+      "name": "Σύνδεση με πίνακα membership_requests",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "connectivity",
+      "name": "Σύνδεση με πίνακα qr_codes",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "connectivity",
+      "name": "Σύνδεση με πίνακα scan_audit_logs",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "connectivity",
+      "name": "Όλοι οι πίνακες προσβάσιμοι",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Υπάρχουν συνδρομές στο σύστημα",
+      "passed": true,
+      "details": "63 συνδρομές"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Υπάρχουν ενεργές συνδρομές",
+      "passed": true,
+      "details": "49 ενεργές"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Υπάρχουν ληγμένες συνδρομές",
+      "passed": true,
+      "details": "14 ληγμένες"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Pending συνδρομές καταγράφονται",
+      "passed": true,
+      "details": "0 pending"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Cancelled συνδρομές καταγράφονται",
+      "passed": true,
+      "details": "0 cancelled"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Άθροισμα status σωστό",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Ενεργές με μελλοντική λήξη",
+      "passed": true,
+      "details": "49"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Ληγμένες με παρελθούσα λήξη",
+      "passed": true,
+      "details": "13"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Όλες έχουν user_id",
+      "passed": true,
+      "details": "63/63"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Όλες έχουν ημερομηνίες",
+      "passed": true,
+      "details": "63/63"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Έγκυρο εύρος ημερομηνιών",
+      "passed": true,
+      "details": "63/63"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "is_active field υπάρχει",
+      "passed": true,
+      "details": "49 true"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Status \"active\" υποστηρίζεται",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Status \"expired\" υποστηρίζεται",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Status \"pending\" υποστηρίζεται",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Status \"cancelled\" υποστηρίζεται",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Καμία συνδρομή χωρίς status",
+      "passed": true,
+      "details": "0 χωρίς status"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Soft delete λειτουργεί",
+      "passed": true,
+      "details": "0 deleted"
+    },
+    {
+      "category": "membershipStatus",
+      "name": "Κατανομή status ολοκληρωμένη",
+      "passed": true,
+      "details": "Όλα τα status ελέγχθηκαν"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "🔴 ΚΡΙΣΙΜΟ: Καμία ενεργή με ληγμένη ημερομηνία",
+      "passed": true,
+      "details": "0 ανωμαλίες"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Συνδρομές που λήγουν ΣΗΜΕΡΑ",
+      "passed": true,
+      "details": "5"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Συνδρομές που λήγουν ΑΥΡΙΟ",
+      "passed": true,
+      "details": "4"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Συνδρομές που λήγουν αυτή την ΕΒΔΟΜΑΔΑ",
+      "passed": true,
+      "details": "24"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Συνδρομές που λήγουν αυτόν τον ΜΗΝΑ",
+      "passed": true,
+      "details": "34"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Πρόσφατα ληγμένες σωστά marked",
+      "passed": true,
+      "details": "0 λάθος marked"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Ληγμένες τον προηγούμενο ΜΗΝΑ",
+      "passed": true,
+      "details": "3"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Παλιές ληγμένες συνδρομές",
+      "passed": true,
+      "details": "3"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Μελλοντικές συνδρομές (future start)",
+      "passed": true,
+      "details": "2"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Σύγκριση ημερομηνιών today >= today",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Σύγκριση ημερομηνιών tomorrow > today",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Σύγκριση ημερομηνιών yesterday < today",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Σύγκριση ημερομηνιών nextWeek > today",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Σύγκριση ημερομηνιών lastWeek < today",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Ενεργές σήμερα με end_date >= today",
+      "passed": true,
+      "details": "49"
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Λογική λήξης: end_date < today = expired",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Λογική λήξης: end_date >= today = active",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Λογική λήξης: status field ενημερώνεται",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Λογική λήξης: is_active field συνεπές",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Deterministic expiration check",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "expirationLogic",
+      "name": "Ολοκληρωμένος έλεγχος λήξης",
+      "passed": true,
+      "details": "ΕΠΙΤΥΧΙΑ"
+    },
+    {
+      "category": "qrAccess",
+      "name": "Χρήστες με δικαίωμα QR",
+      "passed": true,
+      "details": "42"
+    },
+    {
+      "category": "qrAccess",
+      "name": "QR eligibility query λειτουργεί",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "qrAccess",
+      "name": "Λογική QR: status=active AND end_date>=today",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "qrAccess",
+      "name": "Πίνακας qr_codes προσβάσιμος",
+      "passed": true,
+      "details": "1 records"
+    },
+    {
+      "category": "qrAccess",
+      "name": "QR codes στο σύστημα",
+      "passed": true,
+      "details": "1"
+    },
+    {
+      "category": "qrAccess",
+      "name": "Scan audit logs καταγράφονται",
+      "passed": true,
+      "details": "0"
+    },
+    {
+      "category": "qrAccess",
+      "name": "QR access για ενεργή συνδρομή",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "qrAccess",
+      "name": "Άρνηση QR για ληγμένη συνδρομή",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "qrAccess",
+      "name": "QR user_id linking",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "qrAccess",
+      "name": "QR is_active field",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "qrAccess",
+      "name": "QR expiration handling",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "qrAccess",
+      "name": "Scan logging λειτουργεί",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "qrAccess",
+      "name": "QR validation endpoint ready",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "qrAccess",
+      "name": "Ολοκληρωμένος έλεγχος QR",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Πίνακας deposits προσβάσιμος",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Συνολικά deposits",
+      "passed": true,
+      "details": "63"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Ενεργά deposits",
+      "passed": true,
+      "details": "43"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Deposits με υπόλοιπο",
+      "passed": true,
+      "details": "57"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Deposits εξαντλημένα",
+      "passed": true,
+      "details": "6"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "🔴 ΚΡΙΣΙΜΟ: Κανένα αρνητικό υπόλοιπο",
+      "passed": true,
+      "details": "0"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Deposits με user_id",
+      "passed": true,
+      "details": "63/63"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Deposits με membership_id",
+      "passed": true,
+      "details": "38/63"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Μέγιστο υπόλοιπο λογικό (<100)",
+      "passed": true,
+      "details": "88"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Ελάχιστο υπόλοιπο >= 0",
+      "passed": true,
+      "details": "0"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Ενεργά με υπόλοιπο",
+      "passed": true,
+      "details": "43"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Ληγμένα/Ανενεργά deposits",
+      "passed": true,
+      "details": "20"
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Deposit creation works",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Credit decrement works",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Deposit expiration works",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Deposit-membership link",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Deposit validation complete",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "pilatesDeposits",
+      "name": "Ολοκληρωμένος έλεγχος deposits",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Πίνακας bookings προσβάσιμος",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Συνολικές κρατήσεις",
+      "passed": true,
+      "details": "12"
+    },
+    {
+      "category": "bookings",
+      "name": "Confirmed κρατήσεις",
+      "passed": true,
+      "details": "12"
+    },
+    {
+      "category": "bookings",
+      "name": "Cancelled κρατήσεις",
+      "passed": true,
+      "details": "0"
+    },
+    {
+      "category": "bookings",
+      "name": "Pending κρατήσεις",
+      "passed": true,
+      "details": "0"
+    },
+    {
+      "category": "bookings",
+      "name": "Κρατήσεις με slot_id",
+      "passed": true,
+      "details": "12/12"
+    },
+    {
+      "category": "bookings",
+      "name": "Κρατήσεις με user_id",
+      "passed": true,
+      "details": "12/12"
+    },
+    {
+      "category": "bookings",
+      "name": "Status \"confirmed\" υποστηρίζεται",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Status \"cancelled\" υποστηρίζεται",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Status \"pending\" υποστηρίζεται",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Booking-slot join λειτουργεί",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Booking-user join λειτουργεί",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Booking creation flow",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Booking cancellation flow",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Booking validation rules",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Booking history preserved",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Double booking prevention",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "bookings",
+      "name": "Ολοκληρωμένος έλεγχος κρατήσεων",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "slots",
+      "name": "Πίνακας slots προσβάσιμος",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "slots",
+      "name": "Συνολικά slots",
+      "passed": true,
+      "details": "1000"
+    },
+    {
+      "category": "slots",
+      "name": "Μελλοντικά slots",
+      "passed": true,
+      "details": "0"
+    },
+    {
+      "category": "slots",
+      "name": "Παρελθόντα slots",
+      "passed": true,
+      "details": "1000"
+    },
+    {
+      "category": "slots",
+      "name": "Slots σήμερα",
+      "passed": true,
+      "details": "0"
+    },
+    {
+      "category": "slots",
+      "name": "Slots με ημερομηνία",
+      "passed": true,
+      "details": "1000/1000"
+    },
+    {
+      "category": "slots",
+      "name": "Slots με ώρα έναρξης",
+      "passed": true,
+      "details": "1000/1000"
+    },
+    {
+      "category": "slots",
+      "name": "Slots με χωρητικότητα",
+      "passed": true,
+      "details": "0"
+    },
+    {
+      "category": "slots",
+      "name": "Slot creation works",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "slots",
+      "name": "Slot time formatting",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "slots",
+      "name": "Slot capacity tracking",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "slots",
+      "name": "Slot availability check",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "slots",
+      "name": "Slot date ordering",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "slots",
+      "name": "Ολοκληρωμένος έλεγχος slots",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "userProfiles",
+      "name": "Πίνακας users προσβάσιμος",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "userProfiles",
+      "name": "Χρήστες στο σύστημα",
+      "passed": true,
+      "details": "53"
+    },
+    {
+      "category": "userProfiles",
+      "name": "Χρήστες με email",
+      "passed": true,
+      "details": "51/53"
+    },
+    {
+      "category": "userProfiles",
+      "name": "Χρήστες με όνομα",
+      "passed": true,
+      "details": "51/53"
+    },
+    {
+      "category": "userProfiles",
+      "name": "Χρήστες με τηλέφωνο",
+      "passed": true,
+      "details": "51/53"
+    },
+    {
+      "category": "userProfiles",
+      "name": "Admin users",
+      "passed": true,
+      "details": "1"
+    },
+    {
+      "category": "userProfiles",
+      "name": "Secretary users",
+      "passed": true,
+      "details": "1"
+    },
+    {
+      "category": "userProfiles",
+      "name": "Member users",
+      "passed": true,
+      "details": "51"
+    },
+    {
+      "category": "userProfiles",
+      "name": "User-membership relation",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "userProfiles",
+      "name": "User-booking relation",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "userProfiles",
+      "name": "User-deposit relation",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "userProfiles",
+      "name": "User profile updates",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "userProfiles",
+      "name": "User role management",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "userProfiles",
+      "name": "Ολοκληρωμένος έλεγχος χρηστών",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "Έγκυρα date ranges",
+      "passed": true,
+      "details": "0 invalid"
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "Membership-user FK integrity",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "Deposit-membership links",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "Booking-slot links",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "No NULL user_ids in memberships",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "No NULL dates in memberships",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "No invalid status values",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "Timestamps properly set",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "UUID formats valid",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "Numeric fields in range",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "Boolean fields consistent",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "Soft deletes respected",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "Audit trails preserved",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "dataIntegrity",
+      "name": "Ολοκληρωμένος έλεγχος integrity",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "renewals",
+      "name": "Χρήστες με πολλαπλές συνδρομές",
+      "passed": true,
+      "details": "12"
+    },
+    {
+      "category": "renewals",
+      "name": "Χρήστες με 3+ συνδρομές",
+      "passed": true,
+      "details": "1"
+    },
+    {
+      "category": "renewals",
+      "name": "Μέγιστες συνδρομές ανά χρήστη",
+      "passed": true,
+      "details": "3"
+    },
+    {
+      "category": "renewals",
+      "name": "Renewal tracking λειτουργεί",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "renewals",
+      "name": "Old subscriptions preserved",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "renewals",
+      "name": "New subscription active",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "renewals",
+      "name": "Renewal history visible",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "renewals",
+      "name": "Renewal deposits handled",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "renewals",
+      "name": "Renewal dates correct",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "renewals",
+      "name": "Ολοκληρωμένος έλεγχος ανανεώσεων",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "trainerVisibility",
+      "name": "Full booking data accessible",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "trainerVisibility",
+      "name": "User names visible in bookings",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "trainerVisibility",
+      "name": "User contact info visible",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "trainerVisibility",
+      "name": "Slot details visible",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "trainerVisibility",
+      "name": "Booking status visible",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "trainerVisibility",
+      "name": "Booking timestamps visible",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "trainerVisibility",
+      "name": "Membership history visible",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "trainerVisibility",
+      "name": "Deposit balances visible",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "trainerVisibility",
+      "name": "User search works",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "category": "trainerVisibility",
+      "name": "Ολοκληρωμένη ορατότητα trainer",
+      "passed": true,
+      "details": ""
+    }
+  ],
+  "passed": 162,
+  "failed": 0,
+  "categories": {
+    "connectivity": {
+      "passed": 10,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Σύνδεση με πίνακα memberships",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύνδεση με πίνακα user_profiles",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύνδεση με πίνακα pilates_deposits",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύνδεση με πίνακα pilates_bookings",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύνδεση με πίνακα pilates_schedule_slots",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύνδεση με πίνακα membership_packages",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύνδεση με πίνακα membership_requests",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύνδεση με πίνακα qr_codes",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύνδεση με πίνακα scan_audit_logs",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Όλοι οι πίνακες προσβάσιμοι",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    "membershipStatus": {
+      "passed": 19,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Υπάρχουν συνδρομές στο σύστημα",
+          "passed": true,
+          "details": "63 συνδρομές"
+        },
+        {
+          "name": "Υπάρχουν ενεργές συνδρομές",
+          "passed": true,
+          "details": "49 ενεργές"
+        },
+        {
+          "name": "Υπάρχουν ληγμένες συνδρομές",
+          "passed": true,
+          "details": "14 ληγμένες"
+        },
+        {
+          "name": "Pending συνδρομές καταγράφονται",
+          "passed": true,
+          "details": "0 pending"
+        },
+        {
+          "name": "Cancelled συνδρομές καταγράφονται",
+          "passed": true,
+          "details": "0 cancelled"
+        },
+        {
+          "name": "Άθροισμα status σωστό",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ενεργές με μελλοντική λήξη",
+          "passed": true,
+          "details": "49"
+        },
+        {
+          "name": "Ληγμένες με παρελθούσα λήξη",
+          "passed": true,
+          "details": "13"
+        },
+        {
+          "name": "Όλες έχουν user_id",
+          "passed": true,
+          "details": "63/63"
+        },
+        {
+          "name": "Όλες έχουν ημερομηνίες",
+          "passed": true,
+          "details": "63/63"
+        },
+        {
+          "name": "Έγκυρο εύρος ημερομηνιών",
+          "passed": true,
+          "details": "63/63"
+        },
+        {
+          "name": "is_active field υπάρχει",
+          "passed": true,
+          "details": "49 true"
+        },
+        {
+          "name": "Status \"active\" υποστηρίζεται",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Status \"expired\" υποστηρίζεται",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Status \"pending\" υποστηρίζεται",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Status \"cancelled\" υποστηρίζεται",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Καμία συνδρομή χωρίς status",
+          "passed": true,
+          "details": "0 χωρίς status"
+        },
+        {
+          "name": "Soft delete λειτουργεί",
+          "passed": true,
+          "details": "0 deleted"
+        },
+        {
+          "name": "Κατανομή status ολοκληρωμένη",
+          "passed": true,
+          "details": "Όλα τα status ελέγχθηκαν"
+        }
+      ]
+    },
+    "expirationLogic": {
+      "passed": 21,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "🔴 ΚΡΙΣΙΜΟ: Καμία ενεργή με ληγμένη ημερομηνία",
+          "passed": true,
+          "details": "0 ανωμαλίες"
+        },
+        {
+          "name": "Συνδρομές που λήγουν ΣΗΜΕΡΑ",
+          "passed": true,
+          "details": "5"
+        },
+        {
+          "name": "Συνδρομές που λήγουν ΑΥΡΙΟ",
+          "passed": true,
+          "details": "4"
+        },
+        {
+          "name": "Συνδρομές που λήγουν αυτή την ΕΒΔΟΜΑΔΑ",
+          "passed": true,
+          "details": "24"
+        },
+        {
+          "name": "Συνδρομές που λήγουν αυτόν τον ΜΗΝΑ",
+          "passed": true,
+          "details": "34"
+        },
+        {
+          "name": "Πρόσφατα ληγμένες σωστά marked",
+          "passed": true,
+          "details": "0 λάθος marked"
+        },
+        {
+          "name": "Ληγμένες τον προηγούμενο ΜΗΝΑ",
+          "passed": true,
+          "details": "3"
+        },
+        {
+          "name": "Παλιές ληγμένες συνδρομές",
+          "passed": true,
+          "details": "3"
+        },
+        {
+          "name": "Μελλοντικές συνδρομές (future start)",
+          "passed": true,
+          "details": "2"
+        },
+        {
+          "name": "Σύγκριση ημερομηνιών today >= today",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύγκριση ημερομηνιών tomorrow > today",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύγκριση ημερομηνιών yesterday < today",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύγκριση ημερομηνιών nextWeek > today",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Σύγκριση ημερομηνιών lastWeek < today",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ενεργές σήμερα με end_date >= today",
+          "passed": true,
+          "details": "49"
+        },
+        {
+          "name": "Λογική λήξης: end_date < today = expired",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Λογική λήξης: end_date >= today = active",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Λογική λήξης: status field ενημερώνεται",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Λογική λήξης: is_active field συνεπές",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Deterministic expiration check",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ολοκληρωμένος έλεγχος λήξης",
+          "passed": true,
+          "details": "ΕΠΙΤΥΧΙΑ"
+        }
+      ]
+    },
+    "qrAccess": {
+      "passed": 14,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Χρήστες με δικαίωμα QR",
+          "passed": true,
+          "details": "42"
+        },
+        {
+          "name": "QR eligibility query λειτουργεί",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Λογική QR: status=active AND end_date>=today",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Πίνακας qr_codes προσβάσιμος",
+          "passed": true,
+          "details": "1 records"
+        },
+        {
+          "name": "QR codes στο σύστημα",
+          "passed": true,
+          "details": "1"
+        },
+        {
+          "name": "Scan audit logs καταγράφονται",
+          "passed": true,
+          "details": "0"
+        },
+        {
+          "name": "QR access για ενεργή συνδρομή",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Άρνηση QR για ληγμένη συνδρομή",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "QR user_id linking",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "QR is_active field",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "QR expiration handling",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Scan logging λειτουργεί",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "QR validation endpoint ready",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ολοκληρωμένος έλεγχος QR",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    "pilatesDeposits": {
+      "passed": 18,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Πίνακας deposits προσβάσιμος",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Συνολικά deposits",
+          "passed": true,
+          "details": "63"
+        },
+        {
+          "name": "Ενεργά deposits",
+          "passed": true,
+          "details": "43"
+        },
+        {
+          "name": "Deposits με υπόλοιπο",
+          "passed": true,
+          "details": "57"
+        },
+        {
+          "name": "Deposits εξαντλημένα",
+          "passed": true,
+          "details": "6"
+        },
+        {
+          "name": "🔴 ΚΡΙΣΙΜΟ: Κανένα αρνητικό υπόλοιπο",
+          "passed": true,
+          "details": "0"
+        },
+        {
+          "name": "Deposits με user_id",
+          "passed": true,
+          "details": "63/63"
+        },
+        {
+          "name": "Deposits με membership_id",
+          "passed": true,
+          "details": "38/63"
+        },
+        {
+          "name": "Μέγιστο υπόλοιπο λογικό (<100)",
+          "passed": true,
+          "details": "88"
+        },
+        {
+          "name": "Ελάχιστο υπόλοιπο >= 0",
+          "passed": true,
+          "details": "0"
+        },
+        {
+          "name": "Ενεργά με υπόλοιπο",
+          "passed": true,
+          "details": "43"
+        },
+        {
+          "name": "Ληγμένα/Ανενεργά deposits",
+          "passed": true,
+          "details": "20"
+        },
+        {
+          "name": "Deposit creation works",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Credit decrement works",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Deposit expiration works",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Deposit-membership link",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Deposit validation complete",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ολοκληρωμένος έλεγχος deposits",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    "bookings": {
+      "passed": 18,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Πίνακας bookings προσβάσιμος",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Συνολικές κρατήσεις",
+          "passed": true,
+          "details": "12"
+        },
+        {
+          "name": "Confirmed κρατήσεις",
+          "passed": true,
+          "details": "12"
+        },
+        {
+          "name": "Cancelled κρατήσεις",
+          "passed": true,
+          "details": "0"
+        },
+        {
+          "name": "Pending κρατήσεις",
+          "passed": true,
+          "details": "0"
+        },
+        {
+          "name": "Κρατήσεις με slot_id",
+          "passed": true,
+          "details": "12/12"
+        },
+        {
+          "name": "Κρατήσεις με user_id",
+          "passed": true,
+          "details": "12/12"
+        },
+        {
+          "name": "Status \"confirmed\" υποστηρίζεται",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Status \"cancelled\" υποστηρίζεται",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Status \"pending\" υποστηρίζεται",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Booking-slot join λειτουργεί",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Booking-user join λειτουργεί",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Booking creation flow",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Booking cancellation flow",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Booking validation rules",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Booking history preserved",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Double booking prevention",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ολοκληρωμένος έλεγχος κρατήσεων",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    "slots": {
+      "passed": 14,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Πίνακας slots προσβάσιμος",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Συνολικά slots",
+          "passed": true,
+          "details": "1000"
+        },
+        {
+          "name": "Μελλοντικά slots",
+          "passed": true,
+          "details": "0"
+        },
+        {
+          "name": "Παρελθόντα slots",
+          "passed": true,
+          "details": "1000"
+        },
+        {
+          "name": "Slots σήμερα",
+          "passed": true,
+          "details": "0"
+        },
+        {
+          "name": "Slots με ημερομηνία",
+          "passed": true,
+          "details": "1000/1000"
+        },
+        {
+          "name": "Slots με ώρα έναρξης",
+          "passed": true,
+          "details": "1000/1000"
+        },
+        {
+          "name": "Slots με χωρητικότητα",
+          "passed": true,
+          "details": "0"
+        },
+        {
+          "name": "Slot creation works",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Slot time formatting",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Slot capacity tracking",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Slot availability check",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Slot date ordering",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ολοκληρωμένος έλεγχος slots",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    "userProfiles": {
+      "passed": 14,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Πίνακας users προσβάσιμος",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Χρήστες στο σύστημα",
+          "passed": true,
+          "details": "53"
+        },
+        {
+          "name": "Χρήστες με email",
+          "passed": true,
+          "details": "51/53"
+        },
+        {
+          "name": "Χρήστες με όνομα",
+          "passed": true,
+          "details": "51/53"
+        },
+        {
+          "name": "Χρήστες με τηλέφωνο",
+          "passed": true,
+          "details": "51/53"
+        },
+        {
+          "name": "Admin users",
+          "passed": true,
+          "details": "1"
+        },
+        {
+          "name": "Secretary users",
+          "passed": true,
+          "details": "1"
+        },
+        {
+          "name": "Member users",
+          "passed": true,
+          "details": "51"
+        },
+        {
+          "name": "User-membership relation",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "User-booking relation",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "User-deposit relation",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "User profile updates",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "User role management",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ολοκληρωμένος έλεγχος χρηστών",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    "dataIntegrity": {
+      "passed": 14,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Έγκυρα date ranges",
+          "passed": true,
+          "details": "0 invalid"
+        },
+        {
+          "name": "Membership-user FK integrity",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Deposit-membership links",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Booking-slot links",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "No NULL user_ids in memberships",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "No NULL dates in memberships",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "No invalid status values",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Timestamps properly set",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "UUID formats valid",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Numeric fields in range",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Boolean fields consistent",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Soft deletes respected",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Audit trails preserved",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ολοκληρωμένος έλεγχος integrity",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    "renewals": {
+      "passed": 10,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Χρήστες με πολλαπλές συνδρομές",
+          "passed": true,
+          "details": "12"
+        },
+        {
+          "name": "Χρήστες με 3+ συνδρομές",
+          "passed": true,
+          "details": "1"
+        },
+        {
+          "name": "Μέγιστες συνδρομές ανά χρήστη",
+          "passed": true,
+          "details": "3"
+        },
+        {
+          "name": "Renewal tracking λειτουργεί",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Old subscriptions preserved",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "New subscription active",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Renewal history visible",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Renewal deposits handled",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Renewal dates correct",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ολοκληρωμένος έλεγχος ανανεώσεων",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    "trainerVisibility": {
+      "passed": 10,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Full booking data accessible",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "User names visible in bookings",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "User contact info visible",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Slot details visible",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Booking status visible",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Booking timestamps visible",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Membership history visible",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Deposit balances visible",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "User search works",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Ολοκληρωμένη ορατότητα trainer",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    }
+  },
+  "stats": {
+    "totalMemberships": 63,
+    "activeMemberships": 49,
+    "expiredMemberships": 14,
+    "anomalies": 0,
+    "expiringToday": 5,
+    "expiringThisWeek": 24,
+    "usersWithQRAccess": 42,
+    "totalDeposits": 63,
+    "activeDeposits": 43,
+    "depositsWithCredits": 57,
+    "totalBookings": 12,
+    "totalSlots": 1000,
+    "futureSlots": 0,
+    "usersWithRenewals": 12
+  },
+  "startTime": "2026-02-01T15:43:46.325Z"
+}

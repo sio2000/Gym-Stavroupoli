@@ -1,5 +1,10 @@
 import { supabase } from '@/config/supabase';
 
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 /**
  * Legacy User Normalization System
  *
@@ -66,7 +71,7 @@ export const detectLegacyUsers = async (): Promise<LegacyUser[]> => {
         )
       `)
       .eq('is_active', true)
-      .gte('end_date', new Date().toISOString().split('T')[0]);
+      .gte('end_date', formatDateLocal(new Date()));
 
     if (membershipError) throw membershipError;
 
@@ -381,7 +386,7 @@ export const validateUserNormalization = async (userId: string): Promise<boolean
       `)
       .eq('user_id', userId)
       .eq('is_active', true)
-      .gte('end_date', new Date().toISOString().split('T')[0]);
+      .gte('end_date', formatDateLocal(new Date()));
 
     if (membershipError) throw membershipError;
 

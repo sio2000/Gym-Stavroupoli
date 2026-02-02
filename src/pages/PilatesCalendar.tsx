@@ -7,6 +7,9 @@ import {
   createPilatesBooking,
   getActivePilatesDeposit,
   subscribePilatesRealtime,
+  getPilatesSubscriptionStatus,
+  runPilatesExpirationCheck,
+  canUserBookPilatesClass,
 } from '@/utils/pilatesScheduleApi';
 import { 
   getUltimateWeeklyDepositInfo, 
@@ -16,7 +19,7 @@ import {
 } from '@/utils/ultimateWeeklyDepositApi';
 import { debugWeeklyLogic } from '@/utils/debugWeeklyLogic';
 import { PilatesAvailableSlot, PilatesBooking } from '@/types';
-import { Calendar, CheckCircle, XCircle, Loader2, ChevronLeft, ChevronRight, Wallet, Sparkles, X } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle, Loader2, ChevronLeft, ChevronRight, Wallet, Sparkles, X, AlertTriangle } from 'lucide-react';
 import { toLocalDateKey, addDaysLocal, parseDateKeyLocal } from '@/utils/date';
 
 const PilatesCalendar: React.FC = () => {
@@ -29,6 +32,13 @@ const PilatesCalendar: React.FC = () => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [pendingSlot, setPendingSlot] = useState<PilatesAvailableSlot | null>(null);
   const [currentWeek, setCurrentWeek] = useState(() => new Date());
+  // PILATES-FIX: Track subscription status and expiry warnings
+  const [subscriptionStatus, setSubscriptionStatus] = useState<{
+    canBook: boolean;
+    message: string;
+    daysRemaining?: number;
+    expiryWarning?: string;
+  } | null>(null);
 
 
   // Generate dates από σήμερα + 15 ημέρες
@@ -97,13 +107,42 @@ const PilatesCalendar: React.FC = () => {
   };
 
 
-  // Load data from database
+  // PILATES-FIX: Load data from database with expiration check
   const loadData = async () => {
     if (!user?.id) return;
     
     try {
       setLoading(true);
-      console.log('=== LOADING PILATES CALENDAR DATA ===');
+      console.log('[PILATES-FIX] === LOADING PILATES CALENDAR DATA ===');
+      console.log('[PILATES-FIX] User ID:', user.id);
+      console.log('[PILATES-FIX] Current timestamp:', new Date().toISOString());
+      
+      // PILATES-FIX: Run expiration check first to ensure DB state is correct
+      console.log('[PILATES-FIX] Running expiration check...');
+      const expirationResult = await runPilatesExpirationCheck();
+      if (expirationResult) {
+        console.log('[PILATES-FIX] Expiration check result:', expirationResult);
+        if ((expirationResult.expired_memberships || 0) > 0 || (expirationResult.expired_deposits || 0) > 0) {
+          console.log('[PILATES-FIX] Some subscriptions were expired during this check');
+        }
+      }
+      
+      // PILATES-FIX: Get subscription status first for validation
+      console.log('[PILATES-FIX] Getting subscription status...');
+      const status = await getPilatesSubscriptionStatus(user.id);
+      console.log('[PILATES-FIX] Subscription status:', status);
+      
+      if (status) {
+        setSubscriptionStatus({
+          canBook: status.can_book_pilates_class,
+          message: status.status_message,
+          daysRemaining: status.membership_days_remaining || undefined,
+          expiryWarning: status.membership_days_remaining && status.membership_days_remaining <= 7 
+            ? `Η συνδρομή λήγει σε ${status.membership_days_remaining} ημέρες!` 
+            : undefined
+        });
+      }
+      
       const weekDates = getWeekDates();
       const startStr = weekDates[0];
       const endStr = weekDates[13];
@@ -115,9 +154,10 @@ const PilatesCalendar: React.FC = () => {
         getUltimateWeeklyDepositInfo()
       ]);
       
-      console.log('Fetched slots from DB:', slots.length);
-      console.log('Fetched bookings from DB:', bookings.length);
-      console.log('Weekly deposit info:', weeklyInfo);
+      console.log('[PILATES-FIX] Fetched slots from DB:', slots.length);
+      console.log('[PILATES-FIX] Fetched bookings from DB:', bookings.length);
+      console.log('[PILATES-FIX] Deposit info:', depositInfo);
+      console.log('[PILATES-FIX] Weekly deposit info:', weeklyInfo);
       
       // Debug weekly logic
       if (weeklyInfo?.is_ultimate_user) {
@@ -135,8 +175,15 @@ const PilatesCalendar: React.FC = () => {
       setDeposit(depositInfo?.deposit_remaining || 0);
       setWeeklyDepositInfo(weeklyInfo);
       
+      console.log('[PILATES-FIX] Data loaded successfully:', {
+        slotsCount: slotsWithCapacity.length,
+        bookingsCount: bookings.length,
+        deposit: depositInfo?.deposit_remaining || 0,
+        canBook: status?.can_book_pilates_class
+      });
+      
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('[PILATES-FIX] Error loading data:', error);
       toast.error('Σφάλμα φόρτωσης δεδομένων');
     } finally {
       setLoading(false);
@@ -161,42 +208,64 @@ const PilatesCalendar: React.FC = () => {
     console.log('Navigated to week:', newDate);
   };
 
-  // Handle slot booking
+  // PILATES-FIX: Handle slot booking with deterministic validation
   const handleBookSlot = async (slot: PilatesAvailableSlot) => {
     if (!user?.id) return;
     
+    console.log('[PILATES-FIX] handleBookSlot called:', {
+      slotId: slot.id,
+      slotDate: slot.date,
+      slotTime: slot.start_time,
+      userId: user.id
+    });
+    
     if (!slot.is_active) {
+      console.log('[PILATES-FIX] Slot is not active, booking denied');
       toast.error('Αυτό το μάθημα δεν είναι διαθέσιμο.');
       return;
     }
     
     if (isSlotBooked(slot.id)) {
+      console.log('[PILATES-FIX] Slot already booked by user');
       toast.error('Έχετε ήδη κλείσει αυτό το μάθημα.');
       return;
     }
     
     try {
-      console.log('Booking slot:', slot);
+      console.log('[PILATES-FIX] Starting booking process...');
+      
+      // PILATES-FIX: Pre-validate with deterministic check
+      const eligibility = await canUserBookPilatesClass(user.id);
+      console.log('[PILATES-FIX] Booking eligibility:', eligibility);
+      
+      if (!eligibility.canBook) {
+        console.log('[PILATES-FIX] Booking DENIED by deterministic check:', eligibility.reason);
+        toast.error(eligibility.reason);
+        return;
+      }
       
       if (deposit <= 0) {
+        console.log('[PILATES-FIX] No deposit remaining');
         toast.error('Τα μαθήματά σας τελείωσαν. Για ανανέωση, απευθυνθείτε στη ρεσεψιόν.');
         return;
       }
 
       // πλήρες;
       if (slot.booked_count >= slot.max_capacity) {
+        console.log('[PILATES-FIX] Slot is full');
         toast.error('Το μάθημα είναι πλήρες.');
         return;
       }
       
+      console.log('[PILATES-FIX] All validations passed, creating booking...');
       const booking = await createPilatesBooking({ slotId: slot.id, notes: '' }, user.id);
-      console.log('Booking created:', booking);
+      console.log('[PILATES-FIX] Booking created successfully:', booking);
       
       toast.success('Το μάθημα κλείστηκε επιτυχώς!');
       await loadData();
       
     } catch (error) {
-      console.error('Error booking slot:', error);
+      console.error('[PILATES-FIX] Error booking slot:', error);
       toast.error('Σφάλμα κατά την κράτηση του μαθήματος.');
     }
   };

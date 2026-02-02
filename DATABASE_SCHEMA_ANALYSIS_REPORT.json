@@ -1,0 +1,116 @@
+{
+  "timestamp": "2026-01-31T19:20:08.531Z",
+  "analysis": {
+    "tables": [
+      {
+        "name": "memberships",
+        "row_count": 79,
+        "status": "accessible"
+      },
+      {
+        "name": "membership_packages",
+        "row_count": 8,
+        "status": "accessible"
+      },
+      {
+        "name": "membership_requests",
+        "row_count": 26,
+        "status": "accessible"
+      },
+      {
+        "name": "pilates_deposits",
+        "row_count": 36,
+        "status": "accessible"
+      },
+      {
+        "name": "pilates_bookings",
+        "row_count": 11,
+        "status": "accessible"
+      },
+      {
+        "name": "ultimate_weekly_refills",
+        "row_count": 0,
+        "status": "accessible"
+      },
+      {
+        "name": "ultimate_dual_membership",
+        "row_count": 0,
+        "status": "accessible"
+      },
+      {
+        "name": "membership_package_durations",
+        "row_count": 13,
+        "status": "accessible"
+      },
+      {
+        "name": "membership_logs",
+        "row_count": 0,
+        "status": "accessible"
+      },
+      {
+        "name": "membership_expiration",
+        "row_count": 0,
+        "status": "accessible"
+      },
+      {
+        "name": "membership_overview",
+        "row_count": 79,
+        "status": "accessible"
+      },
+      {
+        "name": "user_profiles",
+        "row_count": 40,
+        "status": "accessible"
+      }
+    ],
+    "rls_policies": [],
+    "foreign_keys": [],
+    "triggers": [],
+    "functions": [],
+    "issues": [
+      {
+        "type": "redundant_columns",
+        "table": "memberships",
+        "null_columns": [
+          "approved_by",
+          "expires_at",
+          "source_request_id",
+          "source_package_name",
+          "deleted_at",
+          "cancellation_reason",
+          "cancelled_at",
+          "cancelled_by",
+          "renewal_package_id"
+        ],
+        "empty_columns": []
+      }
+    ],
+    "recommendations": [
+      {
+        "issue": "RLS Policies blocking inserts",
+        "solution": "Check RLS policy allows auth.uid() = user_id OR user is admin",
+        "priority": "CRITICAL"
+      },
+      {
+        "issue": "Duplicate status columns (is_active vs status)",
+        "solution": "Use only is_active (BOOLEAN) - remove status field",
+        "priority": "HIGH"
+      },
+      {
+        "issue": "Expired memberships not auto-deactivating",
+        "solution": "Implement BEFORE UPDATE/INSERT trigger to set is_active=false when end_date < TODAY",
+        "priority": "CRITICAL"
+      },
+      {
+        "issue": "Orphaned pilates_deposits for expired memberships",
+        "solution": "Cascade deactivate deposits when membership expires",
+        "priority": "HIGH"
+      },
+      {
+        "issue": "NULL columns in memberships (expires_at, source_request_id, etc)",
+        "solution": "Either populate these fields OR remove them from schema",
+        "priority": "MEDIUM"
+      }
+    ]
+  }
+}

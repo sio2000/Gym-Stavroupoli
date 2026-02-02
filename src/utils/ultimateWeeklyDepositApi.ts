@@ -2,6 +2,11 @@ import { supabase } from '@/config/supabase';
 import { WeeklyRefillStatus } from './weeklyRefillApi';
 import { addDaysLocal, toLocalDateKey } from '@/utils/date';
 
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 export interface UltimateWeeklyDepositInfo {
   current_deposit: number;
   weekly_allocation: number;
@@ -107,10 +112,10 @@ export const getUltimateWeeklyDepositInfo = async (): Promise<UltimateWeeklyDepo
     return {
       current_deposit: currentDeposit,
       weekly_allocation: weeklyAllocation,
-      next_refill_date: nextRefillDate.toISOString().split('T')[0],
+      next_refill_date: formatDateLocal(nextRefillDate),
       refill_week: refillStatus.next_refill_week,
       total_weeks_remaining: totalWeeksRemaining,
-      can_book_from_date: canBookFromDate.toISOString().split('T')[0],
+      can_book_from_date: formatDateLocal(canBookFromDate),
       current_week_start: toLocalDateKey(weekStart),
       current_week_end: toLocalDateKey(weekEnd),
       is_ultimate_user: true,

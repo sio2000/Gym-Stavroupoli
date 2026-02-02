@@ -1,5 +1,10 @@
 import { supabase } from '@/config/supabase';
 
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 export interface UserInfo {
   user_id: string;
   first_name: string;
@@ -94,7 +99,8 @@ const isActiveMembership = (m?: { is_active?: boolean; end_date?: string }) => {
   if (!m) return false;
   if (!m.is_active) return false;
   if (!m.end_date) return true;
-  const today = new Date().toISOString().split('T')[0];
+  // Using local timezone to avoid UTC conversion issues
+  const today = formatDateLocal(new Date());
   return m.end_date >= today;
 };
 
@@ -107,7 +113,8 @@ const userMatchesFilter = (user: any, filter: UserFilter): boolean => {
 };
 
 const getActiveUserIds = async (): Promise<Set<string>> => {
-  const today = new Date().toISOString().split('T')[0];
+  // Using local timezone to avoid UTC conversion issues
+  const today = formatDateLocal(new Date());
   const { data, error } = await supabase
     .from('memberships')
     .select('user_id')
@@ -353,19 +360,35 @@ export const getUserDetailedInfo = async (userId: string): Promise<UserDetailedI
       throw membershipsError;
     }
 
-    // Process memberships
-    const processedMemberships: UserMembership[] = (memberships || []).map(membership => ({
-      id: membership.id,
-      package_id: membership.package_id,
-      package_name: (membership.membership_packages as any)?.name || 'Unknown Package',
-      status: membership.status,
-      credits_remaining: 0, // Not available in this database schema
-      credits_total: 0, // Not available in this database schema
-      start_date: membership.start_date,
-      end_date: membership.end_date,
-      is_active: membership.is_active && new Date(membership.end_date) >= new Date(),
-      created_at: membership.created_at
-    }));
+    // Process memberships - CRITICAL: Calculate status dynamically based on end_date
+    // Using string comparison (YYYY-MM-DD format) to avoid timezone issues
+    const todayStr = formatDateLocal(new Date());
+    const processedMemberships: UserMembership[] = (memberships || []).map(membership => {
+      // CRITICAL FIX: Use string comparison to avoid timezone issues
+      // membership.end_date is in "YYYY-MM-DD" format
+      const isExpired = membership.end_date < todayStr;
+      const isReallyActive = membership.is_active && !isExpired;
+      
+      // CRITICAL FIX: Calculate actual status based on end_date, not trusting database status
+      // The database may have stale status='active' even when end_date has passed
+      let actualStatus = membership.status;
+      if (isExpired && membership.status === 'active') {
+        actualStatus = 'expired';
+      }
+      
+      return {
+        id: membership.id,
+        package_id: membership.package_id,
+        package_name: (membership.membership_packages as any)?.name || 'Unknown Package',
+        status: actualStatus,  // Use calculated status, not database status
+        credits_remaining: 0, // Not available in this database schema
+        credits_total: 0, // Not available in this database schema
+        start_date: membership.start_date,
+        end_date: membership.end_date,
+        is_active: isReallyActive,
+        created_at: membership.created_at
+      };
+    });
 
     // Get active memberships
     const activeMemberships = processedMemberships.filter(m => m.is_active);

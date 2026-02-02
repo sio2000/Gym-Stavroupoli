@@ -1,6 +1,11 @@
 import { supabase } from '@/config/supabase';
 import { toast } from 'react-hot-toast';
 
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 // Types for weekly refill system
 export interface WeeklyRefillStatus {
   user_id: string;
@@ -235,10 +240,11 @@ export const getAllRefillRecords = async (limit: number = 50): Promise<any[]> =>
 export const getWeeklyRefillStats = async (): Promise<any> => {
   try {
     // Get total refills today
+    // Using local timezone to avoid UTC conversion issues
     const { data: todayRefills, error: todayError } = await supabase
       .from('ultimate_weekly_refills')
       .select('*', { count: 'exact' })
-      .eq('refill_date', new Date().toISOString().split('T')[0]);
+      .eq('refill_date', formatDateLocal(new Date()));
 
     if (todayError) {
       console.error('[WeeklyRefillAPI] Error fetching today refills:', todayError);
@@ -252,7 +258,7 @@ export const getWeeklyRefillStats = async (): Promise<any> => {
     const { data: weekRefills, error: weekError } = await supabase
       .from('ultimate_weekly_refills')
       .select('*', { count: 'exact' })
-      .gte('refill_date', weekStart.toISOString().split('T')[0]);
+      .gte('refill_date', formatDateLocal(weekStart));
 
     if (weekError) {
       console.error('[WeeklyRefillAPI] Error fetching week refills:', weekError);

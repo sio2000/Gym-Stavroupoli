@@ -26,6 +26,7 @@ import {
   UserDetailedInfo,
   UserFilter
 } from '@/utils/userInfoApi';
+import { formatDateForDisplay } from '@/utils/date';
 import toast from 'react-hot-toast';
 
 const SecretaryUsersInformation: React.FC = () => {
@@ -122,17 +123,8 @@ const SecretaryUsersInformation: React.FC = () => {
     setSearchResults([]);
   };
 
-  // Format date safely in case of null/undefined
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '-';
-    return date.toLocaleDateString('el-GR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  // Use the centralized date formatting utility to avoid UTC conversion issues
+  const formatDate = (dateString: string) => formatDateForDisplay(dateString, 'el-GR');
 
   const displayUsers = searchTerm ? searchResults : randomUsers;
 
@@ -530,11 +522,9 @@ const SecretaryUsersInformation: React.FC = () => {
                               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                 membership.is_active 
                                   ? 'bg-green-100 text-green-800' 
-                                  : membership.status === 'expired'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-gray-100 text-gray-800'
+                                  : 'bg-red-100 text-red-800'
                               }`}>
-                                {membership.is_active ? 'Ενεργή' : membership.status}
+                                {membership.is_active ? 'Ενεργή' : 'Λήξη'}
                               </span>
                             </div>
                           </div>

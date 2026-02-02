@@ -100,6 +100,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const checkActiveMembership = async () => {
       if (!user?.id) return;
       
+      // Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+      const formatDateLocal = (date: Date): string => {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      };
+      const todayStr = formatDateLocal(new Date());
+      
       try {
         // Check for any active membership
         const { data, error } = await supabase
@@ -107,13 +113,29 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           .select(`
             id,
             package_id,
+            end_date,
             membership_packages(package_type, name)
           `)
           .eq('user_id', user.id)
           .eq('is_active', true)
-          .gte('end_date', `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`); // Not expired
+          .gte('end_date', todayStr); // Not expired
 
-        if (!error && data && data.length > 0) {
+        // CRITICAL FIX: Client-side validation - filter out any memberships where end_date has passed
+        // Using string comparison (YYYY-MM-DD format) to avoid timezone issues
+        const validMemberships = (data || []).filter(membership => {
+          // String comparison: "2026-02-02" >= "2026-02-02" is true (valid on last day)
+          const isStillValid = membership.end_date >= todayStr;
+          if (!isStillValid) {
+            console.log('[Layout] Client-side filtering expired membership:', {
+              id: membership.id,
+              end_date: membership.end_date,
+              todayStr: todayStr
+            });
+          }
+          return isStillValid;
+        });
+
+        if (!error && validMemberships && validMemberships.length > 0) {
           setHasApprovedMembership(true);
         } else {
           setHasApprovedMembership(false);
@@ -131,10 +153,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           `)
           .eq('user_id', user.id)
           .eq('is_active', true)
-          .gte('end_date', `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`);
+          .gte('end_date', todayStr);
+
+        // CRITICAL FIX: Client-side validation for pilates memberships too
+        // Using string comparison (YYYY-MM-DD format) to avoid timezone issues
+        const validPilatesData = (pilatesData || []).filter(membership => {
+          return membership.end_date >= todayStr;
+        });
 
         // Check if any of the active memberships is specifically for pilates
-        const hasPilatesPackage = pilatesData && pilatesData.some(membership => {
+        const hasPilatesPackage = validPilatesData && validPilatesData.some(membership => {
           console.log('[Layout] Checking pilates membership:', membership);
           console.log('[Layout] Pilates membership packages:', membership.membership_packages);
           
@@ -158,9 +186,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         // Update QR Code access: show if user has Free Gym OR Pilates membership
         // Check for both Free Gym and Pilates package memberships
         console.log('[Layout] ===== CHECKING QR CODE ACCESS =====');
-        console.log('[Layout] Active memberships data:', data);
+        console.log('[Layout] Active memberships data:', validMemberships);
         
-        const hasQRCodeAccessMembership = data && data.some(membership => {
+        // CRITICAL FIX: Use validMemberships (client-side filtered) instead of raw data
+        const hasQRCodeAccessMembership = validMemberships && validMemberships.some(membership => {
           console.log('[Layout] Checking membership:', membership);
           console.log('[Layout] Membership packages:', membership.membership_packages);
           

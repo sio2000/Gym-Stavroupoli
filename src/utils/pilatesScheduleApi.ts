@@ -8,6 +8,201 @@ import {
 } from '@/types';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+// =====================================================
+// PILATES SUBSCRIPTION LOGGING AND VALIDATION
+// =====================================================
+// CRITICAL: All logs prefixed with [PILATES-FIX] for easy filtering
+// These logs help identify which code paths are executed and verify
+// that subscription state is correctly synchronized
+
+interface PilatesSubscriptionStatus {
+  has_active_membership: boolean;
+  membership_end_date: string | null;
+  membership_days_remaining: number | null;
+  has_active_deposit: boolean;
+  deposit_remaining: number | null;
+  deposit_expires_at: string | null;
+  can_book_pilates_class: boolean;
+  can_access_gym_via_pilates: boolean;
+  status_message: string;
+}
+
+// Get comprehensive Pilates subscription status using deterministic DB function
+export const getPilatesSubscriptionStatus = async (userId: string): Promise<PilatesSubscriptionStatus | null> => {
+  console.log('[PILATES-FIX] getPilatesSubscriptionStatus called for user:', userId);
+  
+  try {
+    const { data, error } = await supabase.rpc('get_pilates_subscription_status', { p_user_id: userId });
+    
+    if (error) {
+      console.error('[PILATES-FIX] Error getting subscription status:', error);
+      // Fallback to manual check if RPC doesn't exist
+      return await getPilatesSubscriptionStatusFallback(userId);
+    }
+    
+    const status = data?.[0];
+    console.log('[PILATES-FIX] Subscription status:', {
+      userId,
+      has_active_membership: status?.has_active_membership,
+      membership_end_date: status?.membership_end_date,
+      membership_days_remaining: status?.membership_days_remaining,
+      has_active_deposit: status?.has_active_deposit,
+      deposit_remaining: status?.deposit_remaining,
+      can_book: status?.can_book_pilates_class,
+      can_access: status?.can_access_gym_via_pilates,
+      message: status?.status_message
+    });
+    
+    return status || null;
+  } catch (err) {
+    console.error('[PILATES-FIX] Exception in getPilatesSubscriptionStatus:', err);
+    return await getPilatesSubscriptionStatusFallback(userId);
+  }
+};
+
+// Fallback function if RPC doesn't exist
+const getPilatesSubscriptionStatusFallback = async (userId: string): Promise<PilatesSubscriptionStatus | null> => {
+  console.log('[PILATES-FIX] Using fallback subscription status check for user:', userId);
+  
+  // Using local timezone to avoid UTC conversion issues
+  const today = formatDateLocal(new Date());
+  
+  // Check membership with DETERMINISTIC date validation
+  const { data: memberships, error: membershipError } = await supabase
+    .from('memberships')
+    .select(`
+      id,
+      status,
+      end_date,
+      membership_packages!inner(name, package_type)
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .gte('end_date', today)  // CRITICAL: Deterministic date check
+    .or('membership_packages.name.ilike.%pilates%,membership_packages.name.ilike.%ultimate%');
+  
+  if (membershipError) {
+    console.error('[PILATES-FIX] Error in fallback membership check:', membershipError);
+    return null;
+  }
+  
+  const membership = memberships?.[0];
+  const hasActiveMembership = !!membership;
+  const membershipEndDate = membership?.end_date;
+  const membershipDaysRemaining = membershipEndDate 
+    ? Math.ceil((new Date(membershipEndDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  
+  // Check deposit with DETERMINISTIC expiry validation
+  const now = new Date().toISOString();
+  const { data: deposits, error: depositError } = await supabase
+    .from('pilates_deposits')
+    .select('id, deposit_remaining, expires_at, is_active')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .gt('deposit_remaining', 0)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)  // CRITICAL: Deterministic expiry check
+    .order('credited_at', { ascending: false })
+    .limit(1);
+  
+  if (depositError) {
+    console.error('[PILATES-FIX] Error in fallback deposit check:', depositError);
+  }
+  
+  const deposit = deposits?.[0];
+  const hasActiveDeposit = !!deposit && deposit.deposit_remaining > 0;
+  
+  const canBook = hasActiveMembership && hasActiveDeposit;
+  const canAccess = hasActiveMembership && hasActiveDeposit;
+  
+  let statusMessage = '';
+  if (!hasActiveMembership) {
+    statusMessage = 'Δεν υπάρχει ενεργή συνδρομή Pilates';
+  } else if (!hasActiveDeposit) {
+    statusMessage = 'Δεν υπάρχουν διαθέσιμα μαθήματα Pilates';
+  } else if (membershipDaysRemaining && membershipDaysRemaining <= 7) {
+    statusMessage = `Η συνδρομή λήγει σε ${membershipDaysRemaining} ημέρες - ${deposit?.deposit_remaining} μαθήματα απομένουν`;
+  } else {
+    statusMessage = `Ενεργή συνδρομή - ${deposit?.deposit_remaining} μαθήματα απομένουν`;
+  }
+  
+  const result: PilatesSubscriptionStatus = {
+    has_active_membership: hasActiveMembership,
+    membership_end_date: membershipEndDate,
+    membership_days_remaining: membershipDaysRemaining,
+    has_active_deposit: hasActiveDeposit,
+    deposit_remaining: deposit?.deposit_remaining || null,
+    deposit_expires_at: deposit?.expires_at || null,
+    can_book_pilates_class: canBook,
+    can_access_gym_via_pilates: canAccess,
+    status_message: statusMessage
+  };
+  
+  console.log('[PILATES-FIX] Fallback subscription status:', result);
+  return result;
+};
+
+// Validate if user can book a Pilates class (deterministic check)
+export const canUserBookPilatesClass = async (userId: string): Promise<{ canBook: boolean; reason: string }> => {
+  console.log('[PILATES-FIX] canUserBookPilatesClass called for user:', userId);
+  
+  const status = await getPilatesSubscriptionStatus(userId);
+  
+  if (!status) {
+    console.log('[PILATES-FIX] No subscription status found - booking NOT allowed');
+    return { canBook: false, reason: 'Σφάλμα κατά τον έλεγχο της συνδρομής' };
+  }
+  
+  if (!status.has_active_membership) {
+    console.log('[PILATES-FIX] No active membership - booking NOT allowed');
+    return { canBook: false, reason: 'Δεν υπάρχει ενεργή συνδρομή Pilates' };
+  }
+  
+  if (!status.has_active_deposit) {
+    console.log('[PILATES-FIX] No active deposit - booking NOT allowed');
+    return { canBook: false, reason: 'Δεν υπάρχουν διαθέσιμα μαθήματα' };
+  }
+  
+  if ((status.deposit_remaining || 0) <= 0) {
+    console.log('[PILATES-FIX] Zero deposit remaining - booking NOT allowed');
+    return { canBook: false, reason: 'Τα μαθήματά σας τελείωσαν' };
+  }
+  
+  console.log('[PILATES-FIX] Booking ALLOWED - deposit_remaining:', status.deposit_remaining);
+  return { canBook: true, reason: status.status_message };
+};
+
+// Run expiration check (call this periodically or on app load)
+export const runPilatesExpirationCheck = async (): Promise<{ expired_memberships: number; expired_deposits: number } | null> => {
+  console.log('[PILATES-FIX] Running expiration check...');
+  
+  try {
+    const { data, error } = await supabase.rpc('expire_pilates_subscriptions');
+    
+    if (error) {
+      console.error('[PILATES-FIX] Error running expiration check:', error);
+      return null;
+    }
+    
+    const result = data?.[0];
+    console.log('[PILATES-FIX] Expiration check complete:', {
+      expired_memberships: result?.expired_memberships,
+      expired_deposits: result?.expired_deposits,
+      total_processed: result?.total_processed
+    });
+    
+    return result || null;
+  } catch (err) {
+    console.error('[PILATES-FIX] Exception in runPilatesExpirationCheck:', err);
+    return null;
+  }
+};
+
 // Pilates Schedule Slots API
 export const getPilatesScheduleSlots = async (startDate?: string, endDate?: string): Promise<PilatesScheduleSlot[]> => {
   let query = supabase
@@ -114,36 +309,75 @@ export const getPilatesAvailableSlots = async (startDate?: string, endDate?: str
   }
 };
 
-// Active pilates deposit for a user
+// PILATES-FIX: Get active pilates deposit with DETERMINISTIC expiry validation
 export const getActivePilatesDeposit = async (
   userId: string
 ): Promise<{ deposit_remaining: number; is_active: boolean; expires_at?: string; package_id?: string; id?: string } | null> => {
+  console.log('[PILATES-FIX] getActivePilatesDeposit called for user:', userId);
+  
+  const now = new Date().toISOString();
+  
+  // PILATES-FIX: Query with DETERMINISTIC expiry check
+  // A deposit is only valid if:
+  // 1. is_active = true
+  // 2. deposit_remaining > 0
+  // 3. expires_at is NULL OR expires_at > NOW
   const { data, error } = await supabase
     .from('pilates_deposits')
     .select('id, deposit_remaining, is_active, expires_at, credited_at, package_id')
     .eq('user_id', userId)
     .eq('is_active', true)
     .gt('deposit_remaining', 0)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)  // CRITICAL: Deterministic expiry check
     .order('credited_at', { ascending: false })
     .limit(1);
 
   if (error) {
-    console.error('[PilatesScheduleAPI] Error fetching active pilates deposit:', error);
+    console.error('[PILATES-FIX] Error fetching active pilates deposit:', error);
     return null;
   }
+  
   if (!data || data.length === 0) {
-    // Fallback: log last 3 deposits to debug
+    // Debug: Log why no active deposit found
+    console.log('[PILATES-FIX] No valid active pilates deposit for user:', userId);
+    
+    // Fallback: log last 3 deposits to understand the state
     const { data: lastDeposits } = await supabase
       .from('pilates_deposits')
       .select('id, deposit_remaining, is_active, expires_at, credited_at, package_id')
       .eq('user_id', userId)
       .order('credited_at', { ascending: false })
       .limit(3);
-    console.warn('[PilatesScheduleAPI] No active pilates deposit found for user:', userId, 'recent:', lastDeposits);
+    
+    if (lastDeposits && lastDeposits.length > 0) {
+      console.log('[PILATES-FIX] User recent deposits (for debug):', lastDeposits.map(d => ({
+        id: d.id,
+        deposit_remaining: d.deposit_remaining,
+        is_active: d.is_active,
+        expires_at: d.expires_at,
+        isExpired: d.expires_at ? new Date(d.expires_at) < new Date() : false,
+        credited_at: d.credited_at
+      })));
+    } else {
+      console.log('[PILATES-FIX] User has NO deposit records at all');
+    }
+    
     return null;
   }
-  console.log('[PilatesScheduleAPI] Active deposit for user', userId, data[0]);
-  return data[0];
+  
+  const deposit = data[0];
+  console.log('[PILATES-FIX] Active deposit found:', {
+    userId,
+    depositId: deposit.id,
+    deposit_remaining: deposit.deposit_remaining,
+    is_active: deposit.is_active,
+    expires_at: deposit.expires_at,
+    credited_at: deposit.credited_at,
+    package_id: deposit.package_id,
+    isExpiringSoon: deposit.expires_at ? (new Date(deposit.expires_at).getTime() - new Date().getTime()) < 7 * 24 * 60 * 60 * 1000 : false
+  });
+  
+  return deposit;
 };
 
 // Realtime subscriptions helpers
@@ -240,9 +474,25 @@ export const getPilatesBookings = async (userId?: string): Promise<PilatesBookin
 };
 
 export const createPilatesBooking = async (bookingData: PilatesBookingFormData, userId: string): Promise<PilatesBooking> => {
-  // CHANGED (STEP 6 – Rule 8): Improved error handling with explicit case distinction
+  // PILATES-FIX: Comprehensive booking flow with deterministic validation
+  console.log('[PILATES-FIX] createPilatesBooking called:', {
+    userId,
+    slotId: bookingData.slotId,
+    timestamp: new Date().toISOString()
+  });
   
-  // Use atomic RPC to decrement deposit and create booking
+  // STEP 1: Pre-validate user can book (deterministic check)
+  const bookingEligibility = await canUserBookPilatesClass(userId);
+  console.log('[PILATES-FIX] Booking eligibility check:', bookingEligibility);
+  
+  if (!bookingEligibility.canBook) {
+    console.error('[PILATES-FIX] Booking DENIED - user cannot book:', bookingEligibility.reason);
+    throw new Error(bookingEligibility.reason);
+  }
+  
+  console.log('[PILATES-FIX] Booking ALLOWED - proceeding with RPC');
+  
+  // STEP 2: Use atomic RPC to decrement deposit and create booking
   const { data: rpcData, error: rpcError } = await supabase
     .rpc('book_pilates_class', { p_user_id: userId, p_slot_id: bookingData.slotId });
 
@@ -344,33 +594,84 @@ export const cancelPilatesBooking = async (bookingId: string, userId?: string): 
   return data as PilatesBooking;
 };
 
-// CHANGED (STEP 6 – Rule 2): Check membership status properly
+// PILATES-FIX: Check membership status properly using deterministic validation
 // Check if user has active pilates membership using canonical status check
 export const hasActivePilatesMembership = async (userId: string): Promise<boolean> => {
-  const today = new Date().toISOString().split('T')[0];
+  console.log('[PILATES-FIX] hasActivePilatesMembership called for user:', userId);
   
-  // CHANGED (STEP 6 – Rule 2): Use status='active' (not is_active)
-  // CHANGED (STEP 6 – Rule 7): Exclude soft-deletes (deleted_at IS NULL)
+  // Using local timezone to avoid UTC conversion issues
+  const today = formatDateLocal(new Date());
+  console.log('[PILATES-FIX] Today for date comparison:', today);
+  
+  // PILATES-FIX: Use status='active' AND end_date check for DETERMINISTIC validation
+  // NEVER trust is_active alone - it may be stale
   const { data, error } = await supabase
     .from('memberships')
     .select(`
       id,
       status,
+      is_active,
       deleted_at,
+      start_date,
       end_date,
-      membership_packages(package_type)
+      membership_packages!inner(name, package_type)
     `)
     .eq('user_id', userId)
-    .eq('status', 'active')           // CHANGED (STEP 6 – Rule 2): Primary check
-    .is('deleted_at', null)           // CHANGED (STEP 6 – Rule 7): Exclude soft-deletes
-    .gt('end_date', today)            // CHANGED (STEP 6 – Rule 2): Safety guard
+    .eq('status', 'active')           // Primary check: status MUST be 'active'
+    .is('deleted_at', null)           // Exclude soft-deleted records
+    .gte('end_date', today)           // DETERMINISTIC: end_date must be >= today
+    .or('membership_packages.name.ilike.%pilates%,membership_packages.name.ilike.%ultimate%');  // Only Pilates/Ultimate packages
 
   if (error) {
-    console.error('[PilatesScheduleAPI] Error checking pilates membership:', error);
+    console.error('[PILATES-FIX] Error checking pilates membership:', error);
     return false;
   }
 
-  return !!data && data.length > 0;
+  const hasActive = !!data && data.length > 0;
+  
+  // Log detailed membership info for debugging
+  if (data && data.length > 0) {
+    console.log('[PILATES-FIX] Active Pilates membership found:', {
+      userId,
+      membershipId: data[0].id,
+      status: data[0].status,
+      is_active_flag: data[0].is_active,
+      start_date: data[0].start_date,
+      end_date: data[0].end_date,
+      package_name: (data[0].membership_packages as any)?.name,
+      package_type: (data[0].membership_packages as any)?.package_type,
+      daysRemaining: Math.ceil((new Date(data[0].end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    });
+  } else {
+    // Log why no active membership was found
+    console.log('[PILATES-FIX] No active Pilates membership for user:', userId);
+    
+    // Query to debug - check if there are ANY memberships
+    const { data: allMemberships } = await supabase
+      .from('memberships')
+      .select(`
+        id, status, is_active, start_date, end_date, deleted_at,
+        membership_packages(name, package_type)
+      `)
+      .eq('user_id', userId)
+      .order('end_date', { ascending: false })
+      .limit(5);
+    
+    if (allMemberships && allMemberships.length > 0) {
+      console.log('[PILATES-FIX] User recent memberships (for debug):', allMemberships.map(m => ({
+        id: m.id,
+        status: m.status,
+        is_active: m.is_active,
+        end_date: m.end_date,
+        deleted_at: m.deleted_at,
+        package: (m.membership_packages as any)?.name,
+        isExpired: new Date(m.end_date) < new Date(),
+        isDeleted: !!m.deleted_at
+      })));
+    }
+  }
+
+  return hasActive;
 };
 
 // Get pilates slots for a specific date range

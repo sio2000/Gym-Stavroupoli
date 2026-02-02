@@ -75,7 +75,7 @@ type InstallmentInput = {
 };
 
 const buildInstallmentPayload = (installments?: InstallmentInput) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatDateLocal(new Date());
 
   // Defaults when installments ζητούνται αλλά δεν ήρθαν τιμές
   if (!installments) {
@@ -167,7 +167,8 @@ const ensureActiveMembership = async ({
     end.setDate(end.getDate() + durationDays);
 
     // Check for existing active membership for same user and package that is still valid
-    const currentDate = new Date().toISOString().split('T')[0];
+    // Using local timezone to avoid UTC conversion issues
+    const currentDate = formatDateLocal(new Date());
     const { data: existingMembership } = await supabase
       .from('memberships')
       .select('start_date, end_date')
@@ -321,7 +322,11 @@ const computePilatesDepositCount = async ({
   return pilatesDurationToDeposit[durationType as keyof typeof pilatesDurationToDeposit] || 0;
 };
 
-// Helper: credit Pilates deposit via RPC
+// PILATES-FIX: Helper to credit Pilates deposit via RPC
+// This function:
+// 1. Computes the correct deposit count
+// 2. Deactivates all previous deposits
+// 3. Creates a new deposit with expiry matching the membership end_date
 const addPilatesDeposit = async ({
   userId,
   packageId,
@@ -335,24 +340,57 @@ const addPilatesDeposit = async ({
   classesCount?: number;
   endDateStr: string;
 }): Promise<void> => {
+  console.log('[PILATES-FIX] addPilatesDeposit called:', {
+    userId,
+    packageId,
+    durationType,
+    classesCount,
+    endDateStr
+  });
+
   const depositCount = await computePilatesDepositCount({
     packageId,
     durationType,
     classesCountOverride: classesCount
   });
 
-  if (!depositCount) return;
+  console.log('[PILATES-FIX] Computed deposit count:', depositCount);
 
+  if (!depositCount) {
+    console.log('[PILATES-FIX] No deposit to add (depositCount is 0)');
+    return;
+  }
+
+  // PILATES-FIX: Expiry should match membership end_date
   const expiresAt = new Date(endDateStr + 'T23:59:59Z').toISOString();
+  console.log('[PILATES-FIX] Deposit expires_at:', expiresAt);
+  
   const { data: authUser } = await supabase.auth.getUser();
   const createdBy = authUser?.user?.id || '00000000-0000-0000-0000-000000000001';
 
-  // Deactivate all previous deposits for this user to ensure clean state
-  await supabase
+  // PILATES-FIX: Deactivate all previous deposits for this user to ensure clean state
+  console.log('[PILATES-FIX] Deactivating previous deposits for user:', userId);
+  const { error: deactivateError, count: deactivatedCount } = await supabase
     .from('pilates_deposits')
-    .update({ is_active: false })
-    .eq('user_id', userId);
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('is_active', true);
+  
+  if (deactivateError) {
+    console.error('[PILATES-FIX] Error deactivating previous deposits:', deactivateError);
+  } else {
+    console.log('[PILATES-FIX] Deactivated previous deposits, count:', deactivatedCount);
+  }
 
+  // PILATES-FIX: Create new deposit via RPC
+  console.log('[PILATES-FIX] Creating new deposit via RPC:', {
+    p_created_by: createdBy,
+    p_user_id: userId,
+    p_package_id: packageId,
+    p_deposit_remaining: depositCount,
+    p_expires_at: expiresAt
+  });
+  
   const { error: rpcError } = await supabase.rpc('credit_pilates_deposit', {
     p_created_by: createdBy,
     p_user_id: userId,
@@ -360,10 +398,17 @@ const addPilatesDeposit = async ({
     p_deposit_remaining: depositCount,
     p_expires_at: expiresAt
   });
+  
   if (rpcError) {
-    console.error('[MembershipAPI] Error creating pilates deposit via RPC:', rpcError);
+    console.error('[PILATES-FIX] Error creating pilates deposit via RPC:', rpcError);
     throw rpcError;
   }
+  
+  console.log('[PILATES-FIX] Successfully created deposit:', {
+    userId,
+    depositCount,
+    expiresAt
+  });
 };
 
 // ===== MEMBERSHIP REQUESTS API =====
@@ -421,18 +466,26 @@ export const createMembershipRequest = async (
       throw new Error('Duration not found');
     }
 
-    // Calculate dates
-    const startDate = new Date().toISOString().split('T')[0];
+    // Calculate dates - using local timezone to avoid UTC conversion issues
+    const now = new Date();
+    const startDate = formatDateLocal(now);
     const endDate = new Date();
     // Use customDurationDays if provided, otherwise use duration.duration_days
     const actualDurationDays = customDurationDays || duration.duration_days;
-    console.log('[MembershipAPI] createMembershipRequest - Duration calculation:', {
+    console.log('[MembershipAPI] createMembershipRequest - DATE DEBUG:', {
+      nowISO: now.toISOString(),
+      nowLocal: now.toString(),
+      startDateFormatted: startDate,
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+      day: now.getDate(),
       customDurationDays,
       packageDurationDays: duration.duration_days,
       actualDurationDays
     });
     endDate.setDate(endDate.getDate() + actualDurationDays);
-    const endDateStr = endDate.toISOString().split('T')[0];
+    const endDateStr = formatDateLocal(endDate);
+    console.log('[MembershipAPI] createMembershipRequest - FINAL DATES:', { startDate, endDateStr });
 
     // Deactivate existing active memberships for this user and package
     const { error: deactivateError } = await supabase
@@ -932,7 +985,7 @@ const updatePilatesMembershipStatus = async (userId: string): Promise<void> => {
       `)
       .eq('user_id', userId)
       .eq('is_active', true)
-      .gte('end_date', new Date().toISOString().split('T')[0]);
+      .gte('end_date', formatDateLocal(new Date()));
 
     if (membershipError) {
       console.warn('[MembershipAPI] Error fetching active Pilates memberships for status update:', membershipError);
@@ -1004,7 +1057,8 @@ export const getUserActiveMemberships = async (userId: string): Promise<Membersh
     await updatePilatesMembershipStatus(userId);
     
     // Get current date in YYYY-MM-DD format for comparison
-    const currentDate = new Date().toISOString().split('T')[0];
+    // Using local timezone to avoid UTC conversion issues
+    const currentDate = formatDateLocal(new Date());
     console.log('[MembershipAPI] Current date for filtering:', currentDate);
     
     const { data, error } = await supabase
@@ -1031,16 +1085,16 @@ export const getUserActiveMemberships = async (userId: string): Promise<Membersh
     // AND check Pilates deposits for Pilates memberships
     const filteredData = [];
     for (const membership of (data || [])) {
-      const membershipEndDate = new Date(membership.end_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Reset time to start of day
-
-      const isNotExpired = membershipEndDate >= today;
+      // CRITICAL FIX: Use string comparison for dates to avoid timezone issues
+      // membership.end_date is in "YYYY-MM-DD" format, currentDate is also "YYYY-MM-DD"
+      // String comparison works correctly for this format (lexicographically sortable)
+      const isNotExpired = membership.end_date >= currentDate;
 
       if (!isNotExpired) {
         console.log('[MembershipAPI] Filtering out expired membership:', {
           id: membership.id,
           end_date: membership.end_date,
+          currentDate: currentDate,
           package_name: membership.package?.name
         });
         continue;
@@ -1116,7 +1170,8 @@ export const checkUserHasActiveMembership = async (userId: string, packageId: st
       return false;
     }
 
-    const currentDate = new Date().toISOString().split('T')[0];
+    // Using local timezone to avoid UTC conversion issues
+    const currentDate = formatDateLocal(new Date());
     console.log('[MembershipAPI] Checking active membership for user:', userId, 'package:', packageId, 'current date:', currentDate);
 
     const { data, error } = await supabase
@@ -1201,7 +1256,8 @@ export const calculateEndDate = (startDate: string, durationDays: number): strin
   const start = new Date(startDate);
   const end = new Date(start);
   end.setDate(end.getDate() + durationDays);
-  return end.toISOString().split('T')[0];
+  // Using local timezone to avoid UTC conversion issues
+  return formatDateLocal(end);
 };
 
 export const getDurationDisplayText = (durationType: string, durationDays: number): string => {
@@ -1467,8 +1523,8 @@ export const createPilatesMembershipRequest = async (
       throw new Error('Duration not found');
     }
 
-    // Calculate dates
-    const startDate = new Date().toISOString().split('T')[0];
+    // Calculate dates - using local timezone to avoid UTC conversion issues
+    const startDate = formatDateLocal(new Date());
     const endDate = new Date();
     // Use customDurationDays if provided, otherwise use duration.duration_days
     const actualDurationDays = customDurationDays || duration.duration_days;
@@ -1478,7 +1534,7 @@ export const createPilatesMembershipRequest = async (
       actualDurationDays
     });
     endDate.setDate(endDate.getDate() + actualDurationDays);
-    const endDateStr = endDate.toISOString().split('T')[0];
+    const endDateStr = formatDateLocal(endDate);
 
     // Deactivate existing active Pilates memberships for this user
     const { error: deactivateError } = await supabase
@@ -1831,11 +1887,11 @@ export const createUltimateMembershipRequest = async (
       console.log(`[MembershipAPI] Deactivated existing active Pilates deposits for user ${actualUserId}`);
     }
 
-    // Calculate dates for Ultimate membership
-    const startDate = new Date().toISOString().split('T')[0];
+    // Calculate dates for Ultimate membership - using local timezone to avoid UTC conversion issues
+    const startDate = formatDateLocal(new Date());
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 365); // 1 year
-    const endDateStr = endDate.toISOString().split('T')[0];
+    const endDateStr = formatDateLocal(endDate);
 
     // Create single Ultimate membership
     const { data: membershipData, error: membershipError } = await supabase
@@ -2100,11 +2156,11 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
     }
 
     // *** FIX: Create single Ultimate membership instead of dual memberships ***
-    // Calculate dates for Ultimate membership
-    const startDate = new Date().toISOString().split('T')[0];
+    // Calculate dates for Ultimate membership - using local timezone to avoid UTC conversion issues
+    const startDate = formatDateLocal(new Date());
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 365); // 1 year
-    const endDateStr = endDate.toISOString().split('T')[0];
+    const endDateStr = formatDateLocal(endDate);
 
     // Normalize duration type for Ultimate packages
     const normalizedDurationType = requestData.membership_packages?.name?.toLowerCase().includes('ultimate')
@@ -2181,7 +2237,8 @@ export const approveUltimateMembershipRequest = async (requestId: string): Promi
 
     // Reset weekly refill preset for Ultimate users (target 3 lessons/week, max 3)
     const { weekEnd } = computeWeekWindow();
-    const nextRefillDate = weekEnd.toISOString().split('T')[0];
+    // Using local timezone to avoid UTC conversion issues
+    const nextRefillDate = formatDateLocal(weekEnd);
 
     // Clean existing refill presets for this user
     await supabase.from('ultimate_weekly_refills').delete().eq('user_id', requestData.user_id);

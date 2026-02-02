@@ -4,6 +4,11 @@
 
 import { supabase } from '@/config/supabase';
 
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 // Types
 export interface QRCode {
   id: string;
@@ -133,7 +138,7 @@ export async function generateQRCode(
       `)
       .eq('user_id', userId)
       .eq('is_active', true)
-      .gte('end_date', new Date().toISOString().split('T')[0]);
+      .gte('end_date', formatDateLocal(new Date()));
 
     if (membershipError) {
       console.log(`[QR-Generator] Error fetching memberships:`, membershipError);

@@ -1,6 +1,11 @@
 import { supabaseAdmin } from '@/config/supabaseAdmin';
 import { User, MembershipPackage, MembershipPackageDuration } from '@/types';
 
+// Helper: format date YYYY-MM-DD (local timezone to avoid UTC conversion issues)
+const formatDateLocal = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 export interface MemberFormData {
   email: string;
   password: string;
@@ -171,15 +176,19 @@ export const approveRegistrationRequest = async (requestId: string, adminId: str
 
     if (updateError) throw updateError;
 
-    // Create membership
+    // Create membership - using local timezone to avoid UTC conversion issues
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + (request.duration?.duration_days || 30));
+    
     const { error: membershipError } = await supabaseAdmin
       .from('memberships')
       .insert([{
         user_id: request.user_id,
         package_id: request.package_id,
         duration_type: request.duration_type,
-        start_date: new Date().toISOString().split('T')[0],
-        end_date: new Date(Date.now() + (request.duration?.duration_days || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        start_date: formatDateLocal(startDate),
+        end_date: formatDateLocal(endDate),
         status: 'active',
         approved_at: new Date().toISOString(),
         approved_by: adminId
