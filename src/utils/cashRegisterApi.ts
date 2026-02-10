@@ -35,8 +35,8 @@ export const saveCashTransaction = async (
   amount: number,
   transactionType: 'cash' | 'pos',
   programId?: string,
-  createdBy: string = '',
-  notes?: string
+  createdBy: string | null = null,
+  notes?: string | null
 ): Promise<boolean> => {
   try {
     console.log('[saveCashTransaction] Saving transaction:', {
@@ -49,9 +49,9 @@ export const saveCashTransaction = async (
         user_id: userId,
         amount: amount,
         transaction_type: transactionType,
-        program_id: programId,
-        created_by: createdBy,
-        notes: notes
+        program_id: programId || null,
+        created_by: createdBy || null,
+        notes: notes || null
       })
       .select()
       .single();

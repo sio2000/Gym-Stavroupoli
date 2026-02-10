@@ -61,6 +61,8 @@ import GroupAssignmentInterface from '@/components/admin/GroupAssignmentInterfac
 import ErrorFixing from '@/components/admin/ErrorFixing';
 import InstallmentsAdminTab from '@/components/secretary/InstallmentsAdminTab';
 import { fetchInstallmentsAdmin, InstallmentListItem, recordInstallmentPayment } from '@/services/api/installmentAdminApi';
+import ExpiredPersonalTab from '@/components/secretary/ExpiredPersonalTab';
+import { fetchExpiredPersonalUsers, ExpiredPersonalUser } from '@/services/api/expiredPersonalApi';
 
 // Constants for the modal - moved to avoid duplication
 import Webcam from 'react-webcam';
@@ -170,7 +172,7 @@ const SecretaryDashboard: React.FC = () => {
   const [showResult, setShowResult] = useState(false);
   const [recentScans, setRecentScans] = useState<any[]>([]);
   const [membershipRequests, setMembershipRequests] = useState<MembershipRequest[]>([]);
-  const [activeTab, setActiveTab] = useState<'registration' | 'scanner' | 'membership-requests' | 'users-information' | 'personal-training' | 'error-fixing' | 'installments'>('scanner');
+  const [activeTab, setActiveTab] = useState<'registration' | 'scanner' | 'membership-requests' | 'users-information' | 'personal-training' | 'error-fixing' | 'installments' | 'expired-personal'>('scanner');
   
   // Program Options state for membership requests
   const [selectedRequestOptions, setSelectedRequestOptions] = useState<{[requestId: string]: {
@@ -314,6 +316,10 @@ const SecretaryDashboard: React.FC = () => {
     requestId: string;
     installmentNumber: number;
   } | null>(null);
+
+  // Expired Personal Tab state
+  const [expiredPersonalUsers, setExpiredPersonalUsers] = useState<ExpiredPersonalUser[]>([]);
+  const [expiredPersonalLoading, setExpiredPersonalLoading] = useState(false);
   
   // Membership Requests filters
   const [requestPackageFilter, setRequestPackageFilter] = useState<'all' | 'Open Gym' | 'Pilates' | 'Ultimate' | 'Installments'>('all');
@@ -453,6 +459,8 @@ const SecretaryDashboard: React.FC = () => {
       }, 100);
     } else if (activeTab === 'installments') {
       loadInstallmentsAdminList();
+    } else if (activeTab === 'expired-personal') {
+      loadExpiredPersonalUsers();
     }
     // Note: users-information tab loads its own data
   }, [activeTab]);
@@ -2885,6 +2893,19 @@ const SecretaryDashboard: React.FC = () => {
     }
   };
 
+  const loadExpiredPersonalUsers = async () => {
+    try {
+      setExpiredPersonalLoading(true);
+      const data = await fetchExpiredPersonalUsers();
+      setExpiredPersonalUsers(data);
+    } catch (error) {
+      console.error('[SecretaryDashboard] Error loading expired personal users:', error);
+      toast.error('Σφάλμα φόρτωσης ληγμένων χρηστών personal');
+    } finally {
+      setExpiredPersonalLoading(false);
+    }
+  };
+
   const openPaymentModal = (inst: InstallmentListItem) => {
     setPaymentModal({
       open: true,
@@ -2973,6 +2994,7 @@ const SecretaryDashboard: React.FC = () => {
                    activeTab === 'users-information' ? '👥 Πληροφορίες χρηστών' :
                    activeTab === 'personal-training' ? '💪 Διαχείριση προγραμμάτων Personal Training' :
                    activeTab === 'error-fixing' ? '⚠️ Διόρθωση Σφαλμάτων' :
+                   activeTab === 'expired-personal' ? '⏰ Ληγμένοι χρήστες Personal Training' :
                    '💳 Διαχείριση δόσεων για πακέτα Ultimate'}
                 </p>
               </div>
@@ -3089,6 +3111,19 @@ const SecretaryDashboard: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <AlertTriangle className="h-5 w-5" />
                   <span>Διόρθωση Σφαλμάτων</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('expired-personal')}
+                className={`py-4 px-6 rounded-xl font-medium text-sm transition-all duration-200 transform hover:scale-105 ${
+                  activeTab === 'expired-personal'
+                    ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg border-2 border-orange-400'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-2 border-transparent'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <span className="text-orange-400 text-lg">⏰</span>
+                  <span>Ληγμένα Personal</span>
                 </div>
               </button>
             </nav>
@@ -4682,6 +4717,12 @@ const SecretaryDashboard: React.FC = () => {
           </div>
         ) : activeTab === 'error-fixing' ? (
           <ErrorFixing />
+        ) : activeTab === 'expired-personal' ? (
+          <ExpiredPersonalTab 
+            users={expiredPersonalUsers}
+            loading={expiredPersonalLoading}
+            onRefresh={loadExpiredPersonalUsers}
+          />
         ) : null}
       </div>
 
