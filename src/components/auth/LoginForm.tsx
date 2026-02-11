@@ -88,13 +88,6 @@ const LoginForm: React.FC = () => {
           <p className="mt-3 text-base text-gray-300">
             Σύνδεση στην εφαρμογή διαχείρισης γυμναστηρίου
           </p>
-        
-          <div className="mt-6 p-4 border-2 border-red-500 bg-dark-700 rounded-md">
-            <h3 className="text-lg font-semibold text-white text-center">Προειδοποίηση</h3>
-            <p className="mt-2 text-sm text-gray-200 text-center">
-              Η εφαρμογή είναι προσωρινά εκτός λειτουργίας λόγω τεχνικών εργασιών. Παρακαλούμε μην επιχειρήσετε σύνδεση προς το παρόν. Ζητούμε συγγνώμη για την αναστάτωση.
-            </p>
-          </div>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
