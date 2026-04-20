@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, 
   Search, 
@@ -20,7 +20,7 @@ import {
 import { 
   searchUsers, 
   getUsersWithFilter, 
-  getUserCount, 
+  getAllUsersWithFilter,
   getUserDetailedInfo,
   UserInfo,
   UserDetailedInfo,
@@ -33,11 +33,13 @@ const SecretaryUsersInformation: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [searchResults, setSearchResults] = useState<UserInfo[]>([]);
   const [randomUsers, setRandomUsers] = useState<UserInfo[]>([]);
+  const [allUsers, setAllUsers] = useState<UserInfo[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserDetailedInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [userDetailsLoading, setUserDetailsLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState<UserFilter>('all');
+  const [alphabeticalSortEnabled, setAlphabeticalSortEnabled] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,10 +65,31 @@ const SecretaryUsersInformation: React.FC = () => {
     }
   };
 
+  const loadAllUsers = async (filter: UserFilter = filterStatus) => {
+    try {
+      setLoading(true);
+      const users = await getAllUsersWithFilter(filter);
+      setAllUsers(users);
+      setTotalUsers(users.length);
+      setTotalPages(1);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error('Error loading all users:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση όλων των χρηστών');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Load data on component mount
   useEffect(() => {
-    loadUsers(1, filterStatus);
-  }, [filterStatus]);
+    if (alphabeticalSortEnabled) {
+      loadAllUsers(filterStatus);
+    } else {
+      setAllUsers([]);
+      loadUsers(1, filterStatus);
+    }
+  }, [filterStatus, alphabeticalSortEnabled]);
 
   // Search functionality
   const handleSearch = async (term: string) => {
@@ -74,7 +97,11 @@ const SecretaryUsersInformation: React.FC = () => {
     
     if (!term.trim()) {
       setSearchResults([]);
-      loadUsers(1, filterStatus);
+      if (alphabeticalSortEnabled) {
+        loadAllUsers(filterStatus);
+      } else {
+        loadUsers(1, filterStatus);
+      }
       return;
     }
 
@@ -121,12 +148,27 @@ const SecretaryUsersInformation: React.FC = () => {
   const clearSearch = () => {
     setSearchTerm('');
     setSearchResults([]);
+    if (alphabeticalSortEnabled) {
+      loadAllUsers(filterStatus);
+    } else {
+      loadUsers(1, filterStatus);
+    }
   };
 
   // Use the centralized date formatting utility to avoid UTC conversion issues
   const formatDate = (dateString: string) => formatDateForDisplay(dateString, 'el-GR');
 
-  const displayUsers = searchTerm ? searchResults : randomUsers;
+  const displayUsers = useMemo(() => {
+    const users = searchTerm ? searchResults : (alphabeticalSortEnabled ? allUsers : randomUsers);
+
+    if (!alphabeticalSortEnabled) return users;
+
+    return [...users].sort((a, b) => {
+      const firstUserName = `${a.first_name || ''} ${a.last_name || ''}`.trim() || a.email || a.user_id;
+      const secondUserName = `${b.first_name || ''} ${b.last_name || ''}`.trim() || b.email || b.user_id;
+      return firstUserName.localeCompare(secondUserName, 'el', { sensitivity: 'base' });
+    });
+  }, [searchTerm, searchResults, randomUsers, allUsers, alphabeticalSortEnabled]);
 
   return (
     <div className="space-y-6">
@@ -138,7 +180,13 @@ const SecretaryUsersInformation: React.FC = () => {
             <p className="text-purple-100 text-sm sm:text-base">Αναζήτηση και λεπτομέρειες χρηστών</p>
           </div>
           <button
-            onClick={() => loadRandomUsers(1)}
+            onClick={() => {
+              if (alphabeticalSortEnabled) {
+                loadAllUsers(filterStatus);
+              } else {
+                loadUsers(1, filterStatus);
+              }
+            }}
             disabled={loading}
             className="flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all duration-200 font-semibold shadow-lg text-sm disabled:opacity-50"
           >
@@ -184,6 +232,16 @@ const SecretaryUsersInformation: React.FC = () => {
                   {opt.label}
                 </button>
               ))}
+              <button
+                onClick={() => setAlphabeticalSortEnabled(prev => !prev)}
+                className={`px-3 py-2 rounded-lg border text-sm font-medium ${
+                  alphabeticalSortEnabled
+                    ? 'bg-purple-600 text-white border-purple-500 shadow'
+                    : 'bg-gray-100 text-gray-700 border-gray-200 hover:border-purple-400 hover:text-purple-700'
+                }`}
+              >
+                Αλφαβητική σειρά
+              </button>
             </div>
           </div>
           {searchTerm && (
@@ -201,7 +259,11 @@ const SecretaryUsersInformation: React.FC = () => {
       <div className="bg-white rounded-xl shadow-lg border border-gray-100">
         <div className="p-6 border-b border-gray-200">
           <h3 className="text-xl font-bold text-gray-900">
-            {searchTerm ? `Αποτελέσματα αναζήτησης (${searchResults.length})` : `Χρήστες (Σελίδα ${currentPage} από ${totalPages})`}
+            {searchTerm
+              ? `Αποτελέσματα αναζήτησης (${searchResults.length})`
+              : alphabeticalSortEnabled
+                ? `Χρήστες (${displayUsers.length})`
+                : `Χρήστες (Σελίδα ${currentPage} από ${totalPages})`}
           </h3>
         </div>
 
@@ -264,7 +326,7 @@ const SecretaryUsersInformation: React.FC = () => {
         )}
 
         {/* Pagination Controls */}
-        {!searchTerm && totalPages > 1 && (
+        {!searchTerm && !alphabeticalSortEnabled && totalPages > 1 && (
           <div className="p-6 border-t border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-700">

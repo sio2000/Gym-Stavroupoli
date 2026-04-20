@@ -290,6 +290,45 @@ export const getUsersWithFilter = async (
 };
 
 /**
+ * Get all users with status filter (all/active/expired) without pagination
+ */
+export const getAllUsersWithFilter = async (
+  filter: UserFilter = 'all'
+): Promise<UserInfo[]> => {
+  try {
+    const PAGE_SIZE = 1000;
+    let from = 0;
+    let keepLoading = true;
+    const allRows: any[] = [];
+
+    while (keepLoading) {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*, memberships!left(is_active,end_date)')
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) throw error;
+
+      const chunk = data || [];
+      allRows.push(...chunk);
+
+      if (chunk.length < PAGE_SIZE) {
+        keepLoading = false;
+      } else {
+        from += PAGE_SIZE;
+      }
+    }
+
+    if (filter === 'all') return allRows;
+    return allRows.filter(user => userMatchesFilter(user, filter));
+  } catch (error) {
+    console.error('[UserInfoAPI] Unexpected error getting all users with filter:', error);
+    throw error;
+  }
+};
+
+/**
  * Get total user count for pagination
  */
 export const getUserCount = async (): Promise<number> => {
