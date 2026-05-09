@@ -27,8 +27,8 @@ export interface UserMembership {
   package_id: string;
   package_name: string;
   status: string;
-  credits_remaining: number; // Not available in actual DB, set to 0
-  credits_total: number; // Not available in actual DB, set to 0
+  credits_remaining: number; // Pilates/Ultimate: from pilates_deposits.active row
+  credits_total: number; // Pilates/Ultimate: same as remaining if initial total unknown
   start_date: string;
   end_date: string;
   is_active: boolean;
@@ -388,7 +388,8 @@ export const getUserDetailedInfo = async (userId: string): Promise<UserDetailedI
         created_at,
         membership_packages!memberships_package_id_fkey(
           name,
-          is_active
+          is_active,
+          package_type
         )
       `)
       .eq('user_id', userId)
@@ -398,6 +399,34 @@ export const getUserDetailedInfo = async (userId: string): Promise<UserDetailedI
       console.error('[UserInfoAPI] Error getting memberships:', membershipsError);
       throw membershipsError;
     }
+
+    const { data: activePilatesDeposit } = await supabase
+      .from('pilates_deposits')
+      .select('deposit_remaining')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('credited_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const pilatesCreditsRemaining =
+      typeof activePilatesDeposit?.deposit_remaining === 'number'
+        ? activePilatesDeposit.deposit_remaining
+        : 0;
+
+    const packageUsesSharedPilatesDeposit = (pkg: {
+      name?: string;
+      package_type?: string;
+    } | null) => {
+      if (!pkg) return false;
+      const packageName = (pkg.name ?? '').toLowerCase();
+      const packageType = (pkg.package_type ?? '').toLowerCase();
+      return (
+        packageType === 'pilates' ||
+        packageName === 'pilates' ||
+        packageName.includes('ultimate')
+      );
+    };
 
     // Process memberships - CRITICAL: Calculate status dynamically based on end_date
     // Using string comparison (YYYY-MM-DD format) to avoid timezone issues
@@ -415,13 +444,22 @@ export const getUserDetailedInfo = async (userId: string): Promise<UserDetailedI
         actualStatus = 'expired';
       }
       
+      const pkg = membership.membership_packages as {
+        name?: string;
+        is_active?: boolean;
+        package_type?: string;
+      } | null;
+      const showPilatesCredits = packageUsesSharedPilatesDeposit(pkg);
+      const creditsRemaining = showPilatesCredits ? pilatesCreditsRemaining : 0;
+      const creditsTotal = showPilatesCredits ? pilatesCreditsRemaining : 0;
+
       return {
         id: membership.id,
         package_id: membership.package_id,
-        package_name: (membership.membership_packages as any)?.name || 'Unknown Package',
+        package_name: pkg?.name || 'Unknown Package',
         status: actualStatus,  // Use calculated status, not database status
-        credits_remaining: 0, // Not available in this database schema
-        credits_total: 0, // Not available in this database schema
+        credits_remaining: creditsRemaining,
+        credits_total: creditsTotal,
         start_date: membership.start_date,
         end_date: membership.end_date,
         is_active: isReallyActive,

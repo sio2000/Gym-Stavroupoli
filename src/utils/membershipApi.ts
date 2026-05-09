@@ -781,6 +781,20 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
 
     if (updateError) throw updateError;
 
+    let isPilatesPackage = false;
+    let isUltimatePackage = false;
+    try {
+      const { data: pkg } = await supabase
+        .from('membership_packages')
+        .select('name')
+        .eq('id', request.package_id)
+        .single();
+      isPilatesPackage = pkg?.name === 'Pilates';
+      isUltimatePackage = pkg?.name === 'Ultimate' || pkg?.name === 'Ultimate Medium';
+    } catch (e) {
+      console.warn('[MembershipAPI] Could not verify package name before deactivation gates.', e);
+    }
+
     // *** FIX: Deactivate existing active memberships of the same package type ***
     // This ensures that when a user upgrades their membership, old memberships are properly deactivated
     const { error: deactivateError } = await supabase
@@ -856,20 +870,6 @@ export const approveMembershipRequest = async (requestId: string): Promise<boole
       pilates_6months: 25,
       pilates_1year: 50
     };
-
-    let isPilatesPackage = false;
-    let isUltimatePackage = false;
-    try {
-      const { data: pkg } = await supabase
-        .from('membership_packages')
-        .select('name')
-        .eq('id', request.package_id)
-        .single();
-      isPilatesPackage = pkg?.name === 'Pilates';
-      isUltimatePackage = pkg?.name === 'Ultimate' || pkg?.name === 'Ultimate Medium';
-    } catch (e) {
-      console.warn('[MembershipAPI] Could not verify package name for pilates deposit logic. Skipping deposit credit.');
-    }
 
     if (isPilatesPackage || isUltimatePackage) {
       let depositCount = 0;
@@ -971,32 +971,13 @@ export const rejectMembershipRequest = async (requestId: string, rejectedReason:
 // ===== MEMBERSHIPS API =====
 
 /**
- * Update Pilates memberships status based on deposit availability
- * Sets is_active = false for Pilates memberships when deposit_remaining <= 0
+ * Keep Pilates memberships aligned with Pilates deposit_remaining (pure Pilates packages only).
+ * Deactivates when no valid deposit; reactivates when deposit is restored.
  */
 const updatePilatesMembershipStatus = async (userId: string): Promise<void> => {
   try {
-    // Get user's Pilates memberships that are currently active
-    const { data: activePilatesMemberships, error: membershipError } = await supabase
-      .from('memberships')
-      .select(`
-        id,
-        package:membership_packages(name, package_type)
-      `)
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .gte('end_date', formatDateLocal(new Date()));
+    const today = formatDateLocal(new Date());
 
-    if (membershipError) {
-      console.warn('[MembershipAPI] Error fetching active Pilates memberships for status update:', membershipError);
-      return;
-    }
-
-    if (!activePilatesMemberships || activePilatesMemberships.length === 0) {
-      return; // No active memberships to check
-    }
-
-    // Check current deposit
     const { data: pilatesDeposit, error: depositError } = await supabase
       .from('pilates_deposits')
       .select('deposit_remaining, is_active')
@@ -1011,16 +992,80 @@ const updatePilatesMembershipStatus = async (userId: string): Promise<void> => {
       return;
     }
 
-    const hasValidDeposit = pilatesDeposit && pilatesDeposit.deposit_remaining && pilatesDeposit.deposit_remaining > 0;
+    const hasValidDeposit =
+      !!pilatesDeposit && typeof pilatesDeposit.deposit_remaining === 'number' && pilatesDeposit.deposit_remaining > 0;
 
-    // Find Pilates memberships that need to be deactivated
-    const pilatesMembershipsToDeactivate = activePilatesMemberships.filter(membership => {
+    const isPurePilatesMembershipRow = (membership: {
+      package?: { name?: string; package_type?: string } | null;
+    }) => {
       const packageName = membership.package?.name?.toLowerCase() || '';
       const packageType = membership.package?.package_type?.toLowerCase() || '';
-      const isPilatesMembership = packageType === 'pilates' || packageName === 'pilates';
+      return packageType === 'pilates' || packageName === 'pilates';
+    };
 
-      // Only deactivate if it's a pure Pilates membership (not Ultimate) AND no valid deposit
-      return isPilatesMembership && !hasValidDeposit;
+    if (hasValidDeposit) {
+      const { data: candidates, error: reactivateError } = await supabase
+        .from('memberships')
+        .select(`
+          id,
+          is_active,
+          status,
+          package:membership_packages(name, package_type)
+        `)
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .gte('end_date', today);
+
+      if (reactivateError) {
+        console.warn('[MembershipAPI] Error fetching memberships for Pilates reactivation:', reactivateError);
+      } else {
+        const toReactivate = (candidates || []).filter(membership => {
+          if (membership.status === 'cancelled' || membership.status === 'suspended') return false;
+          if (!isPurePilatesMembershipRow(membership)) return false;
+          return !membership.is_active || membership.status === 'expired';
+        });
+
+        if (toReactivate.length > 0) {
+          const membershipIds = toReactivate.map(m => m.id);
+          console.log('[MembershipAPI] Reactivating Pilates memberships (valid deposit restored):', membershipIds);
+          const { error: reUpdErr } = await supabase
+            .from('memberships')
+            .update({
+              is_active: true,
+              status: 'active',
+              updated_at: new Date().toISOString()
+            })
+            .in('id', membershipIds);
+
+          if (reUpdErr) {
+            console.error('[MembershipAPI] Error reactivating Pilates memberships:', reUpdErr);
+          }
+        }
+      }
+    }
+
+    const { data: activePilatesMemberships, error: membershipError } = await supabase
+      .from('memberships')
+      .select(`
+        id,
+        package:membership_packages(name, package_type)
+      `)
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .gte('end_date', today);
+
+    if (membershipError) {
+      console.warn('[MembershipAPI] Error fetching active Pilates memberships for status update:', membershipError);
+      return;
+    }
+
+    if (!activePilatesMemberships || activePilatesMemberships.length === 0) {
+      return;
+    }
+
+    const pilatesMembershipsToDeactivate = activePilatesMemberships.filter(membership => {
+      if (!isPurePilatesMembershipRow(membership)) return false;
+      return !hasValidDeposit;
     });
 
     if (pilatesMembershipsToDeactivate.length > 0) {
