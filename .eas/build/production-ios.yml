@@ -1,0 +1,41 @@
+build:
+  name: Capacitor iOS IPA (no submit)
+  steps:
+    - eas/checkout
+    - eas/install_node_modules
+    - run:
+        name: Build web assets and sync Capacitor
+        command: npm run build:mobile && npx cap sync ios
+    - run:
+        name: Install CocoaPods dependencies
+        working_directory: ios/App
+        command: pod install
+    - eas/configure_ios_credentials
+    - eas/generate_gymfile_from_template:
+        inputs:
+          credentials: ${ eas.job.secrets.buildCredentials }
+          template: |
+            suppress_xcode_output(true)
+            clean(<%- CLEAN %>)
+
+            workspace("App/App.xcworkspace")
+            scheme("<%- SCHEME %>")
+            <% if (BUILD_CONFIGURATION) { %>
+            configuration("<%- BUILD_CONFIGURATION %>")
+            <% } %>
+
+            export_options({
+              method: "<%- EXPORT_METHOD %>",
+              provisioningProfiles: {<% _.forEach(PROFILES, function(profile) { %>
+                "<%- profile.BUNDLE_ID %>" => "<%- profile.UUID %>",<% }); %>
+              }<% if (ICLOUD_CONTAINER_ENVIRONMENT) { %>,
+              iCloudContainerEnvironment: "<%- ICLOUD_CONTAINER_ENVIRONMENT %>"
+              <% } %>
+            })
+
+            export_xcargs "OTHER_CODE_SIGN_FLAGS=\"--keychain <%- KEYCHAIN_PATH %>\""
+            disable_xcpretty(true)
+            buildlog_path("<%- LOGS_DIRECTORY %>")
+            output_directory("App/build")
+            output_name("App")
+    - eas/run_fastlane

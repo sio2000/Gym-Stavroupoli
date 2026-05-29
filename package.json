@@ -39,7 +39,8 @@
     "create-bots": "node scripts/create_test_bots.cjs",
     "cleanup:testdata": "node scripts/cleanup_test_data.cjs",
     "e2e:test": "npx playwright test --project=chromium",
-    "e2e:test:headed": "npx playwright test --headed"
+    "e2e:test:headed": "npx playwright test --headed",
+    "eas:ios:ipa": "eas build --platform ios --profile production-ios"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
@@ -78,7 +79,9 @@
     "autoprefixer": "^10.4.21",
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
+    "eas-cli": "^16.28.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "expo": "^52.0.46",
     "html-docx-js": "^0.3.1",
     "postcss": "^8.5.6",
     "puppeteer": "^24.36.1",

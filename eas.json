@@ -1,26 +1,16 @@
 {
   "cli": {
-    "version": ">= 16.28.0"
+    "version": ">= 16.28.0",
+    "appVersionSource": "local"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal"
-    },
-    "production": {
-      "channel": "production"
-    },
     "production-ios": {
-      "channel": "production"
-    },
-    "production-android": {
-      "channel": "production"
+      "distribution": "store",
+      "ios": {
+        "scheme": "App",
+        "applicationArchivePath": "ios/App/build/App.ipa",
+        "config": "production-ios.yml"
+      }
     }
-  },
-  "submit": {
-    "production": {}
   }
 }

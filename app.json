@@ -1,5 +1,16 @@
 {
   "expo": {
+    "name": "GetFit",
+    "slug": "getfitskg",
+    "version": "1.2.5",
+    "ios": {
+      "bundleIdentifier": "com.siozostheoharis.getfit",
+      "buildNumber": "11"
+    },
+    "android": {
+      "package": "com.siozostheoharis.getfit",
+      "versionCode": 13
+    },
     "extra": {
       "eas": {
         "projectId": "fee8b343-be3d-4b02-bcc2-faa22ce7d8ec"
