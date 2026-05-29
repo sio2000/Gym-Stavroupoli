@@ -3,6 +3,7 @@ build:
   steps:
     - eas/checkout
     - eas/install_node_modules
+    - eas/resolve_build_config
     - run:
         name: Build web assets and sync Capacitor
         command: npm run build:mobile && npx cap sync ios
@@ -10,7 +11,10 @@ build:
         name: Install CocoaPods dependencies
         working_directory: ios/App
         command: pod install
+    - eas/resolve_apple_team_id_from_credentials:
+        id: resolve_apple_team_id
     - eas/configure_ios_credentials
+    - eas/configure_ios_version
     - eas/generate_gymfile_from_template:
         inputs:
           credentials: ${ eas.job.secrets.buildCredentials }
@@ -39,3 +43,4 @@ build:
             output_directory("App/build")
             output_name("App")
     - eas/run_fastlane
+    - eas/find_and_upload_build_artifacts
