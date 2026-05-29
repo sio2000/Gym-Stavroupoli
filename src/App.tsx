@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, BrowserRouter, HashRouter } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
+import { dismissSplashScreen } from '@/utils/splashScreen';
 import { AuthProvider } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import RoleBasedRedirect from '@/components/auth/RoleBasedRedirect';
@@ -45,6 +46,10 @@ const DemoInfo = React.lazy(() => import('@/pages/DemoInfo'));
 const AppRouter = Capacitor.isNativePlatform() ? HashRouter : BrowserRouter;
 
 const App: React.FC = () => {
+  useEffect(() => {
+    dismissSplashScreen();
+  }, []);
+
   return (
     <div className="dark">
       <AppRouter>

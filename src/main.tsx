@@ -1,11 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
-import { SplashScreen } from '@capacitor/splash-screen'
-import { Capacitor } from '@capacitor/core'
 import App from './App.tsx'
 import './index.css'
 import { initCapacitor } from './capacitor-app'
+import { dismissSplashScreen } from './utils/splashScreen'
 
 class RootErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -64,8 +63,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 )
 
-if (Capacitor.isNativePlatform()) {
-  requestAnimationFrame(() => {
-    void SplashScreen.hide()
-  })
-}
+dismissSplashScreen()
+window.addEventListener('load', dismissSplashScreen)

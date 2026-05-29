@@ -85,7 +85,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
         
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<Awaited<ReturnType<typeof supabase.auth.getSession>>>((resolve) =>
+            window.setTimeout(
+              () => resolve({ data: { session: null }, error: new Error('Session check timed out') }),
+              8000
+            )
+          ),
+        ]);
+        const { data: { session }, error } = sessionResult;
         
         console.log('[Auth] Session query result - session:', session?.user?.email, 'error:', error);
         
