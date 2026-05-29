@@ -4,6 +4,8 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Required for Capacitor: absolute /assets paths break in the native WebView
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {

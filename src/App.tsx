@@ -1,5 +1,6 @@
 import React from 'react';
-import { Routes, Route, Navigate, BrowserRouter } from 'react-router-dom';
+import { Routes, Route, Navigate, BrowserRouter, HashRouter } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { AuthProvider } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import RoleBasedRedirect from '@/components/auth/RoleBasedRedirect';
@@ -41,10 +42,12 @@ const Contact = React.lazy(() => import('@/pages/Contact'));
 const AccountDeletion = React.lazy(() => import('@/pages/AccountDeletion'));
 const DemoInfo = React.lazy(() => import('@/pages/DemoInfo'));
 
+const AppRouter = Capacitor.isNativePlatform() ? HashRouter : BrowserRouter;
+
 const App: React.FC = () => {
   return (
     <div className="dark">
-      <BrowserRouter>
+      <AppRouter>
         <AuthProvider>
         <Routes>
         {/* Public routes */}
@@ -307,7 +310,7 @@ const App: React.FC = () => {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
         </AuthProvider>
-      </BrowserRouter>
+      </AppRouter>
     </div>
   );
 };

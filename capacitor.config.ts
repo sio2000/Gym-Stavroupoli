@@ -16,12 +16,13 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'automatic',
     scrollEnabled: true,
+    webContentsDebuggingEnabled: true,
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
-      launchAutoHide: true,
-      backgroundColor: '#ffffff',
+      launchShowDuration: 3000,
+      launchAutoHide: false,
+      backgroundColor: '#111827',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
