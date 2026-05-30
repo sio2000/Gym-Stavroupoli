@@ -11,6 +11,7 @@ workflows:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.siozostheoharis.getfit"
+        IOS_MARKETING_VERSION: "1.3.0"
         APPLE_TEAM_ID: "K4A6LP6V3P"
         APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
         APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
@@ -101,6 +102,20 @@ workflows:
           xcode-project use-profiles --project ios/App/App.xcodeproj
           # use-profiles sets Manual + provisioning profile; do not override with Automatic
 
+      - name: Set iOS version for App Store
+        script: |
+          set -e
+          P8_PATH="${P8_KEY_PATH:-$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8}"
+          cd "$CM_BUILD_DIR/ios/App"
+          agvtool new-marketing-version "$IOS_MARKETING_VERSION"
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --private-key "@file:$P8_PATH" 2>/dev/null || echo "19")
+          NEW_BUILD=$((LATEST + 1))
+          agvtool new-version -all "$NEW_BUILD"
+          echo "iOS version: $(agvtool what-marketing-version -terse1) ($(agvtool what-version -terse))"
+
       - name: Build and export IPA for App Store
         script: |
           set -e
@@ -132,8 +147,7 @@ workflows:
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
             --private-key "@file:$P8_PATH" \
-            --testflight \
-            --beta-group "Beta Testers"
+            --testflight
           echo "Uploaded to TestFlight: $IPA_PATH"
 
     artifacts:
