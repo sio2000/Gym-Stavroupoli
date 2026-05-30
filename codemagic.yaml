@@ -19,7 +19,7 @@ workflows:
         APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
         CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
       node: 20
-      xcode: 15.0
+      xcode: latest
       cocoapods: default
 
     scripts:
@@ -153,7 +153,7 @@ workflows:
         APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
         CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
       node: 20
-      xcode: 15.0
+      xcode: latest
       cocoapods: default
 
     scripts:
@@ -232,7 +232,7 @@ workflows:
       vars:
         BUNDLE_ID: "com.siozostheoharis.getfit"
       node: 20
-      xcode: 15.0
+      xcode: latest
       cocoapods: default
 
     scripts:
@@ -289,7 +289,7 @@ workflows:
         BUNDLE_ID: "com.siozostheoharis.getfit"
         APPLE_TEAM_ID: "K4A6LP6V3P"
       node: 20
-      xcode: 15.0
+      xcode: latest
       cocoapods: default
 
     scripts:
