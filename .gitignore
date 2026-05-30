@@ -10,6 +10,13 @@ coverage/
 # Production build
 dist/
 
+# iOS code signing (never commit)
+ios_distribution_private_key
+ios_distribution_private_key.pub
+*.p8
+AuthKey_*.p8
+secrets/
+
 # Environment variables
 .env
 .env.local

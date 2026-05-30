@@ -1,7 +1,7 @@
 {
   "name": "getfitskg",
   "private": true,
-  "version": "1.2.7",
+  "version": "1.2.8",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,6 +21,9 @@
     "mobile:prepare": "npm run build:mobile && npm run cap:sync",
     "android:build": "npm run build:mobile && npm run cap:sync:android && npm run cap:open:android",
     "ios:build": "npm run build:mobile && npm run cap:sync:ios && npm run cap:open:ios",
+    "ios:prepare": "npm run build:mobile && npm run cap:sync:ios",
+    "ios:ipa": "powershell -ExecutionPolicy Bypass -File scripts/build-ipa.ps1",
+    "ios:ipa:build": "powershell -ExecutionPolicy Bypass -File scripts/run-option-b.ps1",
     "test:comprehensive": "tsx scripts/runComprehensiveTests.ts",
     "test:massive": "tsx scripts/runMassiveTests.ts",
     "test:massive-simple": "node scripts/runMassiveTestsSimple.cjs",
