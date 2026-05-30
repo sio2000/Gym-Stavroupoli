@@ -15,7 +15,9 @@ workflows:
         APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
         APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
         APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        APP_STORE_CONNECT_PRIVATE_KEY_BASE64: $APP_STORE_CONNECT_PRIVATE_KEY_BASE64
         CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
+        CERTIFICATE_PRIVATE_KEY_BASE64: $CERTIFICATE_PRIVATE_KEY_BASE64
       node: 20
       xcode: latest
       cocoapods: default
@@ -48,10 +50,26 @@ workflows:
         script: |
           set -e
           mkdir -p "$HOME/.private_keys"
-          printf '%s\n' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
-          chmod 600 "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+          P8_PATH="$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+          if [ -n "$APP_STORE_CONNECT_PRIVATE_KEY_BASE64" ]; then
+            echo "$APP_STORE_CONNECT_PRIVATE_KEY_BASE64" | base64 --decode > "$P8_PATH"
+          else
+            printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$P8_PATH"
+          fi
+          chmod 600 "$P8_PATH"
+          test -s "$P8_PATH" || (echo "ERROR: empty API key file" && exit 1)
+          grep -q "BEGIN PRIVATE KEY" "$P8_PATH" || (echo "ERROR: invalid .p8 format" && exit 1)
+          export APP_STORE_CONNECT_PRIVATE_KEY="$(cat "$P8_PATH")"
+          echo "API key installed (Key ID: $APP_STORE_CONNECT_KEY_IDENTIFIER, lines: $(wc -l < "$P8_PATH"))"
+
+      - name: Test App Store Connect API
+        script: |
+          set -e
+          export APP_STORE_CONNECT_ISSUER_ID="$APP_STORE_CONNECT_ISSUER_ID"
+          export APP_STORE_CONNECT_KEY_IDENTIFIER="$APP_STORE_CONNECT_KEY_IDENTIFIER"
           export APP_STORE_CONNECT_PRIVATE_KEY="$(cat "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8")"
-          echo "API key file installed for Key ID $APP_STORE_CONNECT_KEY_IDENTIFIER"
+          app-store-connect apps list --limit 1
+          echo "App Store Connect API authentication OK"
 
       - name: Fetch signing files from Apple
         script: |
@@ -59,6 +77,9 @@ workflows:
           export APP_STORE_CONNECT_ISSUER_ID="$APP_STORE_CONNECT_ISSUER_ID"
           export APP_STORE_CONNECT_KEY_IDENTIFIER="$APP_STORE_CONNECT_KEY_IDENTIFIER"
           export APP_STORE_CONNECT_PRIVATE_KEY="$(cat "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8")"
+          if [ -n "$CERTIFICATE_PRIVATE_KEY_BASE64" ]; then
+            export CERTIFICATE_PRIVATE_KEY="$(echo "$CERTIFICATE_PRIVATE_KEY_BASE64" | base64 --decode)"
+          fi
           echo "Bundle ID: $BUNDLE_ID | Team: $APPLE_TEAM_ID"
           keychain initialize
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
@@ -147,7 +168,9 @@ workflows:
         APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
         APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
         APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        APP_STORE_CONNECT_PRIVATE_KEY_BASE64: $APP_STORE_CONNECT_PRIVATE_KEY_BASE64
         CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
+        CERTIFICATE_PRIVATE_KEY_BASE64: $CERTIFICATE_PRIVATE_KEY_BASE64
       node: 20
       xcode: latest
       cocoapods: default
