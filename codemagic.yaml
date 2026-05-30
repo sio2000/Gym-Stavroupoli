@@ -7,8 +7,6 @@ workflows:
     max_build_duration: 120
     instance_type: mac_mini_m1
     environment:
-      groups:
-        - code-signing
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
@@ -143,8 +141,6 @@ workflows:
     max_build_duration: 90
     instance_type: mac_mini_m1
     environment:
-      groups:
-        - code-signing
       vars:
         BUNDLE_ID: "com.siozostheoharis.getfit"
         APPLE_TEAM_ID: "K4A6LP6V3P"
