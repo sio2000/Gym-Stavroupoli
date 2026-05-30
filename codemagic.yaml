@@ -72,11 +72,12 @@ workflows:
         script: |
           set -e
           P8_PATH="${P8_KEY_PATH:-$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8}"
-          app-store-connect apps list --limit 1 \
+          app-store-connect apps list \
+            --bundle-id-identifier "$BUNDLE_ID" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
             --private-key "@file:$P8_PATH"
-          echo "App Store Connect API authentication OK"
+          echo "App Store Connect API authentication OK (bundle: $BUNDLE_ID)"
 
       - name: Fetch signing files from Apple
         script: |
@@ -158,7 +159,8 @@ workflows:
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
             --private-key "@file:$P8_PATH" \
-            --testflight-beta-group "Beta Testers"
+            --testflight \
+            --beta-group "Beta Testers"
           echo "Uploaded to TestFlight: $IPA_PATH"
 
     artifacts:
