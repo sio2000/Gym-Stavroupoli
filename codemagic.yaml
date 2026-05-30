@@ -101,60 +101,20 @@ workflows:
           xcode-project use-profiles --project ios/App/App.xcodeproj
           # use-profiles sets Manual + provisioning profile; do not override with Automatic
 
-      - name: Build iOS App for App Store
+      - name: Build and export IPA for App Store
         script: |
           set -e
-          cd ios/App
-          xcodebuild \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Release \
-            -sdk iphoneos \
-            -archivePath build/App.xcarchive \
-            archive \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution"
-
-      - name: Export IPA for App Store
-        script: |
-          set -e
-          cd ios/App
-          cat > /tmp/export_options.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>teamID</key>
-            <string>$APPLE_TEAM_ID</string>
-            <key>uploadBitcode</key>
-            <false/>
-            <key>uploadSymbols</key>
-            <true/>
-            <key>compileBitcode</key>
-            <false/>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>stripSwiftSymbols</key>
-            <true/>
-          </dict>
-          </plist>
-          EOF
-          xcodebuild -exportArchive \
-            -archivePath build/App.xcarchive \
-            -exportOptionsPlist /tmp/export_options.plist \
-            -exportPath build/ipa \
-            -allowProvisioningUpdates
-          ls -la build/ipa/
+          xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/ios/App/App.xcworkspace" \
+            --scheme App \
+            --archive-directory "$CM_BUILD_DIR/ios/App/build"
+          find "$CM_BUILD_DIR/ios/App" -name "*.ipa" -print
 
       - name: Upload to TestFlight
         script: |
           set -e
           P8_PATH="${P8_KEY_PATH:-$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8}"
-          IPA_PATH=$(find ios/App/build/ipa -name "*.ipa" | head -1)
+          IPA_PATH=$(find ios/App -name "*.ipa" | head -1)
           test -n "$IPA_PATH" || (echo "No IPA found" && exit 1)
           app-store-connect publish \
             --path "$IPA_PATH" \
@@ -166,7 +126,8 @@ workflows:
           echo "Uploaded to TestFlight: $IPA_PATH"
 
     artifacts:
-      - ios/App/build/ipa/*.ipa
+      - ios/App/build/**/*.ipa
+      - ios/App/build/**/*.dSYM
       - /tmp/xcodebuild_logs/*.log
 
     publishing:
