@@ -44,11 +44,23 @@ workflows:
           test -n "$APP_STORE_CONNECT_KEY_IDENTIFIER" || (echo "Missing APP_STORE_CONNECT_KEY_IDENTIFIER" && exit 1)
           test -n "$APP_STORE_CONNECT_PRIVATE_KEY" || (echo "Missing APP_STORE_CONNECT_PRIVATE_KEY" && exit 1)
           test -n "$CERTIFICATE_PRIVATE_KEY" || (echo "Missing CERTIFICATE_PRIVATE_KEY" && exit 1)
-          echo "Signing env OK (Key ID: $APP_STORE_CONNECT_KEY_IDENTIFIER)"
+          echo "Issuer: $APP_STORE_CONNECT_ISSUER_ID | Key ID: $APP_STORE_CONNECT_KEY_IDENTIFIER"
+
+      - name: Install App Store Connect API key file
+        script: |
+          set -e
+          mkdir -p "$HOME/.private_keys"
+          printf '%s\n' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+          chmod 600 "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+          export APP_STORE_CONNECT_PRIVATE_KEY="$(cat "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8")"
+          echo "API key file installed for Key ID $APP_STORE_CONNECT_KEY_IDENTIFIER"
 
       - name: Fetch signing files from Apple
         script: |
           set -e
+          export APP_STORE_CONNECT_ISSUER_ID="$APP_STORE_CONNECT_ISSUER_ID"
+          export APP_STORE_CONNECT_KEY_IDENTIFIER="$APP_STORE_CONNECT_KEY_IDENTIFIER"
+          export APP_STORE_CONNECT_PRIVATE_KEY="$(cat "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8")"
           echo "Bundle ID: $BUNDLE_ID | Team: $APPLE_TEAM_ID"
           keychain initialize
           app-store-connect fetch-signing-files "$BUNDLE_ID" \

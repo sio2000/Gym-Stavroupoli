@@ -12,7 +12,7 @@ $SecretsDir = Join-Path $Root "secrets"
 $P8File = Join-Path $SecretsDir "AuthKey_73C3B2263N.p8"
 $CertKeyFile = Join-Path $Root "ios_distribution_private_key"
 
-$IssuerId = "48abdbcd-e5f5-477a-b7a5-d38d3871e536"
+$IssuerId = "48abdbcd-e5f5-477a-b7a5-d38d3871e636"
 $KeyId = "73C3B2263N"
 
 if (-not (Test-Path $P8File)) {

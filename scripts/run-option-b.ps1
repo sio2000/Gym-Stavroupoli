@@ -45,4 +45,23 @@ if (-not $Token) {
 }
 
 $env:CODEMAGIC_API_TOKEN = $Token
-python "$Root\scripts\codemagic_trigger_build.py" $Token $Workflow $Branch
+$p8 = Get-Content "$Root\secrets\AuthKey_73C3B2263N.p8" -Raw
+$cert = Get-Content "$Root\ios_distribution_private_key" -Raw
+$appId = "6a1a2f74cb8a2764eefe6e22"
+$body = @{
+  appId = $appId
+  workflowId = $Workflow
+  branch = $Branch
+  environment = @{
+    variables = @{
+      APP_STORE_CONNECT_ISSUER_ID = "48abdbcd-e5f5-477a-b7a5-d38d3871e636"
+      APP_STORE_CONNECT_KEY_IDENTIFIER = "73C3B2263N"
+      APP_STORE_CONNECT_PRIVATE_KEY = $p8.Trim()
+      CERTIFICATE_PRIVATE_KEY = $cert.Trim()
+    }
+  }
+} | ConvertTo-Json -Depth 5
+$headers = @{ 'x-auth-token' = $Token; 'Content-Type' = 'application/json' }
+$r = Invoke-RestMethod -Uri 'https://api.codemagic.io/builds' -Headers $headers -Method Post -Body $body
+Write-Host "Build started: $($r.buildId)"
+Write-Host "https://codemagic.io/app/$appId/build/$($r.buildId)"

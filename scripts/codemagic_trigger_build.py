@@ -2,13 +2,14 @@
 """Trigger Codemagic build with signing secrets (no UI paste)."""
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 import requests
 
 ROOT = Path(__file__).resolve().parents[1]
-ISSUER_ID = "48abdbcd-e5f5-477a-b7a5-d38d3871e536"
+ISSUER_ID = "48abdbcd-e5f5-477a-b7a5-d38d3871e636"
 KEY_ID = "73C3B2263N"
 
 
@@ -38,6 +39,16 @@ def find_app_id(token: str) -> str:
     raise SystemExit("App not found on Codemagic. Connect the GitHub repo first.")
 
 
+def trigger_via_powershell(token: str, workflow: str, branch: str) -> None:
+    """Fallback when Python SSL fails on Windows."""
+    ps = ROOT / "scripts" / "run-option-b.ps1"
+    subprocess.run(
+        ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(ps), "-Token", token, "-Workflow", workflow, "-Branch", branch],
+        check=True,
+        cwd=ROOT,
+    )
+
+
 def main():
     token = os.environ.get("CODEMAGIC_API_TOKEN")
     env_file = ROOT / ".env"
@@ -54,25 +65,29 @@ def main():
     workflow = sys.argv[2] if len(sys.argv) > 2 else "ios-production"
     branch = sys.argv[3] if len(sys.argv) > 3 else "main"
 
-    app_id = find_app_id(token)
-    body = {
-        "appId": app_id,
-        "workflowId": workflow,
-        "branch": branch,
-        "environment": {"variables": load_secrets()},
-    }
-    r = requests.post(
-        "https://api.codemagic.io/builds",
-        headers={"x-auth-token": token, "Content-Type": "application/json"},
-        json=body,
-        timeout=30,
-    )
-    if r.status_code != 201:
-        print(f"Failed {r.status_code}: {r.text}")
-        sys.exit(1)
-    build_id = r.json().get("buildId")
-    print(f"Build started: {build_id}")
-    print(f"https://codemagic.io/app/{app_id}/build/{build_id}")
+    try:
+        app_id = find_app_id(token)
+        body = {
+            "appId": app_id,
+            "workflowId": workflow,
+            "branch": branch,
+            "environment": {"variables": load_secrets()},
+        }
+        r = requests.post(
+            "https://api.codemagic.io/builds",
+            headers={"x-auth-token": token, "Content-Type": "application/json"},
+            json=body,
+            timeout=30,
+        )
+        if r.status_code != 201:
+            print(f"Failed {r.status_code}: {r.text}")
+            sys.exit(1)
+        build_id = r.json().get("buildId")
+        print(f"Build started: {build_id}")
+        print(f"https://codemagic.io/app/{app_id}/build/{build_id}")
+    except requests.exceptions.SSLError:
+        print("Python SSL error — using PowerShell fallback...")
+        trigger_via_powershell(token, workflow, branch)
 
 
 if __name__ == "__main__":
