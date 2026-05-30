@@ -50,7 +50,7 @@ workflows:
             echo "Missing CERTIFICATE_PRIVATE_KEY or CERTIFICATE_PRIVATE_KEY_BASE64"
             exit 1
           fi
-          echo "Issuer: $APP_STORE_CONNECT_ISSUER_ID | Key ID: $APP_STORE_CONNECT_KEY_IDENTIFIER"
+          echo "Issuer: $APP_STORE_CONNECT_ISSUER_ID | Key ID: $APP_STORE_CONNECT_KEY_IDENTIFIER (must be 73C382263N)"
 
       - name: Install App Store Connect API key file
         script: |
@@ -99,6 +99,7 @@ workflows:
             --private-key "@file:$P8_PATH"
           keychain add-certificates
           xcode-project use-profiles --project ios/App/App.xcodeproj
+          # use-profiles sets Manual + provisioning profile; do not override with Automatic
 
       - name: Build iOS App for App Store
         script: |
@@ -113,8 +114,8 @@ workflows:
             archive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_STYLE=Automatic \
-            -allowProvisioningUpdates
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution"
 
       - name: Export IPA for App Store
         script: |
@@ -136,7 +137,7 @@ workflows:
             <key>compileBitcode</key>
             <false/>
             <key>signingStyle</key>
-            <string>automatic</string>
+            <string>manual</string>
             <key>stripSwiftSymbols</key>
             <true/>
           </dict>
@@ -145,7 +146,8 @@ workflows:
           xcodebuild -exportArchive \
             -archivePath build/App.xcarchive \
             -exportOptionsPlist /tmp/export_options.plist \
-            -exportPath build/ipa
+            -exportPath build/ipa \
+            -allowProvisioningUpdates
           ls -la build/ipa/
 
       - name: Upload to TestFlight
@@ -229,8 +231,8 @@ workflows:
             archive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_STYLE=Automatic \
-            -allowProvisioningUpdates
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution"
           cat > /tmp/export_adhoc.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -241,14 +243,15 @@ workflows:
             <key>teamID</key>
             <string>$APPLE_TEAM_ID</string>
             <key>signingStyle</key>
-            <string>automatic</string>
+            <string>manual</string>
           </dict>
           </plist>
           EOF
           xcodebuild -exportArchive \
             -archivePath build/App.xcarchive \
             -exportOptionsPlist /tmp/export_adhoc.plist \
-            -exportPath build/ipa
+            -exportPath build/ipa \
+            -allowProvisioningUpdates
           ls -la build/ipa/
 
     artifacts:
