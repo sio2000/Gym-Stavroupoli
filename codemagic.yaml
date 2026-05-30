@@ -14,7 +14,7 @@ workflows:
         BUNDLE_ID: "com.siozostheoharis.getfit"
         APPLE_TEAM_ID: "K4A6LP6V3P"
       node: 20
-      xcode: 15.4
+      xcode: latest
       cocoapods: default
       groups:
         - getfit_production
@@ -81,7 +81,7 @@ workflows:
         BUNDLE_ID: "com.siozostheoharis.getfit"
         APPLE_TEAM_ID: "K4A6LP6V3P"
       node: 20
-      xcode: 15.0
+      xcode: latest
       cocoapods: default
       
     scripts:
@@ -140,7 +140,7 @@ workflows:
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.siozostheoharis.getfit"
       node: 20
-      xcode: 15.0
+      xcode: latest
       cocoapods: default
       
     scripts:
