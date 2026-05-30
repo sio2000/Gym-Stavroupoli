@@ -1,60 +1,127 @@
 workflows:
-  # Production iOS Build για TestFlight/App Store
+  # Production iOS â€” signed .ipa + TestFlight
+  # Î‘Ï€Î±Î¹Ï„ÎµÎ¯: Team integrations (App Store Connect API) + env group "code-signing" Î¼Îµ CERTIFICATE_PRIVATE_KEY
+  # Î”ÎµÏ‚: CODEMAGIC_SIGNING_FIX.md
   ios-production:
     name: iOS Production Build (TestFlight/App Store)
     max_build_duration: 120
     instance_type: mac_mini_m1
-    integrations:
-      # Ονομασία App Store Connect API key από Codemagic → Team integrations → Developer Portal
-      app_store_connect: codemagic
     environment:
+      groups:
+        - code-signing
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.siozostheoharis.getfit"
         APPLE_TEAM_ID: "K4A6LP6V3P"
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
       node: 20
-      xcode: latest
+      xcode: 15.0
       cocoapods: default
-      groups:
-        - getfit_production
-    
+
     scripts:
       - name: Install npm dependencies
-        script: |
-          npm ci
-      
+        script: npm ci
+
       - name: Build web assets
-        script: |
-          npm run build:mobile
-      
+        script: npm run build:mobile
+
       - name: Sync Capacitor
-        script: |
-          npx cap sync ios
-      
+        script: npx cap sync ios
+
       - name: Install CocoaPods dependencies
         script: |
           cd ios/App
           pod install --repo-update
-      
-      - name: Set up code signing
+
+      - name: Verify signing environment
         script: |
+          set -e
+          test -n "$APP_STORE_CONNECT_ISSUER_ID" || (echo "Missing APP_STORE_CONNECT_ISSUER_ID" && exit 1)
+          test -n "$APP_STORE_CONNECT_KEY_IDENTIFIER" || (echo "Missing APP_STORE_CONNECT_KEY_IDENTIFIER" && exit 1)
+          test -n "$APP_STORE_CONNECT_PRIVATE_KEY" || (echo "Missing APP_STORE_CONNECT_PRIVATE_KEY" && exit 1)
+          test -n "$CERTIFICATE_PRIVATE_KEY" || (echo "Missing CERTIFICATE_PRIVATE_KEY" && exit 1)
+          echo "Issuer: $APP_STORE_CONNECT_ISSUER_ID | Key ID: $APP_STORE_CONNECT_KEY_IDENTIFIER"
+
+      - name: Install App Store Connect API key file
+        script: |
+          set -e
+          mkdir -p "$HOME/.private_keys"
+          printf '%s\n' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+          chmod 600 "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+          export APP_STORE_CONNECT_PRIVATE_KEY="$(cat "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8")"
+          echo "API key file installed for Key ID $APP_STORE_CONNECT_KEY_IDENTIFIER"
+
+      - name: Fetch signing files from Apple
+        script: |
+          set -e
+          export APP_STORE_CONNECT_ISSUER_ID="$APP_STORE_CONNECT_ISSUER_ID"
+          export APP_STORE_CONNECT_KEY_IDENTIFIER="$APP_STORE_CONNECT_KEY_IDENTIFIER"
+          export APP_STORE_CONNECT_PRIVATE_KEY="$(cat "$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8")"
+          echo "Bundle ID: $BUNDLE_ID | Team: $APPLE_TEAM_ID"
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create \
+            --verbose
           keychain add-certificates
-          xcode-project use-profiles
-      
-      - name: Build IPA for App Store
+          xcode-project use-profiles --project ios/App/App.xcodeproj
+
+      - name: Build iOS App for App Store
         script: |
+          set -e
           cd ios/App
-          xcode-project build-ipa \
-            --workspace "App.xcworkspace" \
-            --scheme "$XCODE_SCHEME"
-    
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/App.xcarchive \
+            archive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates
+
+      - name: Export IPA for App Store
+        script: |
+          set -e
+          cd ios/App
+          cat > /tmp/export_options.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>$APPLE_TEAM_ID</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportOptionsPlist /tmp/export_options.plist \
+            -exportPath build/ipa
+          ls -la build/ipa/
+
     artifacts:
-      - ios/App/build/ios/ipa/*.ipa
+      - ios/App/build/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-    
+
     publishing:
       email:
         recipients:
@@ -62,65 +129,92 @@ workflows:
         notify:
           success: true
           failure: true
-      
       app_store_connect:
-        auth: integration
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         beta_groups:
           - Beta Testers
 
-  # Development iOS Build (για testing)
-  ios-development:
-    name: iOS Development Build
-    max_build_duration: 60
+  # Ad-hoc .ipa â€” ÎµÎ³ÎºÎ±Ï„Î¬ÏƒÏ„Î±ÏƒÎ· ÏƒÎµ ÏƒÏ…Î³ÎºÎµÎºÏÎ¹Î¼Î­Î½Î± iPhone (Ï‡Ï‰ÏÎ¯Ï‚ App Store)
+  ios-adhoc:
+    name: iOS Ad Hoc Build (install on devices)
+    max_build_duration: 90
     instance_type: mac_mini_m1
     environment:
+      groups:
+        - code-signing
       vars:
-        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
-        XCODE_SCHEME: "App"
         BUNDLE_ID: "com.siozostheoharis.getfit"
         APPLE_TEAM_ID: "K4A6LP6V3P"
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
       node: 20
-      xcode: latest
+      xcode: 15.0
       cocoapods: default
-      
+
     scripts:
       - name: Install npm dependencies
-        script: |
-          npm ci
-      
+        script: npm ci
       - name: Build web assets
-        script: |
-          npm run build:mobile
-      
+        script: npm run build:mobile
       - name: Sync Capacitor
-        script: |
-          npx cap sync ios
-      
-      - name: Install Cocoapods dependencies
+        script: npx cap sync ios
+      - name: Install CocoaPods dependencies
         script: |
           cd ios/App
           pod install --repo-update
-      
-      - name: Build για iOS Simulator
+      - name: Fetch Ad Hoc signing files
         script: |
+          set -e
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_ADHOC \
+            --create \
+            --verbose
+          keychain add-certificates
+          xcode-project use-profiles --project ios/App/App.xcodeproj
+      - name: Build and export Ad Hoc IPA
+        script: |
+          set -e
           cd ios/App
-          
-          # Build για iOS Simulator - το Codemagic θα χειριστεί το code signing
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
-            -sdk iphonesimulator \
-            -configuration Debug \
-            -derivedDataPath build
-          
-          # Επαλήθευση δημιουργίας .app
-          ls -la build/Build/Products/Debug-iphonesimulator/
-          echo "✅ .app αρχείο δημιουργήθηκε επιτυχώς!"
-    
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/App.xcarchive \
+            archive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates
+          cat > /tmp/export_adhoc.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>ad-hoc</string>
+            <key>teamID</key>
+            <string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportOptionsPlist /tmp/export_adhoc.plist \
+            -exportPath build/ipa
+          ls -la build/ipa/
+
     artifacts:
-      - ios/App/build/Build/Products/Debug-iphonesimulator/*.app
-    
+      - ios/App/build/ipa/*.ipa
+
     publishing:
       email:
         recipients:
@@ -129,43 +223,33 @@ workflows:
           success: true
           failure: true
 
-  # Unsigned iOS Build (για testing χωρίς code signing)
+  # Unsigned .ipa â€” Î¼ÏŒÎ½Î¿ Î³Î¹Î± Î­Î»ÎµÎ³Ï‡Î¿ ÏŒÏ„Î¹ Ï„Î¿ build Ï€ÎµÏÎ½Î¬ÎµÎ¹ (Î”Î•Î ÎµÎ³ÎºÎ±Î¸Î¯ÏƒÏ„Î±Ï„Î±Î¹ ÏƒÎµ iPhone)
   ios-unsigned:
     name: iOS Unsigned Build (Testing)
     max_build_duration: 90
     instance_type: mac_mini_m1
     environment:
       vars:
-        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
-        XCODE_SCHEME: "App"
         BUNDLE_ID: "com.siozostheoharis.getfit"
       node: 20
-      xcode: latest
+      xcode: 15.0
       cocoapods: default
-      
+
     scripts:
       - name: Install npm dependencies
-        script: |
-          npm ci
-      
+        script: npm ci
       - name: Build web assets
-        script: |
-          npm run build:mobile
-      
+        script: npm run build:mobile
       - name: Sync Capacitor
-        script: |
-          npx cap sync ios
-      
-      - name: Install Cocoapods dependencies
+        script: npx cap sync ios
+      - name: Install CocoaPods dependencies
         script: |
           cd ios/App
           pod install --repo-update
-      
-      - name: Build unsigned .ipa
+      - name: Build unsigned IPA
         script: |
+          set -e
           cd ios/App
-          
-          # Build χωρίς code signing
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
@@ -177,21 +261,62 @@ workflows:
             CODE_SIGNING_ALLOWED=NO \
             PROVISIONING_PROFILE_SPECIFIER="" \
             CODE_SIGN_IDENTITY=""
-          
-          # Δημιουργία .ipa χειροκίνητα
           mkdir -p build/ipa
           cp -r build/Build/Products/Release-iphoneos/App.app build/ipa/
           cd build/ipa
           zip -r App.ipa App.app
           rm -rf App.app
-          
-          # Επαλήθευση δημιουργίας .ipa
           ls -la App.ipa
-          echo "✅ Unsigned .ipa αρχείο δημιουργήθηκε επιτυχώς!"
-    
+
     artifacts:
       - ios/App/build/ipa/*.ipa
-    
+
+    publishing:
+      email:
+        recipients:
+          - theoharis@getfitskg.com
+        notify:
+          success: true
+          failure: true
+
+  # Simulator build (ÏŒÏ‡Î¹ .ipa)
+  ios-development:
+    name: iOS Development Build (Simulator)
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      vars:
+        BUNDLE_ID: "com.siozostheoharis.getfit"
+        APPLE_TEAM_ID: "K4A6LP6V3P"
+      node: 20
+      xcode: 15.0
+      cocoapods: default
+
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+      - name: Build web assets
+        script: npm run build:mobile
+      - name: Sync Capacitor
+        script: npx cap sync ios
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios/App
+          pod install --repo-update
+      - name: Build for iOS Simulator
+        script: |
+          cd ios/App
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -derivedDataPath build
+          ls -la build/Build/Products/Debug-iphonesimulator/
+
+    artifacts:
+      - ios/App/build/Build/Products/Debug-iphonesimulator/*.app
+
     publishing:
       email:
         recipients:
