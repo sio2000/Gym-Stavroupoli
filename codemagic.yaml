@@ -104,18 +104,29 @@ workflows:
       - name: Build and export IPA for App Store
         script: |
           set -e
+          IPA_DIR="$CM_BUILD_DIR/ios/App/build/ipa"
+          mkdir -p "$IPA_DIR"
           xcode-project build-ipa \
             --workspace "$CM_BUILD_DIR/ios/App/App.xcworkspace" \
             --scheme App \
-            --archive-directory "$CM_BUILD_DIR/ios/App/build"
-          find "$CM_BUILD_DIR/ios/App" -name "*.ipa" -print
+            --config Release \
+            --archive-directory "$CM_BUILD_DIR/ios/App/build/xcarchive" \
+            --ipa-directory "$IPA_DIR"
+          IPA_PATH=$(find "$IPA_DIR" "$CM_BUILD_DIR/build/ios/ipa" -name "*.ipa" 2>/dev/null | head -1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "ERROR: no .ipa under $IPA_DIR or build/ios/ipa"
+            find "$CM_BUILD_DIR" -name "*.ipa" 2>/dev/null || true
+            exit 1
+          fi
+          echo "IPA built: $IPA_PATH"
+          echo "IPA_PATH=$IPA_PATH" >> "$CM_ENV"
 
       - name: Upload to TestFlight
         script: |
           set -e
           P8_PATH="${P8_KEY_PATH:-$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8}"
-          IPA_PATH=$(find ios/App -name "*.ipa" | head -1)
-          test -n "$IPA_PATH" || (echo "No IPA found" && exit 1)
+          IPA_PATH="${IPA_PATH:-$(find "$CM_BUILD_DIR/ios/App/build/ipa" "$CM_BUILD_DIR/build/ios/ipa" -name "*.ipa" 2>/dev/null | head -1)}"
+          test -n "$IPA_PATH" && test -f "$IPA_PATH" || (echo "No IPA found" && find "$CM_BUILD_DIR" -name "*.ipa" 2>/dev/null && exit 1)
           app-store-connect publish \
             --path "$IPA_PATH" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
@@ -126,7 +137,8 @@ workflows:
           echo "Uploaded to TestFlight: $IPA_PATH"
 
     artifacts:
-      - ios/App/build/**/*.ipa
+      - ios/App/build/ipa/*.ipa
+      - build/ios/ipa/*.ipa
       - ios/App/build/**/*.dSYM
       - /tmp/xcodebuild_logs/*.log
 
