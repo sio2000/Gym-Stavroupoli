@@ -1,7 +1,7 @@
 {
   "name": "getfitskg",
   "private": true,
-  "version": "1.2.10",
+  "version": "1.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,6 +21,11 @@
     "mobile:prepare": "npm run build:mobile && npm run cap:sync",
     "android:build": "npm run build:mobile && npm run cap:sync:android && npm run cap:open:android",
     "ios:build": "npm run build:mobile && npm run cap:sync:ios && npm run cap:open:ios",
+    "ios:prepare": "npm run build:mobile && npm run cap:sync:ios",
+    "ios:ipa": "powershell -ExecutionPolicy Bypass -File scripts/build-ipa.ps1",
+    "ios:ipa:build": "powershell -ExecutionPolicy Bypass -File scripts/run-option-b.ps1",
+    "ios:asc:verify": "python scripts/verify-asc-credentials.py",
+    "ios:asc:refresh": "powershell -ExecutionPolicy Bypass -File scripts/refresh-asc-api-key.ps1",
     "test:comprehensive": "tsx scripts/runComprehensiveTests.ts",
     "test:massive": "tsx scripts/runMassiveTests.ts",
     "test:massive-simple": "node scripts/runMassiveTestsSimple.cjs",
@@ -39,8 +44,7 @@
     "create-bots": "node scripts/create_test_bots.cjs",
     "cleanup:testdata": "node scripts/cleanup_test_data.cjs",
     "e2e:test": "npx playwright test --project=chromium",
-    "e2e:test:headed": "npx playwright test --headed",
-    "eas:ios:ipa": "eas build --platform ios --profile production-ios"
+    "e2e:test:headed": "npx playwright test --headed"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
@@ -79,7 +83,6 @@
     "autoprefixer": "^10.4.21",
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "eas-cli": "^16.28.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "html-docx-js": "^0.3.1",
     "postcss": "^8.5.6",
