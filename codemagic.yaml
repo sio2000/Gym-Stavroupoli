@@ -129,16 +129,15 @@ workflows:
           BUILD=$(agvtool what-version -terse)
           echo "iOS version set: $MARKETING ($BUILD)"
           test "$MARKETING" = "$IOS_MARKETING_VERSION" || (echo "ERROR: marketing version mismatch" && exit 1)
-          python3 - <<'PY'
+          python3 - "$MARKETING" <<'PY'
           import sys
-          min_ok = (1, 3, 0)
           got = tuple(int(x) for x in sys.argv[1].split("."))
           prev = (1, 2, 9)
           if got <= prev:
               print(f"ERROR: {sys.argv[1]} must be > 1.2.9 for App Store", file=sys.stderr)
               sys.exit(1)
+          print(f"Version OK: {sys.argv[1]} > 1.2.9")
           PY
-          "$MARKETING"
 
       - name: Build and export IPA for App Store
         script: |
