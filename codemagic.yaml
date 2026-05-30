@@ -1,7 +1,7 @@
 workflows:
-  # Production iOS â€” signed .ipa + TestFlight
-  # Î‘Ï€Î±Î¹Ï„ÎµÎ¯: Team integrations (App Store Connect API) + env group "code-signing" Î¼Îµ CERTIFICATE_PRIVATE_KEY
-  # Î”ÎµÏ‚: CODEMAGIC_SIGNING_FIX.md
+  # Production iOS - signed .ipa + TestFlight
+  # Requires env group "code-signing" with App Store Connect + CERTIFICATE_PRIVATE_KEY
+  # See: CODEMAGIC_SIGNING_FIX.md
   ios-production:
     name: iOS Production Build (TestFlight/App Store)
     max_build_duration: 120
@@ -137,7 +137,7 @@ workflows:
         beta_groups:
           - Beta Testers
 
-  # Ad-hoc .ipa â€” ÎµÎ³ÎºÎ±Ï„Î¬ÏƒÏ„Î±ÏƒÎ· ÏƒÎµ ÏƒÏ…Î³ÎºÎµÎºÏÎ¹Î¼Î­Î½Î± iPhone (Ï‡Ï‰ÏÎ¯Ï‚ App Store)
+  # Ad-hoc .ipa - install on registered devices (no App Store)
   ios-adhoc:
     name: iOS Ad Hoc Build (install on devices)
     max_build_duration: 90
@@ -223,7 +223,7 @@ workflows:
           success: true
           failure: true
 
-  # Unsigned .ipa â€” Î¼ÏŒÎ½Î¿ Î³Î¹Î± Î­Î»ÎµÎ³Ï‡Î¿ ÏŒÏ„Î¹ Ï„Î¿ build Ï€ÎµÏÎ½Î¬ÎµÎ¹ (Î”Î•Î ÎµÎ³ÎºÎ±Î¸Î¯ÏƒÏ„Î±Ï„Î±Î¹ ÏƒÎµ iPhone)
+  # Unsigned .ipa - compile test only (cannot install on iPhone)
   ios-unsigned:
     name: iOS Unsigned Build (Testing)
     max_build_duration: 90
@@ -279,7 +279,7 @@ workflows:
           success: true
           failure: true
 
-  # Simulator build (ÏŒÏ‡Î¹ .ipa)
+  # Simulator build (not .ipa)
   ios-development:
     name: iOS Development Build (Simulator)
     max_build_duration: 60
