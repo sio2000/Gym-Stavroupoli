@@ -161,22 +161,24 @@ workflows:
           # Verify embedded version before upload (must not be 1.2.5)
           unzip -p "$IPA_PATH" Payload/App.app/Info.plist | plutil -p - | grep -E 'CFBundleShortVersionString|CFBundleVersion'
 
-      - name: Upload to TestFlight
+      - name: Upload to App Store Connect
         script: |
           set -e
           P8_PATH="${P8_KEY_PATH:-$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8}"
           IPA_PATH="${IPA_PATH:-$(find "$CM_BUILD_DIR/ios/App/build/ipa" "$CM_BUILD_DIR/build/ios/ipa" -name "*.ipa" 2>/dev/null | head -1)}"
           test -n "$IPA_PATH" && test -f "$IPA_PATH" || (echo "No IPA found" && find "$CM_BUILD_DIR" -name "*.ipa" 2>/dev/null && exit 1)
+          # Upload + wait for Apple processing only (no external beta review submission).
+          # Internal TestFlight testers get the build automatically; external review is done in App Store Connect UI.
           app-store-connect publish \
             --path "$IPA_PATH" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
             --private-key "@file:$P8_PATH" \
-            --testflight \
             --version-string "$IOS_MARKETING_VERSION" \
             --max-find-build-wait 600 \
             --max-build-processing-wait 1200
-          echo "Uploaded to TestFlight: $IPA_PATH"
+          echo "Uploaded and processed: $IPA_PATH (version $IOS_MARKETING_VERSION)"
+          echo "Enable external testers manually in App Store Connect if needed."
 
     artifacts:
       - ios/App/build/ipa/*.ipa
