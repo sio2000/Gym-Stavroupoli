@@ -3204,15 +3204,33 @@ const SecretaryDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* Live QR Scanner stays MOUNTED across ALL tabs so the camera keeps
+            running 24/7 even when the secretary switches tabs / does other work.
+            On non-scanner tabs it is moved off-screen (NOT unmounted), so the
+            MediaStream and continuous decoding never stop. */}
+        <div
+          aria-hidden={activeTab !== 'scanner'}
+          className={activeTab === 'scanner' ? 'mb-8' : ''}
+          style={
+            activeTab === 'scanner'
+              ? undefined
+              : {
+                  position: 'fixed',
+                  left: '-100000px',
+                  top: 0,
+                  width: '960px',
+                  opacity: 0,
+                  pointerEvents: 'none',
+                }
+          }
+        >
+          <LiveQRScanner />
+        </div>
+
         {activeTab === 'registration' ? (
           <SecretaryRegistrationWizard />
         ) : activeTab === 'scanner' ? (
-          <div className="space-y-8">
-            {/* NEW: Live QR Scanner (continuous) — non-destructive addition */}
-            <LiveQRScanner />
-
-            {/* Existing single-shot QR scanner (unchanged) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
             {/* QR Scanner */}
             <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-600 p-6 backdrop-blur-sm">
               <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
@@ -3325,7 +3343,6 @@ const SecretaryDashboard: React.FC = () => {
           </div>
 
         </div>
-          </div>
         ) : activeTab === 'installments' ? (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-300/60 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
