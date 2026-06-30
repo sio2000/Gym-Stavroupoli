@@ -132,6 +132,18 @@ const getActiveUserIds = async (): Promise<Set<string>> => {
   return ids;
 };
 
+// Normalise text for accent- & case-insensitive matching (Greek + Latin):
+// lowercases and strips combining diacritics so "Μαρία" === "μαρια".
+const normalizeSearchText = (s: string): string =>
+  (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim();
+
+// Strip characters that would break a PostgREST .or() / ilike filter expression.
+const sanitizeSearchToken = (s: string): string => (s || '').replace(/[,()%*]/g, ' ').trim();
+
 export const searchUsers = async (searchTerm: string, filter: UserFilter = 'all'): Promise<UserInfo[]> => {
   try {
     console.log('[UserInfoAPI] Searching users with term:', searchTerm);
@@ -140,15 +152,32 @@ export const searchUsers = async (searchTerm: string, filter: UserFilter = 'all'
       return [];
     }
 
-    // First try to search text fields only
-    let query = supabase
+    // Split the term into tokens so a full name ("μαρια χαλκια") matches across
+    // first_name + last_name, instead of looking for the whole string inside a
+    // single column (which never matched a name + surname with a space).
+    const tokens = searchTerm.trim().split(/\s+/).map(sanitizeSearchToken).filter(Boolean);
+    if (tokens.length === 0) {
+      return [];
+    }
+
+    // Broad OR fetch: bring every candidate where ANY token matches ANY field.
+    // We then refine with a strict, accent-insensitive AND match below.
+    const orParts: string[] = [];
+    for (const t of tokens) {
+      orParts.push(
+        `first_name.ilike.%${t}%`,
+        `last_name.ilike.%${t}%`,
+        `email.ilike.%${t}%`,
+        `phone.ilike.%${t}%`
+      );
+    }
+
+    const { data, error } = await supabase
       .from('user_profiles')
       .select('*, memberships!left(is_active,end_date)', { count: 'exact' })
-      .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
+      .or(orParts.join(','))
       .order('created_at', { ascending: false })
-      .limit(50);
-
-    const { data, error } = await query;
+      .limit(200);
 
     if (error) {
       console.error('[UserInfoAPI] Error searching users:', error);
@@ -157,11 +186,24 @@ export const searchUsers = async (searchTerm: string, filter: UserFilter = 'all'
 
     const activeIds = filter === 'all' ? null : await getActiveUserIds();
 
-    // If we have results, return them
-    if (data && data.length > 0) {
-      console.log('[UserInfoAPI] Found users in text fields:', data.length);
-      if (!activeIds) return data;
-      return data.filter(u => userMatchesFilter(u, filter));
+    // Strict refinement: EVERY token must appear in the combined searchable text
+    // (first + last + email + phone), accent- & case-insensitive — so full-name
+    // search works in any order ("μαρια χαλκια" or "χαλκια μαρια").
+    const normTokens = tokens.map(normalizeSearchText).filter(Boolean);
+    let refined = (data || []).filter((u) => {
+      const hay = normalizeSearchText(
+        `${u.first_name || ''} ${u.last_name || ''} ${u.email || ''} ${u.phone || ''}`
+      );
+      return normTokens.every((nt) => hay.includes(nt));
+    });
+
+    // If we have results, return them (capped for the UI)
+    if (refined.length > 0) {
+      console.log('[UserInfoAPI] Found users (refined):', refined.length);
+      if (activeIds) {
+        refined = refined.filter((u) => userMatchesFilter(u, filter));
+      }
+      return refined.slice(0, 50);
     }
 
     // If no results in text fields, try searching by UUID if the search term looks like a UUID
