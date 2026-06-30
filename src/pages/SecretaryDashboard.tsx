@@ -55,6 +55,7 @@ import { MembershipRequest } from '@/types';
 import InstallmentsTab from '@/components/secretary/InstallmentsTab';
 import SecretaryUsersInformation from '@/components/secretary/SecretaryUsersInformation';
 import SecretaryRegistrationWizard from '@/components/secretary/SecretaryRegistrationWizard';
+import LiveQRScanner from '@/components/secretary/LiveQRScanner';
 import NewSubscriptionTab from '@/components/secretary/NewSubscriptionTab';
 import GroupTrainingCalendar from '@/components/admin/GroupTrainingCalendar';
 import GroupAssignmentInterface from '@/components/admin/GroupAssignmentInterface';
@@ -3206,7 +3207,12 @@ const SecretaryDashboard: React.FC = () => {
         {activeTab === 'registration' ? (
           <SecretaryRegistrationWizard />
         ) : activeTab === 'scanner' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
+          <div className="space-y-8">
+            {/* NEW: Live QR Scanner (continuous) — non-destructive addition */}
+            <LiveQRScanner />
+
+            {/* Existing single-shot QR scanner (unchanged) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
             {/* QR Scanner */}
             <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-600 p-6 backdrop-blur-sm">
               <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
@@ -3319,6 +3325,7 @@ const SecretaryDashboard: React.FC = () => {
           </div>
 
         </div>
+          </div>
         ) : activeTab === 'installments' ? (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-300/60 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
