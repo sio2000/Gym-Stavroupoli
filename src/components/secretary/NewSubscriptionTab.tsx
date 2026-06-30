@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Search,
   UserCheck,
   CreditCard,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   CheckCircle,
   AlertCircle,
@@ -41,6 +43,160 @@ const detectPackageKind = (pkg: MembershipPackage): PackageKind => {
   return 'custom';
 };
 
+const formatDateInputValue = (date: Date): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const durationDaysFromEndDate = (endDate: string): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(`${endDate}T00:00:00`);
+  end.setHours(0, 0, 0, 0);
+  return Math.round((end.getTime() - today.getTime()) / 86400000);
+};
+
+const formatDisplayDate = (dateStr: string): string =>
+  new Date(`${dateStr}T00:00:00`).toLocaleDateString('el-GR');
+
+const MONTH_NAMES = [
+  'Ιανουάριος', 'Φεβρουάριος', 'Μάρτιος', 'Απρίλιος', 'Μάιος', 'Ιούνιος',
+  'Ιούλιος', 'Αύγουστος', 'Σεπτέμβριος', 'Οκτώβριος', 'Νοέμβριος', 'Δεκέμβριος'
+];
+
+const WEEKDAY_LABELS = ['Κυρ', 'Δευ', 'Τρι', 'Τετ', 'Πεμ', 'Παρ', 'Σαβ'];
+
+const buildCalendarDays = (year: number, month: number): (Date | null)[] => {
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const leadingEmpty = firstDay.getDay();
+  const days: (Date | null)[] = Array.from({ length: leadingEmpty }, () => null);
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    days.push(new Date(year, month, day));
+  }
+  return days;
+};
+
+const ExpirationDatePicker: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ value, onChange }) => {
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const [viewDate, setViewDate] = useState(() => {
+    if (value) return new Date(`${value}T00:00:00`);
+    return new Date();
+  });
+
+  useEffect(() => {
+    if (value) {
+      setViewDate(new Date(`${value}T00:00:00`));
+    }
+  }, [value]);
+
+  const calendarDays = useMemo(
+    () => buildCalendarDays(viewDate.getFullYear(), viewDate.getMonth()),
+    [viewDate]
+  );
+
+  const goToPreviousMonth = () => {
+    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleSelectDay = (day: Date) => {
+    if (day < today) return;
+    onChange(formatDateInputValue(day));
+  };
+
+  return (
+    <div className="rounded-lg border border-amber-600/40 bg-gray-950/60 p-3">
+      <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          onClick={goToPreviousMonth}
+          className="p-1.5 rounded-md text-amber-300 hover:bg-amber-900/30 transition-colors"
+          aria-label="Προηγούμενος μήνας"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-semibold text-amber-200">
+          {MONTH_NAMES[viewDate.getMonth()]} {viewDate.getFullYear()}
+        </span>
+        <button
+          type="button"
+          onClick={goToNextMonth}
+          className="p-1.5 rounded-md text-amber-300 hover:bg-amber-900/30 transition-colors"
+          aria-label="Επόμενος μήνας"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {WEEKDAY_LABELS.map((label) => (
+          <div key={label} className="text-center text-[11px] font-medium text-gray-400 py-1">
+            {label}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {calendarDays.map((day, index) => {
+          if (!day) {
+            return <div key={`empty-${index}`} className="h-9" />;
+          }
+
+          const dayValue = formatDateInputValue(day);
+          const isSelected = value === dayValue;
+          const isToday = day.getTime() === today.getTime();
+          const isDisabled = day < today;
+
+          return (
+            <button
+              key={dayValue}
+              type="button"
+              disabled={isDisabled}
+              onClick={() => handleSelectDay(day)}
+              className={`h-9 rounded-md text-sm font-medium transition-colors ${
+                isSelected
+                  ? 'bg-amber-500 text-gray-900 ring-2 ring-amber-300'
+                  : isDisabled
+                  ? 'text-gray-600 cursor-not-allowed'
+                  : 'text-gray-200 hover:bg-amber-900/40 hover:text-amber-100'
+              } ${isToday && !isSelected ? 'ring-1 ring-amber-500/70' : ''}`}
+            >
+              {day.getDate()}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <p className="text-xs text-gray-300">
+          {value
+            ? <>Επιλεγμένη λήξη: <span className="text-amber-300 font-semibold">{formatDisplayDate(value)}</span></>
+            : 'Επίλεξε ημέρα από το ημερολόγιο'}
+        </p>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="text-xs text-gray-400 hover:text-amber-300 whitespace-nowrap"
+          >
+            Καθαρισμός
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 interface SelectedPackage {
   pkg: MembershipPackage;
   durations: MembershipPackageDuration[];
@@ -69,7 +225,7 @@ const NewSubscriptionTab: React.FC = () => {
   const [installment3DueDate, setInstallment3DueDate] = useState<string>('');
   const [installment3Method, setInstallment3Method] = useState<'cash' | 'pos'>('cash');
   const [customClasses, setCustomClasses] = useState<string>('');
-  const [customDuration, setCustomDuration] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'pos'>('cash');
@@ -131,7 +287,7 @@ const NewSubscriptionTab: React.FC = () => {
     setSelectedDurationId('');
     setCustomPrice('');
     setCustomClasses('');
-    setCustomDuration('');
+    setCustomEndDate('');
     setKettlebellPoints('');
     setHasInstallments(false);
   };
@@ -179,7 +335,7 @@ const NewSubscriptionTab: React.FC = () => {
       setSelectedDurationId('');
       setCustomPrice('');
       setCustomClasses('');
-      setCustomDuration('');
+      setCustomEndDate('');
       setKettlebellPoints('');
       setHasInstallments(false);
       setInstallment1Amount('');
@@ -255,10 +411,16 @@ const NewSubscriptionTab: React.FC = () => {
         }
       : undefined;
 
-    // Parse custom duration if provided (only for FreeGym and Pilates)
-    const customDurationDays = (kind === 'open_gym' || kind === 'pilates') && customDuration 
-      ? Number(customDuration) 
-      : undefined;
+    // Custom end date → duration days (only for FreeGym and Pilates)
+    let customDurationDays: number | undefined;
+    if ((kind === 'open_gym' || kind === 'pilates') && customEndDate) {
+      const days = durationDaysFromEndDate(customEndDate);
+      if (days < 0) {
+        toast.error('Η ημερομηνία λήξης δεν μπορεί να είναι στο παρελθόν');
+        return;
+      }
+      customDurationDays = days;
+    }
 
     setSubmitting(true);
     try {
@@ -309,7 +471,7 @@ const NewSubscriptionTab: React.FC = () => {
       setSelectedPackage(null);
       setCustomPrice('');
       setCustomClasses('');
-      setCustomDuration('');
+      setCustomEndDate('');
       setKettlebellPoints('');
       setHasInstallments(false);
       setInstallment1Amount('');
@@ -688,7 +850,9 @@ const NewSubscriptionTab: React.FC = () => {
                       onChange={() => setSelectedDurationId(d.id)}
                     />
                     <div className="font-semibold">
-                      {customDuration ? `${customDuration} ημέρες (προσαρμοσμένη)` : renderDurationLabel(d)}
+                      {customEndDate
+                        ? `Λήξη: ${formatDisplayDate(customEndDate)} (προσαρμοσμένη)`
+                        : renderDurationLabel(d)}
                     </div>
                     <div className="text-xs text-gray-400">Τιμή: €{(d.price || 0).toFixed(2)}</div>
                   </label>
@@ -718,23 +882,16 @@ const NewSubscriptionTab: React.FC = () => {
                 </div>
               </div>
 
-              {/* Custom Duration Override - Only for FreeGym and Pilates */}
+              {/* Custom end date override - Only for FreeGym and Pilates */}
               {(detectPackageKind(selectedPackage.pkg) === 'open_gym' || detectPackageKind(selectedPackage.pkg) === 'pilates') && (
                 <div className="mt-3 bg-amber-900/20 border border-amber-600/30 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="h-4 w-4 text-amber-400" />
-                    <label className="text-xs text-amber-300 font-semibold">Προσαρμοσμένη διάρκεια (ημέρες)</label>
+                    <label className="text-xs text-amber-300 font-semibold">Προσαρμοσμένη ημερομηνία λήξης</label>
                   </div>
-                  <input
-                    type="number"
-                    min="1"
-                    value={customDuration}
-                    onChange={(e) => setCustomDuration(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-amber-600/50 text-white focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
-                    placeholder="π.χ. 45, 60, 90 (αφήστε κενό για default)"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Εάν συμπληρωθεί, η συνδρομή θα έχει αυτή τη διάρκεια αντί της προεπιλεγμένης.
+                  <ExpirationDatePicker value={customEndDate} onChange={setCustomEndDate} />
+                  <p className="text-xs text-gray-400 mt-2">
+                    Εάν επιλεγεί, η συνδρομή θα λήγει αυτή την ημερομηνία αντί της προεπιλεγμένης.
                   </p>
                 </div>
               )}
