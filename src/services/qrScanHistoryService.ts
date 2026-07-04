@@ -42,6 +42,7 @@ export interface LiveScanOutcome {
   reason: string;
   category: string | null;
   qrCode: string;
+  qrCodeId: string | null; // qr_codes.id (null for INVALID) — avoids an extra lookup
   scanTime: string; // ISO
   user: LiveScanUser | null;
 }
@@ -76,6 +77,7 @@ export async function validateLiveScan(qrData: string): Promise<LiveScanOutcome>
       reason: c.reason,
       category: null,
       qrCode: trimmed,
+      qrCodeId: null,
       scanTime,
       user: null,
     };
@@ -154,6 +156,7 @@ export async function validateLiveScan(qrData: string): Promise<LiveScanOutcome>
     reason: c.reason,
     category: qrCode.category || null,
     qrCode: trimmed,
+    qrCodeId: qrCode.id,
     scanTime,
     user: {
       userId: userProfile?.user_id || qrCode.user_id || null,
