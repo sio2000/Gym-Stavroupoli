@@ -39,6 +39,10 @@ export interface ScanHistoryRow {
 // Default cooldown between two *accepted* scans (ms).
 export const DEFAULT_COOLDOWN_MS = 3000;
 
+// Supabase Realtime broadcast channel that mirrors scan results to the /tablet TV display.
+export const LIVE_SCAN_CHANNEL = 'qr-scan-live';
+export const LIVE_SCAN_EVENT = 'scan';
+
 // Window during which an identical QR value is considered a duplicate (ms).
 export const DUPLICATE_WINDOW_MS = 5000;
 

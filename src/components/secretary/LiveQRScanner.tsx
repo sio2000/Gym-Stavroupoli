@@ -49,6 +49,8 @@ import {
   formatExpiryDate,
   subscriptionStatusLabel,
   DEFAULT_COOLDOWN_MS,
+  LIVE_SCAN_CHANNEL,
+  LIVE_SCAN_EVENT,
   type GateState,
   type ScanHistoryRow,
   type ResultFilter,
@@ -57,6 +59,7 @@ import {
   type SortDir,
 } from '@/utils/liveScannerLogic';
 import { primeAudio, playResultSound, disposeAudio } from '@/utils/scannerSounds';
+import { supabase } from '@/config/supabase';
 
 const PAGE_SIZE = 8;
 const HISTORY_CAP = 500;
@@ -139,6 +142,7 @@ const LiveQRScanner: React.FC = () => {
   const videoStallCountRef = useRef(0);
   const restartingRef = useRef(false);
   const restartCameraRef = useRef<() => Promise<void>>(async () => {});
+  const broadcastRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // -------------------------------------------------------------------
   // History loading
@@ -160,6 +164,23 @@ const LiveQRScanner: React.FC = () => {
       mountedRef.current = false;
     };
   }, [loadHistory]);
+
+  // Broadcast channel that mirrors each result to the /tablet TV display.
+  useEffect(() => {
+    const channel = supabase.channel(LIVE_SCAN_CHANNEL, {
+      config: { broadcast: { self: false } },
+    });
+    channel.subscribe((status) => log(`broadcast channel: ${status}`));
+    broadcastRef.current = channel;
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch {
+        /* no-op */
+      }
+      broadcastRef.current = null;
+    };
+  }, []);
 
   // -------------------------------------------------------------------
   // Scan processing (one accepted scan)
@@ -198,6 +219,18 @@ const LiveQRScanner: React.FC = () => {
           logWarn(`scan #${seq} sound failed:`, soundErr);
         }
         setCurrentResult(outcome);
+
+        // Mirror the result to the /tablet TV display (best-effort, non-blocking).
+        try {
+          void broadcastRef.current?.send({
+            type: 'broadcast',
+            event: LIVE_SCAN_EVENT,
+            payload: outcome,
+          });
+          log(`scan #${seq} broadcast → tablet`);
+        } catch (bErr) {
+          logWarn(`scan #${seq} broadcast failed:`, bErr);
+        }
 
         // Persist (fault tolerant, timeout-guarded) — never blocks scanning.
         void withTimeout(
