@@ -673,24 +673,6 @@ const QRCodes: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="space-y-2 mb-4 text-center">
-                  <h3 className="font-medium text-gray-900">Είσοδος Open Gym</h3>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <div className="flex items-center justify-center">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Εκδόθηκε: {formatDate(primaryQR.issued_at)}
-                    </div>
-                    <div className="flex items-center justify-center">
-                      <Clock className="h-4 w-4 mr-2" />
-                      Τελευταία σάρωση: {primaryQR.last_scanned_at ? formatDate(primaryQR.last_scanned_at) : 'Ποτέ'}
-                    </div>
-                    <div className="flex items-center justify-center">
-                      <User className="h-4 w-4 mr-2" />
-                      {primaryQR.scan_count} σαρώσεις
-                    </div>
-                  </div>
-                </div>
-
                 <div className="flex items-center justify-center mb-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(primaryQR.status, primaryQR.expires_at)}`}>
                     {getStatusText(primaryQR.status, primaryQR.expires_at)}

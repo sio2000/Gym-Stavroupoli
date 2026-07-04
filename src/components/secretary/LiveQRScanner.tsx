@@ -38,7 +38,6 @@ import {
   saveScanHistory,
   mirrorToAuditLog,
   fetchScanHistory,
-  getQrCodeIdByToken,
   type LiveScanOutcome,
 } from '@/services/qrScanHistoryService';
 import {
@@ -61,6 +60,43 @@ import { primeAudio, playResultSound, disposeAudio } from '@/utils/scannerSounds
 
 const PAGE_SIZE = 8;
 const HISTORY_CAP = 500;
+
+// --- Continuous-operation tuning (kept light for low-end laptops) ------------
+const VALIDATION_TIMEOUT_MS = 12000; // abandon a hung DB call so scanning never freezes
+const VIDEO_WATCHDOG_MS = 4000;      // how often we check the camera is still "alive"
+const VIDEO_STALL_LIMIT = 3;         // consecutive stalled checks before auto-restart
+
+// --- Filterable logger (filter the console by "[LiveQR]" to see everything) ---
+const ts = () => new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+function memInfo(): string {
+  const m = (performance as unknown as {
+    memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
+  }).memory;
+  if (!m) return '';
+  return ` | heap=${Math.round(m.usedJSHeapSize / 1048576)}/${Math.round(
+    m.jsHeapSizeLimit / 1048576
+  )}MB`;
+}
+const log = (...a: unknown[]) => console.log(`[LiveQR ${ts()}]`, ...a);
+const logWarn = (...a: unknown[]) => console.warn(`[LiveQR ${ts()}]`, ...a);
+const logErr = (...a: unknown[]) => console.error(`[LiveQR ${ts()}]`, ...a);
+
+// Race a promise against a timeout so a hung network call can't wedge the scanner.
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      }
+    );
+  });
+}
 
 const LiveQRScanner: React.FC = () => {
   const { user } = useAuth();
@@ -94,6 +130,16 @@ const LiveQRScanner: React.FC = () => {
   const mountedRef = useRef(true);
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Continuous-operation / recovery refs (do not trigger re-render)
+  const isScanningRef = useRef(false); // latest scanning state for interval closures
+  const scanSeqRef = useRef(0); // total accepted scans (for logs)
+  const processStartedAtRef = useRef(0); // epoch ms the current validation began
+  const videoWatchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastVideoTimeRef = useRef(0);
+  const videoStallCountRef = useRef(0);
+  const restartingRef = useRef(false);
+  const restartCameraRef = useRef<() => Promise<void>>(async () => {});
+
   // -------------------------------------------------------------------
   // History loading
   // -------------------------------------------------------------------
@@ -120,39 +166,71 @@ const LiveQRScanner: React.FC = () => {
   // -------------------------------------------------------------------
   const processScan = useCallback(
     async (value: string) => {
-      if (processingRef.current) return;
+      if (processingRef.current) {
+        log(`scan ignored (busy) token="${value.slice(0, 16)}"`);
+        return;
+      }
       processingRef.current = true;
+      processStartedAtRef.current = Date.now();
+      const seq = ++scanSeqRef.current;
+      const t0 = performance.now();
+      log(`scan #${seq} START token="${value.slice(0, 24)}"${memInfo()}`);
       try {
-        const outcome = await validateLiveScan(value);
+        // Timeout-guarded: a hung DB call can no longer freeze the scanner.
+        const outcome = await withTimeout(
+          validateLiveScan(value),
+          VALIDATION_TIMEOUT_MS,
+          `validateLiveScan #${seq}`
+        );
+        const ms = Math.round(performance.now() - t0);
         if (!mountedRef.current) return;
 
+        log(
+          `scan #${seq} RESULT=${outcome.result} status=${outcome.subscriptionStatus} user="${
+            outcome.user?.name || '-'
+          }" in ${ms}ms`
+        );
+
         // Immediate feedback: sound + panel
-        playResultSound(outcome.result);
+        try {
+          playResultSound(outcome.result);
+        } catch (soundErr) {
+          logWarn(`scan #${seq} sound failed:`, soundErr);
+        }
         setCurrentResult(outcome);
 
-        // Persist (fault tolerant) + mirror successful entrances for occupancy
-        void saveScanHistory({ outcome, scannedBy: user?.id ?? null }).then((ok) => {
-          if (!ok || !mountedRef.current) return;
-          // Optimistic prepend so the table updates instantly.
-          const optimistic: ScanHistoryRow = {
-            id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            user_id: outcome.user?.userId ?? null,
-            qr_code: outcome.qrCode,
-            user_name: outcome.user?.name ?? null,
-            scan_result: outcome.result,
-            subscription_status: outcome.subscriptionStatus,
-            category: outcome.category,
-            reason: outcome.reason,
-            scanned_by: user?.id ?? null,
-            scan_time: outcome.scanTime,
-            created_at: outcome.scanTime,
-          };
-          setHistory((prev) => [optimistic, ...prev].slice(0, HISTORY_CAP));
-        });
+        // Persist (fault tolerant, timeout-guarded) — never blocks scanning.
+        void withTimeout(
+          saveScanHistory({ outcome, scannedBy: user?.id ?? null }),
+          VALIDATION_TIMEOUT_MS,
+          `saveScanHistory #${seq}`
+        )
+          .then((ok) => {
+            if (!mountedRef.current) return;
+            log(`scan #${seq} history saved=${ok}`);
+            // Optimistic prepend so the table updates instantly.
+            const optimistic: ScanHistoryRow = {
+              id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              user_id: outcome.user?.userId ?? null,
+              qr_code: outcome.qrCode,
+              user_name: outcome.user?.name ?? null,
+              scan_result: outcome.result,
+              subscription_status: outcome.subscriptionStatus,
+              category: outcome.category,
+              reason: outcome.reason,
+              scanned_by: user?.id ?? null,
+              scan_time: outcome.scanTime,
+              created_at: outcome.scanTime,
+            };
+            setHistory((prev) => [optimistic, ...prev].slice(0, HISTORY_CAP));
+          })
+          .catch((e) => logWarn(`scan #${seq} saveScanHistory failed:`, e));
 
-        if (outcome.result === 'PASS') {
-          void getQrCodeIdByToken(value).then((qrId) =>
-            mirrorToAuditLog(outcome, qrId, user?.id ?? null)
+        // Mirror successful entrances for occupancy — reuse the id from
+        // validation (no extra DB round-trip).
+        if (outcome.result === 'PASS' && outcome.qrCodeId) {
+          void mirrorToAuditLog(outcome, outcome.qrCodeId, user?.id ?? null).catch((e) =>
+            logWarn(`scan #${seq} mirrorToAuditLog failed:`, e)
           );
         }
 
@@ -163,9 +241,11 @@ const LiveQRScanner: React.FC = () => {
           if (mountedRef.current) setInCooldown(false);
         }, DEFAULT_COOLDOWN_MS);
       } catch (e) {
-        console.error('[LiveQRScanner] processScan error (continuing):', e);
+        logErr(`scan #${seq} FAILED (continuing):`, e);
       } finally {
+        // ALWAYS release the guard — even on timeout — so scanning never wedges.
         processingRef.current = false;
+        log(`scan #${seq} END (guard released)`);
       }
     },
     [user?.id]
@@ -176,7 +256,11 @@ const LiveQRScanner: React.FC = () => {
     (value: string) => {
       const now = Date.now();
       const decision = evaluateScanGate(value, now, gateRef.current);
-      if (!decision.accept) return; // cooldown or duplicate — silently ignore
+      if (!decision.accept) {
+        // Light log — confirms the reader is alive and seeing codes.
+        log(`decode seen (skipped: ${decision.reason}) token="${value.slice(0, 12)}"`);
+        return;
+      }
       gateRef.current = nextGateState(value, now);
       void processScan(value);
     },
@@ -186,7 +270,140 @@ const LiveQRScanner: React.FC = () => {
   // -------------------------------------------------------------------
   // Camera lifecycle
   // -------------------------------------------------------------------
+  const stopVideoWatchdog = useCallback(() => {
+    if (videoWatchdogRef.current) {
+      clearInterval(videoWatchdogRef.current);
+      videoWatchdogRef.current = null;
+    }
+  }, []);
+
+  // Core ZXing init — reusable by START and by the auto-restart watchdog.
+  const beginDecode = useCallback(async () => {
+    if (!videoRef.current) {
+      logErr('beginDecode: <video> element not available');
+      throw new Error('no-video-element');
+    }
+    const reader = new BrowserQRCodeReader();
+    log('beginDecode: listing camera devices…');
+    const devices = await withTimeout(
+      BrowserQRCodeReader.listVideoInputDevices(),
+      8000,
+      'listVideoInputDevices'
+    );
+    const backCamera =
+      devices.find((d) => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+    const deviceId = backCamera?.deviceId || undefined;
+    log(`beginDecode: ${devices.length} device(s); using "${backCamera?.label || 'default'}"`);
+    const controls = await reader.decodeFromVideoDevice(
+      deviceId,
+      videoRef.current,
+      (result: Result | undefined) => {
+        if (result) {
+          setIsVideoReady(true);
+          onDecode(result.getText());
+        }
+      }
+    );
+    controlsRef.current = controls;
+    setIsVideoReady(true);
+    const v = videoRef.current;
+    lastVideoTimeRef.current = v?.currentTime ?? 0;
+    log(
+      `beginDecode: reader started (video ${v?.videoWidth || 0}x${v?.videoHeight || 0}, readyState=${
+        v?.readyState
+      })`
+    );
+  }, [onDecode]);
+
+  // Recover the camera/decoder without a user gesture (called by the watchdog).
+  const restartCamera = useCallback(async () => {
+    if (restartingRef.current) return;
+    restartingRef.current = true;
+    logWarn('restartCamera: recovering camera/decoder…');
+    try {
+      controlsRef.current?.stop();
+    } catch {
+      /* no-op */
+    }
+    controlsRef.current = null;
+    processingRef.current = false; // release any stuck guard
+    try {
+      const v = videoRef.current;
+      const stream = v?.srcObject as MediaStream | undefined;
+      stream?.getTracks().forEach((t) => t.stop());
+      if (v) v.srcObject = null;
+    } catch {
+      /* no-op */
+    }
+    await new Promise((r) => setTimeout(r, 500));
+    if (!mountedRef.current || !isScanningRef.current) {
+      restartingRef.current = false;
+      return;
+    }
+    try {
+      await beginDecode();
+      videoStallCountRef.current = 0;
+      log('restartCamera: done ✓');
+    } catch (e) {
+      logErr('restartCamera failed:', e);
+      if (mountedRef.current) setCameraError('Αποτυχία επανεκκίνησης κάμερας.');
+    } finally {
+      restartingRef.current = false;
+    }
+  }, [beginDecode]);
+
+  // Keep a stable ref so interval closures always call the latest restartCamera.
+  useEffect(() => {
+    restartCameraRef.current = restartCamera;
+  }, [restartCamera]);
+
+  const startVideoWatchdog = useCallback(() => {
+    stopVideoWatchdog();
+    videoStallCountRef.current = 0;
+    lastVideoTimeRef.current = videoRef.current?.currentTime ?? 0;
+    videoWatchdogRef.current = setInterval(() => {
+      const v = videoRef.current;
+      if (!v || !isScanningRef.current || restartingRef.current) return;
+
+      // Browser tab in background throttles/pauses video — that's not a crash,
+      // so skip stall detection (avoids pointless restart loops).
+      if (typeof document !== 'undefined' && document.hidden) {
+        lastVideoTimeRef.current = v.currentTime;
+        return;
+      }
+
+      // Safety net: release a guard that's been stuck far too long.
+      const stuckMs = processingRef.current ? Date.now() - processStartedAtRef.current : 0;
+      if (stuckMs > VALIDATION_TIMEOUT_MS + 3000) {
+        logWarn(`watchdog: processing guard stuck ${stuckMs}ms — force-releasing`);
+        processingRef.current = false;
+      }
+
+      const ct = v.currentTime;
+      const advanced = ct > lastVideoTimeRef.current + 0.05;
+      if (advanced) {
+        if (videoStallCountRef.current > 0) log(`watchdog: video recovered (t=${ct.toFixed(2)})`);
+        videoStallCountRef.current = 0;
+      } else {
+        videoStallCountRef.current += 1;
+        logWarn(
+          `watchdog: video STALLED ${videoStallCountRef.current}/${VIDEO_STALL_LIMIT} (t=${ct.toFixed(
+            2
+          )}, readyState=${v.readyState})${memInfo()}`
+        );
+        if (videoStallCountRef.current >= VIDEO_STALL_LIMIT) {
+          void restartCameraRef.current();
+        }
+      }
+      lastVideoTimeRef.current = ct;
+    }, VIDEO_WATCHDOG_MS);
+    log('video watchdog started');
+  }, [stopVideoWatchdog]);
+
   const stopScanner = useCallback(() => {
+    log('STOP SCANNER pressed');
+    isScanningRef.current = false;
+    stopVideoWatchdog();
     try {
       controlsRef.current?.stop();
     } catch {
@@ -205,15 +422,18 @@ const LiveQRScanner: React.FC = () => {
       clearTimeout(cooldownTimerRef.current);
       cooldownTimerRef.current = null;
     }
+    processingRef.current = false;
     setIsScanning(false);
     setIsVideoReady(false);
     setInCooldown(false);
-  }, []);
+  }, [stopVideoWatchdog]);
 
   const startScanner = useCallback(async () => {
+    log('START SCANNER pressed');
     setCameraError(null);
     setCurrentResult(null);
     setIsScanning(true);
+    isScanningRef.current = true;
     setIsVideoReady(false);
     // Reset the gate so the first scan after START is always accepted.
     gateRef.current = { lastAcceptedAt: null, lastValue: null, lastValueAt: null };
@@ -223,46 +443,29 @@ const LiveQRScanner: React.FC = () => {
 
     // Give React a tick to mount the <video> element.
     setTimeout(async () => {
-      if (!mountedRef.current) return;
-      if (!videoRef.current) {
-        setCameraError('Το στοιχείο βίντεο δεν είναι διαθέσιμο');
-        return;
-      }
+      if (!mountedRef.current || !isScanningRef.current) return;
       try {
-        const reader = new BrowserQRCodeReader();
-        const devices = await BrowserQRCodeReader.listVideoInputDevices();
-        const backCamera =
-          devices.find((d) => /back|rear|environment/i.test(d.label)) ||
-          devices[devices.length - 1];
-        const deviceId = backCamera?.deviceId || undefined;
-
-        const controls = await reader.decodeFromVideoDevice(
-          deviceId,
-          videoRef.current,
-          (result: Result | undefined) => {
-            if (result) {
-              setIsVideoReady(true);
-              onDecode(result.getText());
-            }
-          }
-        );
-        controlsRef.current = controls;
-        setIsVideoReady(true);
+        await beginDecode();
+        startVideoWatchdog();
       } catch (e) {
-        console.error('[LiveQRScanner] Failed to start camera:', e);
+        logErr('Failed to start camera:', e);
         if (mountedRef.current) {
           setCameraError('Αποτυχία εκκίνησης κάμερας. Ελέγξτε τα δικαιώματα κάμερας.');
           setIsScanning(false);
+          isScanningRef.current = false;
           toast.error('Αποτυχία εκκίνησης κάμερας');
         }
       }
     }, 300);
-  }, [onDecode]);
+  }, [beginDecode, startVideoWatchdog]);
 
   // Full cleanup on unmount.
   useEffect(() => {
     return () => {
       mountedRef.current = false;
+      isScanningRef.current = false;
+      if (videoWatchdogRef.current) clearInterval(videoWatchdogRef.current);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
       try {
         controlsRef.current?.stop();
       } catch {
@@ -271,7 +474,6 @@ const LiveQRScanner: React.FC = () => {
       const v = videoRef.current;
       const stream = v?.srcObject as MediaStream | undefined;
       stream?.getTracks().forEach((t) => t.stop());
-      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
       disposeAudio();
     };
   }, []);
