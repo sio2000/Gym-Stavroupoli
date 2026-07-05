@@ -20,6 +20,10 @@ import {
 } from '@/utils/liveScannerLogic';
 import type { LiveScanOutcome } from '@/services/qrScanHistoryService';
 
+// Auto-clear the result after this idle time so a stale scan doesn't linger on
+// the TV once no one else scans. A new scan resets the timer.
+const RESULT_VISIBLE_MS = 4000;
+
 const theme = (r: LiveScanOutcome['result']) => {
   switch (r) {
     case 'PASS':
@@ -37,6 +41,7 @@ const TabletDisplay: React.FC = () => {
   const [started, setStarted] = useState(false); // audio unlocked (needs a user gesture)
   const [connected, setConnected] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Subscribe to the live broadcast channel.
   useEffect(() => {
@@ -53,12 +58,16 @@ const TabletDisplay: React.FC = () => {
         } catch {
           /* audio not unlocked yet */
         }
+        // Auto-hide after a few idle seconds; a new scan resets the timer.
+        if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+        clearTimerRef.current = setTimeout(() => setResult(null), RESULT_VISIBLE_MS);
       })
       .subscribe((status) => setConnected(status === 'SUBSCRIBED'));
 
     return () => {
       supabase.removeChannel(channel);
       disposeAudio();
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
     };
   }, []);
 
