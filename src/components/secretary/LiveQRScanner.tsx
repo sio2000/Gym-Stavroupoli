@@ -30,6 +30,7 @@ import {
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 import type { Result } from '@zxing/library';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import toast from 'react-hot-toast';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -316,7 +317,14 @@ const LiveQRScanner: React.FC = () => {
       logErr('beginDecode: <video> element not available');
       throw new Error('no-video-element');
     }
-    const reader = new BrowserQRCodeReader();
+
+    // QR-only + TRY_HARDER so codes shown at an angle / in portrait / smaller in
+    // the frame (which occupy fewer pixels of a landscape webcam) still decode.
+    const hints = new Map<DecodeHintType, unknown>();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    const reader = new BrowserQRCodeReader(hints);
+
     log('beginDecode: listing camera devices…');
     const devices = await withTimeout(
       BrowserQRCodeReader.listVideoInputDevices(),
@@ -327,16 +335,45 @@ const LiveQRScanner: React.FC = () => {
       devices.find((d) => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
     const deviceId = backCamera?.deviceId || undefined;
     log(`beginDecode: ${devices.length} device(s); using "${backCamera?.label || 'default'}"`);
-    const controls = await reader.decodeFromVideoDevice(
-      deviceId,
-      videoRef.current,
-      (result: Result | undefined) => {
-        if (result) {
-          setIsVideoReady(true);
-          onDecode(result.getText());
+
+    // Request a HIGH-RESOLUTION stream. A QR shown on a phone held in PORTRAIT
+    // occupies far fewer pixels of a landscape webcam frame; the low default
+    // resolution (often 640x480) then can't resolve it — which is exactly why it
+    // "only works horizontally". 1280x720 gives enough detail for any orientation.
+    const hiRes = { width: { ideal: 1280 }, height: { ideal: 720 } };
+    const constraints: MediaStreamConstraints = {
+      video: deviceId
+        ? { deviceId: { exact: deviceId }, ...hiRes }
+        : { facingMode: 'environment', ...hiRes },
+    };
+
+    let controls: IScannerControls;
+    try {
+      controls = await reader.decodeFromConstraints(
+        constraints,
+        videoRef.current,
+        (result: Result | undefined) => {
+          if (result) {
+            setIsVideoReady(true);
+            onDecode(result.getText());
+          }
         }
-      }
-    );
+      );
+    } catch (constraintErr) {
+      // Some cameras reject the resolution hint — fall back to the plain device.
+      logWarn('beginDecode: hi-res constraints failed, falling back:', constraintErr);
+      controls = await reader.decodeFromVideoDevice(
+        deviceId,
+        videoRef.current,
+        (result: Result | undefined) => {
+          if (result) {
+            setIsVideoReady(true);
+            onDecode(result.getText());
+          }
+        }
+      );
+    }
+
     controlsRef.current = controls;
     setIsVideoReady(true);
     const v = videoRef.current;
