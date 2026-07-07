@@ -42,6 +42,7 @@ const PrivacyPolicy = React.lazy(() => import('@/pages/PrivacyPolicy'));
 const Contact = React.lazy(() => import('@/pages/Contact'));
 const AccountDeletion = React.lazy(() => import('@/pages/AccountDeletion'));
 const DemoInfo = React.lazy(() => import('@/pages/DemoInfo'));
+const TabletDisplay = React.lazy(() => import('@/pages/TabletDisplay'));
 
 const AppRouter = Capacitor.isNativePlatform() ? HashRouter : BrowserRouter;
 
@@ -57,6 +58,8 @@ const App: React.FC = () => {
         <Routes>
         {/* Public routes */}
         <Route path="/login" element={<LoginForm />} />
+        {/* Tablet/TV fullscreen scan-result display — URL-only, listens via Supabase broadcast */}
+        <Route path="/tablet" element={<React.Suspense fallback={<div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Φόρτωση οθόνης…</div>}><TabletDisplay /></React.Suspense>} />
         <Route path="/register" element={<RegisterForm />} />
         <Route path="/forgot-password" element={<ForgotPasswordForm />} />
         <Route path="/public-registration" element={<React.Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Φόρτωση δεδομένων χρήστη… Αυτό μπορεί να διαρκέσει λίγα δευτερόλεπτα.</div>}><PublicRegistration /></React.Suspense>} />

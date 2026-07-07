@@ -52,7 +52,11 @@ const QRCodeCanvas: React.FC<{ qrData: string; category: string }> = ({ qrData, 
 
   return (
     <div className="flex flex-col items-center">
-      <canvas ref={canvasRef} className="rounded-lg max-w-full h-auto" />
+      <canvas
+        ref={canvasRef}
+        className="rounded-lg block h-auto"
+        style={{ width: 'min(78vw, 300px)', maxWidth: '100%' }}
+      />
       <div className="mt-2 text-xs text-gray-600 font-medium">
         {getCategoryLabel(category)}
       </div>
@@ -657,11 +661,7 @@ const QRCodes: React.FC = () => {
             return (
               <div className="border border-gray-200 rounded-lg p-4 md:p-6 hover:shadow-md transition-shadow">
                 <div className="text-center mb-4">
-                  <div 
-                    className="inline-block p-4 bg-white rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors"
-                    onClick={() => handlePreviewQR(primaryQR.qrData || primaryQR.qr_token, 'free_gym')}
-                    title="Προβολή και zoom QR Code"
-                  >
+                  <div className="inline-block p-4 bg-white rounded-lg border-2 border-gray-200">
                     {primaryQR.qrData ? (
                       <QRCodeCanvas qrData={primaryQR.qrData} category="free_gym" />
                     ) : (
@@ -671,24 +671,6 @@ const QRCodes: React.FC = () => {
                   <p className="text-xs text-gray-500 mt-2">
                     QR Εισόδου Open Gym
                   </p>
-                </div>
-
-                <div className="space-y-2 mb-4 text-center">
-                  <h3 className="font-medium text-gray-900">Είσοδος Open Gym</h3>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <div className="flex items-center justify-center">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Εκδόθηκε: {formatDate(primaryQR.issued_at)}
-                    </div>
-                    <div className="flex items-center justify-center">
-                      <Clock className="h-4 w-4 mr-2" />
-                      Τελευταία σάρωση: {primaryQR.last_scanned_at ? formatDate(primaryQR.last_scanned_at) : 'Ποτέ'}
-                    </div>
-                    <div className="flex items-center justify-center">
-                      <User className="h-4 w-4 mr-2" />
-                      {primaryQR.scan_count} σαρώσεις
-                    </div>
-                  </div>
                 </div>
 
                 <div className="flex items-center justify-center mb-4">
