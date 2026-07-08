@@ -24,6 +24,7 @@ import {
   LIVE_SCAN_CHANNEL,
   LIVE_SCAN_EVENT,
   type GateState,
+  type ScanHistoryRow as HistoryRow,
 } from '@/utils/liveScannerLogic';
 import {
   validateLiveScan,
@@ -69,37 +70,18 @@ const TabletDisplay: React.FC = () => {
   const gateRef = useRef<GateState>({ lastAcceptedAt: null, lastValue: null, lastValueAt: null });
   const processingRef = useRef(false);
   const mountedRef = useRef(true);
+  // Broadcast channel (used both to receive AND to relay this tablet's own scans).
+  const broadcastRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // Last scanTime we displayed — dedupes the same scan arriving from several
+  // sources (broadcast + DB insert + local camera) so it only shows once.
+  const lastShownScanTimeRef = useRef<string | null>(null);
 
-  // Subscribe to the live broadcast channel.
-  useEffect(() => {
-    const channel = supabase.channel(LIVE_SCAN_CHANNEL, {
-      config: { broadcast: { self: false } },
-    });
-    channel
-      .on('broadcast', { event: LIVE_SCAN_EVENT }, (msg) => {
-        const payload = msg.payload as LiveScanOutcome;
-        if (!payload || !payload.result) return;
-        setResult(payload);
-        try {
-          playResultSound(payload.result);
-        } catch {
-          /* audio not unlocked yet */
-        }
-        // Auto-hide after a few idle seconds; a new scan resets the timer.
-        if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
-        clearTimerRef.current = setTimeout(() => setResult(null), RESULT_VISIBLE_MS);
-      })
-      .subscribe((status) => setConnected(status === 'SUBSCRIBED'));
-
-    return () => {
-      supabase.removeChannel(channel);
-      disposeAudio();
-      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
-    };
-  }, []);
-
-  // Show a result (from a local scan) on the top half, with sound + auto-clear.
-  const showOutcome = useCallback((outcome: LiveScanOutcome) => {
+  // Single entry point for showing ANY result on the top half. Deduped by
+  // scanTime, plays the sound and (re)arms the auto-clear timer.
+  const displayOutcome = useCallback((outcome: LiveScanOutcome | null) => {
+    if (!outcome || !outcome.result) return;
+    if (outcome.scanTime && outcome.scanTime === lastShownScanTimeRef.current) return; // already shown
+    lastShownScanTimeRef.current = outcome.scanTime ?? null;
     setResult(outcome);
     try {
       playResultSound(outcome.result);
@@ -109,6 +91,119 @@ const TabletDisplay: React.FC = () => {
     if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
     clearTimerRef.current = setTimeout(() => setResult(null), RESULT_VISIBLE_MS);
   }, []);
+
+  // Build a minimal outcome from a persisted history row (guarantees a result
+  // shows even when the rich broadcast payload never arrived).
+  const outcomeFromRow = useCallback((row: HistoryRow): LiveScanOutcome | null => {
+    if (!row || !row.scan_result || !row.scan_time) return null;
+    return {
+      result: row.scan_result,
+      subscriptionStatus: row.subscription_status ?? '',
+      reason: row.reason ?? '',
+      category: row.category ?? null,
+      qrCode: row.qr_code ?? '',
+      qrCodeId: null,
+      scanTime: row.scan_time,
+      user: row.user_name
+        ? {
+            userId: row.user_id ?? null,
+            name: row.user_name,
+            email: null,
+            photo: null,
+            membershipName: null,
+            subscriptions: [],
+          }
+        : null,
+    };
+  }, []);
+
+  // Subscribe to the live broadcast channel (instant, rich payload).
+  useEffect(() => {
+    const channel = supabase.channel(LIVE_SCAN_CHANNEL, {
+      config: { broadcast: { self: false } },
+    });
+    channel
+      .on('broadcast', { event: LIVE_SCAN_EVENT }, (msg) => {
+        displayOutcome(msg.payload as LiveScanOutcome);
+      })
+      .subscribe((status) => setConnected(status === 'SUBSCRIBED'));
+    broadcastRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      broadcastRef.current = null;
+      disposeAudio();
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+    };
+  }, [displayOutcome]);
+
+  // GUARANTEED catch-all: any scan persisted to qr_scan_history — from ANY
+  // device / ANY scanner — is pushed here by Postgres realtime and displayed.
+  // Deduped against the broadcast via scanTime; enriched with photo/subscriptions
+  // best-effort by re-validating the QR.
+  useEffect(() => {
+    const channel = supabase
+      .channel('qr-scan-history-live')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'qr_scan_history' },
+        (payload) => {
+          const row = payload.new as HistoryRow;
+          const base = outcomeFromRow(row);
+          if (!base) return;
+          const alreadyShown = base.scanTime === lastShownScanTimeRef.current;
+          if (!alreadyShown) displayOutcome(base); // show immediately
+          // Best-effort enrich (photo + active subscriptions) without changing
+          // the displayed scan.
+          if (row.qr_code) {
+            void validateLiveScan(row.qr_code)
+              .then((enr) => {
+                if (!mountedRef.current) return;
+                if (lastShownScanTimeRef.current !== base.scanTime) return; // moved on
+                setResult((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        user:
+                          enr.user || prev.user
+                            ? {
+                                ...(prev.user ?? enr.user!),
+                                photo: enr.user?.photo ?? prev.user?.photo ?? null,
+                                subscriptions:
+                                  enr.user?.subscriptions ?? prev.user?.subscriptions ?? [],
+                              }
+                            : null,
+                      }
+                    : prev
+                );
+              })
+              .catch(() => {});
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [displayOutcome, outcomeFromRow]);
+
+  // Show a result from a LOCAL (this-tablet) camera scan, and relay it to any
+  // other /tablet displays via broadcast.
+  const showOutcome = useCallback(
+    (outcome: LiveScanOutcome) => {
+      displayOutcome(outcome);
+      try {
+        void broadcastRef.current?.send({
+          type: 'broadcast',
+          event: LIVE_SCAN_EVENT,
+          payload: outcome,
+        });
+      } catch {
+        /* relay is best-effort */
+      }
+    },
+    [displayOutcome]
+  );
 
   // Validate one accepted QR and persist it (best-effort), just like the
   // secretary's Live scanner does.
