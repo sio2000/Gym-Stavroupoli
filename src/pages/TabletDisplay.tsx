@@ -8,7 +8,7 @@
 // =====================================================================
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { CheckCircle, XCircle, AlertTriangle, User as UserIcon, Radio } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, User as UserIcon, Radio, SwitchCamera } from 'lucide-react';
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 import type { Result } from '@zxing/library';
@@ -53,6 +53,11 @@ const TabletDisplay: React.FC = () => {
   const [started, setStarted] = useState(false); // audio unlocked (needs a user gesture)
   const [connected, setConnected] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  // Which camera is in use — 'environment' = back, 'user' = front. The button
+  // in the bottom half flips it, just like the phone camera-switch control.
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [switching, setSwitching] = useState(false);
+  const facingRef = useRef<'environment' | 'user'>('environment');
   const rootRef = useRef<HTMLDivElement>(null);
   const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Bottom-half live camera — members point their QR at it and it scans them in.
@@ -137,15 +142,21 @@ const TabletDisplay: React.FC = () => {
       hints.set(DecodeHintType.TRY_HARDER, true);
       const reader = new BrowserQRCodeReader(hints);
 
+      const facing = facingRef.current;
       const devices = await BrowserQRCodeReader.listVideoInputDevices();
-      const backCamera =
-        devices.find((d) => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
-      const deviceId = backCamera?.deviceId || undefined;
+      // Pick a device matching the requested side (by label); fall back to the
+      // facingMode constraint if labels are unavailable/ambiguous.
+      const wantBack = facing === 'environment';
+      const match = wantBack
+        ? devices.find((d) => /back|rear|environment/i.test(d.label))
+        : devices.find((d) => /front|user|face/i.test(d.label));
+      const chosen = match || (wantBack ? devices[devices.length - 1] : devices[0]);
+      const deviceId = chosen?.deviceId || undefined;
       const hiRes = { width: { ideal: 1280 }, height: { ideal: 720 } };
       const constraints: MediaStreamConstraints = {
         video: deviceId
           ? { deviceId: { exact: deviceId }, ...hiRes }
-          : { facingMode: 'environment', ...hiRes },
+          : { facingMode: facing, ...hiRes },
       };
 
       const onResult = (r: Result | undefined) => {
@@ -171,6 +182,27 @@ const TabletDisplay: React.FC = () => {
       setCameraError('Δεν ήταν δυνατή η πρόσβαση στην κάμερα.');
     }
   }, [processScan]);
+
+  // Flip between back and front camera (phone-style switch button).
+  const switchCamera = useCallback(async () => {
+    if (switching) return;
+    setSwitching(true);
+    const next = facingRef.current === 'environment' ? 'user' : 'environment';
+    facingRef.current = next;
+    setFacingMode(next);
+    // Stop the current decoder + tracks before opening the other camera.
+    try {
+      controlsRef.current?.stop();
+    } catch {
+      /* no-op */
+    }
+    controlsRef.current = null;
+    previewStreamRef.current?.getTracks().forEach((t) => t.stop());
+    previewStreamRef.current = null;
+    await new Promise((r) => setTimeout(r, 200));
+    if (mountedRef.current) await startPreviewCamera();
+    setSwitching(false);
+  }, [switching, startPreviewCamera]);
 
   // First tap: unlock audio (TV/browser autoplay policy) + start camera preview
   // + go fullscreen.
@@ -311,6 +343,21 @@ const TabletDisplay: React.FC = () => {
           <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/60 text-white text-lg md:text-xl font-medium px-4 py-1.5 rounded-full pointer-events-none">
             Σημαδέψτε το QR στην κάμερα
           </div>
+
+          {/* Phone-style camera switch button (back <-> front) */}
+          <button
+            type="button"
+            onClick={switchCamera}
+            disabled={switching}
+            aria-label="Αλλαγή κάμερας"
+            className="absolute bottom-4 right-4 flex items-center gap-2 bg-black/60 hover:bg-black/80 text-white rounded-full px-4 py-3 backdrop-blur-sm transition disabled:opacity-50"
+          >
+            <SwitchCamera className={`h-7 w-7 ${switching ? 'animate-spin' : ''}`} />
+            <span className="text-base font-medium">
+              {facingMode === 'environment' ? 'Πίσω' : 'Μπροστά'}
+            </span>
+          </button>
+
           {cameraError && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-900/90 text-center p-4">
               <div>
