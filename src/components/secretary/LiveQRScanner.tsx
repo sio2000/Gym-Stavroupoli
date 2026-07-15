@@ -84,6 +84,180 @@ function memInfo(): string {
 const log = (...a: unknown[]) => console.log(`[LiveQR ${ts()}]`, ...a);
 const logWarn = (...a: unknown[]) => console.warn(`[LiveQR ${ts()}]`, ...a);
 const logErr = (...a: unknown[]) => console.error(`[LiveQR ${ts()}]`, ...a);
+// Dedicated dimension-diagnostics logger — filter console by "[LiveQR-DIMS]"
+const logDims = (...a: unknown[]) => console.log(`[LiveQR-DIMS ${ts()}]`, ...a);
+
+// ---------------------------------------------------------------------------
+// DIMENSION DIAGNOSTICS
+// Exhaustive logging of every dimension the app sees on THIS device, so a
+// remote client's "scans horizontally but not vertically" report can be
+// diagnosed from the console output alone.
+// ---------------------------------------------------------------------------
+function safeJson(v: unknown): string {
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
+}
+
+/** Log the full device/browser/display environment. */
+function logEnvironmentDiagnostics(tag: string) {
+  try {
+    logDims(`=== ENV SNAPSHOT (${tag}) ===`);
+    logDims(`userAgent: ${navigator.userAgent}`);
+    logDims(`platform: ${navigator.platform} | vendor: ${navigator.vendor} | hwConcurrency: ${navigator.hardwareConcurrency}`);
+    logDims(
+      `screen: ${screen.width}x${screen.height} | avail: ${screen.availWidth}x${screen.availHeight} | colorDepth: ${screen.colorDepth}`
+    );
+    const so = (screen as Screen & { orientation?: ScreenOrientation }).orientation;
+    logDims(`screen.orientation: type=${so?.type ?? 'n/a'} angle=${so?.angle ?? 'n/a'}`);
+    logDims(
+      `window inner: ${window.innerWidth}x${window.innerHeight} | outer: ${window.outerWidth}x${window.outerHeight} | devicePixelRatio: ${window.devicePixelRatio}`
+    );
+    const vv = window.visualViewport;
+    if (vv) {
+      logDims(
+        `visualViewport: ${vv.width.toFixed(1)}x${vv.height.toFixed(1)} scale=${vv.scale} offset=(${vv.offsetLeft},${vv.offsetTop})`
+      );
+    } else {
+      logDims('visualViewport: not available');
+    }
+    logDims(`document.fullscreenElement: ${document.fullscreenElement ? 'YES' : 'no'} | document.hidden: ${document.hidden}`);
+    logDims(`matchMedia portrait: ${window.matchMedia('(orientation: portrait)').matches} | landscape: ${window.matchMedia('(orientation: landscape)').matches}`);
+  } catch (e) {
+    logWarn('logEnvironmentDiagnostics failed:', e);
+  }
+}
+
+/** Log everything about the active MediaStream + its video track(s). */
+function logStreamDiagnostics(tag: string, video: HTMLVideoElement | null) {
+  try {
+    logDims(`=== STREAM SNAPSHOT (${tag}) ===`);
+    if (!video) {
+      logDims('video element: NULL');
+      return;
+    }
+    const stream = video.srcObject as MediaStream | null;
+    if (!stream) {
+      logDims('video.srcObject: NULL (no stream attached)');
+      return;
+    }
+    logDims(`stream: id=${stream.id} active=${stream.active} tracks=${stream.getTracks().length}`);
+    stream.getVideoTracks().forEach((t, i) => {
+      logDims(`track[${i}]: label="${t.label}" readyState=${t.readyState} enabled=${t.enabled} muted=${t.muted}`);
+      try {
+        const s = t.getSettings();
+        logDims(
+          `track[${i}].getSettings(): width=${s.width} height=${s.height} aspectRatio=${s.aspectRatio} frameRate=${s.frameRate} facingMode=${s.facingMode} resizeMode=${(s as MediaTrackSettings & { resizeMode?: string }).resizeMode} deviceId=${s.deviceId?.slice(-8)}`
+        );
+        logDims(`track[${i}].getSettings() FULL: ${safeJson(s)}`);
+      } catch (e) {
+        logDims(`track[${i}].getSettings() FAILED: ${e}`);
+      }
+      try {
+        const caps = typeof t.getCapabilities === 'function' ? t.getCapabilities() : null;
+        logDims(`track[${i}].getCapabilities() FULL: ${caps ? safeJson(caps) : 'not supported'}`);
+      } catch (e) {
+        logDims(`track[${i}].getCapabilities() FAILED: ${e}`);
+      }
+      try {
+        logDims(`track[${i}].getConstraints() FULL: ${safeJson(t.getConstraints())}`);
+      } catch (e) {
+        logDims(`track[${i}].getConstraints() FAILED: ${e}`);
+      }
+    });
+  } catch (e) {
+    logWarn('logStreamDiagnostics failed:', e);
+  }
+}
+
+/** Log everything about the <video> element's intrinsic vs rendered size. */
+function logVideoElementDiagnostics(tag: string, video: HTMLVideoElement | null) {
+  try {
+    logDims(`=== VIDEO ELEMENT SNAPSHOT (${tag}) ===`);
+    if (!video) {
+      logDims('video element: NULL');
+      return;
+    }
+    logDims(
+      `intrinsic (camera frame): videoWidth=${video.videoWidth} videoHeight=${video.videoHeight} ` +
+        `aspect=${video.videoHeight ? (video.videoWidth / video.videoHeight).toFixed(3) : 'n/a'} ` +
+        `orientation=${video.videoWidth >= video.videoHeight ? 'LANDSCAPE' : 'PORTRAIT'}`
+    );
+    logDims(
+      `rendered (CSS box): clientW=${video.clientWidth} clientH=${video.clientHeight} offsetW=${video.offsetWidth} offsetH=${video.offsetHeight}`
+    );
+    const r = video.getBoundingClientRect();
+    logDims(
+      `boundingRect: ${r.width.toFixed(1)}x${r.height.toFixed(1)} at (${r.left.toFixed(1)},${r.top.toFixed(1)})`
+    );
+    try {
+      const cs = window.getComputedStyle(video);
+      logDims(`computedStyle: objectFit=${cs.objectFit} transform=${cs.transform} width=${cs.width} height=${cs.height}`);
+    } catch {
+      /* no-op */
+    }
+    logDims(
+      `playback: readyState=${video.readyState} paused=${video.paused} currentTime=${video.currentTime.toFixed(2)} playbackRate=${video.playbackRate}`
+    );
+    if (video.videoWidth && video.clientWidth) {
+      logDims(
+        `scale factor camera→CSS: x=${(video.clientWidth / video.videoWidth).toFixed(3)} y=${(video.clientHeight / video.videoHeight).toFixed(3)}`
+      );
+    }
+  } catch (e) {
+    logWarn('logVideoElementDiagnostics failed:', e);
+  }
+}
+
+/** One-call full snapshot: env + stream + video element. */
+function logFullDiagnostics(tag: string, video: HTMLVideoElement | null) {
+  logEnvironmentDiagnostics(tag);
+  logStreamDiagnostics(tag, video);
+  logVideoElementDiagnostics(tag, video);
+  logDims(`=== END SNAPSHOT (${tag}) ===`);
+}
+
+/** Log the geometry of a decoded QR inside the camera frame (finder-pattern points). */
+function logDecodeGeometry(result: Result, video: HTMLVideoElement | null) {
+  try {
+    const pts = (result as unknown as {
+      getResultPoints?: () => Array<{ getX?: () => number; getY?: () => number; x?: number; y?: number }>;
+    }).getResultPoints?.();
+    if (!pts || pts.length === 0) {
+      logDims('decode geometry: no result points available');
+      return;
+    }
+    const xy = pts.map((p) => ({
+      x: typeof p.getX === 'function' ? p.getX() : (p.x ?? 0),
+      y: typeof p.getY === 'function' ? p.getY() : (p.y ?? 0),
+    }));
+    logDims(
+      `decode geometry: ${xy.length} points: ${xy
+        .map((p, i) => `P${i}=(${p.x.toFixed(1)},${p.y.toFixed(1)})`)
+        .join(' ')}`
+    );
+    if (xy.length >= 2) {
+      const xs = xy.map((p) => p.x);
+      const ys = xy.map((p) => p.y);
+      const w = Math.max(...xs) - Math.min(...xs);
+      const h = Math.max(...ys) - Math.min(...ys);
+      // Rotation of the top edge relative to horizontal (0°≈upright, ±90°≈sideways)
+      const angle = (Math.atan2(xy[1].y - xy[0].y, xy[1].x - xy[0].x) * 180) / Math.PI;
+      const vw = video?.videoWidth || 0;
+      const vh = video?.videoHeight || 0;
+      logDims(
+        `decode geometry: QR bbox=${w.toFixed(1)}x${h.toFixed(1)}px angle≈${angle.toFixed(1)}° ` +
+          `in frame ${vw}x${vh} (QR covers ${vw ? ((w / vw) * 100).toFixed(1) : '?'}% of frame width, ${
+            vh ? ((h / vh) * 100).toFixed(1) : '?'
+          }% of height)`
+      );
+    }
+  } catch (e) {
+    logWarn('logDecodeGeometry failed:', e);
+  }
+}
 
 // Race a promise against a timeout so a hung network call can't wedge the scanner.
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
@@ -325,11 +499,17 @@ const LiveQRScanner: React.FC = () => {
     hints.set(DecodeHintType.TRY_HARDER, true);
     const reader = new BrowserQRCodeReader(hints);
 
+    // Full environment snapshot BEFORE we touch the camera.
+    logEnvironmentDiagnostics('beginDecode:before-camera');
+
     log('beginDecode: listing camera devices…');
     const devices = await withTimeout(
       BrowserQRCodeReader.listVideoInputDevices(),
       8000,
       'listVideoInputDevices'
+    );
+    devices.forEach((d, i) =>
+      logDims(`camera device[${i}]: label="${d.label}" kind=${d.kind} deviceId=…${d.deviceId?.slice(-8)} groupId=…${d.groupId?.slice(-8)}`)
     );
     const backCamera =
       devices.find((d) => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
@@ -346,33 +526,29 @@ const LiveQRScanner: React.FC = () => {
         ? { deviceId: { exact: deviceId }, ...hiRes }
         : { facingMode: 'environment', ...hiRes },
     };
+    logDims(`beginDecode: REQUESTED constraints: ${safeJson(constraints)}`);
+
+    // Per-decode-success geometry logging (QR position/size/angle in the frame).
+    const handleResult = (result: Result | undefined) => {
+      if (result) {
+        setIsVideoReady(true);
+        logDecodeGeometry(result, videoRef.current);
+        onDecode(result.getText());
+      }
+    };
 
     let controls: IScannerControls;
+    let constraintPath = 'decodeFromConstraints(hi-res)';
     try {
-      controls = await reader.decodeFromConstraints(
-        constraints,
-        videoRef.current,
-        (result: Result | undefined) => {
-          if (result) {
-            setIsVideoReady(true);
-            onDecode(result.getText());
-          }
-        }
-      );
+      controls = await reader.decodeFromConstraints(constraints, videoRef.current, handleResult);
     } catch (constraintErr) {
       // Some cameras reject the resolution hint — fall back to the plain device.
       logWarn('beginDecode: hi-res constraints failed, falling back:', constraintErr);
-      controls = await reader.decodeFromVideoDevice(
-        deviceId,
-        videoRef.current,
-        (result: Result | undefined) => {
-          if (result) {
-            setIsVideoReady(true);
-            onDecode(result.getText());
-          }
-        }
-      );
+      logDims(`beginDecode: FALLBACK to decodeFromVideoDevice (NO resolution hint) — error was: ${constraintErr}`);
+      constraintPath = 'decodeFromVideoDevice(fallback, browser-default resolution)';
+      controls = await reader.decodeFromVideoDevice(deviceId, videoRef.current, handleResult);
     }
+    logDims(`beginDecode: camera acquired via ${constraintPath}`);
 
     controlsRef.current = controls;
     setIsVideoReady(true);
@@ -383,6 +559,31 @@ const LiveQRScanner: React.FC = () => {
         v?.readyState
       })`
     );
+
+    // Immediate + delayed full snapshots (some browsers report 0x0 until
+    // loadedmetadata, so log again after the stream settles).
+    logFullDiagnostics('beginDecode:stream-started', v);
+    if (v) {
+      v.addEventListener(
+        'loadedmetadata',
+        () => {
+          logDims(`event: loadedmetadata fired`);
+          logVideoElementDiagnostics('event:loadedmetadata', videoRef.current);
+          logStreamDiagnostics('event:loadedmetadata', videoRef.current);
+        },
+        { once: true }
+      );
+      // 'resize' on <video> fires when the STREAM's intrinsic size changes
+      // (e.g. some drivers deliver a different resolution than granted).
+      v.addEventListener('resize', () => {
+        logDims(`event: <video> intrinsic resize -> ${v.videoWidth}x${v.videoHeight}`);
+      });
+    }
+    setTimeout(() => {
+      if (mountedRef.current && isScanningRef.current) {
+        logFullDiagnostics('beginDecode:+2s-settled', videoRef.current);
+      }
+    }, 2000);
   }, [onDecode]);
 
   // Recover the camera/decoder without a user gesture (called by the watchdog).
@@ -447,6 +648,20 @@ const LiveQRScanner: React.FC = () => {
       if (stuckMs > VALIDATION_TIMEOUT_MS + 3000) {
         logWarn(`watchdog: processing guard stuck ${stuckMs}ms — force-releasing`);
         processingRef.current = false;
+      }
+
+      // Periodic compact dimension trace — one line per watchdog tick.
+      try {
+        const trk = (v.srcObject as MediaStream | null)?.getVideoTracks()[0];
+        const s = trk?.getSettings();
+        logDims(
+          `watchdog tick: frame=${v.videoWidth}x${v.videoHeight} css=${v.clientWidth}x${v.clientHeight} ` +
+            `track=${s?.width ?? '?'}x${s?.height ?? '?'}@${s?.frameRate ?? '?'}fps trackState=${trk?.readyState ?? 'none'} ` +
+            `win=${window.innerWidth}x${window.innerHeight} dpr=${window.devicePixelRatio} ` +
+            `orient=${(screen as Screen & { orientation?: ScreenOrientation }).orientation?.type ?? 'n/a'}`
+        );
+      } catch {
+        /* no-op */
       }
 
       const ct = v.currentTime;
@@ -528,6 +743,46 @@ const LiveQRScanner: React.FC = () => {
       }
     }, 300);
   }, [beginDecode, startVideoWatchdog]);
+
+  // Dimension-change listeners: log every resize / orientation / visibility
+  // change while the scanner is active — these are prime suspects for the
+  // "scans horizontally but not vertically" report.
+  useEffect(() => {
+    if (!isScanning) return;
+    const onResize = () => {
+      logDims(
+        `event: window resize -> inner=${window.innerWidth}x${window.innerHeight} outer=${window.outerWidth}x${window.outerHeight} dpr=${window.devicePixelRatio}`
+      );
+      logVideoElementDiagnostics('event:window-resize', videoRef.current);
+    };
+    const onOrientation = () => {
+      const so = (screen as Screen & { orientation?: ScreenOrientation }).orientation;
+      logDims(`event: orientationchange -> type=${so?.type ?? 'n/a'} angle=${so?.angle ?? 'n/a'}`);
+      logFullDiagnostics('event:orientationchange', videoRef.current);
+    };
+    const onVisibility = () => {
+      logDims(`event: visibilitychange -> hidden=${document.hidden}`);
+    };
+    const onVVResize = () => {
+      const vv = window.visualViewport;
+      if (vv) logDims(`event: visualViewport resize -> ${vv.width.toFixed(1)}x${vv.height.toFixed(1)} scale=${vv.scale}`);
+    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onOrientation);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.visualViewport?.addEventListener('resize', onVVResize);
+    const so = (screen as Screen & { orientation?: ScreenOrientation }).orientation;
+    so?.addEventListener?.('change', onOrientation);
+    logDims('dimension-change listeners attached (resize/orientation/visibility/visualViewport)');
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onOrientation);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.visualViewport?.removeEventListener('resize', onVVResize);
+      so?.removeEventListener?.('change', onOrientation);
+      logDims('dimension-change listeners removed');
+    };
+  }, [isScanning]);
 
   // Full cleanup on unmount.
   useEffect(() => {

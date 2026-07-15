@@ -1255,9 +1255,64 @@ const SecretaryDashboard: React.FC = () => {
     }
   };
 
+  // ---------------------------------------------------------------------
+  // DIMENSION DIAGNOSTICS — filter console by "[CamDims]" to see everything
+  // the app knows about screen/window/camera/video dimensions on THIS device.
+  // ---------------------------------------------------------------------
+  const logCamDims = (tag: string) => {
+    try {
+      const j = (v: unknown) => {
+        try { return JSON.stringify(v); } catch { return String(v); }
+      };
+      console.log(`📐 [CamDims][${tag}] === SNAPSHOT ===`);
+      console.log(`📐 [CamDims][${tag}] userAgent: ${navigator.userAgent}`);
+      console.log(
+        `📐 [CamDims][${tag}] screen: ${screen.width}x${screen.height} avail: ${screen.availWidth}x${screen.availHeight} ` +
+        `orientation: ${(screen as Screen & { orientation?: ScreenOrientation }).orientation?.type ?? 'n/a'} ` +
+        `angle: ${(screen as Screen & { orientation?: ScreenOrientation }).orientation?.angle ?? 'n/a'}`
+      );
+      console.log(
+        `📐 [CamDims][${tag}] window inner: ${window.innerWidth}x${window.innerHeight} outer: ${window.outerWidth}x${window.outerHeight} dpr: ${window.devicePixelRatio}`
+      );
+      const vv = window.visualViewport;
+      if (vv) console.log(`📐 [CamDims][${tag}] visualViewport: ${vv.width.toFixed(1)}x${vv.height.toFixed(1)} scale=${vv.scale}`);
+      const v = videoRef.current;
+      if (!v) {
+        console.log(`📐 [CamDims][${tag}] video element: NULL`);
+        return;
+      }
+      console.log(
+        `📐 [CamDims][${tag}] video intrinsic: ${v.videoWidth}x${v.videoHeight} (${v.videoWidth >= v.videoHeight ? 'LANDSCAPE' : 'PORTRAIT'}) ` +
+        `rendered: ${v.clientWidth}x${v.clientHeight} readyState=${v.readyState} paused=${v.paused} t=${v.currentTime.toFixed(2)}`
+      );
+      const r = v.getBoundingClientRect();
+      console.log(`📐 [CamDims][${tag}] video boundingRect: ${r.width.toFixed(1)}x${r.height.toFixed(1)} at (${r.left.toFixed(1)},${r.top.toFixed(1)})`);
+      try {
+        const cs = window.getComputedStyle(v);
+        console.log(`📐 [CamDims][${tag}] video computedStyle: objectFit=${cs.objectFit} transform=${cs.transform}`);
+      } catch {}
+      const stream = v.srcObject as MediaStream | null;
+      if (!stream) {
+        console.log(`📐 [CamDims][${tag}] stream: NULL`);
+        return;
+      }
+      console.log(`📐 [CamDims][${tag}] stream: id=${stream.id} active=${stream.active}`);
+      stream.getVideoTracks().forEach((t, i) => {
+        console.log(`📐 [CamDims][${tag}] track[${i}]: label="${t.label}" readyState=${t.readyState} enabled=${t.enabled} muted=${t.muted}`);
+        try { console.log(`📐 [CamDims][${tag}] track[${i}].getSettings(): ${j(t.getSettings())}`); } catch (e) { console.log(`📐 [CamDims][${tag}] getSettings FAILED:`, e); }
+        try { console.log(`📐 [CamDims][${tag}] track[${i}].getCapabilities(): ${typeof t.getCapabilities === 'function' ? j(t.getCapabilities()) : 'not supported'}`); } catch (e) { console.log(`📐 [CamDims][${tag}] getCapabilities FAILED:`, e); }
+        try { console.log(`📐 [CamDims][${tag}] track[${i}].getConstraints(): ${j(t.getConstraints())}`); } catch (e) { console.log(`📐 [CamDims][${tag}] getConstraints FAILED:`, e); }
+      });
+      console.log(`📐 [CamDims][${tag}] === END SNAPSHOT ===`);
+    } catch (e) {
+      console.warn(`📐 [CamDims][${tag}] snapshot failed:`, e);
+    }
+  };
+
   const startScanning = () => {
     try {
       console.log('🎥 [Camera] Starting camera initialization...');
+      logCamDims('startScanning:before-camera');
       console.log('🎥 [Camera] Current states - isScanning:', isScanning, 'isVideoReady:', isVideoReady, 'cameraError:', cameraError);
       
       setCameraError(null);
@@ -1332,8 +1387,26 @@ const SecretaryDashboard: React.FC = () => {
         if (result) {
           const text = result.getText();
           console.log('✅ [QR Scanner] ZXing stream detected:', text);
+          logCamDims('zxing-decode-success');
           try {
             const pts = (result as any)?.getResultPoints?.() || [];
+            // Numeric geometry: where + how big the QR was in the camera frame.
+            try {
+              const xy = pts.map((p: any) => ({ x: p.getX ? p.getX() : p.x, y: p.getY ? p.getY() : p.y }));
+              const vEl = videoRef.current;
+              console.log(
+                `📐 [CamDims][decode-geometry] points: ${xy.map((p: { x: number; y: number }, i: number) => `P${i}=(${p.x.toFixed(1)},${p.y.toFixed(1)})`).join(' ')} ` +
+                `in frame ${vEl?.videoWidth ?? '?'}x${vEl?.videoHeight ?? '?'}`
+              );
+              if (xy.length >= 2) {
+                const xs = xy.map((p: { x: number }) => p.x);
+                const ys = xy.map((p: { y: number }) => p.y);
+                const w = Math.max(...xs) - Math.min(...xs);
+                const h = Math.max(...ys) - Math.min(...ys);
+                const angle = (Math.atan2(xy[1].y - xy[0].y, xy[1].x - xy[0].x) * 180) / Math.PI;
+                console.log(`📐 [CamDims][decode-geometry] QR bbox=${w.toFixed(1)}x${h.toFixed(1)}px angle≈${angle.toFixed(1)}°`);
+              }
+            } catch {}
             if (pts && pts.length >= 3) {
               drawOverlayPolygon(pts.map((p: any) => ({ x: p.getX ? p.getX() : p.x, y: p.getY ? p.getY() : p.y })), 'rgba(16,185,129,0.9)');
             } else {
@@ -1351,6 +1424,16 @@ const SecretaryDashboard: React.FC = () => {
         }
       });
       setIsVideoReady(true);
+      // Full dimension snapshots: right away + after the stream settles.
+      logCamDims('zxing-camera-acquired');
+      setTimeout(() => logCamDims('zxing-camera-acquired:+2s'), 2000);
+      const vDiag = videoRef.current;
+      if (vDiag) {
+        vDiag.addEventListener('loadedmetadata', () => logCamDims('event:loadedmetadata'), { once: true });
+        vDiag.addEventListener('resize', () =>
+          console.log(`📐 [CamDims][event:video-resize] intrinsic changed -> ${vDiag.videoWidth}x${vDiag.videoHeight}`)
+        );
+      }
       // Παράλληλο fallback loop με jsQR (αν δεν έχει ήδη ξεκινήσει)
       if (!scanIntervalRef.current) {
         startScanLoop();
@@ -1418,6 +1501,17 @@ const SecretaryDashboard: React.FC = () => {
         const imageData = (ctx as CanvasRenderingContext2D).getImageData(0, 0, vW, vH);
         const imageDataOriginal = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
         console.log('🔍 [QR Scanner] Captured frame from video:', vW, 'x', vH);
+        // Per-tick dimension trace for the fallback loop.
+        try {
+          const trk = (videoEl.srcObject as MediaStream | null)?.getVideoTracks()[0];
+          const s = trk?.getSettings();
+          console.log(
+            `📐 [CamDims][scan-loop-tick] frame=${vW}x${vH} (${vW >= vH ? 'LANDSCAPE' : 'PORTRAIT'}) ` +
+            `css=${videoEl.clientWidth}x${videoEl.clientHeight} track=${s?.width ?? '?'}x${s?.height ?? '?'}@${s?.frameRate ?? '?'}fps ` +
+            `trackState=${trk?.readyState ?? 'none'} win=${window.innerWidth}x${window.innerHeight} dpr=${window.devicePixelRatio} ` +
+            `orient=${(screen as Screen & { orientation?: ScreenOrientation }).orientation?.type ?? 'n/a'}`
+          );
+        } catch {}
 
         // Προεπεξεργασία: grayscale + threshold για αύξηση αντίθεσης πάνω σε αντίγραφο
         try {
@@ -1465,6 +1559,20 @@ const SecretaryDashboard: React.FC = () => {
                 ], 'rgba(16,185,129,0.9)', vW, vH);
               } catch {}
               console.log(`✅ [QR Scanner] jsQR ORIGINAL detected (${mode}):`, res.data);
+              try {
+                const L = res.location;
+                const w = Math.abs(L.topRightCorner.x - L.topLeftCorner.x);
+                const h = Math.abs(L.bottomLeftCorner.y - L.topLeftCorner.y);
+                const angle = (Math.atan2(L.topRightCorner.y - L.topLeftCorner.y, L.topRightCorner.x - L.topLeftCorner.x) * 180) / Math.PI;
+                console.log(
+                  `📐 [CamDims][jsqr-geometry ORIGINAL] TL=(${L.topLeftCorner.x.toFixed(1)},${L.topLeftCorner.y.toFixed(1)}) ` +
+                  `TR=(${L.topRightCorner.x.toFixed(1)},${L.topRightCorner.y.toFixed(1)}) ` +
+                  `BR=(${L.bottomRightCorner.x.toFixed(1)},${L.bottomRightCorner.y.toFixed(1)}) ` +
+                  `BL=(${L.bottomLeftCorner.x.toFixed(1)},${L.bottomLeftCorner.y.toFixed(1)}) ` +
+                  `size≈${w.toFixed(1)}x${h.toFixed(1)}px angle≈${angle.toFixed(1)}° in frame ${vW}x${vH}`
+                );
+              } catch {}
+              logCamDims('jsqr-decode-success:ORIGINAL');
               await processQRCode(res.data);
               return;
             }
@@ -1491,6 +1599,20 @@ const SecretaryDashboard: React.FC = () => {
                 ], 'rgba(16,185,129,0.9)', vW, vH);
               } catch {}
               console.log(`✅ [QR Scanner] jsQR PREPROCESSED detected (${mode}):`, res.data);
+              try {
+                const L = res.location;
+                const w = Math.abs(L.topRightCorner.x - L.topLeftCorner.x);
+                const h = Math.abs(L.bottomLeftCorner.y - L.topLeftCorner.y);
+                const angle = (Math.atan2(L.topRightCorner.y - L.topLeftCorner.y, L.topRightCorner.x - L.topLeftCorner.x) * 180) / Math.PI;
+                console.log(
+                  `📐 [CamDims][jsqr-geometry PREPROCESSED] TL=(${L.topLeftCorner.x.toFixed(1)},${L.topLeftCorner.y.toFixed(1)}) ` +
+                  `TR=(${L.topRightCorner.x.toFixed(1)},${L.topRightCorner.y.toFixed(1)}) ` +
+                  `BR=(${L.bottomRightCorner.x.toFixed(1)},${L.bottomRightCorner.y.toFixed(1)}) ` +
+                  `BL=(${L.bottomLeftCorner.x.toFixed(1)},${L.bottomLeftCorner.y.toFixed(1)}) ` +
+                  `size≈${w.toFixed(1)}x${h.toFixed(1)}px angle≈${angle.toFixed(1)}° in frame ${vW}x${vH}`
+                );
+              } catch {}
+              logCamDims('jsqr-decode-success:PREPROCESSED');
               await processQRCode(res.data);
               return;
             }
