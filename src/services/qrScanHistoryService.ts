@@ -57,13 +57,21 @@ export async function validateLiveScan(qrData: string): Promise<LiveScanOutcome>
   const trimmed = (qrData || '').trim();
 
   // 1) Locate active QR code by its opaque token.
-  const { data: qrCode, error: qrError } = await supabase
+  // NOTE: .limit(1) instead of .maybeSingle() — maybeSingle() returns HTTP 406
+  // when more than one row matches, which turned every scan of such a user into
+  // INVALID. With limit(1) duplicates can never break validation.
+  const { data: qrCodeRows, error: qrError } = await supabase
     .from('qr_codes')
     .select('*')
     .eq('qr_token', trimmed)
     .eq('status', 'active')
-    .maybeSingle();
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const qrCode = qrCodeRows?.[0] ?? null;
 
+  if (qrError) {
+    console.error('[qrScanHistory] qr_codes lookup failed:', qrError);
+  }
   if (qrError || !qrCode) {
     const c = classifyScan({
       qrFound: false,
@@ -84,11 +92,13 @@ export async function validateLiveScan(qrData: string): Promise<LiveScanOutcome>
   }
 
   // 2) Load the user profile (best-effort; failure shouldn't break the scan).
-  const { data: userProfile } = await supabase
+  // Same hardening: limit(1) so a duplicate profile row can't 406 the request.
+  const { data: userProfileRows } = await supabase
     .from('user_profiles')
     .select('id, user_id, email, first_name, last_name, profile_photo, avatar_url')
     .eq('user_id', qrCode.user_id)
-    .maybeSingle();
+    .limit(1);
+  const userProfile = userProfileRows?.[0] ?? null;
 
   const name =
     `${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim() || 'Άγνωστος';
@@ -254,8 +264,8 @@ export async function getQrCodeIdByToken(token: string): Promise<string | null> 
       .from('qr_codes')
       .select('id')
       .eq('qr_token', (token || '').trim())
-      .maybeSingle();
-    return data?.id ?? null;
+      .limit(1);
+    return data?.[0]?.id ?? null;
   } catch {
     return null;
   }
